@@ -45,17 +45,19 @@ GraphQL mutations.
 - Go.
 - `gqlgen` for GraphQL.
 - Go `embed` for the built frontend.
+- Stable `golangci-lint` with a checked-in strict configuration.
 - The Go standard library unless a dependency clearly removes complexity.
 
 ### Frontend
 
-- React with strict TypeScript.
+- React with strict TypeScript. Enable strict compiler checks, including
+  unchecked indexed access and exact optional property types.
 - Vite with a static production build. Do not add server-side rendering.
 - Node.js for frontend tooling.
 - `pnpm` as the only package manager.
 - Apollo Client for GraphQL requests and server state.
 - GraphQL Code Generator for typed operations.
-- Biome for formatting and linting.
+- Biome for formatting and linting with strict recommended rules enabled.
 
 Pin pnpm with the `packageManager` field and commit `pnpm-lock.yaml`.
 
@@ -125,6 +127,11 @@ cross package or HTTP boundaries.
   development.
 - Protect state-changing requests from cross-site request forgery.
 - Format Go code with `gofmt`.
+- Run `golangci-lint` with the repository configuration. Do not suppress a
+  finding without a short, specific justification.
+- Prefer short functions with one responsibility. Split files and functions
+  when they combine unrelated workflows or become difficult to review; do not
+  create arbitrary wrappers only to satisfy a line count.
 
 Generated gqlgen code must be reproducible. Never make lasting manual edits to
 generated files.
@@ -143,10 +150,14 @@ generated files.
 ## Frontend rules
 
 - Do not use `any` to bypass TypeScript errors. Use `unknown` and narrow it.
+- Keep TypeScript strict. Do not weaken compiler or Biome rules to make a change
+  pass.
 - Group product code by feature, not only by technical type.
 - Use Apollo Client for GraphQL server state.
 - Use local React state only for short-lived view state.
 - Keep components small, semantic, accessible, and keyboard-safe.
+- Prefer small files and focused functions. Split components and helpers by
+  responsibility before they become multi-workflow modules.
 - Show loading, empty, error, and success states for remote workflows.
 - Keep mobile and desktop layouts usable.
 - Confirm destructive actions and name the affected task.
