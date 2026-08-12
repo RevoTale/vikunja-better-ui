@@ -160,7 +160,10 @@ generated files.
   responsibility before they become multi-workflow modules.
 - Show loading, empty, error, and success states for remote workflows.
 - Keep mobile and desktop layouts usable.
-- Confirm destructive actions and name the affected task.
+- Confirm destructive actions and name the affected resource, except task
+  completion. Task completion follows the accepted one-click semantics:
+  one-time tasks and jobs provide Undo, while recurring tasks have neither
+  confirmation nor Undo.
 - Do not expose secrets through Vite environment variables or the bundle.
 
 ## Recurring tasks
