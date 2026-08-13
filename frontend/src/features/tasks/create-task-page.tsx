@@ -1,13 +1,11 @@
+import { CombinedGraphQLErrors } from "@apollo/client/errors";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { type FormEvent, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { FieldError } from "@/components/ui/field";
 import {
   CreateJobDocument,
   type CreateJobMutation,
@@ -20,10 +18,21 @@ import {
   type RecurrenceUnit,
   RepairTaskMetadataDocument,
   SessionDocument,
+  type TaskPriority,
 } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
+import { SharedFields } from "./create-shared-fields";
+import { TaskTypeFields } from "./create-type-fields";
+import { defaultJobStart, jobTitlePlaceholder } from "./job-title";
+import { composeLocalDateTime } from "./local-date-time";
+import {
+  type CreationType,
+  hasTaskFormErrors,
+  serverTaskFormErrors,
+  type TaskFormErrors,
+  validateTaskForm,
+} from "./task-form-validation";
 
-export type CreationType = "one-time" | "recurring" | "job";
 type CreatePayload =
   | CreateOneTimeTaskMutation["createOneTimeTask"]
   | CreateRecurringTaskMutation["createRecurringTask"]
@@ -38,6 +47,8 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
   const [createJob, jobState] = useMutation(CreateJobDocument);
   const [repair, repairState] = useMutation(RepairTaskMetadataDocument);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<TaskFormErrors>({});
+  const [jobStart, setJobStart] = useState(defaultJobStart);
   const [repairInfo, setRepairInfo] = useState<{
     capability: string;
     taskId: string;
@@ -50,13 +61,21 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    const form = new FormData(event.currentTarget);
+    const formElement = event.currentTarget;
+    const form = new FormData(formElement);
+    const validationErrors = validateTaskForm(type, form);
+    if (hasTaskFormErrors(validationErrors)) {
+      setFieldErrors(validationErrors);
+      focusFirstInvalid(formElement, validationErrors);
+      return;
+    }
+    setFieldErrors({});
     const csrfToken = sessionData?.session.csrfToken;
     const title = text(form, "title").trim();
     const projectId = text(form, "projectId");
-    const priority = Number(text(form, "priority"));
-    if (!csrfToken || !title || !projectId || !Number.isInteger(priority)) {
-      setError("Complete the required fields before creating the task.");
+    const priority = text(form, "priority") as TaskPriority;
+    if (!csrfToken) {
+      setError("Your session is unavailable. Refresh the page and sign in again.");
       return;
     }
     try {
@@ -97,16 +116,26 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
           })
         ).data?.createRecurringTask;
       } else {
+        const startAt = composeLocalDateTime({
+          date: text(form, "startDate"),
+          time: text(form, "startTime"),
+        });
+        if (!startAt) {
+          const errors = validateTaskForm(type, form);
+          setFieldErrors(errors);
+          focusFirstInvalid(formElement, errors);
+          return;
+        }
         payload = (
           await createJob({
             variables: {
               input: {
                 csrfToken,
-                title,
+                title: title || null,
                 description: optional(form, "description"),
                 projectId,
                 priority,
-                startAt: text(form, "startAt"),
+                startAt,
                 durationMinutes: Number(text(form, "durationMinutes")),
                 completionWindowMinutes: Number(text(form, "completionWindowMinutes")),
               },
@@ -128,7 +157,16 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
         params: { taskId: payload.task.id },
         search: { returnTo },
       });
-    } catch {
+    } catch (caught) {
+      const validationMessage = graphQLValidationMessage(caught);
+      const serverErrors = validationMessage
+        ? serverTaskFormErrors(type, form, validationMessage)
+        : {};
+      if (hasTaskFormErrors(serverErrors)) {
+        setFieldErrors(serverErrors);
+        focusFirstInvalid(formElement, serverErrors);
+        return;
+      }
       setError(
         "The task could not be created. Refresh the relevant list before trying again if the result is uncertain.",
       );
@@ -197,12 +235,21 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
         {(["one-time", "recurring", "job"] as const).map((value) => (
           <Button
             key={value}
+            aria-label={label(value)}
+            aria-pressed={value === type}
             variant={value === type ? "default" : "outline"}
-            onClick={() =>
-              navigate({ to: "/tasks/new", search: { type: value, returnTo }, replace: true })
-            }
+            className="min-w-0 whitespace-nowrap px-2"
+            onClick={() => {
+              setError("");
+              setFieldErrors({});
+              return navigate({
+                to: "/tasks/new",
+                search: { type: value, returnTo },
+                replace: true,
+              });
+            }}
           >
-            {label(value)}
+            {shortLabel(value)}
           </Button>
         ))}
       </fieldset>
@@ -214,6 +261,14 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
           <FieldError>{error}</FieldError>
         </div>
       ) : null}
+      {hasTaskFormErrors(fieldErrors) ? (
+        <div
+          className="mt-5 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+          role="alert"
+        >
+          Check the highlighted fields below.
+        </div>
+      ) : null}
       {projectsLoading ? (
         <p className="mt-6">Loading projects…</p>
       ) : projects.length === 0 ? (
@@ -221,15 +276,29 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
           No accessible Vikunja project is available. Create or grant access to a project first.
         </p>
       ) : (
-        <form className="mt-6 grid gap-5" onSubmit={submit} noValidate>
-          <SharedFields projects={projects} defaultProject={defaultProject} />
-          {type === "one-time" ? (
-            <OneTimeFields />
-          ) : type === "recurring" ? (
-            <RecurringFields />
-          ) : (
-            <JobFields />
-          )}
+        <form
+          className="mt-6 grid gap-5"
+          onSubmit={submit}
+          onChange={(event) => {
+            if (hasTaskFormErrors(fieldErrors)) {
+              setFieldErrors(validateTaskForm(type, new FormData(event.currentTarget)));
+            }
+          }}
+          noValidate
+        >
+          <SharedFields
+            projects={projects}
+            defaultProject={defaultProject}
+            errors={fieldErrors}
+            type={type}
+            titlePlaceholder={jobTitlePlaceholder(jobStart)}
+          />
+          <TaskTypeFields
+            type={type}
+            errors={fieldErrors}
+            jobStart={jobStart}
+            onJobStartChange={setJobStart}
+          />
           <Button type="submit" disabled={loading}>
             {loading ? "Creating…" : `Create ${label(type)}`}
           </Button>
@@ -239,153 +308,6 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
   );
 }
 
-function SharedFields({
-  projects,
-  defaultProject,
-}: {
-  projects: readonly { id: string; title: string }[];
-  defaultProject: string;
-}) {
-  return (
-    <>
-      <Field>
-        <FieldLabel htmlFor="title">Title</FieldLabel>
-        <Input id="title" name="title" required maxLength={250} />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="description">Description</FieldLabel>
-        <Textarea id="description" name="description" />
-      </Field>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field>
-          <FieldLabel htmlFor="projectId">Project</FieldLabel>
-          <Select id="projectId" name="projectId" defaultValue={defaultProject} required>
-            {projects.map((project) => (
-              <option key={project.id} value={project.id}>
-                {project.title}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="priority">Priority</FieldLabel>
-          <Input
-            id="priority"
-            name="priority"
-            type="number"
-            min="0"
-            max="5"
-            defaultValue="0"
-            required
-          />
-        </Field>
-      </div>
-    </>
-  );
-}
-function OneTimeFields() {
-  const [hasDueDate, setHasDueDate] = useState(false);
-  return (
-    <div className="grid gap-5 sm:grid-cols-2">
-      <Field>
-        <FieldLabel htmlFor="dueDate">Due date</FieldLabel>
-        <Input
-          id="dueDate"
-          name="dueDate"
-          type="date"
-          onChange={(event) => setHasDueDate(Boolean(event.target.value))}
-        />
-      </Field>
-      <Field>
-        <FieldLabel htmlFor="dueTime">Due time</FieldLabel>
-        <Input id="dueTime" name="dueTime" type="time" disabled={!hasDueDate} />
-      </Field>
-    </div>
-  );
-}
-function RecurringFields() {
-  return (
-    <>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field>
-          <FieldLabel htmlFor="firstDueDate">First due date</FieldLabel>
-          <Input
-            id="firstDueDate"
-            name="firstDueDate"
-            type="date"
-            defaultValue={localDate()}
-            required
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="dueTime">Due time</FieldLabel>
-          <Input id="dueTime" name="dueTime" type="time" />
-        </Field>
-      </div>
-      <div className="grid gap-5 sm:grid-cols-3">
-        <Field>
-          <FieldLabel htmlFor="interval">Every</FieldLabel>
-          <Input id="interval" name="interval" type="number" min="1" defaultValue="1" required />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="unit">Unit</FieldLabel>
-          <Select id="unit" name="unit" defaultValue="DAY">
-            <option value="DAY">Days</option>
-            <option value="WEEK">Weeks</option>
-            <option value="MONTH">Months</option>
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="mode">Renewal</FieldLabel>
-          <Select id="mode" name="mode" defaultValue="FROM_COMPLETION">
-            <option value="FROM_COMPLETION">From completion</option>
-            <option value="SCHEDULED_CYCLE">Scheduled cycle</option>
-          </Select>
-        </Field>
-      </div>
-    </>
-  );
-}
-function JobFields() {
-  return (
-    <>
-      <Field>
-        <FieldLabel htmlFor="startAt">Start time</FieldLabel>
-        <Input
-          id="startAt"
-          name="startAt"
-          type="datetime-local"
-          defaultValue={`${localDate()}T09:00`}
-          required
-        />
-      </Field>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field>
-          <FieldLabel htmlFor="durationMinutes">Duration in minutes</FieldLabel>
-          <Input
-            id="durationMinutes"
-            name="durationMinutes"
-            type="number"
-            min="1"
-            defaultValue="60"
-            required
-          />
-        </Field>
-        <Field>
-          <FieldLabel htmlFor="completionWindowMinutes">Time to complete after it ends</FieldLabel>
-          <Input
-            id="completionWindowMinutes"
-            name="completionWindowMinutes"
-            type="number"
-            min="1"
-            defaultValue="60"
-            required
-          />
-        </Field>
-      </div>
-    </>
-  );
-}
 function text(form: FormData, name: string) {
   return String(form.get(name) ?? "");
 }
@@ -393,10 +315,22 @@ function optional(form: FormData, name: string) {
   const value = text(form, name).trim();
   return value || null;
 }
+function focusFirstInvalid(form: HTMLFormElement, errors: TaskFormErrors) {
+  const firstName = Object.keys(errors)[0];
+  if (!firstName) return;
+  const field = form.elements.namedItem(firstName);
+  if (field instanceof HTMLElement) requestAnimationFrame(() => field.focus());
+}
+function graphQLValidationMessage(error: unknown): string | undefined {
+  if (!CombinedGraphQLErrors.is(error)) return undefined;
+  return error.errors.find((item) => {
+    const code = item.extensions?.code;
+    return code === "VALIDATION_FAILED" || code === "FORBIDDEN";
+  })?.message;
+}
 function label(type: CreationType) {
   return { "one-time": "one-time task", recurring: "recurring task", job: "job" }[type];
 }
-function localDate() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+function shortLabel(type: CreationType) {
+  return { "one-time": "One-time", recurring: "Recurring", job: "Job" }[type];
 }

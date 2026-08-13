@@ -948,6 +948,15 @@ enum TaskKind {
   INVALID
 }
 
+enum TaskPriority {
+  UNSET
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  DO_NOW
+}
+
 enum TaskScope {
   TODAY
   WEEK
@@ -1041,7 +1050,7 @@ type Task {
   isDone: Boolean!
   doneAt: DateTime
   project: Project!
-  priority: Int!
+  priority: TaskPriority!
   dueAt: DateTime
   hasDueTime: Boolean!
   startAt: DateTime
@@ -1112,7 +1121,7 @@ type TaskDiagnostics {
   dueAt: DateTime
   startAt: DateTime
   endAt: DateTime
-  priority: Int!
+  priority: TaskPriority!
   recurrenceRule: RecurrenceRule
   labels: [Label!]!
   createdAt: DateTime!
@@ -1138,7 +1147,7 @@ input CreateOneTimeTaskInput {
   title: String!
   description: String
   projectId: ID!
-  priority: Int!
+  priority: TaskPriority!
   dueDate: LocalDate
   dueTime: LocalTime
 }
@@ -1148,7 +1157,7 @@ input CreateRecurringTaskInput {
   title: String!
   description: String
   projectId: ID!
-  priority: Int!
+  priority: TaskPriority!
   firstDueDate: LocalDate!
   dueTime: LocalTime
   interval: Int!
@@ -1158,10 +1167,10 @@ input CreateRecurringTaskInput {
 
 input CreateJobInput {
   csrfToken: String!
-  title: String!
+  title: String
   description: String
   projectId: ID!
-  priority: Int!
+  priority: TaskPriority!
   startAt: LocalDateTime!
   durationMinutes: Int!
   completionWindowMinutes: Int! = 60
@@ -3250,15 +3259,15 @@ func (ec *executionContext) _Task_priority(ctx context.Context, field graphql.Co
 			return obj.Priority, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v model.TaskPriority) graphql.Marshaler {
+			return ec.marshalNTaskPriority2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPriority(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_Task_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("Task", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("Task", field, false, false, errors.New("field of type TaskPriority does not have child fields"))
 }
 
 func (ec *executionContext) _Task_dueAt(ctx context.Context, field graphql.CollectedField, obj *model.Task) (ret graphql.Marshaler) {
@@ -3682,15 +3691,15 @@ func (ec *executionContext) _TaskDiagnostics_priority(ctx context.Context, field
 			return obj.Priority, nil
 		},
 		nil,
-		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
-			return ec.marshalNInt2int(ctx, selections, v)
+		func(ctx context.Context, selections ast.SelectionSet, v model.TaskPriority) graphql.Marshaler {
+			return ec.marshalNTaskPriority2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPriority(ctx, selections, v)
 		},
 		true,
 		true,
 	)
 }
 func (ec *executionContext) fieldContext_TaskDiagnostics_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
-	return graphql.NewScalarFieldContext("TaskDiagnostics", field, false, false, errors.New("field of type Int does not have child fields"))
+	return graphql.NewScalarFieldContext("TaskDiagnostics", field, false, false, errors.New("field of type TaskPriority does not have child fields"))
 }
 
 func (ec *executionContext) _TaskDiagnostics_recurrenceRule(ctx context.Context, field graphql.CollectedField, obj *model.TaskDiagnostics) (ret graphql.Marshaler) {
@@ -5502,7 +5511,7 @@ func (ec *executionContext) unmarshalInputCreateJobInput(ctx context.Context, ob
 			it.CsrfToken = data
 		case "title":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("title"))
-			data, err := ec.unmarshalNString2string(ctx, v)
+			data, err := ec.unmarshalOString2ᚖstring(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -5523,7 +5532,7 @@ func (ec *executionContext) unmarshalInputCreateJobInput(ctx context.Context, ob
 			it.ProjectID = data
 		case "priority":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priority"))
-			data, err := ec.unmarshalNInt2int(ctx, v)
+			data, err := ec.unmarshalNTaskPriority2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPriority(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -5602,7 +5611,7 @@ func (ec *executionContext) unmarshalInputCreateOneTimeTaskInput(ctx context.Con
 			it.ProjectID = data
 		case "priority":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priority"))
-			data, err := ec.unmarshalNInt2int(ctx, v)
+			data, err := ec.unmarshalNTaskPriority2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPriority(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -5678,7 +5687,7 @@ func (ec *executionContext) unmarshalInputCreateRecurringTaskInput(ctx context.C
 			it.ProjectID = data
 		case "priority":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priority"))
-			data, err := ec.unmarshalNInt2int(ctx, v)
+			data, err := ec.unmarshalNTaskPriority2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPriority(ctx, v)
 			if err != nil {
 				return it, err
 			}
@@ -7919,6 +7928,16 @@ func (ec *executionContext) marshalNTaskPageIssue2ᚖgithubᚗcomᚋRevoTaleᚋv
 		return graphql.Null
 	}
 	return ec._TaskPageIssue(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNTaskPriority2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPriority(ctx context.Context, v any) (model.TaskPriority, error) {
+	var res model.TaskPriority
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNTaskPriority2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPriority(ctx context.Context, sel ast.SelectionSet, v model.TaskPriority) graphql.Marshaler {
+	return v
 }
 
 func (ec *executionContext) unmarshalNTaskScope2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskScope(ctx context.Context, v any) (model.TaskScope, error) {

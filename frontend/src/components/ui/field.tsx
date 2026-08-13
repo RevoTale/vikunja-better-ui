@@ -1,4 +1,4 @@
-import type { HTMLAttributes, LabelHTMLAttributes, ReactNode } from "react";
+import type { HTMLAttributes, LabelHTMLAttributes } from "react";
 
 import { cn } from "@/lib/cn";
 
@@ -21,12 +21,16 @@ export function FieldLabel({ children, className, htmlFor, ...props }: FieldLabe
   );
 }
 
-export function FieldError({ children }: { children: ReactNode }) {
+export function FieldError({
+  children,
+  className,
+  ...props
+}: HTMLAttributes<HTMLParagraphElement>) {
   if (!children) {
     return null;
   }
   return (
-    <p data-slot="field-error" className="text-sm text-destructive">
+    <p data-slot="field-error" className={cn("text-sm text-destructive", className)} {...props}>
       {children}
     </p>
   );

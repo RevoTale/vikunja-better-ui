@@ -96,15 +96,19 @@ func BuildRecurringTask(input RecurringInput, location *time.Location) (vikunja.
 }
 
 func BuildJobTask(input JobInput, location *time.Location) (vikunja.TaskWrite, error) {
-	base, err := baseTaskWrite(input.Title, input.Description, input.Priority)
-	if err != nil {
-		return vikunja.TaskWrite{}, err
-	}
 	if input.DurationMinutes <= 0 || input.CompletionWindowMinutes <= 0 {
 		return vikunja.TaskWrite{}, fmt.Errorf("duration and completion window must be positive")
 	}
 
 	start, err := ResolveLocalDateTime(input.StartLocal, location)
+	if err != nil {
+		return vikunja.TaskWrite{}, err
+	}
+	title := strings.TrimSpace(input.Title)
+	if title == "" {
+		title = "Job " + start.In(location).Format("2006-01-02 15:04")
+	}
+	base, err := baseTaskWrite(title, input.Description, input.Priority)
 	if err != nil {
 		return vikunja.TaskWrite{}, err
 	}

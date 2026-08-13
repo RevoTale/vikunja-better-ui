@@ -12,17 +12,18 @@ import {
 } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { createActionForPath } from "@/features/tasks/create-action";
 import { LogoutDocument, SessionDocument } from "@/graphql/graphql";
 import { setCSRFToken } from "@/lib/apollo";
 import { cn } from "@/lib/cn";
 
 const navigation = [
-  { to: "/today", label: "Today", icon: CheckCircle2 },
-  { to: "/week", label: "Week", icon: CalendarDays },
-  { to: "/month", label: "Month", icon: CalendarRange },
-  { to: "/jobs", label: "Jobs", icon: BriefcaseBusiness },
-  { to: "/unscheduled", label: "No deadline", icon: TimerOff },
-  { to: "/history", label: "History", icon: History },
+  { to: "/today", label: "Today", mobileLabel: "Today", icon: CheckCircle2 },
+  { to: "/week", label: "Week", mobileLabel: "Week", icon: CalendarDays },
+  { to: "/month", label: "Month", mobileLabel: "Month", icon: CalendarRange },
+  { to: "/jobs", label: "Jobs", mobileLabel: "Jobs", icon: BriefcaseBusiness },
+  { to: "/unscheduled", label: "No deadline", mobileLabel: "No date", icon: TimerOff },
+  { to: "/history", label: "History", mobileLabel: "History", icon: History },
 ] as const;
 
 export function AppShell() {
@@ -42,6 +43,7 @@ export function AppShell() {
   }
 
   const returnTo = `${location.pathname}${location.searchStr}`;
+  const createAction = createActionForPath(location.pathname);
 
   return (
     <div className="min-h-svh bg-background lg:grid lg:grid-cols-[15rem_1fr]">
@@ -69,9 +71,9 @@ export function AppShell() {
           <Link
             className={cn(buttonVariants({ size: "compact" }))}
             to="/tasks/new"
-            search={{ type: "one-time", returnTo }}
+            search={{ type: createAction.type, returnTo }}
           >
-            <Plus /> New task
+            <Plus /> {createAction.label}
           </Link>
         </header>
         <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:px-8">
@@ -97,6 +99,7 @@ function Brand() {
 function NavigationLink({
   to,
   label,
+  mobileLabel,
   icon: Icon,
   compact = false,
 }: (typeof navigation)[number] & { compact?: boolean }) {
@@ -111,7 +114,7 @@ function NavigationLink({
       activeProps={{ className: "bg-sidebar-accent text-sidebar-accent-foreground" }}
     >
       <Icon className="size-5" aria-hidden="true" />
-      <span>{label}</span>
+      <span className={cn(compact && "whitespace-nowrap")}>{compact ? mobileLabel : label}</span>
     </Link>
   );
 }

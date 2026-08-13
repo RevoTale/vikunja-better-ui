@@ -33,6 +33,24 @@ func TestBuildJobTaskComputesDates(t *testing.T) {
 	}
 }
 
+func TestBuildJobTaskDerivesMissingTitleFromLocalStart(t *testing.T) {
+	t.Parallel()
+
+	location, err := time.LoadLocation("Europe/Kyiv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := BuildJobTask(JobInput{
+		Title: "   ", StartLocal: "2026-08-12T09:30", DurationMinutes: 60, CompletionWindowMinutes: 60,
+	}, location)
+	if err != nil {
+		t.Fatalf("BuildJobTask() error = %v", err)
+	}
+	if result.Title != "Job 2026-08-12 09:30" {
+		t.Fatalf("BuildJobTask() title = %q", result.Title)
+	}
+}
+
 func TestBuildOneTimeTaskUsesDateOnlyConvention(t *testing.T) {
 	t.Parallel()
 

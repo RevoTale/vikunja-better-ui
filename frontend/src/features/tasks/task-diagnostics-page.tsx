@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskDiagnosticsDocument } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
+import { taskPriorityLabel } from "./task-priority";
 
 export function TaskDiagnosticsPage({ taskId, returnTo }: { taskId: string; returnTo: string }) {
   const { data, loading, error } = useQuery(TaskDiagnosticsDocument, { variables: { id: taskId } });
@@ -26,7 +27,7 @@ export function TaskDiagnosticsPage({ taskId, returnTo }: { taskId: string; retu
     ["Due at", task.dueAt],
     ["Start at", task.startAt],
     ["End at", task.endAt],
-    ["Priority", String(task.priority)],
+    ["Priority", taskPriorityLabel(task.priority)],
     ["Created", task.createdAt],
     ["Updated", task.updatedAt],
     ["Permission", task.maxPermission],

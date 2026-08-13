@@ -19,10 +19,10 @@ export type CreateJobInput = {
   csrfToken: string;
   description?: string | null | undefined;
   durationMinutes: number;
-  priority: number;
+  priority: TaskPriority;
   projectId: string | number;
   startAt: string;
-  title: string;
+  title?: string | null | undefined;
 };
 
 export type CreateOneTimeTaskInput = {
@@ -30,7 +30,7 @@ export type CreateOneTimeTaskInput = {
   description?: string | null | undefined;
   dueDate?: string | null | undefined;
   dueTime?: string | null | undefined;
-  priority: number;
+  priority: TaskPriority;
   projectId: string | number;
   title: string;
 };
@@ -42,7 +42,7 @@ export type CreateRecurringTaskInput = {
   firstDueDate: string;
   interval: number;
   mode?: RecurrenceMode;
-  priority: number;
+  priority: TaskPriority;
   projectId: string | number;
   title: string;
   unit: RecurrenceUnit;
@@ -100,6 +100,14 @@ export type TaskMutationStatus =
   | 'CONFIRMED'
   | 'REPAIR_REQUIRED';
 
+export type TaskPriority =
+  | 'DO_NOW'
+  | 'HIGH'
+  | 'LOW'
+  | 'MEDIUM'
+  | 'UNSET'
+  | 'URGENT';
+
 export type TaskScope =
   | 'HISTORY'
   | 'JOBS'
@@ -137,35 +145,35 @@ export type CreateOneTimeTaskMutationVariables = Exact<{
 }>;
 
 
-export type CreateOneTimeTaskMutation = { createOneTimeTask: { status: TaskMutationStatus, repairCapability: string | null, missingMarkers: Array<MarkerKind>, remainingRepairSteps: Array<RepairStep>, task: { id: string, title: string, kind: TaskKind, isDone: boolean, priority: number, dueAt: string | null, hasDueTime: boolean, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, labels: Array<{ id: string, title: string }> } } };
+export type CreateOneTimeTaskMutation = { createOneTimeTask: { status: TaskMutationStatus, repairCapability: string | null, missingMarkers: Array<MarkerKind>, remainingRepairSteps: Array<RepairStep>, task: { id: string, title: string, kind: TaskKind, isDone: boolean, priority: TaskPriority, dueAt: string | null, hasDueTime: boolean, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, labels: Array<{ id: string, title: string }> } } };
 
 export type CreateRecurringTaskMutationVariables = Exact<{
   input: CreateRecurringTaskInput;
 }>;
 
 
-export type CreateRecurringTaskMutation = { createRecurringTask: { status: TaskMutationStatus, repairCapability: string | null, missingMarkers: Array<MarkerKind>, remainingRepairSteps: Array<RepairStep>, task: { id: string, title: string, kind: TaskKind, isDone: boolean, priority: number, dueAt: string | null, hasDueTime: boolean, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, labels: Array<{ id: string, title: string }>, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null } } };
+export type CreateRecurringTaskMutation = { createRecurringTask: { status: TaskMutationStatus, repairCapability: string | null, missingMarkers: Array<MarkerKind>, remainingRepairSteps: Array<RepairStep>, task: { id: string, title: string, kind: TaskKind, isDone: boolean, priority: TaskPriority, dueAt: string | null, hasDueTime: boolean, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, labels: Array<{ id: string, title: string }>, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null } } };
 
 export type CreateJobMutationVariables = Exact<{
   input: CreateJobInput;
 }>;
 
 
-export type CreateJobMutation = { createJob: { status: TaskMutationStatus, repairCapability: string | null, missingMarkers: Array<MarkerKind>, remainingRepairSteps: Array<RepairStep>, task: { id: string, title: string, kind: TaskKind, isDone: boolean, priority: number, dueAt: string | null, hasDueTime: boolean, startAt: string | null, endAt: string | null, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, labels: Array<{ id: string, title: string }> } } };
+export type CreateJobMutation = { createJob: { status: TaskMutationStatus, repairCapability: string | null, missingMarkers: Array<MarkerKind>, remainingRepairSteps: Array<RepairStep>, task: { id: string, title: string, kind: TaskKind, isDone: boolean, priority: TaskPriority, dueAt: string | null, hasDueTime: boolean, startAt: string | null, endAt: string | null, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, labels: Array<{ id: string, title: string }> } } };
 
 export type TaskDetailsQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type TaskDetailsQuery = { task: { id: string, title: string, description: string, kind: TaskKind, isDone: boolean, doneAt: string | null, priority: number, dueAt: string | null, hasDueTime: boolean, startAt: string | null, endAt: string | null, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null, labels: Array<{ id: string, title: string }> } | null };
+export type TaskDetailsQuery = { task: { id: string, title: string, description: string, kind: TaskKind, isDone: boolean, doneAt: string | null, priority: TaskPriority, dueAt: string | null, hasDueTime: boolean, startAt: string | null, endAt: string | null, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null, labels: Array<{ id: string, title: string }> } | null };
 
 export type TaskDiagnosticsQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type TaskDiagnosticsQuery = { taskDiagnostics: { id: string, projectId: string, title: string, kind: TaskKind, isDone: boolean, doneAt: string | null, dueAt: string | null, startAt: string | null, endAt: string | null, priority: number, createdAt: string, updatedAt: string, maxPermission: string | null, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null, labels: Array<{ id: string, title: string }>, creator: { id: string, username: string, name: string } | null } | null };
+export type TaskDiagnosticsQuery = { taskDiagnostics: { id: string, projectId: string, title: string, kind: TaskKind, isDone: boolean, doneAt: string | null, dueAt: string | null, startAt: string | null, endAt: string | null, priority: TaskPriority, createdAt: string, updatedAt: string, maxPermission: string | null, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null, labels: Array<{ id: string, title: string }>, creator: { id: string, username: string, name: string } | null } | null };
 
 export type ProjectsQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -177,28 +185,28 @@ export type TaskListQueryVariables = Exact<{
 }>;
 
 
-export type TaskListQuery = { tasks: { page: number, pageSize: number, totalItems: number, totalPages: number, hasMore: boolean, isComplete: boolean, items: Array<{ id: string, title: string, description: string, kind: TaskKind, isDone: boolean, doneAt: string | null, priority: number, dueAt: string | null, hasDueTime: boolean, startAt: string | null, endAt: string | null, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null, labels: Array<{ id: string, title: string }> }>, issues: Array<{ code: PageIssueCode, message: string, projectId: string | null }> } };
+export type TaskListQuery = { tasks: { page: number, pageSize: number, totalItems: number, totalPages: number, hasMore: boolean, isComplete: boolean, items: Array<{ id: string, title: string, description: string, kind: TaskKind, isDone: boolean, doneAt: string | null, priority: TaskPriority, dueAt: string | null, hasDueTime: boolean, startAt: string | null, endAt: string | null, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null, labels: Array<{ id: string, title: string }> }>, issues: Array<{ code: PageIssueCode, message: string, projectId: string | null }> } };
 
 export type CompleteTaskMutationVariables = Exact<{
   input: CompleteTaskInput;
 }>;
 
 
-export type CompleteTaskMutation = { completeTask: { status: CompletionStatus, undoUntil: string | null, undoCapability: string | null, repairCapability: string | null, missingMarkers: Array<MarkerKind>, remainingRepairSteps: Array<RepairStep>, completedTask: { id: string, title: string, description: string, kind: TaskKind, isDone: boolean, doneAt: string | null, priority: number, dueAt: string | null, hasDueTime: boolean, startAt: string | null, endAt: string | null, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null, labels: Array<{ id: string, title: string }> } | null, nextOccurrence: { id: string, title: string, description: string, kind: TaskKind, isDone: boolean, doneAt: string | null, priority: number, dueAt: string | null, hasDueTime: boolean, startAt: string | null, endAt: string | null, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null, labels: Array<{ id: string, title: string }> } | null } };
+export type CompleteTaskMutation = { completeTask: { status: CompletionStatus, undoUntil: string | null, undoCapability: string | null, repairCapability: string | null, missingMarkers: Array<MarkerKind>, remainingRepairSteps: Array<RepairStep>, completedTask: { id: string, title: string, description: string, kind: TaskKind, isDone: boolean, doneAt: string | null, priority: TaskPriority, dueAt: string | null, hasDueTime: boolean, startAt: string | null, endAt: string | null, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null, labels: Array<{ id: string, title: string }> } | null, nextOccurrence: { id: string, title: string, description: string, kind: TaskKind, isDone: boolean, doneAt: string | null, priority: TaskPriority, dueAt: string | null, hasDueTime: boolean, startAt: string | null, endAt: string | null, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null, labels: Array<{ id: string, title: string }> } | null } };
 
 export type UndoTaskCompletionMutationVariables = Exact<{
   input: UndoTaskCompletionInput;
 }>;
 
 
-export type UndoTaskCompletionMutation = { undoTaskCompletion: { status: TaskMutationStatus, repairCapability: string | null, missingMarkers: Array<MarkerKind>, remainingRepairSteps: Array<RepairStep>, task: { id: string, title: string, description: string, kind: TaskKind, isDone: boolean, doneAt: string | null, priority: number, dueAt: string | null, hasDueTime: boolean, startAt: string | null, endAt: string | null, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null, labels: Array<{ id: string, title: string }> } } };
+export type UndoTaskCompletionMutation = { undoTaskCompletion: { status: TaskMutationStatus, repairCapability: string | null, missingMarkers: Array<MarkerKind>, remainingRepairSteps: Array<RepairStep>, task: { id: string, title: string, description: string, kind: TaskKind, isDone: boolean, doneAt: string | null, priority: TaskPriority, dueAt: string | null, hasDueTime: boolean, startAt: string | null, endAt: string | null, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, recurrenceRule: { interval: number, unit: RecurrenceUnit, mode: RecurrenceMode } | null, labels: Array<{ id: string, title: string }> } } };
 
 export type RepairTaskMetadataMutationVariables = Exact<{
   input: RepairTaskMetadataInput;
 }>;
 
 
-export type RepairTaskMetadataMutation = { repairTaskMetadata: { status: TaskMutationStatus, repairCapability: string | null, missingMarkers: Array<MarkerKind>, remainingRepairSteps: Array<RepairStep>, task: { id: string, title: string, kind: TaskKind, isDone: boolean, priority: number, dueAt: string | null, hasDueTime: boolean, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, labels: Array<{ id: string, title: string }> } } };
+export type RepairTaskMetadataMutation = { repairTaskMetadata: { status: TaskMutationStatus, repairCapability: string | null, missingMarkers: Array<MarkerKind>, remainingRepairSteps: Array<RepairStep>, task: { id: string, title: string, kind: TaskKind, isDone: boolean, priority: TaskPriority, dueAt: string | null, hasDueTime: boolean, isOverdue: boolean, timezone: string, project: { id: string, title: string, isDefault: boolean }, labels: Array<{ id: string, title: string }> } } };
 
 
 export const LoginDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"Login"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"input"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"LoginInput"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"login"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"input"},"value":{"kind":"Variable","name":{"kind":"Name","value":"input"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"session"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"authenticated"}},{"kind":"Field","name":{"kind":"Name","value":"csrfToken"}},{"kind":"Field","name":{"kind":"Name","value":"expiresAt"}},{"kind":"Field","name":{"kind":"Name","value":"vikunjaUser"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"username"}},{"kind":"Field","name":{"kind":"Name","value":"timezone"}},{"kind":"Field","name":{"kind":"Name","value":"weekStart"}},{"kind":"Field","name":{"kind":"Name","value":"defaultProjectId"}}]}}]}}]}}]}}]} as unknown as DocumentNode<LoginMutation, LoginMutationVariables>;

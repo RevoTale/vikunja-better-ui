@@ -204,6 +204,11 @@ ambiguous timestamp heuristic.
   substituted.
 - GraphQL accepts separate `LocalDate`, `LocalTime`, and `LocalDateTime` scalar
   values for form inputs. The backend converts them using the Vikunja timezone.
+- Job creation presents separate native date and time controls for mobile use.
+  The browser validates their normalized strings and composes exactly one
+  `YYYY-MM-DDTHH:mm` `LocalDateTime` value without parsing it as a JavaScript
+  `Date`. Only that composed value crosses GraphQL; the backend remains the
+  single authority for timezone and daylight-saving resolution.
 - A nonexistent daylight-saving wall time is rejected.
 - An ambiguous repeated wall time is rejected with a request to choose another
   time. The backend never silently chooses one offset.
@@ -212,10 +217,10 @@ ambiguous timestamp heuristic.
 
 ### Priority
 
-Expose Vikunja priority as an integer rather than inventing an incompatible
-enum. Validate the exact supported range against the pinned instance OpenAPI
-schema. The UI maps the supported values to human-readable labels and preserves
-the raw value in Extended diagnostics.
+Expose priority as the strict GraphQL enum `UNSET`, `LOW`, `MEDIUM`, `HIGH`,
+`URGENT`, or `DO_NOW`. The backend alone maps these values to Vikunja's numeric
+values 0 through 5. The UI uses the same names with semantic colors; color is
+never the only indication of priority.
 
 ## Routes and URL state
 
@@ -329,17 +334,19 @@ day.
 
 ### Shared fields
 
-Every creation form includes title, optional description, project, and priority.
+Every creation form includes optional description, project, and priority. A
+title is required for one-time and recurring tasks and optional for jobs.
 Project defaults to the Vikunja user's default accessible project. If none is
 configured or the default is inaccessible but other projects exist, selection
 is required. If the token exposes no accessible project, creation is blocked by
 an actionable empty state.
 
-- Title: trimmed, 1 through the Vikunja-supported maximum length.
+- Title: trimmed, 1 through the Vikunja-supported maximum length. For a job,
+  an omitted title becomes `Job YYYY-MM-DD HH:MM` from its local start time.
 - Description: optional plain text/Markdown passed through without rendering
   raw HTML in this app.
 - Project: positive accessible Vikunja project ID.
-- Priority: integer in the upstream-supported range.
+- Priority: one of the six named Vikunja priority values; defaults to `UNSET`.
 - Submitting is disabled while the same form request is in flight.
 - A successful create navigates to task details with the originating URL
   retained in `returnTo`.
@@ -373,7 +380,10 @@ before any write.
 
 Additional fields:
 
-- Start local date and time.
+- Optional title. The form previews the generated `Job YYYY-MM-DD HH:MM` title
+  as its placeholder and the backend computes it again from the validated local
+  start time when the field is empty.
+- Start local date and time through separate native controls.
 - Positive duration in minutes.
 - Positive completion window in minutes, default 60.
 
@@ -548,6 +558,15 @@ type RecurrenceRule {
   mode: RecurrenceMode!
 }
 
+enum TaskPriority {
+  UNSET
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  DO_NOW
+}
+
 type Task {
   id: ID!
   title: String!
@@ -556,7 +575,7 @@ type Task {
   isDone: Boolean!
   doneAt: DateTime
   project: Project!
-  priority: Int!
+  priority: TaskPriority!
   dueAt: DateTime
   hasDueTime: Boolean!
   startAt: DateTime
@@ -627,7 +646,7 @@ type TaskDiagnostics {
   dueAt: DateTime
   startAt: DateTime
   endAt: DateTime
-  priority: Int!
+  priority: TaskPriority!
   recurrenceRule: RecurrenceRule
   labels: [Label!]!
   createdAt: DateTime!
@@ -653,7 +672,7 @@ input CreateOneTimeTaskInput {
   title: String!
   description: String
   projectId: ID!
-  priority: Int!
+  priority: TaskPriority!
   dueDate: LocalDate
   dueTime: LocalTime
 }
@@ -663,7 +682,7 @@ input CreateRecurringTaskInput {
   title: String!
   description: String
   projectId: ID!
-  priority: Int!
+  priority: TaskPriority!
   firstDueDate: LocalDate!
   dueTime: LocalTime
   interval: Int!
@@ -673,10 +692,10 @@ input CreateRecurringTaskInput {
 
 input CreateJobInput {
   csrfToken: String!
-  title: String!
+  title: String
   description: String
   projectId: ID!
-  priority: Int!
+  priority: TaskPriority!
   startAt: LocalDateTime!
   durationMinutes: Int!
   completionWindowMinutes: Int! = 60

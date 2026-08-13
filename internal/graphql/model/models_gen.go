@@ -29,23 +29,23 @@ type CompletionPayload struct {
 
 type CreateJobInput struct {
 	CsrfToken               string        `json:"csrfToken"`
-	Title                   string        `json:"title"`
+	Title                   *string       `json:"title,omitempty"`
 	Description             *string       `json:"description,omitempty"`
 	ProjectID               string        `json:"projectId"`
-	Priority                int           `json:"priority"`
+	Priority                TaskPriority  `json:"priority"`
 	StartAt                 LocalDateTime `json:"startAt"`
 	DurationMinutes         int           `json:"durationMinutes"`
 	CompletionWindowMinutes int           `json:"completionWindowMinutes"`
 }
 
 type CreateOneTimeTaskInput struct {
-	CsrfToken   string     `json:"csrfToken"`
-	Title       string     `json:"title"`
-	Description *string    `json:"description,omitempty"`
-	ProjectID   string     `json:"projectId"`
-	Priority    int        `json:"priority"`
-	DueDate     *LocalDate `json:"dueDate,omitempty"`
-	DueTime     *LocalTime `json:"dueTime,omitempty"`
+	CsrfToken   string       `json:"csrfToken"`
+	Title       string       `json:"title"`
+	Description *string      `json:"description,omitempty"`
+	ProjectID   string       `json:"projectId"`
+	Priority    TaskPriority `json:"priority"`
+	DueDate     *LocalDate   `json:"dueDate,omitempty"`
+	DueTime     *LocalTime   `json:"dueTime,omitempty"`
 }
 
 type CreateRecurringTaskInput struct {
@@ -53,7 +53,7 @@ type CreateRecurringTaskInput struct {
 	Title        string         `json:"title"`
 	Description  *string        `json:"description,omitempty"`
 	ProjectID    string         `json:"projectId"`
-	Priority     int            `json:"priority"`
+	Priority     TaskPriority   `json:"priority"`
 	FirstDueDate LocalDate      `json:"firstDueDate"`
 	DueTime      *LocalTime     `json:"dueTime,omitempty"`
 	Interval     int            `json:"interval"`
@@ -127,7 +127,7 @@ type Task struct {
 	IsDone         bool            `json:"isDone"`
 	DoneAt         *time.Time      `json:"doneAt,omitempty"`
 	Project        *Project        `json:"project"`
-	Priority       int             `json:"priority"`
+	Priority       TaskPriority    `json:"priority"`
 	DueAt          *time.Time      `json:"dueAt,omitempty"`
 	HasDueTime     bool            `json:"hasDueTime"`
 	StartAt        *time.Time      `json:"startAt,omitempty"`
@@ -148,7 +148,7 @@ type TaskDiagnostics struct {
 	DueAt          *time.Time         `json:"dueAt,omitempty"`
 	StartAt        *time.Time         `json:"startAt,omitempty"`
 	EndAt          *time.Time         `json:"endAt,omitempty"`
-	Priority       int                `json:"priority"`
+	Priority       TaskPriority       `json:"priority"`
 	RecurrenceRule *RecurrenceRule    `json:"recurrenceRule,omitempty"`
 	Labels         []*Label           `json:"labels"`
 	CreatedAt      time.Time          `json:"createdAt"`
@@ -651,6 +651,69 @@ func (e *TaskMutationStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e TaskMutationStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type TaskPriority string
+
+const (
+	TaskPriorityUnset  TaskPriority = "UNSET"
+	TaskPriorityLow    TaskPriority = "LOW"
+	TaskPriorityMedium TaskPriority = "MEDIUM"
+	TaskPriorityHigh   TaskPriority = "HIGH"
+	TaskPriorityUrgent TaskPriority = "URGENT"
+	TaskPriorityDoNow  TaskPriority = "DO_NOW"
+)
+
+var AllTaskPriority = []TaskPriority{
+	TaskPriorityUnset,
+	TaskPriorityLow,
+	TaskPriorityMedium,
+	TaskPriorityHigh,
+	TaskPriorityUrgent,
+	TaskPriorityDoNow,
+}
+
+func (e TaskPriority) IsValid() bool {
+	switch e {
+	case TaskPriorityUnset, TaskPriorityLow, TaskPriorityMedium, TaskPriorityHigh, TaskPriorityUrgent, TaskPriorityDoNow:
+		return true
+	}
+	return false
+}
+
+func (e TaskPriority) String() string {
+	return string(e)
+}
+
+func (e *TaskPriority) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TaskPriority(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TaskPriority", str)
+	}
+	return nil
+}
+
+func (e TaskPriority) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TaskPriority) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TaskPriority) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

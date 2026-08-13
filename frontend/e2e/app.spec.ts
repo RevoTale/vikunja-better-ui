@@ -15,6 +15,30 @@ test("login restores the requested route and core navigation is accessible", asy
   await login(page);
   await expect(page).toHaveURL(/\/jobs/);
   await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible();
+  await page.getByRole("link", { name: "New job" }).click();
+  await expect(page).toHaveURL(/\/tasks\/new\?type=job/);
+  await expect(page.getByRole("heading", { name: "New job" })).toBeVisible();
+  await expect(page.getByLabel("Title (optional)")).toBeFocused();
+  await expect(page.getByLabel("Start date")).toBeVisible();
+  await expect(page.getByLabel("Start time")).toBeVisible();
+  const taskTypeButtons = page.getByRole("group", { name: "Task type" }).getByRole("button");
+  await expect(taskTypeButtons).toHaveCount(3);
+  for (const button of await taskTypeButtons.all()) {
+    expect(
+      await button.evaluate(
+        (element) =>
+          element.scrollWidth <= element.clientWidth &&
+          element.scrollHeight <= element.clientHeight,
+      ),
+    ).toBe(true);
+  }
+  if (test.info().project.name === "phone-320") {
+    await expect(
+      page.getByRole("navigation", { name: "Main navigation" }).getByText("No date"),
+    ).toBeVisible();
+  }
+  await page.getByRole("link", { name: "Back" }).click();
+  await expect(page).toHaveURL(/\/jobs\?project=all&page=1/);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 
   await page.getByRole("link", { name: "Today" }).focus();
@@ -41,6 +65,42 @@ test("theme follows system color scheme changes", async ({ page }) => {
     .toBe("rgb(20, 20, 20)");
 });
 
+test("task creation identifies invalid fields and clears corrected errors", async ({ page }) => {
+  await blockBrowserVikunjaCalls(page);
+  await page.goto("/tasks/new?type=recurring&returnTo=%2Ftoday");
+  await login(page);
+
+  await page.getByLabel("Title").fill("   ");
+  await page.getByLabel("First due date").fill("");
+  await page.getByLabel("Every").fill("2");
+  await page.getByLabel("Unit").selectOption("MONTH");
+  await page.getByRole("button", { name: "Create recurring task" }).click();
+
+  await expect(page.getByRole("alert")).toHaveText("Check the highlighted fields below.");
+  await expect(page.getByText("Enter a title.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Choose the first due date.", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Monthly recurrence supports every 1 month.", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Monthly recurrence must use Scheduled cycle.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Title")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByLabel("Title")).toHaveAttribute("aria-describedby", "title-error");
+  await expect(page.getByLabel("Title")).toBeFocused();
+
+  await page.getByLabel("Title").fill("Valid recurring task");
+  await page.getByLabel("Priority").selectOption("UNSET");
+  await page.getByLabel("First due date").fill(localDate());
+  await page.getByLabel("Every").fill("1");
+  await page.getByLabel("Renewal").selectOption("SCHEDULED_CYCLE");
+
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByText("Enter a title.", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Title")).not.toHaveAttribute("aria-invalid", "true");
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
 test("desktop workflows match Vikunja state", async ({ page }) => {
   await blockBrowserVikunjaCalls(page);
   await page.goto("/today");
@@ -50,14 +110,15 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   const oneTime = `One-time E2E ${suffix}`;
   const recurring = `Recurring E2E ${suffix}`;
   const scheduled = `Scheduled E2E ${suffix}`;
-  const job = `Job E2E ${suffix}`;
   const unscheduled = `No deadline E2E ${suffix}`;
 
   const oneTimeId = await createTask(page, "one-time task", oneTime, async () => {
     await page.getByLabel("Due date").fill(localDate());
+    await page.getByLabel("Priority").selectOption("HIGH");
   });
   await expectVikunjaTask(oneTimeId, { title: oneTime, done: false });
   await expectDateOnlyTask(oneTimeId);
+  expect((await vikunjaTask(oneTimeId)).priority).toBe(3);
   await page.getByRole("link", { name: "Extended" }).click();
   await expect(page.getByRole("heading", { name: "Extended properties" })).toBeVisible();
   await expect(
@@ -110,12 +171,24 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   expect(String(scheduledAfter.id)).toBe(scheduledId);
   expect(scheduledAfter.done).toBe(false);
 
-  const jobId = await createTask(page, "job", job, async () => {
-    await page.getByLabel("Start time").fill(`${localDate()}T09:00`);
-    await page.getByLabel("Duration in minutes").fill("45");
-    await page.getByLabel("Time to complete after it ends").fill("60");
-  });
+  await page.goto("/tasks/new?type=job&returnTo=%2Fjobs");
+  await expect(page.getByLabel("Title (optional)")).toHaveAttribute(
+    "placeholder",
+    `Job ${localDate()} 09:00`,
+  );
+  const job = `Job ${localDate()} 10:15`;
+  await page.getByLabel("Start date").fill(localDate());
+  await page.getByLabel("Start time").fill("10:15");
+  await expect(page.getByLabel("Title (optional)")).toHaveAttribute("placeholder", job);
+  await page.getByLabel("Duration in minutes").fill("45");
+  await page.getByLabel("Time to complete after it ends").fill("60");
+  await page.getByRole("button", { name: "Create job", exact: true }).click();
+  await expect(page.getByRole("heading", { name: job })).toBeVisible();
+  const jobIDMatch = page.url().match(/\/tasks\/(\d+)/);
+  if (!jobIDMatch?.[1]) throw new Error("created job ID is missing from the URL");
+  const jobId = jobIDMatch[1];
   const jobTask = await vikunjaTask(jobId);
+  expect(jobTask.title).toBe(job);
   expect(new Date(jobTask.end_date).getTime() - new Date(jobTask.start_date).getTime()).toBe(
     45 * 60_000,
   );

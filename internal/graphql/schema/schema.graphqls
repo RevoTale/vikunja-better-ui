@@ -10,6 +10,15 @@ enum TaskKind {
   INVALID
 }
 
+enum TaskPriority {
+  UNSET
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  DO_NOW
+}
+
 enum TaskScope {
   TODAY
   WEEK
@@ -103,7 +112,7 @@ type Task {
   isDone: Boolean!
   doneAt: DateTime
   project: Project!
-  priority: Int!
+  priority: TaskPriority!
   dueAt: DateTime
   hasDueTime: Boolean!
   startAt: DateTime
@@ -174,7 +183,7 @@ type TaskDiagnostics {
   dueAt: DateTime
   startAt: DateTime
   endAt: DateTime
-  priority: Int!
+  priority: TaskPriority!
   recurrenceRule: RecurrenceRule
   labels: [Label!]!
   createdAt: DateTime!
@@ -200,7 +209,7 @@ input CreateOneTimeTaskInput {
   title: String!
   description: String
   projectId: ID!
-  priority: Int!
+  priority: TaskPriority!
   dueDate: LocalDate
   dueTime: LocalTime
 }
@@ -210,7 +219,7 @@ input CreateRecurringTaskInput {
   title: String!
   description: String
   projectId: ID!
-  priority: Int!
+  priority: TaskPriority!
   firstDueDate: LocalDate!
   dueTime: LocalTime
   interval: Int!
@@ -220,10 +229,10 @@ input CreateRecurringTaskInput {
 
 input CreateJobInput {
   csrfToken: String!
-  title: String!
+  title: String
   description: String
   projectId: ID!
-  priority: Int!
+  priority: TaskPriority!
   startAt: LocalDateTime!
   durationMinutes: Int!
   completionWindowMinutes: Int! = 60

@@ -1,11 +1,13 @@
 import { useQuery } from "@apollo/client/react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, Bug } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskDetailsDocument } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
+import { PriorityBadge } from "./priority-badge";
 import { taskKindLabel } from "./task-kind-label";
 
 export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo: string }) {
@@ -53,7 +55,7 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
               label="Status"
               value={task.isDone ? "Completed" : task.isOverdue ? "Overdue" : "Open"}
             />
-            <Fact label="Priority" value={String(task.priority)} />
+            <Fact label="Priority" value={<PriorityBadge priority={task.priority} />} />
             <Fact label="Due" value={format(task.dueAt)} />
             <Fact label="Start" value={format(task.startAt)} />
             <Fact label="End" value={format(task.endAt)} />
@@ -78,7 +80,7 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+function Fact({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div>
       <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>

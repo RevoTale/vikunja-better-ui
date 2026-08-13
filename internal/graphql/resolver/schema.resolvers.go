@@ -75,8 +75,12 @@ func (r *mutationResolver) CreateOneTimeTask(ctx context.Context, input model.Cr
 	if err != nil {
 		return nil, err
 	}
+	priority, err := priorityValue(input.Priority)
+	if err != nil {
+		return nil, clientError("VALIDATION_FAILED", "Choose a valid priority.")
+	}
 	write, dateOnly, err := service.BuildOneTimeTask(service.OneTimeInput{
-		Title: input.Title, Description: optionalString(input.Description), Priority: int64(input.Priority),
+		Title: input.Title, Description: optionalString(input.Description), Priority: priority,
 		DueDate: optionalLocalDate(input.DueDate), DueTime: optionalLocalTime(input.DueTime),
 	}, location)
 	if err != nil {
@@ -103,8 +107,12 @@ func (r *mutationResolver) CreateRecurringTask(ctx context.Context, input model.
 	if err != nil {
 		return nil, err
 	}
+	priority, err := priorityValue(input.Priority)
+	if err != nil {
+		return nil, clientError("VALIDATION_FAILED", "Choose a valid priority.")
+	}
 	write, dateOnly, err := service.BuildRecurringTask(service.RecurringInput{
-		Title: input.Title, Description: optionalString(input.Description), Priority: int64(input.Priority),
+		Title: input.Title, Description: optionalString(input.Description), Priority: priority,
 		FirstDueDate: string(input.FirstDueDate), DueTime: optionalLocalTime(input.DueTime), Interval: input.Interval,
 		Unit: service.RecurrenceUnit(input.Unit), Mode: service.RecurrenceMode(input.Mode),
 	}, location)
@@ -132,8 +140,12 @@ func (r *mutationResolver) CreateJob(ctx context.Context, input model.CreateJobI
 	if err != nil {
 		return nil, err
 	}
+	priority, err := priorityValue(input.Priority)
+	if err != nil {
+		return nil, clientError("VALIDATION_FAILED", "Choose a valid priority.")
+	}
 	write, err := service.BuildJobTask(service.JobInput{
-		Title: input.Title, Description: optionalString(input.Description), Priority: int64(input.Priority),
+		Title: optionalString(input.Title), Description: optionalString(input.Description), Priority: priority,
 		StartLocal: string(input.StartAt), DurationMinutes: input.DurationMinutes,
 		CompletionWindowMinutes: input.CompletionWindowMinutes,
 	}, location)

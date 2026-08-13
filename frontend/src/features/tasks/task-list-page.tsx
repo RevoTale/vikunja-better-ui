@@ -28,6 +28,7 @@ import {
 import { cn } from "@/lib/cn";
 import type { ListSearch } from "./list-search";
 import { paginationRange } from "./pagination-range";
+import { PriorityBadge } from "./priority-badge";
 import { taskKindLabel } from "./task-kind-label";
 
 type TaskItem = TaskListQuery["tasks"]["items"][number];
@@ -311,9 +312,7 @@ function TaskRow({
               {task.title}
             </Link>
             <KindBadge task={task} />
-            {task.priority > 0 ? (
-              <span className="text-xs font-medium text-muted-foreground">P{task.priority}</span>
-            ) : null}
+            {task.priority !== "UNSET" ? <PriorityBadge priority={task.priority} /> : null}
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
             {task.project.title}

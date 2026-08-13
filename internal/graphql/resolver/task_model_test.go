@@ -23,6 +23,44 @@ func TestTaskModelMapsDateOnlyTask(t *testing.T) {
 	if result.Kind != model.TaskKindOneTime || result.HasDueTime || !result.IsOverdue || result.Project.Title != "Home" {
 		t.Fatalf("taskModel() = %#v", result)
 	}
+	if result.Priority != model.TaskPriorityUrgent {
+		t.Fatalf("taskModel() priority = %q, want %q", result.Priority, model.TaskPriorityUrgent)
+	}
+}
+
+func TestPriorityModelMapsEveryVikunjaValue(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		value int64
+		want  model.TaskPriority
+	}{
+		{value: 0, want: model.TaskPriorityUnset},
+		{value: 1, want: model.TaskPriorityLow},
+		{value: 2, want: model.TaskPriorityMedium},
+		{value: 3, want: model.TaskPriorityHigh},
+		{value: 4, want: model.TaskPriorityUrgent},
+		{value: 5, want: model.TaskPriorityDoNow},
+	}
+	for _, test := range tests {
+		if got, err := priorityModel(test.value); err != nil || got != test.want {
+			t.Fatalf("priorityModel(%d) = %q, %v; want %q", test.value, got, err, test.want)
+		}
+		if got, err := priorityValue(test.want); err != nil || got != test.value {
+			t.Fatalf("priorityValue(%q) = %d, %v; want %d", test.want, got, err, test.value)
+		}
+	}
+}
+
+func TestPriorityModelRejectsUnsupportedVikunjaValue(t *testing.T) {
+	t.Parallel()
+
+	if _, err := priorityModel(6); err == nil {
+		t.Fatal("priorityModel(6) error = nil")
+	}
+	if _, err := priorityValue(model.TaskPriority("INVALID")); err == nil {
+		t.Fatal("priorityValue(INVALID) error = nil")
+	}
 }
 
 func TestTaskModelMapsSupportedRecurrenceRule(t *testing.T) {

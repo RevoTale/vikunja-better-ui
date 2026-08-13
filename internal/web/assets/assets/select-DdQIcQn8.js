@@ -1,1 +1,0 @@
-import{c as e}from"./useStore-DF5kmhBj.js";import{r as t}from"./button-CSDUNN0w.js";var n=e();function r({className:e,...r}){return(0,n.jsx)(`select`,{className:t(`min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50`,e),...r})}export{r as t};

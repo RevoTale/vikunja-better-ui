@@ -22,8 +22,9 @@ func taskModel(
 	if !ok {
 		return nil, fmt.Errorf("task references an inaccessible project")
 	}
-	if task.Priority < math.MinInt32 || task.Priority > math.MaxInt32 {
-		return nil, fmt.Errorf("task priority is outside the GraphQL integer range")
+	priority, err := priorityModel(task.Priority)
+	if err != nil {
+		return nil, err
 	}
 	classification := service.ClassifyTask(task)
 	recurrence, err := recurrenceRuleModel(task)
@@ -42,7 +43,7 @@ func taskModel(
 			ID: strconv.FormatInt(project.ID, 10), Title: project.Title,
 			IsDefault: project.ID == defaultProjectID,
 		},
-		Priority: int(task.Priority), DueAt: optionalTime(task.DueDate),
+		Priority: priority, DueAt: optionalTime(task.DueDate),
 		HasDueTime: !task.DueDate.IsZero() && !classification.DateOnly,
 		StartAt:    optionalTime(task.StartDate), EndAt: optionalTime(task.EndDate),
 		RecurrenceRule: recurrence, Labels: labels,

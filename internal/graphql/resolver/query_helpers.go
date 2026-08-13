@@ -96,6 +96,10 @@ func taskPageIssueModel(issue *service.ListIssue) *model.TaskPageIssue {
 }
 
 func diagnosticsModel(task vikunja.Task, timezone string) (*model.TaskDiagnostics, error) {
+	priority, err := priorityModel(task.Priority)
+	if err != nil {
+		return nil, clientError("UPSTREAM_REJECTED", "The task priority is unsupported.")
+	}
 	recurrence, err := recurrenceRuleModel(task)
 	if err != nil {
 		return nil, clientError("UPSTREAM_REJECTED", "The task recurrence fields are unsupported.")
@@ -120,7 +124,7 @@ func diagnosticsModel(task vikunja.Task, timezone string) (*model.TaskDiagnostic
 		Title: task.Title, Kind: taskKindModel(service.ClassifyTask(task).Kind), IsDone: task.Done,
 		DoneAt: optionalTime(task.DoneAt), DueAt: optionalTime(task.DueDate),
 		StartAt: optionalTime(task.StartDate), EndAt: optionalTime(task.EndDate),
-		Priority: int(task.Priority), RecurrenceRule: recurrence, Labels: labels,
+		Priority: priority, RecurrenceRule: recurrence, Labels: labels,
 		CreatedAt: task.Created, UpdatedAt: task.Updated, Creator: creator, MaxPermission: permission,
 	}, nil
 }
