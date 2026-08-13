@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  checks:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/checks.yml
+
+  release:
+    name: Release Please
+    needs: checks
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release-created: ${{ steps.release.outputs.release_created }}
+      tag-name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - name: Create or update release pull request
+        id: release
+        uses: googleapis/release-please-action@8b8fd2cc23b2e18957157a9d923d75aa0c6f6ad5 # v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  image:
+    name: Publish multi-architecture image
+    needs: release
+    if: needs.release.outputs.release-created == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Check out released source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.release.outputs.tag-name }}
+      - name: Publish GHCR image
+        uses: revotale/docker-multi-arch-release-action@139a43ddaa10e2a91bbdb8f44d4af4e9bcaa5993 # v1.4.0
+        with:
+          registry: ghcr.io
+          platforms: linux/amd64,linux/arm64
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          image-name: revotale/vikunja-better-ui
+          context: .
+          file: ./Dockerfile
+          tags: |
+            type=raw,value=${{ needs.release.outputs.tag-name }}
+            type=raw,value=latest

@@ -1,0 +1,5 @@
+mutation Logout($csrfToken: String!) {
+  logout(csrfToken: $csrfToken) {
+    authenticated
+  }
+}

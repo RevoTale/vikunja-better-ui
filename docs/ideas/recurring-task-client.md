@@ -76,7 +76,7 @@ wants a smaller, purpose-built task workflow.
 - Show completion time, title, task type, project, priority, and the scheduled
   due time/date when present.
 - Order by completion time, newest first.
-- Load 30 completed tasks initially and 30 more per explicit `Load more` action.
+- Show 30 completed tasks per page with numbered pagination.
 - Keep the view simple; charts, aggregates, streaks, and other statistics are
   deferred.
 - The Extended diagnostic action remains available for a history item.
@@ -117,7 +117,7 @@ and sorting. No extra stored duration or application database is required; the
 duration can be derived from `end_date - start_date` when displaying the job.
 
 For a new integration, prefer Vikunja API v2 when the configured instance
-supports Vikunja 2.4.0 or newer.
+supports Vikunja 2.5.0 only.
 
 ## Proposed MVP scope
 
@@ -191,12 +191,14 @@ supports Vikunja 2.4.0 or newer.
     late completion.
 - Completing an occurrence must produce exactly one renewed schedule.
 - Keep every completed occurrence in history for future statistics.
-- Target Vikunja 2.4+ and API v2. Current Vikunja help states that completing a
-  repeating task creates its next occurrence, allowing the completed occurrence
-  to remain queryable for future statistics.
-- Verify renewal and history behavior against the configured instance before
-  implementation. Frozen API v1 documentation describes older same-task renewal
-  behavior and must not be used for this workflow.
+- Runtime verification against Vikunja 2.5.0 proves that native completion
+  renews the same task ID, overwrites its single `done_at`, and exposes no
+  occurrence-history API.
+- Use native same-task renewal for schedule safety. After renewal, create one
+  completed archival task in the same Vikunja project, with no recurrence
+  fields and the exact label `vbu:recurrence-history`.
+- The archival task represents the real completed occurrence and remains in
+  Vikunja for History and future statistics. The app stores no local copy.
 - New recurring tasks default their first due date to today.
 - The creation form may optionally set a time of day. Without a time, the task
   is due on that date without requiring another field from the user.
@@ -206,12 +208,12 @@ supports Vikunja 2.4.0 or newer.
 - Completion is always a one-click action. Do not show a confirmation dialog.
 - One-time tasks and jobs complete immediately and show a short Undo action.
 - Recurring tasks complete immediately without Undo because native completion
-  also creates the next occurrence.
-- Do not show recurring completion as successful until Vikunja confirms the
-  completed historical occurrence and exactly one renewed occurrence.
+  advances the same live task.
+- Do not show recurring completion as fully successful until Vikunja confirms
+  the renewed live task and one completed non-recurring history snapshot.
 - On failure or ambiguous renewal, keep or restore the visible task state and
-  show a safe actionable error. Never create an additional occurrence as a
-  blind retry.
+  show a safe actionable error. Never repeat native renewal. Reconcile the
+  snapshot's deterministic completion key before attempting archival repair.
 
 ## Proposed recurring-task form
 
@@ -274,12 +276,12 @@ supports Vikunja 2.4.0 or newer.
 
 ## Assumptions to validate
 
-- [ ] Vikunja remains the only task store.
-- [x] Completing a recurring task must result in exactly one next occurrence.
-- [ ] Verify that the configured Vikunja 2.4+ instance preserves queryable
-      completed occurrences through API v2 native renewal before implementing
-      completion.
-- [ ] One-time, recurring, and job are the complete MVP task categories.
+- [x] Vikunja remains the only task store.
+- [x] Completing a recurring task must advance exactly one live schedule; on
+      Vikunja 2.5.0 this is the same task ID.
+- [x] Vikunja 2.5.0 native renewal reuses the task ID and overwrites `done_at`;
+      retain history through completed non-recurring Vikunja snapshots.
+- [x] One-time, recurring, and job are the complete MVP task categories.
 - [x] A job can be represented with Vikunja's existing start, end, and due-date
       fields without a database.
 
@@ -296,8 +298,8 @@ supports Vikunja 2.4.0 or newer.
 - Verify both visible UI output and resulting Vikunja state after task creation,
   completion, recurrence renewal, history loading, job date calculation,
   filtering, and pagination.
-- Cover recurrence from completion and scheduled-cycle behavior. Assert the
-  completed historical occurrence and exactly one next occurrence.
+- Cover recurrence from completion and scheduled-cycle behavior. Assert one
+  same-ID renewed live task and one completed snapshot without recurrence.
 - Bound cleanup to resources created by the test run. Never delete or rewrite
   unrelated Vikunja data.
 - Keep test credentials outside the repository and frontend bundle.
@@ -379,10 +381,11 @@ fixture seeding, and cleanup because those steps form one lifecycle.
 
 ## Implementation entry check
 
-Before implementing recurring completion, confirm native API v2 renewal and
-queryable history behavior against the pinned Vikunja binary. If observed
-behavior conflicts with this accepted direction, stop and return to product
-clarification; do not add local persistence or manual duplicate creation.
+Pinned Vikunja 2.5.0 verification completed on 2026-08-12. Native renewal keeps
+the same task ID and overwrites `done_at`; no occurrence-history API exists. The
+accepted fallback is a completed, non-recurring snapshot stored in the same
+Vikunja project and marked `vbu:recurrence-history`. Never create the next live
+schedule manually.
 
 ## Confirmed route contract
 

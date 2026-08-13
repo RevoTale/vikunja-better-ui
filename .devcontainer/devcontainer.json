@@ -2,14 +2,28 @@
 	"name": "Vikunja Better UI",
 	"image": "mcr.microsoft.com/devcontainers/base:trixie",
 	"features": {
-		"ghcr.io/devcontainers/features/go:1": {},
-    "ghcr.io/eitsupi/devcontainer-features/go-task:1": {}
+		"ghcr.io/devcontainers/features/go:1": {
+			"version": "1.26.5",
+			"golangciLintVersion": "2.12.2"
+		},
+		"ghcr.io/devcontainers/features/node:2": {
+			"version": "24.19.0",
+			"pnpmVersion": "11.21.0"
+		},
+		"ghcr.io/eitsupi/devcontainer-features/go-task:1": {
+			"version": "3.52.0"
+		},
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+			"moby": false
+		}
 	},
 	"customizations": {
 		"vscode": {
-  		"extensions": [
-  			"task.vscode-task"
-  		]
+			"extensions": [
+				"biomejs.biome",
+				"task.vscode-task"
+			]
 		}
-  }
+	},
+	"postCreateCommand": "pnpm --dir frontend install --frozen-lockfile && pnpm --dir frontend exec playwright install --with-deps chromium && go mod download"
 }

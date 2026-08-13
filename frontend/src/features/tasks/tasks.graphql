@@ -1,0 +1,190 @@
+query Projects {
+  projects {
+    items {
+      id
+      title
+      isDefault
+    }
+  }
+}
+
+query TaskList($input: TaskListInput!) {
+  tasks(input: $input) {
+    items {
+      id
+      title
+      description
+      kind
+      isDone
+      doneAt
+      project {
+        id
+        title
+        isDefault
+      }
+      priority
+      dueAt
+      hasDueTime
+      startAt
+      endAt
+      recurrenceRule {
+        interval
+        unit
+        mode
+      }
+      labels {
+        id
+        title
+      }
+      isOverdue
+      timezone
+    }
+    page
+    pageSize
+    totalItems
+    totalPages
+    hasMore
+    isComplete
+    issues {
+      code
+      message
+      projectId
+    }
+  }
+}
+
+mutation CompleteTask($input: CompleteTaskInput!) {
+  completeTask(input: $input) {
+    status
+    completedTask {
+      id
+      title
+      description
+      kind
+      isDone
+      doneAt
+      priority
+      dueAt
+      hasDueTime
+      startAt
+      endAt
+      isOverdue
+      timezone
+      project {
+        id
+        title
+        isDefault
+      }
+      recurrenceRule {
+        interval
+        unit
+        mode
+      }
+      labels {
+        id
+        title
+      }
+    }
+    nextOccurrence {
+      id
+      title
+      description
+      kind
+      isDone
+      doneAt
+      priority
+      dueAt
+      hasDueTime
+      startAt
+      endAt
+      isOverdue
+      timezone
+      project {
+        id
+        title
+        isDefault
+      }
+      recurrenceRule {
+        interval
+        unit
+        mode
+      }
+      labels {
+        id
+        title
+      }
+    }
+    undoUntil
+    undoCapability
+    repairCapability
+    missingMarkers
+    remainingRepairSteps
+  }
+}
+
+mutation UndoTaskCompletion($input: UndoTaskCompletionInput!) {
+  undoTaskCompletion(input: $input) {
+    status
+    task {
+      id
+      title
+      description
+      kind
+      isDone
+      doneAt
+      priority
+      dueAt
+      hasDueTime
+      startAt
+      endAt
+      isOverdue
+      timezone
+      project {
+        id
+        title
+        isDefault
+      }
+      recurrenceRule {
+        interval
+        unit
+        mode
+      }
+      labels {
+        id
+        title
+      }
+    }
+    repairCapability
+    missingMarkers
+    remainingRepairSteps
+  }
+}
+
+mutation RepairTaskMetadata($input: RepairTaskMetadataInput!) {
+  repairTaskMetadata(input: $input) {
+    status
+    task {
+      id
+      title
+      kind
+      isDone
+      project {
+        id
+        title
+        isDefault
+      }
+      priority
+      dueAt
+      hasDueTime
+      isOverdue
+      timezone
+      labels {
+        id
+        title
+      }
+    }
+    repairCapability
+    missingMarkers
+    remainingRepairSteps
+  }
+}

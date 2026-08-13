@@ -1,0 +1,265 @@
+scalar DateTime
+scalar LocalDate
+scalar LocalTime
+scalar LocalDateTime
+
+enum TaskKind {
+  ONE_TIME
+  RECURRING
+  JOB
+  INVALID
+}
+
+enum TaskScope {
+  TODAY
+  WEEK
+  MONTH
+  JOBS
+  UNSCHEDULED
+  HISTORY
+}
+
+enum RecurrenceUnit {
+  DAY
+  WEEK
+  MONTH
+}
+
+enum RecurrenceMode {
+  FROM_COMPLETION
+  SCHEDULED_CYCLE
+}
+
+enum MarkerKind {
+  JOB
+  DATE_ONLY
+  RECURRENCE_HISTORY
+}
+
+enum RepairStep {
+  CREATE_HISTORY_SNAPSHOT
+  ATTACH_JOB
+  ATTACH_DATE_ONLY
+  ATTACH_RECURRENCE_HISTORY
+  NORMALIZE_DUE
+}
+
+enum TaskMutationStatus {
+  CONFIRMED
+  REPAIR_REQUIRED
+}
+
+enum CompletionStatus {
+  CONFIRMED
+  CONFIRMED_REPAIR_REQUIRED
+}
+
+enum PageIssueCode {
+  RESULT_SET_TOO_LARGE
+  UPSTREAM_PARTIAL
+}
+
+type Session {
+  authenticated: Boolean!
+  csrfToken: String
+  expiresAt: DateTime
+  vikunjaUser: VikunjaUser
+}
+
+type VikunjaUser {
+  id: ID!
+  username: String!
+  timezone: String!
+  weekStart: Int!
+  defaultProjectId: ID
+}
+
+type Project {
+  id: ID!
+  title: String!
+  isDefault: Boolean!
+}
+
+type ProjectResult {
+  items: [Project!]!
+}
+
+type Label {
+  id: ID!
+  title: String!
+}
+
+type RecurrenceRule {
+  interval: Int!
+  unit: RecurrenceUnit!
+  mode: RecurrenceMode!
+}
+
+type Task {
+  id: ID!
+  title: String!
+  description: String!
+  kind: TaskKind!
+  isDone: Boolean!
+  doneAt: DateTime
+  project: Project!
+  priority: Int!
+  dueAt: DateTime
+  hasDueTime: Boolean!
+  startAt: DateTime
+  endAt: DateTime
+  recurrenceRule: RecurrenceRule
+  labels: [Label!]!
+  isOverdue: Boolean!
+  timezone: String!
+}
+
+type TaskPageIssue {
+  code: PageIssueCode!
+  message: String!
+  projectId: ID
+}
+
+type TaskPage {
+  items: [Task!]!
+  page: Int!
+  pageSize: Int!
+  totalItems: Int!
+  totalPages: Int!
+  hasMore: Boolean!
+  isComplete: Boolean!
+  issues: [TaskPageIssue!]!
+}
+
+type TaskMutationPayload {
+  task: Task!
+  status: TaskMutationStatus!
+  missingMarkers: [MarkerKind!]!
+  remainingRepairSteps: [RepairStep!]!
+  repairCapability: String
+}
+
+type CompletionPayload {
+  status: CompletionStatus!
+  completedTask: Task
+  nextOccurrence: Task
+  undoUntil: DateTime
+  undoCapability: String
+  repairCapability: String
+  missingMarkers: [MarkerKind!]!
+  remainingRepairSteps: [RepairStep!]!
+}
+
+type LoginPayload {
+  session: Session!
+}
+
+type LogoutPayload {
+  authenticated: Boolean!
+}
+
+type CreatorDiagnostic {
+  id: ID!
+  username: String!
+  name: String!
+}
+
+type TaskDiagnostics {
+  id: ID!
+  projectId: ID!
+  title: String!
+  kind: TaskKind!
+  isDone: Boolean!
+  doneAt: DateTime
+  dueAt: DateTime
+  startAt: DateTime
+  endAt: DateTime
+  priority: Int!
+  recurrenceRule: RecurrenceRule
+  labels: [Label!]!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  creator: CreatorDiagnostic
+  maxPermission: String
+}
+
+input TaskListInput {
+  scope: TaskScope!
+  projectId: ID
+  page: Int! = 1
+  pageSize: Int! = 30
+}
+
+input LoginInput {
+  username: String!
+  password: String!
+}
+
+input CreateOneTimeTaskInput {
+  csrfToken: String!
+  title: String!
+  description: String
+  projectId: ID!
+  priority: Int!
+  dueDate: LocalDate
+  dueTime: LocalTime
+}
+
+input CreateRecurringTaskInput {
+  csrfToken: String!
+  title: String!
+  description: String
+  projectId: ID!
+  priority: Int!
+  firstDueDate: LocalDate!
+  dueTime: LocalTime
+  interval: Int!
+  unit: RecurrenceUnit!
+  mode: RecurrenceMode! = FROM_COMPLETION
+}
+
+input CreateJobInput {
+  csrfToken: String!
+  title: String!
+  description: String
+  projectId: ID!
+  priority: Int!
+  startAt: LocalDateTime!
+  durationMinutes: Int!
+  completionWindowMinutes: Int! = 60
+}
+
+input CompleteTaskInput {
+  csrfToken: String!
+  taskId: ID!
+  expectedKind: TaskKind!
+}
+
+input UndoTaskCompletionInput {
+  csrfToken: String!
+  capability: String!
+}
+
+input RepairTaskMetadataInput {
+  csrfToken: String!
+  capability: String!
+}
+
+type Query {
+  session: Session!
+  projects: ProjectResult!
+  tasks(input: TaskListInput!): TaskPage!
+  task(id: ID!): Task
+  taskDiagnostics(id: ID!): TaskDiagnostics
+}
+
+type Mutation {
+  login(input: LoginInput!): LoginPayload!
+  logout(csrfToken: String!): LogoutPayload!
+  createOneTimeTask(input: CreateOneTimeTaskInput!): TaskMutationPayload!
+  createRecurringTask(input: CreateRecurringTaskInput!): TaskMutationPayload!
+  createJob(input: CreateJobInput!): TaskMutationPayload!
+  completeTask(input: CompleteTaskInput!): CompletionPayload!
+  undoTaskCompletion(input: UndoTaskCompletionInput!): TaskMutationPayload!
+  repairTaskMetadata(input: RepairTaskMetadataInput!): TaskMutationPayload!
+}

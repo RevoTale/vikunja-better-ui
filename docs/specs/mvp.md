@@ -5,7 +5,9 @@ Status: Accepted on 2026-08-12.
 Product authority: `docs/ideas/recurring-task-client.md`.
 
 This specification retains the accepted exact `job` label and introduces the
-reserved `vbu:date-only` marker because Vikunja has no native all-day flag.
+reserved `vbu:date-only` and `vbu:recurrence-history` markers. Vikunja has no
+native all-day flag and retains only the latest completion time when it renews
+a recurring task in place.
 
 ## Objective
 
@@ -20,8 +22,8 @@ The application is successful when the user can:
 2. See overdue and due-today work across all accessible Vikunja projects.
 3. Narrow relevant views to one project without losing URL state.
 4. Create one-time, recurring, and job tasks through small purpose-built forms.
-5. Complete a recurring occurrence with one click and observe exactly one next
-   occurrence in Vikunja.
+5. Complete a recurring occurrence with one click, observe one renewed schedule
+   in Vikunja, and retain a completed history snapshot in Vikunja.
 6. Complete one-time tasks and jobs with a short Undo opportunity.
 7. Inspect recent completed tasks and a read-only diagnostic subset of the real
    Vikunja task fields.
@@ -83,7 +85,9 @@ REST verbs, pagination envelopes, snake_case fields, and upstream errors.
 Use these stable baselines:
 
 - Go 1.26, updated to the latest supported patch release.
-- Vikunja 2.4.0 for the pinned integration and E2E fixture.
+- Vikunja 2.5.0 as the only supported integration and E2E fixture version.
+- Vikunja REST API v2 exclusively. Do not add v1 fallbacks or compatibility
+  branches.
 - React 19.
 - TypeScript 5.x with strict compiler options.
 - Vite's current stable major at scaffold time; no beta or release candidate.
@@ -146,12 +150,16 @@ an addition requires separate approval.
 
 ### Task kinds
 
-- `RECURRING`: Vikunja recurrence fields are set.
-- `JOB`: no recurrence and a Vikunja label with exact title `job` is attached.
-- `ONE_TIME`: neither recurrence nor an exact-title `job` label is present.
-- A task with recurrence and an exact-title `job` label is `INVALID`; it is
-  shown with a diagnostic warning and cannot be completed in this app until
-  corrected in Vikunja.
+- `RECURRING`: Vikunja recurrence fields are set, or the task is completed and
+  has an exact-title `vbu:recurrence-history` label.
+- `JOB`: no recurrence or recurrence-history marker exists and a Vikunja label
+  with exact title `job` is attached.
+- `ONE_TIME`: no recurrence, recurrence-history marker, or exact-title `job`
+  label is present.
+- A task is `INVALID` when it combines recurrence with `job`, combines a
+  recurrence-history marker with recurrence or `job`, or has a
+  recurrence-history marker while incomplete. Invalid tasks are diagnostic-only
+  and cannot be completed in this app until corrected in Vikunja.
 
 Marker labels are classified by exact title. If several labels have the same
 marker title, any of them classifies a task and the lowest existing ID is the
@@ -160,14 +168,15 @@ concurrent duplicate creation remains harmless because future requests choose
 the lowest ID and recognize every exact-title duplicate. The app never deletes
 or merges user labels automatically.
 
-Labels are user-controlled Vikunja data. Renaming or removing `job` or
-`vbu:date-only` intentionally changes how the next read classifies that task;
-without local persistence there is no reliable way to infer a former marker.
-Extended diagnostics exposes current label IDs and titles so this is debuggable.
+Labels are user-controlled Vikunja data. Renaming or removing `job`,
+`vbu:date-only`, or `vbu:recurrence-history` intentionally changes how the next
+read classifies that task; without local persistence there is no reliable way
+to infer a former marker. Extended diagnostics exposes current label IDs and
+titles so this is debuggable.
 
 ### Date-only convention
 
-Vikunja 2.4.0 has due date-times but no native date-only flag. To retain the
+Vikunja 2.5.0 has due date-times but no native date-only flag. To retain the
 accepted date-only UX without local storage:
 
 - The app attaches the reserved Vikunja label `vbu:date-only` when a task is
@@ -178,9 +187,9 @@ accepted date-only UX without local storage:
 - Removing the label in Vikunja makes the timestamp an ordinary timed due date.
 - Existing tasks without this label are timed, including tasks at midnight or
   23:59:59. The app does not guess.
-- When Vikunja creates a new date-only recurring occurrence, the backend
-  verifies the new occurrence, preserves the marker, and normalizes its due
-  time to the end of its calculated local date if necessary.
+- When Vikunja renews a date-only recurring task in place, the backend verifies
+  the renewed schedule, preserves the marker, and normalizes its due time to the
+  end of its calculated local date if necessary.
 
 This convention keeps all durable state visible in Vikunja and avoids an
 ambiguous timestamp heuristic.
@@ -229,10 +238,8 @@ Invalid values are replaced with safe defaults instead of reaching GraphQL.
 - Missing default query values may be omitted from the visible URL.
 - `project=all` means no project restriction; otherwise it is a positive
   Vikunja project ID accessible to the configured token.
-- `page` is a positive integer. For Load more, `page=N` means render pages
-  `1..N`, allowing refresh and Back to restore the accumulated list. One
-  `tasks` query returns the first `page * pageSize` sorted items, so reload does
-  not need to replay N network requests.
+- `page` is a positive integer selecting one result page. Numbered pagination
+  writes it to the URL so refresh and Back restore the selected page.
 - `returnTo` must decode to an allowlisted relative application URL. Absolute,
   protocol-relative, malformed, login, and external destinations are rejected.
 - Browser history and router scroll restoration preserve list position where
@@ -245,7 +252,8 @@ Invalid values are replaced with safe defaults instead of reaching GraphQL.
 ### Shared behavior
 
 - Default project scope is all accessible projects.
-- Initial page size is 30. `Load more` adds 30 and updates `page` in the URL.
+- Page size is 30. Previous, numbered, and Next controls update `page` in the
+  URL.
 - Each response includes `page`, `pageSize`, `totalItems`, `totalPages`, and
   `hasMore`.
 - For Today, This week, This month, Jobs, and Unscheduled, global ordering is
@@ -303,20 +311,18 @@ day.
 
 ### History
 
-- Include all completed occurrences. An invalid recurring-plus-job task remains
-  visible with the `INVALID` diagnostic marker instead of disappearing from
-  history.
+- Include completed one-time tasks, completed jobs, and completed recurring
+  snapshots marked `vbu:recurrence-history`. An invalid marked task remains
+  visible with the `INVALID` diagnostic marker instead of disappearing.
 - Sort by `doneAt` descending, then ID descending.
 - Show completion time, title, kind, project, priority, and scheduled due date
   or time when present.
-- Load 30 initially and 30 per Load more.
+- Show 30 items per page with numbered pagination.
 - History does not use the active-list 10,000-match materialization limit. It
-  requests Vikunja pages in authoritative `doneAt` descending order. When the
-  URL requests page N, the backend retrieves and returns history pages `1..N`
-  so refresh and Back reconstruct the accumulated list. Each upstream page must
-  succeed; otherwise the query fails without presenting a misleading partial
-  history. The runtime entry gate must prove this server-side order and stable
-  tie-breaker against the pinned API before History implementation.
+  requests the selected Vikunja page in authoritative `doneAt` descending
+  order. A failed upstream page fails the query without presenting misleading
+  partial history. The runtime entry gate must prove this server-side order and
+  stable tie-breaker against the pinned API before History implementation.
 
 ## Creation workflows
 
@@ -359,7 +365,7 @@ Additional fields:
   `FROM_COMPLETION`.
 
 The adapter maps this small contract to fields proven by the pinned Vikunja
-2.4.0 OpenAPI schema and runtime tests. Unsupported combinations are rejected
+2.5.0 OpenAPI schema and runtime tests. Unsupported combinations are rejected
 before any write.
 
 ### Job
@@ -424,48 +430,59 @@ repair without recreating the task.
    while the UI remains short.
 5. `undoTaskCompletion` requires that capability, fetches current upstream
    state, verifies the task is still the same non-recurring completed
-   occurrence, and patches it with `If-Match`. A changed task returns
-   `CONFLICT`; Undo never overwrites a concurrent edit.
+   occurrence, and uses JSON Patch `test` operations for `done` and `done_at`
+   before reopening it. A changed task returns `CONFLICT`; Undo never reopens a
+   different completion.
 6. Successful Undo returns the full task needed to restore Apollo caches.
 
 ### Recurring tasks
 
-1. Read the current occurrence, its separate recurrence rule, and its ETag from
-   Vikunja.
-2. Capture the smallest upstream state needed to identify pre-existing
-   occurrences.
-3. Send one native Vikunja completion request with `If-Match`. Never manually
-   create a next occurrence. A competing app instance can have only one
-   matching conditional write; stale writes return `CONFLICT`.
-4. Query Vikunja until the completed historical occurrence and exactly one new
-   occurrence are identifiable, within a short bounded deadline.
-5. Normalize a date-only next occurrence only after it is uniquely identified.
-6. Return `CONFIRMED` with both occurrences when all required writes succeed.
-   If native completion succeeded but marker or date normalization failed,
-   return `CONFIRMED_REPAIR_REQUIRED` with both identified occurrences and a
-   signed repair capability. The UI states that completion succeeded and
-   offers an idempotent metadata repair; it never repeats completion.
+Vikunja 2.5.0 renews a recurring task in place: the task keeps its ID, receives
+a new due date, returns to `done=false`, and overwrites its single `done_at`
+value. It exposes no occurrence-history or audit API. Therefore completion uses
+native renewal for schedule safety and writes a separate archival occurrence to
+Vikunja for History.
 
-The UI does not use an optimistic completion, confirmation dialog, automatic
-retry, or Undo for recurring tasks. A timeout or ambiguous result returns a
-`RECURRENCE_UNCONFIRMED` error and refetches state; it never issues another
-completion request.
+1. Read the live recurring task and its recurrence rule, labels, and dates.
+2. Send one native Vikunja completion request as a JSON Patch containing
+   atomic `test` operations for the expected task state. Never create the next
+   schedule manually. A failed test returns `CONFLICT`. Vikunja 2.5.0 accepts
+   stale `If-Match` values on this route, so ETags are not a correctness guard.
+3. Refetch and verify that the same task ID is incomplete, `done_at` records the
+   new completion, and its due date advanced according to the selected mode.
+4. Normalize the renewed live task's date-only due time when required.
+5. Create one incomplete snapshot in the same project from the pre-completion
+   title, description, priority, due, start, end, and ordinary labels. The
+   snapshot has no recurrence: `repeat_after=0` and `repeat_mode=0`.
+6. Attach `vbu:recurrence-history`, then complete the snapshot with an atomic
+   JSON Patch. Creating it with `done=true` is invalid because Vikunja 2.5.0
+   leaves `done_at` empty on task creation. Store a signed deterministic
+   completion key in a preserved HTML comment so a lost response can be
+   reconciled against Vikunja before any retry. The key contains no secret or
+   task content. Snapshot reads and writes use HTML format because Vikunja's
+   Markdown conversion removes HTML comments.
+7. Return `CONFIRMED` only after the renewed live task and completed marked
+   snapshot are both proven. `completedTask` is the snapshot and
+   `nextOccurrence` is the renewed live task, even though the latter retains the
+   original upstream ID.
 
-Before implementing this mutation, a runtime spike against the pinned Vikunja
-2.4.0 binary must prove how API v2 identifies the completed and next
-occurrences for both recurrence modes. If it cannot be proven without matching
-on ambiguous mutable fields, implementation pauses for product review.
-The runtime gate must also prove that task completion honors `If-Match`. If it
-does not, the app cannot make the concurrency guarantee and implementation
-pauses rather than substituting process-local locking that fails across replicas.
+If native renewal succeeds but snapshot creation, marker attachment, or
+date-only normalization is incomplete, return `CONFIRMED_REPAIR_REQUIRED` with
+a session-bound repair capability. Repair first searches Vikunja for the
+completion key, skips satisfied steps, and never repeats native completion. It
+creates a snapshot only after proving none exists. An unknown or partial read
+never authorizes creation.
+
+The UI does not use optimistic completion, confirmation, automatic mutation
+retry, or Undo for recurring tasks. It clearly reports that renewal succeeded
+when only archival repair remains.
 
 ### Recurrence rule boundary
 
-`RecurrenceRule` is a value separate from `Task`, even if Vikunja copies its
-fields onto every occurrence. Creating a recurring task defines the rule for
-the resulting series. Completing a task changes exactly one occurrence and
-asks Vikunja to materialize the next occurrence from that rule. Editing a rule
-or changing an existing series is outside this MVP.
+`RecurrenceRule` is a value separate from `Task`. Creating a recurring task
+defines its renewal rule. Completing it asks Vikunja to advance the same live
+task, while the app stores the completed occurrence as a non-recurring snapshot.
+Editing a rule or changing an existing series is outside this MVP.
 
 ## GraphQL contract
 
@@ -482,8 +499,14 @@ enum TaskKind { ONE_TIME RECURRING JOB INVALID }
 enum TaskScope { TODAY WEEK MONTH JOBS UNSCHEDULED HISTORY }
 enum RecurrenceUnit { DAY WEEK MONTH }
 enum RecurrenceMode { FROM_COMPLETION SCHEDULED_CYCLE }
-enum MarkerKind { JOB DATE_ONLY }
-enum RepairStep { ATTACH_JOB ATTACH_DATE_ONLY NORMALIZE_DUE }
+enum MarkerKind { JOB DATE_ONLY RECURRENCE_HISTORY }
+enum RepairStep {
+  CREATE_HISTORY_SNAPSHOT
+  ATTACH_JOB
+  ATTACH_DATE_ONLY
+  ATTACH_RECURRENCE_HISTORY
+  NORMALIZE_DUE
+}
 enum TaskMutationStatus { CONFIRMED REPAIR_REQUIRED }
 enum CompletionStatus { CONFIRMED CONFIRMED_REPAIR_REQUIRED }
 enum PageIssueCode { RESULT_SET_TOO_LARGE UPSTREAM_PARTIAL }
@@ -570,7 +593,7 @@ type TaskMutationPayload {
 
 type CompletionPayload {
   status: CompletionStatus!
-  completedTask: Task!
+  completedTask: Task
   nextOccurrence: Task
   undoUntil: DateTime
   undoCapability: String
@@ -714,22 +737,24 @@ Contract rules:
   are validated once at the resolver/service boundary as defined in the
   creation and completion sections.
 - `TaskPage.isComplete: false` requires at least one typed issue. Pagination
-  fields and totals are zero in that state; the UI does not offer Load more
-  until the issue is resolved. On a complete result, `items` contains the first
-  `page * pageSize` rows, while `pageSize` remains the increment size.
+  fields and totals are zero in that state; the UI does not offer pagination
+  until the issue is resolved. On a complete result, `items` contains only the
+  selected page.
 - `projects` is all-or-error. The backend follows the bounded Vikunja
   pagination to completion and returns no `ProjectResult` if any page fails or
   pagination is inconsistent; it never exposes an incomplete project selector.
 - Nullable result fields follow invariants: authenticated sessions have all
-  authenticated fields; recurring tasks have a recurrence rule; confirmed
-  recurring completion has `nextOccurrence`; non-recurring completion has Undo
-  fields; repair-required results have a repair capability.
+  authenticated fields; live recurring tasks have a recurrence rule while
+  recurring-history snapshots do not; confirmed recurring completion has
+  `completedTask` and `nextOccurrence`; recurring completion that renewed but
+  still needs archival repair has no `completedTask`; non-recurring completion
+  has Undo fields; repair-required results have a repair capability.
 
 ### Task result shape
 
 `Task.recurrenceRule` is a distinct immutable value in the browser contract.
-The task is an occurrence; the rule describes how Vikunja creates another
-occurrence. No GraphQL operation edits an existing rule in this MVP.
+It is present on the live recurring task and absent on its completed archival
+snapshots. No GraphQL operation edits an existing rule in this MVP.
 
 `TaskDiagnostics` is a read-only, explicitly typed allowlist containing fields
 present on the real Vikunja task: task and project IDs, timestamps, done state,
@@ -1058,7 +1083,7 @@ and Taskfile together.
 
 ### Real Vikunja and Playwright E2E
 
-- Pin Vikunja 2.4.0 full binaries for Linux amd64 and arm64 with URL, version,
+- Pin Vikunja 2.5.0 full binaries for Linux amd64 and arm64 with URL, version,
   SHA-256, signature URL, and signing-key fingerprint.
 - Verify the official signature before caching or executing the binary.
 - One harness invocation creates one temporary directory, dynamic ports, SQLite
@@ -1072,9 +1097,10 @@ and Taskfile together.
 - Each mutation test asserts both visible UI state and direct Vikunja API state.
 - Required flows: login/logout, route restoration, project filtering, all list
   scopes, every creation type, job calculations, completion/Undo, both
-  recurrence modes, exactly one next occurrence, date-only normalization,
-  history pagination, invalid mixed task, Extended diagnostics, loading/empty/
-  error states, keyboard navigation, and automated accessibility checks.
+  recurrence modes, same-ID native renewal, one non-recurring marked history
+  snapshot, date-only normalization, history pagination, invalid mixed task,
+  Extended diagnostics, loading/empty/error states, keyboard navigation, and
+  automated accessibility checks.
 - Production credentials are never accepted by the harness.
 
 ### Runtime entry gates
@@ -1084,13 +1110,15 @@ prove:
 
 1. The exact v2 task, project, user-settings, label, and history endpoints and
    token scopes from that binary's `/api/v2/openapi.json`.
-2. Native completion retains a queryable completed occurrence and creates
-   exactly one identifiable next occurrence for both recurrence modes.
-   Completing with a stale `If-Match` must fail without creating an occurrence.
+2. Native completion renews the same task ID in place for both modes and
+   overwrites its single `done_at`. JSON Patch `test` operations must reject a
+   stale write without advancing the schedule; `If-Match` is not used as a
+   guard because the 2.5.0 runtime accepts stale values.
 3. Day, week, and month recurrence mappings preserve supported calendar
    semantics.
-4. Labels propagate to renewed occurrences or can be safely restored after
-   unique identification.
+4. Labels remain on the same-ID renewed task, and a snapshot can be created
+   completed with recurrence disabled, marked, and reconciled by its completion
+   key without duplication.
 5. User timezone, week start, default project, completion timestamp, and
    permission fields are available as assumed.
 6. Reopening a freshly completed non-recurring task restores the same occurrence
@@ -1199,7 +1227,8 @@ environment, never Vite variables.
 - Put Vikunja credentials or URLs containing credentials in frontend code.
 - Call Vikunja from the browser.
 - Use API v1 for product behavior.
-- Blindly retry recurring completion or create a recurrence occurrence locally.
+- Blindly retry recurring completion, create the next recurring schedule
+  locally, or give a history snapshot recurrence fields.
 - Render upstream HTML unsanitized.
 - Disable strict TypeScript, Biome, Go lint, security checks, or failing tests to
   make CI pass.
@@ -1215,11 +1244,11 @@ environment, never Vite variables.
 - Each confirmed creation request writes one task. Marker partial failure is
   represented and repaired against that same task without repeating creation;
   an unknown transport outcome is never retried automatically.
-- Completing a recurring occurrence produces one completed historical
-  occurrence and exactly one next occurrence for both modes when no external
-  client races the operation. Conditional writes prevent two instances of this
-  app from both completing the same version. Any observed external race is
-  reported as unconfirmed and never triggers a blind retry.
+- Completing a recurring occurrence advances the same live Vikunja task once
+  and creates one completed, non-recurring, marked history snapshot for both
+  modes. Conditional writes prevent two app instances from renewing the same
+  version. Snapshot repair reconciles its deterministic completion key before
+  creation and never repeats native renewal.
 - One-time and job completion Undo restores the same Vikunja task during the
   defined window only with a valid session-bound capability and unchanged
   upstream version.
@@ -1241,7 +1270,7 @@ environment, never Vite variables.
 
 These are implementation entry gates, not unresolved product choices:
 
-- Exact Vikunja 2.4.0 OpenAPI paths, scopes, recurrence fields, and occurrence
+- Exact Vikunja 2.5.0 OpenAPI paths, scopes, recurrence fields, and occurrence
   identity behavior.
 - Exact TweakCN theme token export and its checksum at retrieval time.
 - Exact stable dependency patch versions and third-party GitHub Action SHAs.
@@ -1267,13 +1296,16 @@ request approval before continuing that behavior.
 - `vbu:date-only` is a reserved Vikunja label because Vikunja has no native
   all-day field and timestamp guessing is ambiguous. Jobs retain the accepted
   exact `job` label for compatibility with existing tasks.
+- `vbu:recurrence-history` marks non-recurring completed snapshots because
+  Vikunja 2.5.0 renews one live task in place and overwrites its prior
+  completion timestamp. See `docs/decisions/0001-recurring-history-snapshots.md`.
 - Page-based pagination mirrors Vikunja v2 and keeps Back/refresh semantics
   simple.
 - A direct pinned Vikunja binary is preferred over Docker-in-Docker or a
   Compose sidecar because the test harness can own one isolated process and
   SQLite directory deterministically.
-- Recurring completion is pessimistic because optimistic UI cannot prove that
-  Vikunja created exactly one next occurrence.
+- Recurring completion is pessimistic because success requires proving both the
+  same-ID native renewal and its completed history snapshot.
 
 ## Sources
 
@@ -1283,8 +1315,8 @@ request approval before continuing that behavior.
   https://vikunja.io/help/dates-and-reminders/
 - Vikunja maintainer explanation that due dates always include a time:
   https://community.vikunja.io/t/list-view-improvements/2674/2
-- Vikunja 2.4.0 release status:
-  https://vikunja.io/changelog/
+- Vikunja 2.5.0 release:
+  https://github.com/go-vikunja/vikunja/releases/tag/v2.5.0
 - Vikunja signed binary installation:
   https://vikunja.io/docs/installing/
 - gqlgen schema-first approach: https://gqlgen.com/

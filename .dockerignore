@@ -1,0 +1,11 @@
+.git
+.github
+.cache
+.devcontainer
+.env
+frontend/node_modules
+frontend/playwright-report
+frontend/test-results
+tasks
+tests
+**/.DS_Store

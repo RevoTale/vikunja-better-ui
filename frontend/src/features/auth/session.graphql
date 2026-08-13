@@ -1,0 +1,14 @@
+query Session {
+  session {
+    authenticated
+    csrfToken
+    expiresAt
+    vikunjaUser {
+      id
+      username
+      timezone
+      weekStart
+      defaultProjectId
+    }
+  }
+}

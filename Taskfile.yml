@@ -1,0 +1,59 @@
+version: "3"
+
+tasks:
+  gen:
+    desc: Generate backend and frontend code
+    cmds:
+      - go tool gqlgen generate
+      - pnpm --dir frontend run generate:graphql
+      - pnpm --dir frontend run build
+
+  gen:check:
+    desc: Verify generated backend and frontend files are current
+    cmds:
+      - |
+        before="$(mktemp)"
+        after="$(mktemp)"
+        trap 'rm -f "$before" "$after"' EXIT
+        find internal/graphql/generated internal/graphql/model internal/graphql/resolver frontend/src/graphql frontend/src/routeTree.gen.ts internal/web/assets -type f -print0 | sort -z | xargs -0 sha256sum > "$before"
+        task gen
+        find internal/graphql/generated internal/graphql/model internal/graphql/resolver frontend/src/graphql frontend/src/routeTree.gen.ts internal/web/assets -type f -print0 | sort -z | xargs -0 sha256sum > "$after"
+        cmp "$before" "$after"
+
+  fix:
+    desc: Format project files
+    cmds:
+      - find cmd internal -name '*.go' -type f -print0 | xargs -0 gofmt -w
+      - pnpm --dir frontend exec biome check --write .
+
+  validate:
+    desc: Run non-mutating validation
+    cmds:
+      - test -z "$(find cmd internal -name '*.go' -type f -print0 | xargs -0 gofmt -l)"
+      - go vet ./...
+      - golangci-lint run ./...
+      - pnpm --dir frontend run lint
+      - pnpm --dir frontend run typecheck
+      - go build -o /tmp/vikunja-better-ui-server ./cmd/server
+      - pnpm --dir frontend run build
+
+  test:
+    desc: Run backend and frontend tests
+    cmds:
+      - go test ./... -race
+      - pnpm --dir frontend run test
+
+  e2e:
+    desc: Run Playwright against an isolated Vikunja 2.5.0 binary
+    cmds:
+      - tests/e2e/harness/run.sh
+
+  image:smoke:
+    desc: Build and smoke-test the non-root production image
+    cmds:
+      - tests/image/smoke.sh
+
+  dev:
+    desc: Run the development application
+    cmds:
+      - go run ./cmd/server

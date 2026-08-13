@@ -1,0 +1,16 @@
+mutation Login($input: LoginInput!) {
+  login(input: $input) {
+    session {
+      authenticated
+      csrfToken
+      expiresAt
+      vikunjaUser {
+        id
+        username
+        timezone
+        weekStart
+        defaultProjectId
+      }
+    }
+  }
+}

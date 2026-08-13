@@ -1,0 +1,93 @@
+mutation CreateOneTimeTask($input: CreateOneTimeTaskInput!) {
+  createOneTimeTask(input: $input) {
+    status
+    task {
+      id
+      title
+      kind
+      isDone
+      project {
+        id
+        title
+        isDefault
+      }
+      priority
+      dueAt
+      hasDueTime
+      isOverdue
+      timezone
+      labels {
+        id
+        title
+      }
+    }
+    repairCapability
+    missingMarkers
+    remainingRepairSteps
+  }
+}
+
+mutation CreateRecurringTask($input: CreateRecurringTaskInput!) {
+  createRecurringTask(input: $input) {
+    status
+    task {
+      id
+      title
+      kind
+      isDone
+      project {
+        id
+        title
+        isDefault
+      }
+      priority
+      dueAt
+      hasDueTime
+      isOverdue
+      timezone
+      labels {
+        id
+        title
+      }
+      recurrenceRule {
+        interval
+        unit
+        mode
+      }
+    }
+    repairCapability
+    missingMarkers
+    remainingRepairSteps
+  }
+}
+
+mutation CreateJob($input: CreateJobInput!) {
+  createJob(input: $input) {
+    status
+    task {
+      id
+      title
+      kind
+      isDone
+      project {
+        id
+        title
+        isDefault
+      }
+      priority
+      dueAt
+      hasDueTime
+      startAt
+      endAt
+      isOverdue
+      timezone
+      labels {
+        id
+        title
+      }
+    }
+    repairCapability
+    missingMarkers
+    remainingRepairSteps
+  }
+}

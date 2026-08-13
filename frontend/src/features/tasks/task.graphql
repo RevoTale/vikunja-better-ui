@@ -1,0 +1,63 @@
+query TaskDetails($id: ID!) {
+  task(id: $id) {
+    id
+    title
+    description
+    kind
+    isDone
+    doneAt
+    priority
+    dueAt
+    hasDueTime
+    startAt
+    endAt
+    isOverdue
+    timezone
+    project {
+      id
+      title
+      isDefault
+    }
+    recurrenceRule {
+      interval
+      unit
+      mode
+    }
+    labels {
+      id
+      title
+    }
+  }
+}
+
+query TaskDiagnostics($id: ID!) {
+  taskDiagnostics(id: $id) {
+    id
+    projectId
+    title
+    kind
+    isDone
+    doneAt
+    dueAt
+    startAt
+    endAt
+    priority
+    recurrenceRule {
+      interval
+      unit
+      mode
+    }
+    labels {
+      id
+      title
+    }
+    createdAt
+    updatedAt
+    creator {
+      id
+      username
+      name
+    }
+    maxPermission
+  }
+}

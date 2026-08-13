@@ -1,0 +1,154 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
+)
+
+func TestListTasksMaterializesAndGloballySortsToday(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
+	client := &listClientStub{pages: []vikunja.TaskPage{{
+		Items: []vikunja.Task{
+			{ID: 3, Title: "Later", DueDate: now.Add(2 * time.Hour)},
+			{ID: 1, Title: "Overdue low", DueDate: now.Add(-time.Hour), Priority: 1},
+			{ID: 2, Title: "Overdue high", DueDate: now.Add(-2 * time.Hour), Priority: 5},
+		},
+		Total: 3, Page: 1, PerPage: 1000, TotalPages: 1,
+	}}}
+	projectID := int64(7)
+	result, err := ListTasks(context.Background(), client, ListRequest{
+		Scope: TaskScopeToday, ProjectID: &projectID, Page: 1, PageSize: 2,
+		Now: now, Location: time.UTC, Timezone: "UTC", WeekStart: time.Monday,
+		ProjectTitles: map[int64]string{7: "Home"},
+	})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+	assertTaskIDs(t, result.Items, 2, 1)
+	if result.TotalItems != 3 || !result.HasMore || !result.IsComplete {
+		t.Fatalf("ListTasks() = %#v", result)
+	}
+	if len(client.queries) != 1 || client.queries[0].Filter != "done = false && due_date < '2026-08-13T00:00:00Z' && project = 7" {
+		t.Fatalf("query = %#v", client.queries)
+	}
+}
+
+func TestListTasksReturnsOnlyRequestedActivePage(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
+	client := &listClientStub{pages: []vikunja.TaskPage{{
+		Items: []vikunja.Task{
+			{ID: 1, DueDate: now.Add(-3 * time.Hour)},
+			{ID: 2, DueDate: now.Add(-2 * time.Hour)},
+			{ID: 3, DueDate: now.Add(-time.Hour)},
+		},
+		Total: 3, Page: 1, PerPage: 1000, TotalPages: 1,
+	}}}
+	result, err := ListTasks(context.Background(), client, ListRequest{
+		Scope: TaskScopeToday, Page: 2, PageSize: 2,
+		Now: now, Location: time.UTC, Timezone: "UTC", WeekStart: time.Monday,
+	})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+	assertTaskIDs(t, result.Items, 3)
+}
+
+func TestListTasksRejectsOversizedActiveCandidateSet(t *testing.T) {
+	t.Parallel()
+
+	client := &listClientStub{pages: []vikunja.TaskPage{{
+		Items: []vikunja.Task{{ID: 1}}, Total: 10001, Page: 1, PerPage: 1000, TotalPages: 11,
+	}}}
+	result, err := ListTasks(context.Background(), client, ListRequest{
+		Scope: TaskScopeJobs, Page: 1, PageSize: 30, Now: time.Now(), Location: time.UTC, Timezone: "UTC",
+		JobLabelIDs: []int64{4},
+	})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+	if result.IsComplete || len(result.Items) != 0 || result.Issue == nil || result.Issue.Code != ListIssueTooLarge {
+		t.Fatalf("ListTasks() = %#v", result)
+	}
+	if len(client.queries) != 1 {
+		t.Fatalf("queries = %d", len(client.queries))
+	}
+	if client.queries[0].Filter != "done = false && labels in 4 && repeat_after = 0" {
+		t.Fatalf("job filter = %q", client.queries[0].Filter)
+	}
+}
+
+func TestListTasksReturnsEmptyJobsWithoutMarkerLabels(t *testing.T) {
+	t.Parallel()
+
+	client := &listClientStub{}
+	result, err := ListTasks(context.Background(), client, ListRequest{
+		Scope: TaskScopeJobs, Page: 1, PageSize: 30, Now: time.Now(), Location: time.UTC, Timezone: "UTC",
+	})
+	if err != nil || !result.IsComplete || result.TotalItems != 0 || len(client.queries) != 0 {
+		t.Fatalf("ListTasks() = %#v, %v, queries=%d", result, err, len(client.queries))
+	}
+}
+
+func TestListTasksReturnsNoPartialRowsOnUpstreamInterruption(t *testing.T) {
+	t.Parallel()
+
+	wantErr := errors.New("connection lost")
+	client := &listClientStub{
+		pages: []vikunja.TaskPage{{Items: []vikunja.Task{{ID: 1}}, Total: 1001, Page: 1, PerPage: 1000, TotalPages: 2}},
+		errAt: 2, err: wantErr,
+	}
+	result, err := ListTasks(context.Background(), client, ListRequest{
+		Scope: TaskScopeJobs, Page: 1, PageSize: 30, Now: time.Now(), Location: time.UTC, Timezone: "UTC",
+		JobLabelIDs: []int64{4},
+	})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+	if result.IsComplete || len(result.Items) != 0 || result.Issue == nil ||
+		result.Issue.Code != ListIssueUpstreamPartial || !errors.Is(result.Issue.Cause, wantErr) {
+		t.Fatalf("ListTasks() = %#v", result)
+	}
+}
+
+func TestListTasksHistoryReadsRequestedPagesInAuthoritativeOrder(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
+	client := &listClientStub{pages: []vikunja.TaskPage{{
+		Items: []vikunja.Task{{ID: 2, Done: true, DoneAt: now.Add(-time.Hour)}},
+		Total: 2, Page: 2, PerPage: 1, TotalPages: 2,
+	}}}
+	result, err := ListTasks(context.Background(), client, ListRequest{
+		Scope: TaskScopeHistory, Page: 2, PageSize: 1, Now: now, Location: time.UTC, Timezone: "UTC",
+	})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+	assertTaskIDs(t, result.Items, 2)
+	if len(client.queries) != 1 || client.queries[0].Page != 2 || client.queries[0].SortBy[0] != "done_at" || client.queries[0].OrderBy[1] != "desc" {
+		t.Fatalf("queries = %#v", client.queries)
+	}
+}
+
+type listClientStub struct {
+	pages   []vikunja.TaskPage
+	queries []vikunja.TaskQuery
+	errAt   int
+	err     error
+}
+
+func (client *listClientStub) TasksPage(_ context.Context, query vikunja.TaskQuery) (vikunja.TaskPage, error) {
+	client.queries = append(client.queries, query)
+	if client.errAt > 0 && len(client.queries) == client.errAt {
+		return vikunja.TaskPage{}, client.err
+	}
+	return client.pages[len(client.queries)-1], nil
+}
