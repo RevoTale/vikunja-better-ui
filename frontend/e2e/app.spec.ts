@@ -19,8 +19,11 @@ test("login restores the requested route and core navigation is accessible", asy
   await expect(page).toHaveURL(/\/tasks\/new\?type=job/);
   await expect(page.getByRole("heading", { name: "New job" })).toBeVisible();
   await expect(page.getByLabel("Title (optional)")).toBeFocused();
-  await expect(page.getByLabel("Start date")).toBeVisible();
-  await expect(page.getByLabel("Start time")).toBeVisible();
+  await expect(page.getByLabel("Start date", { exact: true })).toBeVisible();
+  const startHour = page.getByLabel("Start time", { exact: true });
+  await expect(startHour).toBeVisible();
+  await expect(startHour.locator("option")).toHaveCount(25);
+  await expect(startHour.locator("option", { hasText: /AM|PM/ })).toHaveCount(0);
   const taskTypeButtons = page.getByRole("group", { name: "Task type" }).getByRole("button");
   await expect(taskTypeButtons).toHaveCount(3);
   for (const button of await taskTypeButtons.all()) {
@@ -71,7 +74,7 @@ test("task creation identifies invalid fields and clears corrected errors", asyn
   await login(page);
 
   await page.getByLabel("Title").fill("   ");
-  await page.getByLabel("First due date").fill("");
+  await selectDate(page, "First due date", "");
   await page.getByLabel("Every").fill("2");
   await page.getByLabel("Unit").selectOption("MONTH");
   await page.getByRole("button", { name: "Create recurring task" }).click();
@@ -91,7 +94,7 @@ test("task creation identifies invalid fields and clears corrected errors", asyn
 
   await page.getByLabel("Title").fill("Valid recurring task");
   await page.getByLabel("Priority").selectOption("UNSET");
-  await page.getByLabel("First due date").fill(localDate());
+  await selectDate(page, "First due date", localDate());
   await page.getByLabel("Every").fill("1");
   await page.getByLabel("Renewal").selectOption("SCHEDULED_CYCLE");
 
@@ -113,7 +116,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   const unscheduled = `No deadline E2E ${suffix}`;
 
   const oneTimeId = await createTask(page, "one-time task", oneTime, async () => {
-    await page.getByLabel("Due date").fill(localDate());
+    await selectDate(page, "Due date", localDate());
     await page.getByLabel("Priority").selectOption("HIGH");
   });
   await expectVikunjaTask(oneTimeId, { title: oneTime, done: false });
@@ -174,11 +177,12 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await page.goto("/tasks/new?type=job&returnTo=%2Fjobs");
   await expect(page.getByLabel("Title (optional)")).toHaveAttribute(
     "placeholder",
-    `Job ${localDate()} 09:00`,
+    `Job ${displayDate(localDate())} - 09:00`,
   );
-  const job = `Job ${localDate()} 10:15`;
-  await page.getByLabel("Start date").fill(localDate());
-  await page.getByLabel("Start time").fill("10:15");
+  const job = `Job ${displayDate(localDate())} - 10:15`;
+  await selectDate(page, "Start date", localDate());
+  await page.getByLabel("Start time", { exact: true }).selectOption("10");
+  await page.getByLabel("Start time minute").selectOption("15");
   await expect(page.getByLabel("Title (optional)")).toHaveAttribute("placeholder", job);
   await page.getByLabel("Duration in minutes").fill("45");
   await page.getByLabel("Time to complete after it ends").fill("60");
@@ -333,6 +337,19 @@ async function api(path: string) {
 function localDate() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+function displayDate(value: string) {
+  return `${value.slice(8, 10)}-${value.slice(5, 7)}-${value.slice(0, 4)}`;
+}
+async function selectDate(page: Page, label: string, value: string) {
+  const day = page.getByLabel(label, { exact: true });
+  if (!value) {
+    await day.selectOption("");
+    return;
+  }
+  await day.selectOption(value.slice(8, 10));
+  await page.getByLabel(`${label} month`).selectOption(value.slice(5, 7));
+  await page.getByLabel(`${label} year`).selectOption(value.slice(0, 4));
 }
 function requiredEnv(name: string) {
   const value = process.env[name];

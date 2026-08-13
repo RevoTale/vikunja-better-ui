@@ -26,6 +26,7 @@ import {
   UndoTaskCompletionDocument,
 } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
+import { formatDateTime } from "./format-date-time";
 import type { ListSearch } from "./list-search";
 import { paginationRange } from "./pagination-range";
 import { PriorityBadge } from "./priority-badge";
@@ -384,12 +385,7 @@ function KindBadge({ task }: { task: TaskItem }) {
     </span>
   );
 }
-function formatWhen(value: string, withTime: boolean) {
-  return new Intl.DateTimeFormat(
-    undefined,
-    withTime ? { dateStyle: "medium", timeStyle: "short" } : { dateStyle: "medium" },
-  ).format(new Date(value));
-}
+const formatWhen = formatDateTime;
 function ListMessage({ children, tone }: { children: string; tone?: "error" }) {
   return (
     <div

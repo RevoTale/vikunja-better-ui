@@ -6,5 +6,7 @@ export function defaultJobStart(): LocalDateTimeParts {
 
 export function jobTitlePlaceholder(parts: LocalDateTimeParts): string {
   const startLocal = composeLocalDateTime(parts);
-  return startLocal ? `Job ${startLocal.replace("T", " ")}` : "";
+  return startLocal
+    ? `Job ${parts.date.slice(8, 10)}-${parts.date.slice(5, 7)}-${parts.date.slice(0, 4)} - ${parts.time}`
+    : "";
 }

@@ -2,9 +2,11 @@ import { useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { DateInputDayFirst } from "./date-input-day-first";
 import { JobStartFields } from "./job-start-fields";
 import { currentLocalDate, type LocalDateTimeParts } from "./local-date-time";
 import type { CreationType, TaskFormErrors } from "./task-form-validation";
+import { TimeInput24 } from "./time-input-24";
 import { ValidatedField } from "./validated-field";
 
 export function TaskTypeFields({
@@ -25,22 +27,37 @@ export function TaskTypeFields({
 
 function OneTimeFields({ errors }: { errors: TaskFormErrors }) {
   const [hasDueDate, setHasDueDate] = useState(false);
+  const [dueDate, setDueDate] = useState("");
+  const [dueTime, setDueTime] = useState("");
   return (
     <div className="grid gap-5 sm:grid-cols-2">
       <ValidatedField name="dueDate" label="Due date" error={errors.dueDate}>
         {(attributes) => (
-          <Input
+          <DateInputDayFirst
             id="dueDate"
             name="dueDate"
-            type="date"
-            onChange={(event) => setHasDueDate(Boolean(event.target.value))}
+            monthLabel="Due date month"
+            yearLabel="Due date year"
+            value={dueDate}
+            onChange={(value) => {
+              setDueDate(value);
+              setHasDueDate(Boolean(value));
+            }}
             {...attributes}
           />
         )}
       </ValidatedField>
       <ValidatedField name="dueTime" label="Due time" error={errors.dueTime}>
         {(attributes) => (
-          <Input id="dueTime" name="dueTime" type="time" disabled={!hasDueDate} {...attributes} />
+          <TimeInput24
+            id="dueTime"
+            name="dueTime"
+            minuteLabel="Due time minute"
+            value={dueTime}
+            onChange={setDueTime}
+            disabled={!hasDueDate}
+            {...attributes}
+          />
         )}
       </ValidatedField>
     </div>
@@ -48,23 +65,36 @@ function OneTimeFields({ errors }: { errors: TaskFormErrors }) {
 }
 
 function RecurringFields({ errors }: { errors: TaskFormErrors }) {
+  const [firstDueDate, setFirstDueDate] = useState(currentLocalDate());
+  const [dueTime, setDueTime] = useState("");
   return (
     <>
       <div className="grid gap-5 sm:grid-cols-2">
         <ValidatedField name="firstDueDate" label="First due date" error={errors.firstDueDate}>
           {(attributes) => (
-            <Input
+            <DateInputDayFirst
               id="firstDueDate"
               name="firstDueDate"
-              type="date"
-              defaultValue={currentLocalDate()}
+              monthLabel="First due date month"
+              yearLabel="First due date year"
+              value={firstDueDate}
+              onChange={setFirstDueDate}
               required
               {...attributes}
             />
           )}
         </ValidatedField>
         <ValidatedField name="dueTime" label="Due time" error={errors.dueTime}>
-          {(attributes) => <Input id="dueTime" name="dueTime" type="time" {...attributes} />}
+          {(attributes) => (
+            <TimeInput24
+              id="dueTime"
+              name="dueTime"
+              minuteLabel="Due time minute"
+              value={dueTime}
+              onChange={setDueTime}
+              {...attributes}
+            />
+          )}
         </ValidatedField>
       </div>
       <div className="grid gap-5 sm:grid-cols-3">

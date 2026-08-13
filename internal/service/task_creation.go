@@ -106,7 +106,7 @@ func BuildJobTask(input JobInput, location *time.Location) (vikunja.TaskWrite, e
 	}
 	title := strings.TrimSpace(input.Title)
 	if title == "" {
-		title = "Job " + start.In(location).Format("2006-01-02 15:04")
+		title = "Job " + start.In(location).Format("02-01-2006 - 15:04")
 	}
 	base, err := baseTaskWrite(title, input.Description, input.Priority)
 	if err != nil {

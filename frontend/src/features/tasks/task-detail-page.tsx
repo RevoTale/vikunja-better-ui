@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskDetailsDocument } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
+import { formatDateTime } from "./format-date-time";
 import { PriorityBadge } from "./priority-badge";
 import { taskKindLabel } from "./task-kind-label";
 
@@ -89,9 +90,5 @@ function Fact({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 function format(value: string | null) {
-  return value
-    ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(
-        new Date(value),
-      )
-    : "—";
+  return value ? formatDateTime(value, true) : "—";
 }

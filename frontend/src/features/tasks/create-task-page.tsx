@@ -318,7 +318,9 @@ function optional(form: FormData, name: string) {
 function focusFirstInvalid(form: HTMLFormElement, errors: TaskFormErrors) {
   const firstName = Object.keys(errors)[0];
   if (!firstName) return;
-  const field = form.elements.namedItem(firstName);
+  const field =
+    form.querySelector<HTMLElement>(`[data-form-field="${firstName}"]`) ??
+    form.elements.namedItem(firstName);
   if (field instanceof HTMLElement) requestAnimationFrame(() => field.focus());
 }
 function graphQLValidationMessage(error: unknown): string | undefined {

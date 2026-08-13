@@ -46,7 +46,7 @@ func TestBuildJobTaskDerivesMissingTitleFromLocalStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BuildJobTask() error = %v", err)
 	}
-	if result.Title != "Job 2026-08-12 09:30" {
+	if result.Title != "Job 12-08-2026 - 09:30" {
 		t.Fatalf("BuildJobTask() title = %q", result.Title)
 	}
 }

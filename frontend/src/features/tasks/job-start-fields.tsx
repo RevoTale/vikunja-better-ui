@@ -1,6 +1,7 @@
-import { Input } from "@/components/ui/input";
+import { DateInputDayFirst } from "./date-input-day-first";
 import type { LocalDateTimeParts } from "./local-date-time";
 import type { TaskFormErrors } from "./task-form-validation";
+import { TimeInput24 } from "./time-input-24";
 import { ValidatedField } from "./validated-field";
 
 export function JobStartFields({
@@ -16,12 +17,13 @@ export function JobStartFields({
     <div className="grid gap-5 sm:grid-cols-2">
       <ValidatedField name="startDate" label="Start date" error={errors.startDate}>
         {(attributes) => (
-          <Input
+          <DateInputDayFirst
             id="startDate"
             name="startDate"
-            type="date"
+            monthLabel="Start date month"
+            yearLabel="Start date year"
             value={value.date}
-            onChange={(event) => onChange({ ...value, date: event.currentTarget.value })}
+            onChange={(date) => onChange({ ...value, date })}
             required
             {...attributes}
           />
@@ -29,12 +31,12 @@ export function JobStartFields({
       </ValidatedField>
       <ValidatedField name="startTime" label="Start time" error={errors.startTime}>
         {(attributes) => (
-          <Input
+          <TimeInput24
             id="startTime"
             name="startTime"
-            type="time"
+            minuteLabel="Start time minute"
             value={value.time}
-            onChange={(event) => onChange({ ...value, time: event.currentTarget.value })}
+            onChange={(time) => onChange({ ...value, time })}
             required
             {...attributes}
           />
