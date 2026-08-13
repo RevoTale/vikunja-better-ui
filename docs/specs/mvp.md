@@ -42,7 +42,8 @@ preferences, completion history, sessions, or recurrence series in a database.
 - One-time, recurring, and job creation.
 - Task details and read-only Extended diagnostics pages.
 - One-click completion and the agreed Undo behavior.
-- Responsive light and dark UI based on the exact TweakCN Zen Inspired Theme.
+- Responsive UI that follows the system light or dark color scheme, based on
+  the exact TweakCN Zen Inspired Theme.
 - Real Vikunja API v2 integration, tests, CI, container image, and automated
   releases.
 
@@ -888,6 +889,8 @@ confusion, token leakage through redirects/logs, and open redirects through
   custom primitives.
 - Import the exact light and dark CSS variables from the accepted TweakCN Zen
   Inspired Theme and store them in `frontend/src/styles/theme.css`.
+- Apply those tokens automatically through `prefers-color-scheme`; do not add a
+  manual theme override or persist a theme choice.
 - Record the theme source URL and retrieval date in a comment. Theme tokens are
   reviewed as source, then committed; the runtime never fetches TweakCN.
 - Tailwind CSS 4 handles utilities. Custom CSS is limited to global tokens,

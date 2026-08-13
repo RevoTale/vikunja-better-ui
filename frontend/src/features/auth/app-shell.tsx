@@ -8,10 +8,8 @@ import {
   History,
   LogOut,
   Plus,
-  Sun,
   TimerOff,
 } from "lucide-react";
-import { useEffect, useState } from "react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import { LogoutDocument, SessionDocument } from "@/graphql/graphql";
@@ -33,11 +31,6 @@ export function AppShell() {
   const location = useLocation();
   const { data } = useQuery(SessionDocument);
   const [logout, { loading }] = useMutation(LogoutDocument);
-  const [dark, setDark] = useState(() => document.documentElement.classList.contains("dark"));
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", dark);
-  }, [dark]);
 
   async function signOut() {
     const csrfToken = data?.session.csrfToken;
@@ -60,13 +53,6 @@ export function AppShell() {
           ))}
         </nav>
         <div className="mt-auto grid gap-2">
-          <Button
-            variant="ghost"
-            className="justify-start"
-            onClick={() => setDark((value) => !value)}
-          >
-            <Sun /> Theme
-          </Button>
           <Button variant="ghost" className="justify-start" onClick={signOut} disabled={loading}>
             <LogOut /> Sign out
           </Button>

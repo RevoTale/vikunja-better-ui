@@ -137,7 +137,8 @@ supports Vikunja 2.5.0 only.
 - Use the TweakCN "Zen Inspired Theme" exactly as the design-token source:
   `https://tweakcn.com/themes/cmlm03etv000204lh15608kec`.
 - Preserve its light and dark theme tokens when importing it into the Tailwind
-  CSS 4 and shadcn/ui setup. Do not approximate the theme from screenshots.
+  CSS 4 and shadcn/ui setup. Follow the system color scheme automatically. Do
+  not approximate the theme from screenshots.
 - Prefer stable Rust-based developer tooling when it is compatible with the
   required stack and simpler than the alternative. Do not adopt alpha, beta,
   release-candidate, or nightly tooling.

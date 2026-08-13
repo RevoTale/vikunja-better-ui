@@ -30,8 +30,8 @@ the whole repository.
 - Gives one-time tasks and jobs a short Undo window.
 - Shows the latest 30 completed tasks initially, with URL-backed paging.
 - Exposes a read-only Extended page for useful raw Vikunja fields.
-- Works across phone, tablet, and desktop with light and dark variants of the
-  configured TweakCN theme.
+- Works across phone, tablet, and desktop and follows the system light or dark
+  color scheme with the configured TweakCN theme.
 
 Only Vikunja 2.5.0 and its REST API v2 are supported.
 

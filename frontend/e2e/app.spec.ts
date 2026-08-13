@@ -24,6 +24,23 @@ test("login restores the requested route and core navigation is accessible", asy
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
 });
 
+test("theme follows system color scheme changes", async ({ page }) => {
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.goto("/login");
+  await expect
+    .poll(() =>
+      page.locator("html").evaluate((element) => getComputedStyle(element).backgroundColor),
+    )
+    .toBe("rgb(233, 228, 216)");
+
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect
+    .poll(() =>
+      page.locator("html").evaluate((element) => getComputedStyle(element).backgroundColor),
+    )
+    .toBe("rgb(20, 20, 20)");
+});
+
 test("desktop workflows match Vikunja state", async ({ page }) => {
   await blockBrowserVikunjaCalls(page);
   await page.goto("/today");
