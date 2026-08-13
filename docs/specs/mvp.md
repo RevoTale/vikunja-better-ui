@@ -1103,6 +1103,61 @@ and Taskfile together.
   pagination envelopes, RFC 9457 errors, redirect rejection, and timeouts.
 - Generated-code drift is a required check, not a manual review convention.
 
+### Timezone correctness contract
+
+Vikunja's current user setting is the only timezone authority. With that
+setting unchanged, task creation, list membership, and displayed calendar time
+must not change when the browser or host timezone changes. Changing the
+Vikunja user timezone intentionally changes how an existing instant is grouped
+and displayed; the app does not persist the timezone used when the task was
+created.
+
+Every timestamp path must preserve these invariants:
+
+1. A `LocalDate`, `LocalTime`, or `LocalDateTime` input is a wall-clock value in
+   the Vikunja user timezone. The frontend must not parse it into a JavaScript
+   `Date` before sending it.
+2. The backend resolves the wall-clock value once and writes the corresponding
+   RFC 3339 instant to Vikunja. GraphQL returns that instant together with the
+   current authoritative IANA timezone.
+3. Lists and task details format `dueAt`, `startAt`, `endAt`, and `doneAt` in
+   the returned task timezone, never the browser default timezone.
+4. Date-only tasks are stored at `23:59:59` in the Vikunja timezone and display
+   only their local date while the `vbu:date-only` marker exists.
+5. A missing or invalid Vikunja timezone fails before a date-sensitive read or
+   write. Nonexistent and ambiguous daylight-saving wall times are rejected;
+   the app never guesses an offset.
+
+Coverage is divided by responsibility:
+
+- Go unit tests use fixed clocks and table-driven cases for UTC, a positive
+  offset, a negative offset, Europe/Kyiv winter and summer offsets, local-day
+  crossings, leap day, and daylight-saving gaps and folds. They assert exact
+  instants, Today/week/month boundaries, overdue state, date-only end-of-day,
+  and job start/end/due calculations.
+- Frontend unit tests assert that all timestamp presenters require and apply an
+  explicit task timezone. The same instant must produce the same text when the
+  test process timezone differs. Date-only presentation must not reveal its
+  synthetic time.
+- HTTP and GraphQL integration tests provide a Vikunja user timezone different
+  from the process timezone, then assert the exact `filter_timezone`, exact
+  task-write RFC 3339 values, returned task timezone, and actionable errors for
+  missing or invalid settings.
+- The real Vikunja fixture explicitly sets and verifies `Europe/Kyiv` instead
+  of accepting the instance default. Playwright creates a timed one-time task,
+  a date-only task, a recurring task, and a job, then compares the visible list
+  and detail values with direct Vikunja v2 state.
+- The timezone E2E flow runs once in Chromium and once in WebKit with browser
+  timezones that differ from both each other and Vikunja, such as
+  `Pacific/Honolulu` and `Asia/Tokyo`. Both runs must display identical
+  Vikunja-local values, survive reload, and make no browser-to-Vikunja request.
+- Real-Vikunja recurrence coverage verifies the renewed due instant and its
+  displayed local value for both From completion and Scheduled cycle modes.
+
+Tests must assert semantic text and direct API values rather than screenshots.
+Screenshots, traces, and videos remain failure diagnostics. Only the timezone
+flow needs the additional WebKit project; the full suite is not duplicated.
+
 ### Real Vikunja and Playwright E2E
 
 - Pin Vikunja 2.5.0 full binaries for Linux amd64 and arm64 with URL, version,

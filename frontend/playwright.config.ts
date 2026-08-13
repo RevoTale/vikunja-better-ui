@@ -13,6 +13,7 @@ export default defineConfig({
   reporter: [["line"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     baseURL,
+    timezoneId: "Pacific/Honolulu",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
@@ -40,5 +41,14 @@ export default defineConfig({
       use: { viewport: { width: 1024, height: 768 } },
     },
     { name: "desktop-1440", use: { viewport: { width: 1440, height: 900 } } },
+    {
+      name: "timezone-webkit",
+      grep: /task creation and display use the Vikunja timezone/,
+      use: {
+        browserName: "webkit",
+        timezoneId: "Asia/Tokyo",
+        viewport: { width: 1440, height: 900 },
+      },
+    },
   ],
 });

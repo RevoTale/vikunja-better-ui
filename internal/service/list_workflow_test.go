@@ -39,6 +39,36 @@ func TestListTasksMaterializesAndGloballySortsToday(t *testing.T) {
 	}
 }
 
+func TestListTasksUsesTheLocalDayBoundaryAcrossDST(t *testing.T) {
+	t.Parallel()
+
+	location, err := time.LoadLocation("America/New_York")
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &listClientStub{pages: []vikunja.TaskPage{{
+		Items: []vikunja.Task{}, Total: 0, Page: 1, PerPage: 1000, TotalPages: 1,
+	}}}
+	_, err = ListTasks(context.Background(), client, ListRequest{
+		Scope: TaskScopeToday, Page: 1, PageSize: 30,
+		Now:      time.Date(2026, time.March, 8, 12, 0, 0, 0, time.UTC),
+		Location: location, Timezone: "America/New_York", WeekStart: time.Monday,
+	})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+	if len(client.queries) != 1 {
+		t.Fatalf("queries = %d", len(client.queries))
+	}
+	query := client.queries[0]
+	if query.Filter != "done = false && due_date < '2026-03-09T00:00:00-04:00'" {
+		t.Fatalf("filter = %q", query.Filter)
+	}
+	if query.FilterTimezone != "America/New_York" {
+		t.Fatalf("filter timezone = %q", query.FilterTimezone)
+	}
+}
+
 func TestListTasksReturnsOnlyRequestedActivePage(t *testing.T) {
 	t.Parallel()
 

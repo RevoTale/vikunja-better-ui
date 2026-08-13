@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { DateInputDayFirst } from "./date-input-day-first";
 import { JobStartFields } from "./job-start-fields";
-import { currentLocalDate, type LocalDateTimeParts } from "./local-date-time";
+import type { LocalDateTimeParts } from "./local-date-time";
 import type { CreationType, TaskFormErrors } from "./task-form-validation";
 import { TimeInput24 } from "./time-input-24";
 import { ValidatedField } from "./validated-field";
@@ -12,20 +12,29 @@ import { ValidatedField } from "./validated-field";
 export function TaskTypeFields({
   type,
   errors,
+  defaultDate,
   jobStart,
   onJobStartChange,
 }: {
   type: CreationType;
   errors: TaskFormErrors;
+  defaultDate: string;
   jobStart: LocalDateTimeParts;
   onJobStartChange: (value: LocalDateTimeParts) => void;
 }) {
-  if (type === "one-time") return <OneTimeFields errors={errors} />;
-  if (type === "recurring") return <RecurringFields errors={errors} />;
-  return <JobFields errors={errors} start={jobStart} onStartChange={onJobStartChange} />;
+  if (type === "one-time") return <OneTimeFields errors={errors} defaultDate={defaultDate} />;
+  if (type === "recurring") return <RecurringFields errors={errors} defaultDate={defaultDate} />;
+  return (
+    <JobFields
+      errors={errors}
+      defaultDate={defaultDate}
+      start={jobStart}
+      onStartChange={onJobStartChange}
+    />
+  );
 }
 
-function OneTimeFields({ errors }: { errors: TaskFormErrors }) {
+function OneTimeFields({ errors, defaultDate }: { errors: TaskFormErrors; defaultDate: string }) {
   const [hasDueDate, setHasDueDate] = useState(false);
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("");
@@ -39,6 +48,7 @@ function OneTimeFields({ errors }: { errors: TaskFormErrors }) {
             monthLabel="Due date month"
             yearLabel="Due date year"
             value={dueDate}
+            defaultDate={defaultDate}
             onChange={(value) => {
               setDueDate(value);
               setHasDueDate(Boolean(value));
@@ -64,8 +74,8 @@ function OneTimeFields({ errors }: { errors: TaskFormErrors }) {
   );
 }
 
-function RecurringFields({ errors }: { errors: TaskFormErrors }) {
-  const [firstDueDate, setFirstDueDate] = useState(currentLocalDate());
+function RecurringFields({ errors, defaultDate }: { errors: TaskFormErrors; defaultDate: string }) {
+  const [firstDueDate, setFirstDueDate] = useState(defaultDate);
   const [dueTime, setDueTime] = useState("");
   return (
     <>
@@ -78,6 +88,7 @@ function RecurringFields({ errors }: { errors: TaskFormErrors }) {
               monthLabel="First due date month"
               yearLabel="First due date year"
               value={firstDueDate}
+              defaultDate={defaultDate}
               onChange={setFirstDueDate}
               required
               {...attributes}
@@ -135,16 +146,23 @@ function RecurringFields({ errors }: { errors: TaskFormErrors }) {
 
 function JobFields({
   errors,
+  defaultDate,
   start,
   onStartChange,
 }: {
   errors: TaskFormErrors;
+  defaultDate: string;
   start: LocalDateTimeParts;
   onStartChange: (value: LocalDateTimeParts) => void;
 }) {
   return (
     <>
-      <JobStartFields value={start} errors={errors} onChange={onStartChange} />
+      <JobStartFields
+        value={start}
+        defaultDate={defaultDate}
+        errors={errors}
+        onChange={onStartChange}
+      />
       <div className="grid gap-5 sm:grid-cols-2">
         <ValidatedField
           name="durationMinutes"

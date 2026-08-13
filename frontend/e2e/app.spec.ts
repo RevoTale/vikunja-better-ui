@@ -7,6 +7,7 @@ const projectID = requiredEnv("E2E_PROJECT_ID");
 const emptyProjectID = requiredEnv("E2E_EMPTY_PROJECT_ID");
 const vikunjaTimezone = requiredEnv("E2E_TIMEZONE");
 const invalidTitle = requiredEnv("E2E_INVALID_TITLE");
+const labeledTitle = requiredEnv("E2E_LABELED_TITLE");
 
 test("login restores the requested route and core navigation is accessible", async ({ page }) => {
   await blockBrowserVikunjaCalls(page);
@@ -15,6 +16,7 @@ test("login restores the requested route and core navigation is accessible", asy
   await login(page);
   await expect(page).toHaveURL(/\/jobs/);
   await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible();
+  await expectBrandTimezone(page);
   await page.getByRole("link", { name: "New job" }).click();
   await expect(page).toHaveURL(/\/tasks\/new\?type=job/);
   await expect(page.getByRole("heading", { name: "New job" })).toBeVisible();
@@ -49,6 +51,7 @@ test("login restores the requested route and core navigation is accessible", asy
   await expect(page).toHaveURL(/\/today/);
   await page.reload();
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
+  await expectTaskRowLayout(page, labeledTitle, "focus");
 });
 
 test("theme follows system color scheme changes", async ({ page }) => {
@@ -104,6 +107,33 @@ test("task creation identifies invalid fields and clears corrected errors", asyn
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
+test("task creation and display use the Vikunja timezone", async ({ page }) => {
+  await blockBrowserVikunjaCalls(page);
+  await page.goto("/tasks/new?type=one-time&returnTo=%2Ftoday");
+  await login(page);
+
+  const dueDate = localDate();
+  const title = `Timezone E2E ${Date.now()}`;
+  await page.getByLabel("Title").fill(title);
+  await selectDate(page, "Due date", dueDate);
+  await page.getByLabel("Due time", { exact: true }).selectOption("00");
+  await page.getByLabel("Due time minute").selectOption("30");
+  await page.getByRole("button", { name: "Create one-time task", exact: true }).click();
+
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(page.getByText(`${displayDate(dueDate)} - 00:30`, { exact: true })).toBeVisible();
+  const taskID = page.url().match(/\/tasks\/(\d+)/)?.[1];
+  if (!taskID) throw new Error("created timezone task ID is missing from the URL");
+  const task = await vikunjaTask(taskID);
+  expect(localDateTime(task.due_date)).toBe(`${dueDate}T00:30`);
+
+  await page.reload();
+  await expect(page.getByText(`${displayDate(dueDate)} - 00:30`, { exact: true })).toBeVisible();
+  await page.goto("/today");
+  const taskCard = page.locator('[data-slot="card"]').filter({ hasText: title });
+  await expect(taskCard).toContainText(`${displayDate(dueDate)} - 00:30`);
+});
+
 test("desktop workflows match Vikunja state", async ({ page }) => {
   await blockBrowserVikunjaCalls(page);
   await page.goto("/today");
@@ -122,6 +152,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await expectVikunjaTask(oneTimeId, { title: oneTime, done: false });
   await expectDateOnlyTask(oneTimeId);
   expect((await vikunjaTask(oneTimeId)).priority).toBe(3);
+  await expect(page.getByText(displayDate(localDate()), { exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Extended" }).click();
   await expect(page.getByRole("heading", { name: "Extended properties" })).toBeVisible();
   await expect(
@@ -159,6 +190,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
     new Date(recurringBefore.due_date).getTime(),
   );
   await expectDateOnlyTask(recurringId);
+  await expectRenewedDate(page, recurringId, recurringAfter.due_date);
   const snapshots = await searchTasks("vbu:completion-key:v1");
   expect(snapshots.some((task) => task.done && task.repeat_after === 0)).toBe(true);
 
@@ -173,14 +205,16 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   const scheduledAfter = await vikunjaTask(scheduledId);
   expect(String(scheduledAfter.id)).toBe(scheduledId);
   expect(scheduledAfter.done).toBe(false);
+  await expectRenewedDate(page, scheduledId, scheduledAfter.due_date);
 
   await page.goto("/tasks/new?type=job&returnTo=%2Fjobs");
+  const jobDate = localDate();
   await expect(page.getByLabel("Title (optional)")).toHaveAttribute(
     "placeholder",
-    `Job ${displayDate(localDate())} - 09:00`,
+    `Job ${displayDate(jobDate)} - 09:00`,
   );
-  const job = `Job ${displayDate(localDate())} - 10:15`;
-  await selectDate(page, "Start date", localDate());
+  const job = `Job ${displayDate(jobDate)} - 10:15`;
+  await selectDate(page, "Start date", jobDate);
   await page.getByLabel("Start time", { exact: true }).selectOption("10");
   await page.getByLabel("Start time minute").selectOption("15");
   await expect(page.getByLabel("Title (optional)")).toHaveAttribute("placeholder", job);
@@ -193,12 +227,18 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   const jobId = jobIDMatch[1];
   const jobTask = await vikunjaTask(jobId);
   expect(jobTask.title).toBe(job);
+  expect(localDateTime(jobTask.start_date)).toBe(`${jobDate}T10:15`);
+  expect(localDateTime(jobTask.end_date)).toBe(`${jobDate}T11:00`);
+  expect(localDateTime(jobTask.due_date)).toBe(`${jobDate}T12:00`);
   expect(new Date(jobTask.end_date).getTime() - new Date(jobTask.start_date).getTime()).toBe(
     45 * 60_000,
   );
   expect(new Date(jobTask.due_date).getTime() - new Date(jobTask.end_date).getTime()).toBe(
     60 * 60_000,
   );
+  await expect(page.getByText(`${displayDate(jobDate)} - 10:15`, { exact: true })).toBeVisible();
+  await expect(page.getByText(`${displayDate(jobDate)} - 11:00`, { exact: true })).toBeVisible();
+  await expect(page.getByText(`${displayDate(jobDate)} - 12:00`, { exact: true })).toBeVisible();
   await page.goto("/jobs");
   await expect(page.getByText(job, { exact: true })).toBeVisible();
   await page.goto("/today");
@@ -285,7 +325,12 @@ async function createTask(
 async function blockBrowserVikunjaCalls(page: Page) {
   page.on("pageerror", (error) => console.error(`Browser error: ${error.stack ?? error.message}`));
   page.on("console", (message) => {
-    if (message.type() === "error") console.error(`Browser console: ${message.text()}`);
+    if (message.type() === "error") {
+      const location = message.location();
+      console.error(
+        `Browser console: ${message.text()} (${location.url}:${location.lineNumber}:${location.columnNumber})`,
+      );
+    }
   });
   page.on("request", (request) => {
     if (request.url().startsWith(vikunjaURL)) throw new Error("Browser called Vikunja directly");
@@ -321,6 +366,11 @@ async function expectDateOnlyTask(id: string) {
   }).format(new Date(task.due_date));
   expect(time).toBe("23:59:59");
 }
+async function expectRenewedDate(page: Page, id: string, dueDate: string) {
+  await page.goto(`/tasks/${id}?returnTo=%2Ftoday`);
+  const localDueDate = localDateTime(dueDate).slice(0, 10);
+  await expect(page.getByText(displayDate(localDueDate), { exact: true })).toBeVisible();
+}
 function graphQLOperation(body: string | null) {
   if (!body) return undefined;
   const parsed: unknown = JSON.parse(body);
@@ -335,8 +385,28 @@ async function api(path: string) {
   return response.json();
 }
 function localDate() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: vikunjaTimezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  return `${datePart(parts, "year")}-${datePart(parts, "month")}-${datePart(parts, "day")}`;
+}
+function localDateTime(value: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: vikunjaTimezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(value));
+  return `${datePart(parts, "year")}-${datePart(parts, "month")}-${datePart(parts, "day")}T${datePart(parts, "hour")}:${datePart(parts, "minute")}`;
+}
+function datePart(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes) {
+  return parts.find((part) => part.type === type)?.value ?? "";
 }
 function displayDate(value: string) {
   return `${value.slice(8, 10)}-${value.slice(5, 7)}-${value.slice(0, 4)}`;
@@ -350,6 +420,26 @@ async function selectDate(page: Page, label: string, value: string) {
   await day.selectOption(value.slice(8, 10));
   await page.getByLabel(`${label} month`).selectOption(value.slice(5, 7));
   await page.getByLabel(`${label} year`).selectOption(value.slice(0, 4));
+}
+async function expectTaskRowLayout(page: Page, title: string, label: string) {
+  const card = page.locator('[data-slot="card"]').filter({ hasText: title });
+  const titleBox = await card.getByRole("link", { name: title }).boundingBox();
+  const labelBox = await card.getByText(label, { exact: true }).boundingBox();
+  const completeBox = await card.getByRole("button", { name: `Complete ${title}` }).boundingBox();
+  if (!titleBox || !labelBox || !completeBox) throw new Error("task row layout is not measurable");
+  expect(labelBox.y).toBeGreaterThan(titleBox.y);
+  expect(completeBox.x).toBeGreaterThan(titleBox.x);
+}
+async function expectBrandTimezone(page: Page) {
+  const brand = page.getByText("Better Vikunja", { exact: true }).filter({ visible: true });
+  const timezone = page
+    .getByText(`Vikunja time · ${vikunjaTimezone}`, { exact: true })
+    .filter({ visible: true });
+  await expect(timezone).toBeVisible();
+  const brandBox = await brand.boundingBox();
+  const timezoneBox = await timezone.boundingBox();
+  if (!brandBox || !timezoneBox) throw new Error("brand timezone layout is not measurable");
+  expect(timezoneBox.y).toBeGreaterThan(brandBox.y);
 }
 function requiredEnv(name: string) {
   const value = process.env[name];

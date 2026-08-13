@@ -24,7 +24,11 @@ import { cn } from "@/lib/cn";
 import { SharedFields } from "./create-shared-fields";
 import { TaskTypeFields } from "./create-type-fields";
 import { defaultJobStart, jobTitlePlaceholder } from "./job-title";
-import { composeLocalDateTime } from "./local-date-time";
+import {
+  composeLocalDateTime,
+  currentDateInTimeZone,
+  type LocalDateTimeParts,
+} from "./local-date-time";
 import {
   type CreationType,
   hasTaskFormErrors,
@@ -40,7 +44,7 @@ type CreatePayload =
 
 export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnTo: string }) {
   const navigate = useNavigate();
-  const { data: sessionData } = useQuery(SessionDocument);
+  const { data: sessionData, loading: sessionLoading } = useQuery(SessionDocument);
   const { data: projectData, loading: projectsLoading } = useQuery(ProjectsDocument);
   const [createOneTime, oneTimeState] = useMutation(CreateOneTimeTaskDocument);
   const [createRecurring, recurringState] = useMutation(CreateRecurringTaskDocument);
@@ -48,13 +52,16 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
   const [repair, repairState] = useMutation(RepairTaskMetadataDocument);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<TaskFormErrors>({});
-  const [jobStart, setJobStart] = useState(defaultJobStart);
+  const [jobStart, setJobStart] = useState<LocalDateTimeParts>();
   const [repairInfo, setRepairInfo] = useState<{
     capability: string;
     taskId: string;
     steps: readonly string[];
   }>();
   const projects = projectData?.projects.items ?? [];
+  const timezone = sessionData?.session.vikunjaUser?.timezone;
+  const defaultDate = timezone ? currentDateInTimeZone(timezone) : undefined;
+  const selectedJobStart = jobStart ?? defaultJobStart(defaultDate ?? "");
   const defaultProject = projects.find((project) => project.isDefault)?.id ?? projects[0]?.id ?? "";
   const loading = oneTimeState.loading || recurringState.loading || jobState.loading;
 
@@ -269,8 +276,12 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
           Check the highlighted fields below.
         </div>
       ) : null}
-      {projectsLoading ? (
-        <p className="mt-6">Loading projects…</p>
+      {sessionLoading || projectsLoading ? (
+        <p className="mt-6">Loading task settings…</p>
+      ) : !timezone || !defaultDate ? (
+        <p className="mt-6" role="alert">
+          Configure a valid timezone in Vikunja before creating tasks.
+        </p>
       ) : projects.length === 0 ? (
         <p className="mt-6" role="alert">
           No accessible Vikunja project is available. Create or grant access to a project first.
@@ -291,12 +302,13 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
             defaultProject={defaultProject}
             errors={fieldErrors}
             type={type}
-            titlePlaceholder={jobTitlePlaceholder(jobStart)}
+            titlePlaceholder={jobTitlePlaceholder(selectedJobStart)}
           />
           <TaskTypeFields
             type={type}
             errors={fieldErrors}
-            jobStart={jobStart}
+            defaultDate={defaultDate}
+            jobStart={selectedJobStart}
             onJobStartChange={setJobStart}
           />
           <Button type="submit" disabled={loading}>

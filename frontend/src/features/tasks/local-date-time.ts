@@ -27,8 +27,19 @@ export function isValidLocalTime(value: string): boolean {
   return Boolean(match && Number(match[1]) <= 23 && Number(match[2]) <= 59);
 }
 
-export function currentLocalDate(now = new Date()): string {
-  return `${now.getFullYear()}-${twoDigits(now.getMonth() + 1)}-${twoDigits(now.getDate())}`;
+export function currentDateInTimeZone(timeZone: string, now = new Date()): string | undefined {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(now);
+    return `${datePart(parts, "year")}-${datePart(parts, "month")}-${datePart(parts, "day")}`;
+  } catch (error) {
+    if (error instanceof RangeError) return undefined;
+    throw error;
+  }
 }
 
 function daysInMonth(year: number, month: number): number {
@@ -40,6 +51,6 @@ function isLeapYear(year: number): boolean {
   return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
 }
 
-function twoDigits(value: number): string {
-  return String(value).padStart(2, "0");
+function datePart(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes): string {
+  return parts.find((part) => part.type === type)?.value ?? "";
 }

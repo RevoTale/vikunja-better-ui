@@ -21,6 +21,38 @@ func TestResolveLocalDateTime(t *testing.T) {
 	}
 }
 
+func TestResolveLocalDateTimeUsesNamedZoneOffsetAtTheSelectedDate(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		timezone string
+		local    string
+		wantUTC  string
+	}{
+		{name: "Kyiv summer", timezone: "Europe/Kyiv", local: "2026-08-12T09:30", wantUTC: "2026-08-12T06:30:00Z"},
+		{name: "Kyiv winter", timezone: "Europe/Kyiv", local: "2026-01-12T09:30", wantUTC: "2026-01-12T07:30:00Z"},
+		{name: "New York summer", timezone: "America/New_York", local: "2026-08-12T09:30", wantUTC: "2026-08-12T13:30:00Z"},
+		{name: "leap day", timezone: "Europe/Kyiv", local: "2028-02-29T09:30", wantUTC: "2028-02-29T07:30:00Z"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			location, err := time.LoadLocation(test.timezone)
+			if err != nil {
+				t.Fatal(err)
+			}
+			resolved, err := ResolveLocalDateTime(test.local, location)
+			if err != nil {
+				t.Fatalf("ResolveLocalDateTime() error = %v", err)
+			}
+			if got := resolved.UTC().Format(time.RFC3339); got != test.wantUTC {
+				t.Fatalf("resolved UTC time = %q, want %q", got, test.wantUTC)
+			}
+		})
+	}
+}
+
 func TestResolveLocalDateTimeRejectsDSTGapAndFold(t *testing.T) {
 	t.Parallel()
 

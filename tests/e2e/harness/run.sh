@@ -98,6 +98,7 @@ export E2E_PROJECT_ID="$(node -e 'const d=JSON.parse(process.argv[1]);process.st
 export E2E_EMPTY_PROJECT_ID="$(node -e 'const d=JSON.parse(process.argv[1]);process.stdout.write(d.emptyProjectId)' "$fixture_json")"
 export E2E_TIMEZONE="$(node -e 'const d=JSON.parse(process.argv[1]);process.stdout.write(d.timezone)' "$fixture_json")"
 export E2E_INVALID_TITLE="$(node -e 'const d=JSON.parse(process.argv[1]);process.stdout.write(d.invalidTitle)' "$fixture_json")"
+export E2E_LABELED_TITLE="$(node -e 'const d=JSON.parse(process.argv[1]);process.stdout.write(d.labeledTitle)' "$fixture_json")"
 
 pnpm --dir "$repo_root/frontend" run generate:graphql >/dev/null
 pnpm --dir "$repo_root/frontend" run build >/dev/null

@@ -48,7 +48,7 @@ export function AppShell() {
   return (
     <div className="min-h-svh bg-background lg:grid lg:grid-cols-[15rem_1fr]">
       <aside className="hidden border-r border-sidebar-border bg-sidebar p-4 lg:flex lg:flex-col">
-        <Brand />
+        <Brand timezone={data?.session.vikunjaUser?.timezone} />
         <nav className="mt-8 grid gap-1" aria-label="Main navigation">
           {navigation.map((item) => (
             <NavigationLink key={item.to} {...item} />
@@ -63,7 +63,7 @@ export function AppShell() {
       <div className="min-w-0 pb-20 lg:pb-0">
         <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur lg:px-8">
           <div className="lg:hidden">
-            <Brand />
+            <Brand timezone={data?.session.vikunjaUser?.timezone} />
           </div>
           <p className="hidden text-sm text-muted-foreground sm:block">
             {data?.session.vikunjaUser?.username}
@@ -92,8 +92,15 @@ export function AppShell() {
   );
 }
 
-function Brand() {
-  return <span className="font-serif text-lg font-semibold tracking-tight">Better Vikunja</span>;
+function Brand({ timezone }: { timezone: string | undefined }) {
+  return (
+    <div className="leading-tight">
+      <span className="font-serif text-lg font-semibold tracking-tight">Better Vikunja</span>
+      {timezone ? (
+        <p className="mt-0.5 text-[0.65rem] text-muted-foreground">Vikunja time · {timezone}</p>
+      ) : null}
+    </div>
+  );
 }
 
 function NavigationLink({

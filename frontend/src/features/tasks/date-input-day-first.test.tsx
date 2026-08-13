@@ -12,6 +12,7 @@ describe("DateInputDayFirst", () => {
         monthLabel="Start date month"
         yearLabel="Start date year"
         value="2026-08-14"
+        defaultDate="2026-08-14"
         onChange={() => undefined}
       />,
     );

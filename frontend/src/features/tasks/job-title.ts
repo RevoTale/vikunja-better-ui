@@ -1,7 +1,7 @@
-import { composeLocalDateTime, currentLocalDate, type LocalDateTimeParts } from "./local-date-time";
+import { composeLocalDateTime, type LocalDateTimeParts } from "./local-date-time";
 
-export function defaultJobStart(): LocalDateTimeParts {
-  return { date: currentLocalDate(), time: "09:00" };
+export function defaultJobStart(date: string): LocalDateTimeParts {
+  return { date, time: "09:00" };
 }
 
 export function jobTitlePlaceholder(parts: LocalDateTimeParts): string {

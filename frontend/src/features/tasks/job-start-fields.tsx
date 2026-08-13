@@ -6,10 +6,12 @@ import { ValidatedField } from "./validated-field";
 
 export function JobStartFields({
   value,
+  defaultDate,
   errors,
   onChange,
 }: {
   value: LocalDateTimeParts;
+  defaultDate: string;
   errors: TaskFormErrors;
   onChange: (value: LocalDateTimeParts) => void;
 }) {
@@ -23,6 +25,7 @@ export function JobStartFields({
             monthLabel="Start date month"
             yearLabel="Start date year"
             value={value.date}
+            defaultDate={defaultDate}
             onChange={(date) => onChange({ ...value, date })}
             required
             {...attributes}

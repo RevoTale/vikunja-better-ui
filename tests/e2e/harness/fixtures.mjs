@@ -1,4 +1,5 @@
 const [baseURL, username, password] = process.argv.slice(2);
+const fixtureTimezone = "Europe/Kyiv";
 
 if (!baseURL || !username || !password) {
   throw new Error("usage: fixtures.mjs <base-url> <username> <password>");
@@ -20,7 +21,27 @@ const emptyProject = await request("/projects", {
   token: jwt,
   body: JSON.stringify({ title: "E2E Empty Project" }),
 });
+await request("/user/settings/general", {
+  method: "PUT",
+  token: jwt,
+  body: JSON.stringify({
+    default_project_id: project.id,
+    discoverable_by_email: false,
+    discoverable_by_name: false,
+    email_reminders_enabled: false,
+    frontend_settings: {},
+    language: "en",
+    name: "E2E User",
+    overdue_tasks_reminders_enabled: false,
+    overdue_tasks_reminders_time: "09:00",
+    timezone: fixtureTimezone,
+    week_start: 1,
+  }),
+});
 const currentUser = await request("/user", { token: jwt });
+if (currentUser.settings?.timezone !== fixtureTimezone) {
+  throw new Error(`user timezone is ${currentUser.settings?.timezone}, want ${fixtureTimezone}`);
+}
 
 for (let index = 1; index <= 31; index += 1) {
   const task = await request(`/projects/${project.id}/tasks`, {
@@ -44,13 +65,29 @@ const jobLabel = await request("/labels", {
   token: jwt,
   body: JSON.stringify({ title: "job" }),
 });
+const focusLabel = await request("/labels", {
+  method: "POST",
+  token: jwt,
+  body: JSON.stringify({ title: "focus" }),
+});
+const labeledTitle = "Labeled task fixture";
+const labeledTask = await request(`/projects/${project.id}/tasks`, {
+  method: "POST",
+  token: jwt,
+  body: JSON.stringify({ title: labeledTitle, due_date: new Date().toISOString() }),
+});
+await request(`/tasks/${labeledTask.id}/labels`, {
+  method: "POST",
+  token: jwt,
+  body: JSON.stringify({ label_id: focusLabel.id }),
+});
 const invalidTitle = "Invalid mixed task fixture";
 const invalidTask = await request(`/projects/${project.id}/tasks`, {
   method: "POST",
   token: jwt,
   body: JSON.stringify({
     title: invalidTitle,
-    due_date: endOfToday().toISOString(),
+    due_date: new Date().toISOString(),
     repeat_after: 86400,
     repeat_mode: 2,
   }),
@@ -87,6 +124,7 @@ process.stdout.write(
     emptyProjectId: String(emptyProject.id),
     timezone: requiredString(currentUser.settings?.timezone, "user timezone"),
     invalidTitle,
+    labeledTitle,
   }),
 );
 
@@ -105,11 +143,6 @@ async function request(path, options = {}) {
     throw new Error(`${options.method ?? "GET"} ${path} returned ${response.status}: ${await response.text()}`);
   }
   return response.json();
-}
-
-function endOfToday() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 }
 
 function requiredString(value, name) {

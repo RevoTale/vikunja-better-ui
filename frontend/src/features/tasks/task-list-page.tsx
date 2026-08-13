@@ -1,10 +1,9 @@
 import { useMutation, useQuery } from "@apollo/client/react";
-import { Link, useLocation } from "@tanstack/react-router";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
+import { useLocation } from "@tanstack/react-router";
+import { AlertTriangle, ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Pagination,
   PaginationButton,
@@ -21,18 +20,14 @@ import {
   RepairTaskMetadataDocument,
   SessionDocument,
   TaskListDocument,
-  type TaskListQuery,
   type TaskScope,
   UndoTaskCompletionDocument,
 } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
-import { formatDateTime } from "./format-date-time";
 import type { ListSearch } from "./list-search";
 import { paginationRange } from "./pagination-range";
-import { PriorityBadge } from "./priority-badge";
-import { taskKindLabel } from "./task-kind-label";
+import { type TaskItem, TaskRow } from "./task-row";
 
-type TaskItem = TaskListQuery["tasks"]["items"][number];
 type TaskListPageProps = {
   title: string;
   description: string;
@@ -277,55 +272,6 @@ function TaskPagination({
   );
 }
 
-function TaskRow({
-  task,
-  returnTo,
-  completingTaskID,
-  onComplete,
-}: {
-  task: TaskItem;
-  returnTo: string;
-  completingTaskID: string | undefined;
-  onComplete: (task: TaskItem) => void;
-}) {
-  return (
-    <Card className={cn(task.isOverdue && "border-destructive/50 bg-destructive/5")}>
-      <CardContent className="flex items-start gap-3 p-4">
-        {!task.isDone && task.kind !== "INVALID" ? (
-          <Button
-            size="icon"
-            variant="outline"
-            aria-label={`Complete ${task.title}`}
-            disabled={completingTaskID === task.id}
-            onClick={() => onComplete(task)}
-          >
-            <Check />
-          </Button>
-        ) : null}
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Link
-              to="/tasks/$taskId"
-              params={{ taskId: task.id }}
-              search={{ returnTo }}
-              className="font-medium hover:underline"
-            >
-              {task.title}
-            </Link>
-            <KindBadge task={task} />
-            {task.priority !== "UNSET" ? <PriorityBadge priority={task.priority} /> : null}
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {task.project.title}
-            {task.dueAt ? ` · ${formatWhen(task.dueAt, task.hasDueTime)}` : " · No deadline"}
-            {task.isOverdue ? " · Overdue" : ""}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function GroupedTasks(props: {
   tasks: TaskItem[];
   returnTo: string;
@@ -378,14 +324,6 @@ function GroupedTasks(props: {
   );
 }
 
-function KindBadge({ task }: { task: TaskItem }) {
-  return (
-    <span className="rounded-full border px-2 py-0.5 text-[0.7rem] font-medium">
-      {taskKindLabel(task)}
-    </span>
-  );
-}
-const formatWhen = formatDateTime;
 function ListMessage({ children, tone }: { children: string; tone?: "error" }) {
   return (
     <div

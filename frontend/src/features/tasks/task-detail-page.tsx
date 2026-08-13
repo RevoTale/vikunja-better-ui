@@ -57,9 +57,12 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
               value={task.isDone ? "Completed" : task.isOverdue ? "Overdue" : "Open"}
             />
             <Fact label="Priority" value={<PriorityBadge priority={task.priority} />} />
-            <Fact label="Due" value={format(task.dueAt)} />
-            <Fact label="Start" value={format(task.startAt)} />
-            <Fact label="End" value={format(task.endAt)} />
+            {task.doneAt ? (
+              <Fact label="Completed" value={format(task.doneAt, true, task.timezone)} />
+            ) : null}
+            <Fact label="Due" value={format(task.dueAt, task.hasDueTime, task.timezone)} />
+            <Fact label="Start" value={format(task.startAt, true, task.timezone)} />
+            <Fact label="End" value={format(task.endAt, true, task.timezone)} />
             <Fact label="Timezone" value={task.timezone} />
           </dl>
           {task.description ? (
@@ -89,6 +92,6 @@ function Fact({ label, value }: { label: string; value: ReactNode }) {
     </div>
   );
 }
-function format(value: string | null) {
-  return value ? formatDateTime(value, true) : "—";
+function format(value: string | null, withTime: boolean, timezone: string) {
+  return value ? formatDateTime(value, withTime, timezone) : "—";
 }
