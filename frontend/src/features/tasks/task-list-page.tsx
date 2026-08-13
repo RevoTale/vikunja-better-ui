@@ -146,7 +146,7 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
         onComplete={markDone}
       />
     ) : (
-      <div className="grid gap-3">
+      <div className="grid gap-2 sm:gap-3">
         {taskPage.items.map((task) => (
           <TaskRow
             key={task.id}
@@ -160,8 +160,8 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
     );
 
   return (
-    <section aria-labelledby="page-title">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+    <section className="mx-auto w-full max-w-5xl" aria-labelledby="page-title">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
         <div>
           <h1 id="page-title" className="font-serif text-3xl font-semibold">
             {title}
@@ -182,7 +182,7 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
           ))}
         </Select>
       </div>
-      <div className="mt-6" aria-busy={loading}>
+      <div className="mt-4 sm:mt-6" aria-busy={loading}>
         {content}
       </div>
       {taskPage?.isComplete && taskPage.totalPages > 1 ? (
@@ -288,7 +288,7 @@ function GroupedTasks(props: {
   }, [props.tasks]);
   const [closed, setClosed] = useState<Set<string>>(() => new Set());
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-4 sm:gap-5">
       {Array.from(groups, ([key, tasks]) => {
         const title = tasks[0]?.project.title ?? "Project";
         const isClosed = closed.has(key);
@@ -311,7 +311,7 @@ function GroupedTasks(props: {
               <span className="text-sm font-normal text-muted-foreground">{tasks.length}</span>
             </button>
             {!isClosed ? (
-              <div className="grid gap-3">
+              <div className="grid gap-2 sm:gap-3">
                 {tasks.map((task) => (
                   <TaskRow key={task.id} task={task} {...props} />
                 ))}

@@ -278,6 +278,42 @@ Invalid values are replaced with safe defaults instead of reaching GraphQL.
 - Task rows use the same semantic kind, priority, project, due, and completion
   controls in every view.
 
+### Task-row presentation
+
+The task list content, including its heading, project filter, rows, and
+pagination, is centered and limited to `max-w-5xl` (1024px) on large screens.
+It remains full-width within page padding at smaller breakpoints.
+
+Active task rows use three semantic regions:
+
+1. A fixed-width schedule and importance column on the left.
+2. Flexible task content in the middle.
+3. Right-aligned project and completion controls.
+
+The schedule value is the primary time-sensitivity signal. Overdue values use
+the destructive state, values due within two hours use the warning state,
+values due later today use the normal foreground, and date-only values use
+muted text. The row must also state overdue status in text; color is never the
+only signal. Week and month rows show day/month and add the exact due time when
+one exists. Date-only rows never expose the synthetic end-of-day time.
+
+Priority appears immediately below the schedule using the named priority badge
+and its independent semantic palette. Urgency color must not be reused to imply
+priority. Existing list ordering remains authoritative; visual treatment does
+not reorder tasks.
+
+The middle region contains title, task kind, and ordinary user labels. The
+right region places the muted project name at the outer edge and the completion
+control below it. On narrow phones, the row becomes two columns; project and
+completion share a compact row below the title, with completion kept at the
+right. The project may truncate with an accessible full name, and completion
+remains a 44px reachable control. Invalid tasks never show completion.
+
+Jobs use a slightly wider schedule region containing the local work interval,
+for example `10:15-11:00`. Their distinct due timestamp is shown as `Complete
+by 12:00` in metadata. This preserves the difference between when work happens
+and when completion becomes overdue.
+
 ### Today
 
 Include incomplete tasks due at or before the end of the current local day,
@@ -922,6 +958,25 @@ confusion, token leakage through redirects/logs, and open redirects through
 - Phone navigation uses a compact reachable bottom or top navigation composed
   from shadcn primitives; tablet and desktop may use a sidebar when space
   permits. The information hierarchy and route contract remain identical.
+
+### Task-row implementation plan
+
+1. Add a pure presentation helper that derives schedule text and urgency state
+   from `kind`, `isDone`, `dueAt`, `hasDueTime`, `startAt`, `endAt`, `timezone`,
+   and a supplied clock. Cover overdue, two-hour warning, later-today,
+   date-only, job, and timezone-boundary cases before rendering changes.
+2. Compose the existing reusable task row from schedule, content, and trailing
+   regions. Use shadcn primitives and Tailwind utilities; do not add a custom
+   layout system or another dependency.
+3. Apply one centered `max-w-5xl` list container so headings, filters, rows, and
+   pagination share an alignment edge.
+4. Preserve the current completion, Undo, invalid-task, URL, and sorting
+   behavior. This slice changes presentation only.
+5. Extend Playwright coverage at phone, tablet, and desktop widths. Assert
+   semantic schedule text, priority placement, right-aligned project and
+   completion regions, job interval/deadline distinction, no horizontal
+   overflow, keyboard reachability, and accessibility results against the real
+   Vikunja fixture.
 
 ### Forms and mutation feedback
 

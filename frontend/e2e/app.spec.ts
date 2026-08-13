@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 const vikunjaURL = requiredEnv("E2E_VIKUNJA_URL");
 const vikunjaToken = requiredEnv("E2E_VIKUNJA_API_TOKEN");
@@ -131,7 +131,9 @@ test("task creation and display use the Vikunja timezone", async ({ page }) => {
   await expect(page.getByText(`${displayDate(dueDate)} - 00:30`, { exact: true })).toBeVisible();
   await page.goto("/today");
   const taskCard = page.locator('[data-slot="card"]').filter({ hasText: title });
-  await expect(taskCard).toContainText(`${displayDate(dueDate)} - 00:30`);
+  await expect(taskCard.locator('[data-slot="task-schedule"]')).toContainText(
+    `${displayShortDate(dueDate)}00:30`,
+  );
 });
 
 test("desktop workflows match Vikunja state", async ({ page }) => {
@@ -170,6 +172,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await page.goto("/month");
   await expect(page.getByRole("heading", { name: "This month" })).toBeVisible();
   await page.goto("/today");
+  await expectTaskPriorityLayout(page, oneTime, "High");
   await page.getByRole("button", { name: `Complete ${oneTime}` }).click();
   await expect(page.getByRole("status")).toHaveText(`${oneTime} completed.`);
   await expectVikunjaTask(oneTimeId, { title: oneTime, done: true });
@@ -240,7 +243,10 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await expect(page.getByText(`${displayDate(jobDate)} - 11:00`, { exact: true })).toBeVisible();
   await expect(page.getByText(`${displayDate(jobDate)} - 12:00`, { exact: true })).toBeVisible();
   await page.goto("/jobs");
-  await expect(page.getByText(job, { exact: true })).toBeVisible();
+  const jobCard = page.locator('[data-slot="card"]').filter({ hasText: job });
+  await expect(jobCard.getByText(job, { exact: true })).toBeVisible();
+  await expect(jobCard.locator('[data-slot="task-schedule"]')).toContainText("10:15–11:00");
+  await expect(jobCard.getByText("Complete by 12:00", { exact: true })).toBeVisible();
   await page.goto("/today");
   await expect(page.getByText(job, { exact: true })).toBeVisible();
 
@@ -411,6 +417,12 @@ function datePart(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPar
 function displayDate(value: string) {
   return `${value.slice(8, 10)}-${value.slice(5, 7)}-${value.slice(0, 4)}`;
 }
+function displayShortDate(value: string) {
+  const month = new Intl.DateTimeFormat("en-GB", { month: "short", timeZone: "UTC" }).format(
+    new Date(`${value}T00:00:00Z`),
+  );
+  return `${value.slice(8, 10)} ${month}`;
+}
 async function selectDate(page: Page, label: string, value: string) {
   const day = page.getByLabel(label, { exact: true });
   if (!value) {
@@ -423,12 +435,51 @@ async function selectDate(page: Page, label: string, value: string) {
 }
 async function expectTaskRowLayout(page: Page, title: string, label: string) {
   const card = page.locator('[data-slot="card"]').filter({ hasText: title });
+  const scheduleBox = await card.locator('[data-slot="task-schedule"]').boundingBox();
   const titleBox = await card.getByRole("link", { name: title }).boundingBox();
   const labelBox = await card.getByText(label, { exact: true }).boundingBox();
   const completeBox = await card.getByRole("button", { name: `Complete ${title}` }).boundingBox();
-  if (!titleBox || !labelBox || !completeBox) throw new Error("task row layout is not measurable");
+  const projectBox = await card
+    .locator('[data-slot="task-project"]')
+    .filter({ visible: true })
+    .boundingBox();
+  if (!scheduleBox || !titleBox || !labelBox || !completeBox || !projectBox) {
+    throw new Error("task row layout is not measurable");
+  }
+  expect(scheduleBox.x).toBeLessThan(titleBox.x);
   expect(labelBox.y).toBeGreaterThan(titleBox.y);
   expect(completeBox.x).toBeGreaterThan(titleBox.x);
+  if (test.info().project.name !== "phone-320") expect(projectBox.x).toBeGreaterThan(titleBox.x);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+    await page.evaluate(() => document.documentElement.clientWidth),
+  );
+  if (test.info().project.name === "phone-320") {
+    const headerBox = await page.locator("header").boundingBox();
+    const headingBox = await page.getByRole("heading", { name: "Today" }).boundingBox();
+    const filterBox = await page.getByLabel("Project").boundingBox();
+    const firstCardBox = await page.locator('[data-slot="card"]').first().boundingBox();
+    const invalidKind = page.getByText("Invalid: both recurring and job", { exact: true });
+    if (!headerBox || !headingBox || !filterBox || !firstCardBox) {
+      throw new Error("mobile task list spacing is not measurable");
+    }
+    expect(headingBox.y - (headerBox.y + headerBox.height)).toBeLessThanOrEqual(20);
+    expect(firstCardBox.y - (filterBox.y + filterBox.height)).toBeLessThanOrEqual(20);
+    expect(await renderedLineCount(invalidKind)).toBeLessThanOrEqual(2);
+  }
+}
+async function expectTaskPriorityLayout(page: Page, title: string, priority: string) {
+  const card = page.locator('[data-slot="card"]').filter({ hasText: title });
+  const scheduleBox = await card.locator('[data-slot="task-schedule"]').boundingBox();
+  const priorityBox = await card.getByText(priority, { exact: true }).boundingBox();
+  if (!scheduleBox || !priorityBox) throw new Error("task priority layout is not measurable");
+  expect(priorityBox.x).toBeGreaterThanOrEqual(scheduleBox.x);
+  expect(priorityBox.y).toBeGreaterThan(scheduleBox.y);
+}
+async function renderedLineCount(locator: Locator) {
+  return locator.evaluate((element) => {
+    const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight);
+    return Math.round(element.getBoundingClientRect().height / lineHeight);
+  });
 }
 async function expectBrandTimezone(page: Page) {
   const brand = page.getByText("Better Vikunja", { exact: true }).filter({ visible: true });
