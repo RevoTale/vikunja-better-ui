@@ -17,6 +17,9 @@ const httpLink = new HttpLink({
 
 export const apolloClient = new ApolloClient({
   link: csrfLink.concat(httpLink),
+  defaultOptions: {
+    watchQuery: { fetchPolicy: "cache-and-network" },
+  },
   cache: new InMemoryCache({
     typePolicies: {
       Task: { keyFields: ["id"] },
