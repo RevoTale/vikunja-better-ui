@@ -98,8 +98,9 @@ states, and safe error mapping.
 
 **Acceptance criteria:**
 
-- [x] `skipRecurringTask` accepts only CSRF plus task ID and returns the existing
-  completion payload with explicit outcome.
+- [x] The initial `skipRecurringTask` accepts CSRF plus task ID and returns the
+  existing completion payload with explicit outcome. Task 10 supersedes this
+  occurrence identity before the next merge.
 - [x] `deleteTask` returns only the deleted ID and emits `TASK_NOT_ACTIVE` for
   every completed or history-marker task.
 - [x] Authentication, CSRF, invalid ID, wrong kind, conflict, partial repair,
@@ -269,9 +270,58 @@ outputs plus any final documentation correction.
 
 **Estimated scope:** Mechanical generated outputs and verification.
 
+## Task 10: Bind Skip to the displayed occurrence
+
+**Description:** Prevent a lost Skip response and its retry from advancing the
+next occurrence of the same in-place recurring Vikunja task.
+
+**Acceptance criteria:**
+
+- [ ] `SkipRecurringTaskInput` requires `expectedDueAt: DateTime!`; one-time and
+  job completion and Delete keep their existing inputs.
+- [ ] The service fetches the authoritative task and compares its due date with
+  `expectedDueAt` as the same absolute instant before native renewal.
+- [ ] A missing or changed due date returns stable `CONFLICT` and performs no
+  completion, snapshot, label, or repair write.
+- [ ] Replaying the same `(taskId, expectedDueAt)` after a successful Skip
+  cannot advance the next occurrence or create a second skipped snapshot.
+- [ ] The task page sends the loaded `dueAt`, refetches on a stale-occurrence
+  conflict, and explains that the occurrence changed without automatic retry.
+- [ ] If the first request stopped after renewal but before archival, the UI
+  does not claim confirmed History. A missing or incomplete skipped snapshot is
+  an accepted MVP limitation and is not reconstructed automatically.
+
+**Verification:**
+
+- [ ] Focused service tests cover matching, missing, changed, and replayed due
+  instants and assert whether the Vikunja completion call occurred.
+- [ ] Resolver tests cover the required input and stable `CONFLICT` mapping.
+- [ ] Playwright and direct Vikunja v2 assertions prove one renewal and one
+  skipped snapshot after replaying a fully completed Skip.
+- [ ] A partial-failure test interrupts after renewal and proves that replay
+  does not renew again; at most one snapshot candidate exists in total and may
+  be absent, incomplete, or completed. The UI reports archival as ambiguous
+  unless the completed snapshot is proven.
+- [ ] `task gen:check`, `task validate`, `task test`, and `task e2e` pass after
+  the final edit.
+
+**Dependencies:** Existing Tasks 1-9.
+
+**Files likely touched:**
+
+- `internal/graphql/schema/schema.graphqls`
+- `internal/graphql/resolver/schema.resolvers.go`
+- `internal/service/recurring_completion.go`
+- `frontend/src/features/tasks/task.graphql`
+- `frontend/src/features/tasks/task-detail-actions.tsx`
+- Focused Go, frontend, integration, Playwright, and generated GraphQL files.
+
+**Estimated scope:** Medium, one backend-to-frontend behavior slice plus
+generated outputs.
+
 ## Completion audit
 
-- [x] Every task's acceptance criteria are met.
+- [ ] Every task's acceptance criteria are met, including retry-safe Skip.
 - [x] Runtime behavior is verified against an isolated Vikunja 2.5.0 instance.
 - [x] The active-only DELETE race limitation remains documented.
 - [ ] Human review approves the implementation before commit or merge.

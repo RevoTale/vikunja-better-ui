@@ -251,6 +251,20 @@ supports Vikunja 2.5.0 only.
 ## Confirmed skip and deletion behavior
 
 - Skip applies only to an active, valid recurring task.
+- A recurring task keeps the same Vikunja task ID after renewal. Therefore,
+  Skip identifies the loaded occurrence with both the task ID and its displayed
+  due instant, sent as `expectedDueAt`.
+- Before renewal, the backend refetches the task and compares its current due
+  instant with `expectedDueAt`. A mismatch returns `CONFLICT` without writing.
+  This prevents a retry after a lost success response from skipping the next
+  occurrence.
+- The UI must refetch after that conflict and explain that the occurrence has
+  already changed. It must not retry Skip automatically.
+- This precondition protects the next occurrence only. If Vikunja renews the
+  task but the request stops before the skipped history snapshot is completed,
+  that History entry may be missing or an incomplete technical snapshot may
+  remain. The MVP does not add a pending-record workflow, request store, or
+  automatic archival recovery for this rare partial failure.
 - Skip uses Vikunja's native recurring completion behavior, including its
   normal handling of overdue intervals. It never calculates or writes the next
   live schedule locally.
@@ -259,6 +273,8 @@ supports Vikunja 2.5.0 only.
 - No comment is created. The exact-title `vbu:skipped` label is the durable,
   filterable source of truth for the skipped outcome.
 - Skip has no confirmation and no Undo.
+- `expectedDueAt` is required only by Skip. One-time completion, job completion,
+  and Delete keep their existing contracts.
 - Delete applies only to an active task. A recurring-task deletion stops the
   live series while preserving its existing history snapshots.
 - History entries and all other completed tasks are not deletable through this

@@ -28,8 +28,8 @@ The application is successful when the user can:
 5. Complete a recurring occurrence with one click, observe one renewed schedule
    in Vikunja, and retain a completed history snapshot in Vikunja.
 6. Complete one-time tasks and jobs with a short Undo opportunity.
-7. Skip one recurring occurrence while preserving its future series and a
-   truthful, distinguishable history record.
+7. Confirm Skip for one recurring occurrence while preserving its future series
+   and a truthful, distinguishable history record.
 8. Delete an active task, including stopping an active recurring series,
    without allowing History to be mutated.
 9. Inspect recent completed tasks and a read-only diagnostic subset of the real
@@ -585,22 +585,43 @@ when only archival repair remains.
 Skip is a distinct user intent built on the same native renewal primitive as
 recurring completion:
 
-1. Accept only an incomplete task classified as a valid live `RECURRING` task.
-2. Perform the same checked native completion and renewal verification as the
+1. Accept a task ID and required `expectedDueAt`, copied from the task detail
+   response used to render the Skip action. The pair identifies the occurrence
+   the user intended to skip; the task ID alone identifies only the live series.
+2. Fetch the authoritative task. Accept only an incomplete task classified as
+   a valid live `RECURRING` task with a due date equal to `expectedDueAt` as the
+   same absolute instant. A different or missing due date returns `CONFLICT`
+   before any write.
+3. Perform the same checked native completion and renewal verification as the
    recurring completion workflow. Vikunja's native behavior is authoritative,
    including advancement past multiple overdue fixed intervals.
-3. Create or reconcile the same non-recurring completed history snapshot.
-4. Attach both `vbu:recurrence-history` and `vbu:skipped` to the snapshot before
+4. Create or reconcile the same non-recurring completed history snapshot.
+5. Attach both `vbu:recurrence-history` and `vbu:skipped` to the snapshot before
    reporting confirmed success. Never attach `vbu:skipped` to the renewed live
    task.
-5. Return the skipped snapshot as `completedTask`, with
+6. Return the skipped snapshot as `completedTask`, with
    `completionOutcome=SKIPPED`, and the renewed live task as `nextOccurrence`.
 
 Skip creates no task comment, requires no confirmation, provides no Undo, and
-is never retried optimistically. Recurring repair capabilities carry the
-intended completion outcome so repair attaches every required marker without
-renewing the live task again. Reconciliation must reject a snapshot whose
-marker outcome conflicts with the capability.
+is never retried optimistically. If renewal succeeds but its response is lost,
+replaying the same `(taskId, expectedDueAt)` request sees the advanced due date
+and returns `CONFLICT` instead of skipping another occurrence. The UI refetches
+and explains that the occurrence changed. This precondition needs no request-ID
+store and preserves the stateless architecture.
+
+This guarantee is intentionally limited to preventing another renewal. If the
+first request renews the live task but stops before completing or returning the
+skipped history snapshot, the snapshot may be absent or may remain as an
+incomplete technical task. The stale retry does not reconstruct or finalize it.
+The UI reports that the occurrence changed and asks the user to check History;
+it does not claim that archival succeeded. A durable pending-record workflow or
+automatic recovery of this ambiguous partial failure is outside the MVP.
+
+When a repair capability was returned successfully, the existing recurring
+repair workflow remains available. It carries the intended completion outcome
+so repair attaches every required marker without renewing the live task again.
+Reconciliation must reject a snapshot whose marker outcome conflicts with the
+capability.
 
 ### Deleting an active task
 
@@ -846,6 +867,7 @@ input CompleteTaskInput {
 input SkipRecurringTaskInput {
   csrfToken: String!
   taskId: ID!
+  expectedDueAt: DateTime!
 }
 
 input DeleteTaskInput {
@@ -907,6 +929,11 @@ Contract rules:
 - `skipRecurringTask` uses `CompletionPayload` because it has the same verified
   renewal, snapshot, and repair states as recurring completion. It differs by
   the snapshot's `completionOutcome` and required skipped marker.
+- `skipRecurringTask.expectedDueAt` is an occurrence precondition. The backend
+  compares it with the authoritative due date as an absolute instant before
+  native renewal. A stale value returns `CONFLICT` and performs no write.
+- One-time completion, job completion, and deletion do not accept
+  `expectedDueAt`; they do not reuse a task ID for a renewed occurrence.
 - `deleteTask` never returns a task that no longer exists upstream. Its payload
   contains the deleted ID so Apollo can evict the normalized entity.
 - Input constraints that GraphQL SDL cannot express, including positive IDs,
@@ -1273,8 +1300,8 @@ and Taskfile together.
 - Go tests live beside source and cover configuration validation, session and
   CSRF signing, login throttling, URL validation, Vikunja decoding, task
   classification, sorting, scope boundaries, DST rejection, recurrence mapping,
-  job date calculation, skipped-snapshot classification and repair, and active-
-  only deletion guards.
+  job date calculation, skipped-snapshot classification and repair, Skip
+  occurrence preconditions and stale replay, and active-only deletion guards.
 - Vitest covers pure frontend route-search validation, display mapping, and
   cache helper logic. UI interaction behavior is primarily tested in a real
   browser rather than a simulated DOM.
@@ -1288,6 +1315,9 @@ and Taskfile together.
   failures.
 - A fake Vikunja HTTP server verifies exact v2 methods, paths, headers, bodies,
   pagination envelopes, RFC 9457 errors, redirect rejection, and timeouts.
+- GraphQL integration tests prove `expectedDueAt` is required only for Skip,
+  matching values renew once, and stale values return `CONFLICT` without a
+  Vikunja completion request.
 - Generated-code drift is a required check, not a manual review convention.
 
 ### Timezone correctness contract
@@ -1340,6 +1370,14 @@ Coverage is divided by responsibility:
   Vikunja-local values, survive reload, and make no browser-to-Vikunja request.
 - Real-Vikunja recurrence coverage verifies the renewed due instant and its
   displayed local value for both From completion and Scheduled cycle modes.
+- Real-Vikunja Skip coverage replays the original `(taskId, expectedDueAt)`
+  after one confirmed Skip and proves that the replay conflicts, the renewed
+  due date does not advance again, and exactly one skipped snapshot exists.
+- A partial-failure test interrupts the workflow after renewal and before
+  archival. The replay must not renew again. At most one snapshot candidate may
+  exist for the occurrence; it may be absent, incomplete, or completed according
+  to how far the first request progressed. The UI must not report archival as
+  confirmed unless the completed snapshot is proven.
 
 Tests must assert semantic text and direct API values rather than screenshots.
 Screenshots, traces, and videos remain failure diagnostics. Only the timezone
@@ -1522,6 +1560,13 @@ environment, never Vite variables.
 - Skipping a recurring occurrence advances the same live task through native
   completion once and creates one completed snapshot carrying both
   `vbu:recurrence-history` and `vbu:skipped`; History renders it as `Skipped`.
+- Skip binds the request to the displayed occurrence with
+  `(taskId, expectedDueAt)`. Replaying that request after a successful renewal,
+  including after a lost response, returns `CONFLICT` without advancing the
+  next occurrence or creating another history snapshot. If the original
+  request stopped between renewal and archival, its History entry may be
+  missing or an incomplete technical snapshot may remain; the MVP reports the
+  ambiguity and does not attempt automatic reconstruction.
 - GraphQL rejects deletion of every completed or marker-owned history task.
   Confirmed deletion removes an active task from Vikunja; deleting a recurring
   live task leaves prior History snapshots intact.
