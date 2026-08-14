@@ -337,11 +337,13 @@ priority. Existing list ordering remains authoritative; visual treatment does
 not reorder tasks.
 
 The content column places the title and 44px completion control in its first
-row, the muted project name beneath them, and task kind plus ordinary user
-labels in the final row. Long titles and badges wrap without widening the row.
-The project may truncate with an accessible full name. Invalid tasks never
-show completion. Phone, tablet, and desktop use this same information order;
-only column widths and spacing change.
+row. The project name, task kind, and ordinary user labels share one
+right-aligned metadata row beneath them. The project is the first item and uses
+a secondary `Project: <name>` badge; task kind and user labels use outline
+badges. The metadata items wrap together when their combined content does not
+fit. Long titles, projects, and badges wrap without widening the row. Invalid
+tasks never show completion. Phone, tablet, and desktop use this same
+information order; only column widths and spacing change.
 
 This wireframe is normative for every breakpoint. Preserve the row order when
 changing spacing, typography, or column widths:
@@ -349,16 +351,16 @@ changing spacing, typography, or column widths:
 ```text
 +--------------+----------------------------------------+
 | 14 Aug       | Task title                  [Complete] |
-| 19:15        | Project                                |
+| 19:15        | [Project: Name] [Recurring] [practice] |
 | Overdue      |                                        |
-| [Medium]     | [Recurring] [practice]                 |
+| [Medium]     |                                        |
 +--------------+----------------------------------------+
   schedule       content
 ```
 
-The title may wrap beside the completion control. The project remains below
-that first row. Task type and user labels remain the bottom content row. An
-invalid or completed task leaves out the completion control without changing
+The title may wrap beside the completion control. Project, task type, and user
+labels remain one bottom-right metadata row and wrap within that row as needed.
+An invalid or completed task leaves out the completion control without changing
 the remaining order.
 
 Jobs use a slightly wider schedule region containing the local work interval,

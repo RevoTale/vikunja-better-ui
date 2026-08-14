@@ -59,14 +59,7 @@ export function TaskRow({
               <Check />
             </Button>
           ) : null}
-          <span
-            className="col-span-2 min-w-0 truncate text-xs text-muted-foreground"
-            data-slot="task-project"
-            title={task.project.title}
-          >
-            {task.project.title}
-          </span>
-          <TaskMetadata className="col-span-2" task={task} labels={labels} />
+          <TaskMetadata className="col-span-2 justify-end" task={task} labels={labels} />
         </div>
       </CardContent>
     </Card>
@@ -111,9 +104,17 @@ function TaskMetadata({
   return (
     <ul
       className={cn("flex min-w-0 flex-wrap items-center gap-1.5", className)}
-      aria-label="Task type and labels"
+      aria-label="Task project, type, and labels"
       data-slot="task-metadata"
     >
+      <li className="min-w-0 max-w-full" data-slot="task-project" title={task.project.title}>
+        <Badge
+          className="max-w-full whitespace-normal wrap-anywhere text-left leading-tight"
+          variant="secondary"
+        >
+          Project: {task.project.title}
+        </Badge>
+      </li>
       <li className="min-w-0 max-w-full">
         <Badge
           className="max-w-full whitespace-normal wrap-anywhere text-left leading-tight"

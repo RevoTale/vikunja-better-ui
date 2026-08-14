@@ -89,10 +89,13 @@ wants a smaller, purpose-built task workflow.
   12:00` in the task metadata.
 - Place the priority badge directly below the schedule. Priority keeps its own
   semantic palette and label; schedule color represents urgency only.
-- Put the title and completion control in the first content row, the muted
-  project below them, and task kind plus ordinary labels in the final row. Use
-  the same order on phone, tablet, and desktop. Long titles and badges must wrap
-  within the content column instead of widening the row.
+- Put the title and completion control in the first content row. Keep the
+  project, task kind, and ordinary labels together in one right-aligned metadata
+  row below them. Render the project first as a secondary `Project: <name>`
+  badge so it remains distinct from the outlined task type and user labels. Let
+  that row wrap when its combined content does not fit. Use the same order on
+  phone, tablet, and desktop. Long titles, projects, and badges must wrap within
+  the content column instead of widening the row.
 - Do not rely on color alone. Text, labels, ordering, and overdue wording must
   communicate the same states. Invalid mixed tasks remain diagnostic-only and
   do not gain a completion control.

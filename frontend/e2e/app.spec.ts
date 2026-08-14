@@ -528,28 +528,44 @@ async function expectTaskRowLayout(page: Page, title: string, label: string) {
   const kindBox = await card.getByText("One-time", { exact: true }).boundingBox();
   const labelBox = await card.getByText(label, { exact: true }).boundingBox();
   const completeBox = await card.getByRole("button", { name: `Complete ${title}` }).boundingBox();
-  const projectBox = await card
-    .locator('[data-slot="task-project"]')
-    .filter({ visible: true })
-    .boundingBox();
-  if (!scheduleBox || !titleBox || !kindBox || !labelBox || !completeBox || !projectBox) {
+  const metadata = card.locator('[data-slot="task-metadata"]');
+  const metadataBox = await metadata.boundingBox();
+  const project = metadata.locator('[data-slot="task-project"]');
+  const projectBadge = project.locator('[data-slot="badge"]');
+  const projectBox = await project.boundingBox();
+  if (
+    !scheduleBox ||
+    !titleBox ||
+    !kindBox ||
+    !labelBox ||
+    !completeBox ||
+    !metadataBox ||
+    !projectBox
+  ) {
     throw new Error("task row layout is not measurable");
   }
   expect(scheduleBox.x).toBeLessThan(titleBox.x);
   expect(labelBox.y).toBeGreaterThan(titleBox.y);
-  expect(Math.abs(kindBox.y - labelBox.y)).toBeLessThanOrEqual(1);
+  expect(projectBox.y).toBeLessThanOrEqual(kindBox.y + 2);
+  expect(kindBox.y).toBeLessThanOrEqual(labelBox.y + 2);
   expect(Math.abs(kindBox.height - labelBox.height)).toBeLessThanOrEqual(1);
   expect(completeBox.x).toBeGreaterThan(titleBox.x);
   expect(completeBox.y).toBeLessThan(projectBox.y);
   expect(projectBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height);
-  expect(kindBox.y).toBeGreaterThan(projectBox.y);
+  await expect(projectBadge).toHaveText("Project: E2E Daily Tasks");
+  await expect(projectBadge).toHaveClass(/bg-secondary/);
+  await expect(metadata).toHaveCSS("flex-wrap", "wrap");
+  await expect(metadata).toHaveCSS("justify-content", "flex-end");
+  expect(Math.abs(labelBox.x + labelBox.width - (metadataBox.x + metadataBox.width))).toBeLessThan(
+    2,
+  );
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => document.documentElement.clientWidth),
   );
   if (isPhone) {
     const headerBox = await page.locator("header").boundingBox();
     const headingBox = await page.getByRole("heading", { name: "Today" }).boundingBox();
-    const filterBox = await page.getByLabel("Project").boundingBox();
+    const filterBox = await page.getByLabel("Project", { exact: true }).boundingBox();
     const firstCardBox = await page.locator('[data-slot="card"]').first().boundingBox();
     const invalidKind = page.getByText("Invalid: both recurring and job", { exact: true });
     const invalidCardBox = await page
