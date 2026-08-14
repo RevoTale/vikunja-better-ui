@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Locator, type Page, test } from "@playwright/test";
 
 const vikunjaURL = requiredEnv("E2E_VIKUNJA_URL");
+const appURL = requiredEnv("E2E_BASE_URL");
 const vikunjaToken = requiredEnv("E2E_VIKUNJA_API_TOKEN");
 const projectID = requiredEnv("E2E_PROJECT_ID");
 const emptyProjectID = requiredEnv("E2E_EMPTY_PROJECT_ID");
@@ -304,6 +305,67 @@ test("task lists expose loading, empty, error, and project-filter states", async
   );
 });
 
+test("skip and delete actions preserve recurring history in Vikunja", async ({ page }) => {
+  await blockBrowserVikunjaCalls(page);
+  await page.goto("/today");
+  await login(page);
+
+  const title = `Skip and delete E2E ${Date.now()}`;
+  const taskID = await createTask(page, "recurring task", title);
+  const before = await vikunjaTask(taskID);
+
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText(
+    "This occurrence was skipped and the next one is ready.",
+  );
+  const renewed = await vikunjaTask(taskID);
+  expect(renewed.done).toBe(false);
+  expect(new Date(renewed.due_date).getTime()).toBeGreaterThan(new Date(before.due_date).getTime());
+  expect(renewed.labels.some((label: { title?: string }) => label.title === "vbu:skipped")).toBe(
+    false,
+  );
+
+  const matching = (await searchTasks(title)).filter(
+    (task) => String(task.id) !== taskID && task.title === title,
+  );
+  expect(matching).toHaveLength(1);
+  const snapshot = matching[0];
+  expect(snapshot.done).toBe(true);
+  expect(snapshot.repeat_after).toBe(0);
+  expect(snapshot.labels.map((label: { title: string }) => label.title)).toEqual(
+    expect.arrayContaining(["vbu:recurrence-history", "vbu:skipped"]),
+  );
+  await page.goto("/history?project=all&page=1");
+  const historyCard = page.locator('[data-slot="card"]').filter({ hasText: title });
+  await expect(historyCard.getByText("Skipped", { exact: true })).toBeVisible();
+  await expect(historyCard.getByText("vbu:skipped", { exact: true })).toHaveCount(0);
+  await historyCard.getByRole("link", { name: title }).click();
+  await expect(page.getByText("Skipped", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Skip", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Delete", exact: true })).toHaveCount(0);
+  await expectGraphQLDeleteRejected(page, String(snapshot.id), "TASK_NOT_ACTIVE");
+
+  await page.goto(`/tasks/${taskID}?returnTo=%2Ftoday`);
+  await page.getByRole("link", { name: "Delete", exact: true }).click();
+  await expect(page.getByRole("heading", { name: `Delete ${title}?` })).toBeVisible();
+  await page.getByRole("link", { name: "Cancel" }).click();
+  await expect(page).toHaveURL(new RegExp(`/tasks/${taskID}`));
+  expect((await vikunjaTask(taskID)).id).toBe(Number(taskID));
+
+  await page.getByRole("link", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "Delete task", exact: true }).click();
+  await expect(page).toHaveURL(/\/today/);
+  expect(await vikunjaTaskStatus(taskID)).toBe(404);
+  expect((await vikunjaTask(String(snapshot.id))).done).toBe(true);
+
+  const oneTimeTitle = `Delete one-time E2E ${Date.now()}`;
+  const oneTimeID = await createTask(page, "one-time task", oneTimeTitle);
+  await page.getByRole("link", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "Delete task", exact: true }).click();
+  await expect(page).toHaveURL(/\/today/);
+  expect(await vikunjaTaskStatus(oneTimeID)).toBe(404);
+});
+
 async function login(page: Page) {
   await expect(page).toHaveURL(/\/login/);
   await page.getByLabel("Username").fill("app-user");
@@ -346,8 +408,14 @@ async function blockBrowserVikunjaCalls(page: Page) {
 async function vikunjaTask(id: string) {
   return api(`/tasks/${id}`);
 }
+async function vikunjaTaskStatus(id: string) {
+  const response = await fetch(`${vikunjaURL}/api/v2/tasks/${id}`, {
+    headers: { Authorization: `Bearer ${vikunjaToken}` },
+  });
+  return response.status;
+}
 async function searchTasks(search: string) {
-  const result = await api(`/tasks?s=${encodeURIComponent(search)}&per_page=100`);
+  const result = await api(`/tasks?q=${encodeURIComponent(search)}&per_page=100`);
   return Array.isArray(result) ? result : (result.items ?? []);
 }
 async function expectVikunjaTask(id: string, expected: { title: string; done: boolean }) {
@@ -389,6 +457,25 @@ async function api(path: string) {
   });
   if (!response.ok) throw new Error(`Vikunja ${path}: ${response.status}`);
   return response.json();
+}
+async function expectGraphQLDeleteRejected(page: Page, taskID: string, code: string) {
+  const sessionResponse = await page.request.post("/graphql", {
+    headers: { Origin: appURL },
+    data: { query: "query E2ESession { session { csrfToken } }" },
+  });
+  const session = await sessionResponse.json();
+  const csrfToken = session.data?.session?.csrfToken;
+  if (typeof csrfToken !== "string") throw new Error("E2E CSRF token is missing");
+  const deleteResponse = await page.request.post("/graphql", {
+    headers: { Origin: appURL, "X-CSRF-Token": csrfToken },
+    data: {
+      query:
+        "mutation E2EDelete($input: DeleteTaskInput!) { deleteTask(input: $input) { deletedTaskId } }",
+      variables: { input: { csrfToken, taskId: taskID } },
+    },
+  });
+  const payload = await deleteResponse.json();
+  expect(payload.errors?.[0]?.extensions?.code).toBe(code);
 }
 function localDate() {
   const parts = new Intl.DateTimeFormat("en-CA", {

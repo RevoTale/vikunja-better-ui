@@ -53,6 +53,19 @@ func TestResolveMarkerDoesNotHideCreateFailure(t *testing.T) {
 	}
 }
 
+func TestResolveMarkerAcceptsSkippedMarker(t *testing.T) {
+	t.Parallel()
+
+	client := &markerClientStub{labelPages: [][]vikunja.Label{{{ID: 11, Title: skippedLabel}}}}
+	label, err := ResolveMarker(context.Background(), client, skippedLabel)
+	if err != nil {
+		t.Fatalf("ResolveMarker() error = %v", err)
+	}
+	if label.ID != 11 {
+		t.Fatalf("ResolveMarker() = %#v, want skipped marker", label)
+	}
+}
+
 type markerClientStub struct {
 	labelPages  [][]vikunja.Label
 	listCalls   int

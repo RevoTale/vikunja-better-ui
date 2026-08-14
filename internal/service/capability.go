@@ -47,6 +47,7 @@ type RecurringRepairGrant struct {
 	ProjectID     int64
 	LiveETag      string
 	CompletionKey string
+	Outcome       CompletionOutcome
 	DueAt         time.Time
 	StartAt       time.Time
 	EndAt         time.Time
@@ -140,8 +141,8 @@ func (manager *CapabilityManager) IssueRecurringRepair(sessionID string, grant R
 	payload := recurringRepairCapabilityPayload{
 		Version: capabilityVersion, Purpose: recurringRepairPurpose, SessionID: sessionID,
 		TaskID: grant.TaskID, ProjectID: grant.ProjectID, LiveETag: grant.LiveETag,
-		CompletionKey: grant.CompletionKey,
-		DueAt:         formatOptionalInstant(grant.DueAt), StartAt: formatOptionalInstant(grant.StartAt),
+		CompletionKey: grant.CompletionKey, Outcome: grant.Outcome,
+		DueAt: formatOptionalInstant(grant.DueAt), StartAt: formatOptionalInstant(grant.StartAt),
 		EndAt:     formatOptionalInstant(grant.EndAt),
 		ExpiresAt: manager.now().UTC().Truncate(time.Second).Add(repairLifetime).Unix(),
 	}
@@ -167,7 +168,8 @@ func (manager *CapabilityManager) ParseRecurringRepair(sessionID string, token s
 	}
 	grant := RecurringRepairGrant{
 		TaskID: payload.TaskID, ProjectID: payload.ProjectID, LiveETag: payload.LiveETag,
-		CompletionKey: payload.CompletionKey, DueAt: dueAt, StartAt: startAt, EndAt: endAt,
+		CompletionKey: payload.CompletionKey, Outcome: payload.Outcome,
+		DueAt: dueAt, StartAt: startAt, EndAt: endAt,
 	}
 	if payload.Version != capabilityVersion || payload.Purpose != recurringRepairPurpose || payload.SessionID != sessionID ||
 		!validRecurringRepairGrant(sessionID, grant) {
@@ -281,7 +283,9 @@ func validMarkerRepairGrant(sessionID string, grant MarkerRepairGrant) bool {
 }
 
 func validRecurringRepairGrant(sessionID string, grant RecurringRepairGrant) bool {
-	return sessionID != "" && grant.TaskID > 0 && grant.ProjectID > 0 && grant.LiveETag != "" && grant.CompletionKey != ""
+	validOutcome := grant.Outcome == CompletionOutcomeCompleted || grant.Outcome == CompletionOutcomeSkipped
+	return sessionID != "" && grant.TaskID > 0 && grant.ProjectID > 0 && grant.LiveETag != "" &&
+		grant.CompletionKey != "" && validOutcome
 }
 
 func formatOptionalInstant(value time.Time) string {
@@ -320,15 +324,16 @@ type markerRepairCapabilityPayload struct {
 }
 
 type recurringRepairCapabilityPayload struct {
-	Version       int    `json:"v"`
-	Purpose       string `json:"purpose"`
-	SessionID     string `json:"sid"`
-	TaskID        int64  `json:"task_id"`
-	ProjectID     int64  `json:"project_id"`
-	LiveETag      string `json:"live_etag"`
-	CompletionKey string `json:"completion_key"`
-	DueAt         string `json:"due_at"`
-	StartAt       string `json:"start_at"`
-	EndAt         string `json:"end_at"`
-	ExpiresAt     int64  `json:"exp"`
+	Version       int               `json:"v"`
+	Purpose       string            `json:"purpose"`
+	SessionID     string            `json:"sid"`
+	TaskID        int64             `json:"task_id"`
+	ProjectID     int64             `json:"project_id"`
+	LiveETag      string            `json:"live_etag"`
+	CompletionKey string            `json:"completion_key"`
+	Outcome       CompletionOutcome `json:"outcome"`
+	DueAt         string            `json:"due_at"`
+	StartAt       string            `json:"start_at"`
+	EndAt         string            `json:"end_at"`
+	ExpiresAt     int64             `json:"exp"`
 }

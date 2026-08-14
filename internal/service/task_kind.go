@@ -6,6 +6,7 @@ const (
 	jobLabel               = "job"
 	dateOnlyLabel          = "vbu:date-only"
 	recurrenceHistoryLabel = "vbu:recurrence-history"
+	skippedLabel           = "vbu:skipped"
 )
 
 type TaskKind string
@@ -20,16 +21,29 @@ const (
 type TaskClassification struct {
 	Kind     TaskKind
 	DateOnly bool
+	Outcome  CompletionOutcome
 }
+
+type CompletionOutcome string
+
+const (
+	CompletionOutcomeCompleted CompletionOutcome = "COMPLETED"
+	CompletionOutcomeSkipped   CompletionOutcome = "SKIPPED"
+)
 
 func ClassifyTask(task vikunja.Task) TaskClassification {
 	hasJob := hasLabel(task.Labels, jobLabel)
 	hasDateOnly := hasLabel(task.Labels, dateOnlyLabel)
 	hasHistory := hasLabel(task.Labels, recurrenceHistoryLabel)
+	hasSkipped := hasLabel(task.Labels, skippedLabel)
 	hasRecurrence := task.RepeatAfter > 0 || task.RepeatMode != 0
+	validHistory := hasHistory && task.Done && !hasRecurrence && !hasJob
+	validSkipped := hasSkipped && validHistory
 
 	kind := TaskKindOneTime
 	switch {
+	case hasSkipped && !validSkipped:
+		kind = TaskKindInvalid
 	case hasHistory && (hasRecurrence || hasJob || !task.Done):
 		kind = TaskKindInvalid
 	case hasRecurrence && hasJob:
@@ -40,7 +54,15 @@ func ClassifyTask(task vikunja.Task) TaskClassification {
 		kind = TaskKindJob
 	}
 
-	return TaskClassification{Kind: kind, DateOnly: hasDateOnly}
+	var outcome CompletionOutcome
+	if task.Done && kind != TaskKindInvalid {
+		outcome = CompletionOutcomeCompleted
+		if validSkipped {
+			outcome = CompletionOutcomeSkipped
+		}
+	}
+
+	return TaskClassification{Kind: kind, DateOnly: hasDateOnly, Outcome: outcome}
 }
 
 func hasLabel(labels []vikunja.Label, title string) bool {

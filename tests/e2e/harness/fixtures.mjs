@@ -170,7 +170,13 @@ const routes = await request("/routes", { token: jwt });
 const permissions = {
   other: selectPermissions(routes, "other", ["user"]),
   projects: selectPermissions(routes, "projects", ["read_all"]),
-  tasks: selectPermissions(routes, "tasks", ["create", "read_all", "read_one", "update"]),
+  tasks: selectPermissions(routes, "tasks", [
+    "create",
+    "read_all",
+    "read_one",
+    "update",
+    "delete",
+  ]),
   labels: selectPermissions(routes, "labels", ["create", "read_all"]),
   tasks_labels: selectPermissions(routes, "tasks_labels", ["create", "read_all"]),
 };

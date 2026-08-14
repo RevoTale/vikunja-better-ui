@@ -28,8 +28,11 @@ wants a smaller, purpose-built task workflow.
 4. Identify each task as one-time, recurring, or job.
 5. Complete a task with one clear action.
 6. For a recurring task, renew it from its saved recurrence configuration.
-7. Create recurring tasks through a small, purpose-built form.
-8. Use a separate Job tab for duration-based work.
+7. Skip one recurring occurrence without losing the future series or claiming
+   that the work was completed.
+8. Delete an active task when it should no longer exist.
+9. Create recurring tasks through a small, purpose-built form.
+10. Use a separate Job tab for duration-based work.
 
 ## Confirmed task-list behavior
 
@@ -105,6 +108,10 @@ wants a smaller, purpose-built task workflow.
 - Keep the view simple; charts, aggregates, streaks, and other statistics are
   deferred.
 - The Extended diagnostic action remains available for a history item.
+- Show skipped recurring snapshots as `Skipped`, distinct from normally
+  completed occurrences.
+- History is read-only in this app. It never offers Delete, Skip, completion,
+  Undo, or another mutation action.
 
 ## Confirmed job behavior
 
@@ -241,6 +248,29 @@ supports Vikunja 2.5.0 only.
   show a safe actionable error. Never repeat native renewal. Reconcile the
   snapshot's deterministic completion key before attempting archival repair.
 
+## Confirmed skip and deletion behavior
+
+- Skip applies only to an active, valid recurring task.
+- Skip uses Vikunja's native recurring completion behavior, including its
+  normal handling of overdue intervals. It never calculates or writes the next
+  live schedule locally.
+- The completed history snapshot receives both `vbu:recurrence-history` and
+  `vbu:skipped`. The renewed live task does not receive `vbu:skipped`.
+- No comment is created. The exact-title `vbu:skipped` label is the durable,
+  filterable source of truth for the skipped outcome.
+- Skip has no confirmation and no Undo.
+- Delete applies only to an active task. A recurring-task deletion stops the
+  live series while preserving its existing history snapshots.
+- History entries and all other completed tasks are not deletable through this
+  app. Both the UI and GraphQL mutation enforce that boundary.
+- Skip and Delete appear only on the separate task page, beside `Extended`.
+  Skip uses a non-destructive style. Delete uses the destructive red style and
+  requires a routed confirmation page that names the task.
+- Vikunja 2.5.0 does not provide a conditional task DELETE. The backend checks
+  that the task is active immediately before deletion, but cannot make that
+  check atomic against a simultaneous mutation made directly through another
+  Vikunja client.
+
 ## Proposed recurring-task form
 
 - Title.
@@ -299,6 +329,10 @@ supports Vikunja 2.5.0 only.
 - One-time: no recurrence and no `job` label.
 - A task must not be both recurring and a job. Treat that state as invalid and
   require correction instead of silently choosing a type.
+- `vbu:` is the marker-label namespace reserved by the current Better Vikunja
+  system. It is an application convention, not an official Vikunja namespace.
+  The current reserved labels are `vbu:date-only`,
+  `vbu:recurrence-history`, and `vbu:skipped`.
 
 ## Assumptions to validate
 
@@ -424,6 +458,7 @@ schedule manually.
 - `/tasks/new?type=one-time|recurring|job`
 - `/tasks/:id`
 - `/tasks/:id/extended`
+- `/tasks/:id/delete?returnTo=<validated-internal-url>`
 
 Add semantic routes when new primary features are accepted. Query parameters
 represent filters, pagination, and other reversible view state, not distinct

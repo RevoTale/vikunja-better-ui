@@ -25,9 +25,17 @@ func (resolver *Resolver) completeRecurringTask(
 	}
 	result, err := service.CompleteRecurring(ctx, resolver.tasks, resolver.capabilities, taskID, location)
 	if err != nil {
-		resolver.logError("complete recurring task", err)
-		return nil, upstreamClientError(err, "Recurring completion could not be confirmed.")
+		return nil, completionClientError(resolver, err)
 	}
+	return resolver.recurringCompletionPayload(session, user, projects, result)
+}
+
+func (resolver *Resolver) recurringCompletionPayload(
+	session auth.Session,
+	user vikunja.User,
+	projects []vikunja.Project,
+	result service.RecurringCompletion,
+) (*model.CompletionPayload, error) {
 	projectsByID := projectMap(projects)
 	liveTask, err := taskModel(
 		result.LiveTask, projectsByID, user.Settings.Timezone, resolver.now(), user.Settings.DefaultProjectID,
@@ -45,8 +53,8 @@ func (resolver *Resolver) completeRecurringTask(
 			Status:               model.CompletionStatusConfirmedRepairRequired,
 			NextOccurrence:       liveTask,
 			RepairCapability:     &capability,
-			MissingMarkers:       []model.MarkerKind{model.MarkerKindRecurrenceHistory},
-			RemainingRepairSteps: []model.RepairStep{model.RepairStepCreateHistorySnapshot, model.RepairStepAttachRecurrenceHistory},
+			MissingMarkers:       recurringMissingMarkers(result.RepairGrant.Outcome),
+			RemainingRepairSteps: recurringRepairSteps(result.RepairGrant.Outcome),
 		}, nil
 	}
 	snapshot, err := taskModel(
@@ -59,6 +67,25 @@ func (resolver *Resolver) completeRecurringTask(
 		Status: model.CompletionStatusConfirmed, CompletedTask: snapshot, NextOccurrence: liveTask,
 		MissingMarkers: []model.MarkerKind{}, RemainingRepairSteps: []model.RepairStep{},
 	}, nil
+}
+
+func recurringMissingMarkers(outcome service.CompletionOutcome) []model.MarkerKind {
+	markers := []model.MarkerKind{model.MarkerKindRecurrenceHistory}
+	if outcome == service.CompletionOutcomeSkipped {
+		markers = append(markers, model.MarkerKindSkipped)
+	}
+	return markers
+}
+
+func recurringRepairSteps(outcome service.CompletionOutcome) []model.RepairStep {
+	steps := []model.RepairStep{
+		model.RepairStepCreateHistorySnapshot,
+		model.RepairStepAttachRecurrenceHistory,
+	}
+	if outcome == service.CompletionOutcomeSkipped {
+		steps = append(steps, model.RepairStepAttachSkipped)
+	}
+	return steps
 }
 
 func (resolver *Resolver) createTaskPayload(
@@ -159,8 +186,22 @@ func markerModels(title string) (model.MarkerKind, model.RepairStep) {
 		return model.MarkerKindJob, model.RepairStepAttachJob
 	case "vbu:recurrence-history":
 		return model.MarkerKindRecurrenceHistory, model.RepairStepAttachRecurrenceHistory
+	case "vbu:skipped":
+		return model.MarkerKindSkipped, model.RepairStepAttachSkipped
 	default:
 		return model.MarkerKindDateOnly, model.RepairStepAttachDateOnly
+	}
+}
+
+func deletionClientError(resolver *Resolver, err error) error {
+	resolver.logError("delete active task", err)
+	switch {
+	case errors.Is(err, service.ErrTaskNotActive):
+		return clientError("TASK_NOT_ACTIVE", "Only active tasks can be deleted.")
+	case errors.Is(err, service.ErrTaskNotAccessible):
+		return clientError("FORBIDDEN", "The task project is not accessible.")
+	default:
+		return upstreamClientError(err, "The task could not be deleted.")
 	}
 }
 

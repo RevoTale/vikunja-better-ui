@@ -195,6 +195,50 @@ func (r *mutationResolver) CompleteTask(ctx context.Context, input model.Complet
 	}, nil
 }
 
+// SkipRecurringTask is the resolver for the skipRecurringTask field.
+func (r *mutationResolver) SkipRecurringTask(ctx context.Context, input model.SkipRecurringTaskInput) (*model.CompletionPayload, error) {
+	session, err := r.requireCSRF(ctx, input.CsrfToken)
+	if err != nil {
+		return nil, err
+	}
+	taskID, err := parsePositiveID(input.TaskID)
+	if err != nil {
+		return nil, clientError("VALIDATION_FAILED", "Task ID is invalid.")
+	}
+	user, projects, location, err := r.taskContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result, err := service.SkipRecurring(ctx, r.tasks, r.capabilities, taskID, location)
+	if err != nil {
+		return nil, completionClientError(r.Resolver, err)
+	}
+	return r.recurringCompletionPayload(session, user, projects, result)
+}
+
+// DeleteTask is the resolver for the deleteTask field.
+func (r *mutationResolver) DeleteTask(ctx context.Context, input model.DeleteTaskInput) (*model.DeleteTaskPayload, error) {
+	if _, err := r.requireCSRF(ctx, input.CsrfToken); err != nil {
+		return nil, err
+	}
+	taskID, err := parsePositiveID(input.TaskID)
+	if err != nil {
+		return nil, clientError("VALIDATION_FAILED", "Task ID is invalid.")
+	}
+	_, projects, _, err := r.taskContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	projectIDs := make([]int64, 0, len(projects))
+	for _, project := range projects {
+		projectIDs = append(projectIDs, project.ID)
+	}
+	if err := service.DeleteActiveTask(ctx, r.tasks, taskID, projectIDs); err != nil {
+		return nil, deletionClientError(r.Resolver, err)
+	}
+	return &model.DeleteTaskPayload{DeletedTaskID: input.TaskID}, nil
+}
+
 // UndoTaskCompletion is the resolver for the undoTaskCompletion field.
 func (r *mutationResolver) UndoTaskCompletion(ctx context.Context, input model.UndoTaskCompletionInput) (*model.TaskMutationPayload, error) {
 	session, err := r.requireCSRF(ctx, input.CsrfToken)

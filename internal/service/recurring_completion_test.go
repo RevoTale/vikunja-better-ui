@@ -63,6 +63,59 @@ func TestCompleteRecurringRenewsSameTaskAndCreatesSnapshot(t *testing.T) {
 	if client.attachedLabels[4] != true || client.attachedLabels[6] != true {
 		t.Fatalf("attached labels = %#v", client.attachedLabels)
 	}
+	if client.attachedLabels[8] {
+		t.Fatalf("normal completion attached skipped marker: %#v", client.attachedLabels)
+	}
+}
+
+func TestSkipRecurringCreatesSkippedSnapshotWithoutMarkingLiveTask(t *testing.T) {
+	t.Parallel()
+
+	completedAt := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
+	before := vikunja.Task{
+		ID: 9, ProjectID: 7, Title: "Practice", DueDate: completedAt.Add(-time.Hour),
+		RepeatAfter: 86400, RepeatMode: 2, Labels: []vikunja.Label{{ID: 4, Title: "practice"}},
+	}
+	renewed := before
+	renewed.DueDate = completedAt.Add(24 * time.Hour)
+	renewed.DoneAt = completedAt
+	capabilities := NewCapabilityManager([]byte("01234567890123456789012345678901"), func() time.Time { return completedAt })
+	key := capabilities.CompletionKey(9, completedAt)
+	created := vikunja.Task{ID: 12, ProjectID: 7, Title: "Practice", Description: completionMetadata(key)}
+	confirmed := created
+	confirmed.Done = true
+	confirmed.DoneAt = completedAt
+	confirmed.Labels = []vikunja.Label{
+		{ID: 4, Title: "practice"},
+		{ID: 6, Title: recurrenceHistoryLabel},
+		{ID: 8, Title: skippedLabel},
+	}
+	client := &recurringClientStub{
+		completionClientStub: completionClientStub{reads: []taskRead{
+			{task: before, etag: `"v1"`}, {task: renewed, etag: `"v2"`}, {task: renewed, etag: `"v2"`},
+			{task: created, etag: `"snapshot-v1"`}, {task: confirmed, etag: `"snapshot-v2"`},
+		}},
+		searchPage: vikunja.TaskPage{Items: []vikunja.Task{}, Page: 1, PerPage: 1000},
+		created:    created,
+		labels: []vikunja.Label{
+			{ID: 6, Title: recurrenceHistoryLabel},
+			{ID: 8, Title: skippedLabel},
+		},
+	}
+
+	result, err := SkipRecurring(context.Background(), client, capabilities, 9, time.UTC)
+	if err != nil {
+		t.Fatalf("SkipRecurring() error = %v", err)
+	}
+	if ClassifyTask(result.Snapshot).Outcome != CompletionOutcomeSkipped {
+		t.Fatalf("snapshot = %#v", result.Snapshot)
+	}
+	if hasLabel(result.LiveTask.Labels, skippedLabel) {
+		t.Fatalf("live task contains skipped marker: %#v", result.LiveTask.Labels)
+	}
+	if !client.attachedLabels[6] || !client.attachedLabels[8] {
+		t.Fatalf("attached labels = %#v", client.attachedLabels)
+	}
 }
 
 func TestCompleteRecurringReconcilesExistingSnapshotWithoutCreating(t *testing.T) {
@@ -129,6 +182,7 @@ func TestRepairRecurringSnapshotFinishesExistingPartialSnapshot(t *testing.T) {
 	}
 	result, err := RepairRecurringSnapshot(context.Background(), client, RecurringRepairGrant{
 		TaskID: 9, ProjectID: 7, LiveETag: `"v2"`, CompletionKey: key,
+		Outcome: CompletionOutcomeCompleted,
 	})
 	if err != nil {
 		t.Fatalf("RepairRecurringSnapshot() error = %v", err)
@@ -138,6 +192,84 @@ func TestRepairRecurringSnapshotFinishesExistingPartialSnapshot(t *testing.T) {
 	}
 	if !client.attachedLabels[4] || !client.attachedLabels[6] {
 		t.Fatalf("attached labels = %#v", client.attachedLabels)
+	}
+}
+
+func TestRepairSkippedSnapshotAttachesBothOutcomeMarkers(t *testing.T) {
+	t.Parallel()
+
+	completedAt := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
+	live := vikunja.Task{
+		ID: 9, ProjectID: 7, Title: "Water", DoneAt: completedAt,
+		DueDate: completedAt.Add(24 * time.Hour), RepeatAfter: 86400,
+		Labels: []vikunja.Label{{ID: 4, Title: "garden"}},
+	}
+	key := "skipped-repair-key"
+	partial := vikunja.Task{
+		ID: 12, ProjectID: 7, Title: "Water", Done: true, DoneAt: completedAt,
+		Description: completionMetadata(key),
+	}
+	confirmed := partial
+	confirmed.Labels = []vikunja.Label{
+		{ID: 4, Title: "garden"},
+		{ID: 6, Title: recurrenceHistoryLabel},
+		{ID: 8, Title: skippedLabel},
+	}
+	client := &recurringClientStub{
+		completionClientStub: completionClientStub{reads: []taskRead{
+			{task: live, etag: `"v2"`}, {task: confirmed, etag: `"snapshot-v2"`},
+		}},
+		searchPage: vikunja.TaskPage{Items: []vikunja.Task{partial}, Total: 1, Page: 1, PerPage: 1000, TotalPages: 1},
+		labels: []vikunja.Label{
+			{ID: 6, Title: recurrenceHistoryLabel},
+			{ID: 8, Title: skippedLabel},
+		},
+	}
+	result, err := RepairRecurringSnapshot(context.Background(), client, RecurringRepairGrant{
+		TaskID: 9, ProjectID: 7, LiveETag: `"v2"`, CompletionKey: key,
+		Outcome: CompletionOutcomeSkipped,
+	})
+	if err != nil {
+		t.Fatalf("RepairRecurringSnapshot() error = %v", err)
+	}
+	if result.Snapshot.ID != 12 || !snapshotMatchesOutcome(result.Snapshot, CompletionOutcomeSkipped) ||
+		client.createCalls != 0 {
+		t.Fatalf("RepairRecurringSnapshot() = %#v, creates=%d", result, client.createCalls)
+	}
+	for _, labelID := range []int64{4, 6, 8} {
+		if !client.attachedLabels[labelID] {
+			t.Fatalf("label %d was not attached: %#v", labelID, client.attachedLabels)
+		}
+	}
+}
+
+func TestRepairNormalCompletionRejectsSkippedSnapshot(t *testing.T) {
+	t.Parallel()
+
+	completedAt := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
+	live := vikunja.Task{
+		ID: 9, ProjectID: 7, DoneAt: completedAt,
+		DueDate: completedAt.Add(24 * time.Hour), RepeatAfter: 86400,
+	}
+	candidate := vikunja.Task{
+		ID: 12, ProjectID: 7, Done: true, DoneAt: completedAt,
+		Description: completionMetadata("repair-key"),
+		Labels: []vikunja.Label{
+			{ID: 6, Title: recurrenceHistoryLabel},
+			{ID: 8, Title: skippedLabel},
+		},
+	}
+	client := &recurringClientStub{
+		completionClientStub: completionClientStub{reads: []taskRead{{task: live, etag: `"v2"`}}},
+		searchPage:           vikunja.TaskPage{Items: []vikunja.Task{candidate}, Total: 1, Page: 1, PerPage: 1000, TotalPages: 1},
+	}
+
+	_, err := RepairRecurringSnapshot(context.Background(), client, RecurringRepairGrant{
+		TaskID: 9, ProjectID: 7, LiveETag: `"v2"`, CompletionKey: "repair-key",
+		Outcome: CompletionOutcomeCompleted,
+	})
+	if err == nil {
+		t.Fatal("RepairRecurringSnapshot() error = nil, want conflicting outcome rejection")
 	}
 }
 

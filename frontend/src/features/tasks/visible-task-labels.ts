@@ -1,4 +1,4 @@
-const markerLabels = new Set(["job", "vbu:date-only", "vbu:recurrence-history"]);
+const markerLabels = new Set(["job", "vbu:date-only", "vbu:recurrence-history", "vbu:skipped"]);
 
 export function visibleTaskLabels<T extends { title: string }>(labels: readonly T[]): T[] {
   return labels.filter((label) => !markerLabels.has(label.title));

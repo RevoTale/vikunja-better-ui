@@ -17,6 +17,7 @@ import { Route as AuthenticatedWeekRouteImport } from './routes/_authenticated.w
 import { Route as AuthenticatedTasksTaskIdRouteImport } from './routes/_authenticated.tasks.$taskId'
 import { Route as AuthenticatedTasksNewRouteImport } from './routes/_authenticated.tasks.new'
 import { Route as AuthenticatedTasksTaskIdIndexRouteImport } from './routes/_authenticated.tasks.$taskId.index'
+import { Route as AuthenticatedTasksTaskIdDeleteRouteImport } from './routes/_authenticated.tasks.$taskId.delete'
 import { Route as AuthenticatedTasksTaskIdExtendedRouteImport } from './routes/_authenticated.tasks.$taskId.extended'
 
 const IndexRoute = IndexRouteImport.update({
@@ -81,6 +82,12 @@ const AuthenticatedTasksTaskIdIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedTasksTaskIdRoute,
   } as any)
+const AuthenticatedTasksTaskIdDeleteRoute =
+  AuthenticatedTasksTaskIdDeleteRouteImport.update({
+    id: '/delete',
+    path: '/delete',
+    getParentRoute: () => AuthenticatedTasksTaskIdRoute,
+  } as any)
 const AuthenticatedTasksTaskIdExtendedRoute =
   AuthenticatedTasksTaskIdExtendedRouteImport.update({
     id: '/extended',
@@ -99,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/week': typeof AuthenticatedWeekRoute
   '/tasks/$taskId': typeof AuthenticatedTasksTaskIdRouteWithChildren
   '/tasks/new': typeof AuthenticatedTasksNewRoute
+  '/tasks/$taskId/delete': typeof AuthenticatedTasksTaskIdDeleteRoute
   '/tasks/$taskId/extended': typeof AuthenticatedTasksTaskIdExtendedRoute
   '/tasks/$taskId/': typeof AuthenticatedTasksTaskIdIndexRoute
 }
@@ -112,6 +120,7 @@ export interface FileRoutesByTo {
   '/unscheduled': typeof AuthenticatedUnscheduledRoute
   '/week': typeof AuthenticatedWeekRoute
   '/tasks/new': typeof AuthenticatedTasksNewRoute
+  '/tasks/$taskId/delete': typeof AuthenticatedTasksTaskIdDeleteRoute
   '/tasks/$taskId/extended': typeof AuthenticatedTasksTaskIdExtendedRoute
   '/tasks/$taskId': typeof AuthenticatedTasksTaskIdIndexRoute
 }
@@ -128,6 +137,7 @@ export interface FileRoutesById {
   '/_authenticated/week': typeof AuthenticatedWeekRoute
   '/_authenticated/tasks/$taskId': typeof AuthenticatedTasksTaskIdRouteWithChildren
   '/_authenticated/tasks/new': typeof AuthenticatedTasksNewRoute
+  '/_authenticated/tasks/$taskId/delete': typeof AuthenticatedTasksTaskIdDeleteRoute
   '/_authenticated/tasks/$taskId/extended': typeof AuthenticatedTasksTaskIdExtendedRoute
   '/_authenticated/tasks/$taskId/': typeof AuthenticatedTasksTaskIdIndexRoute
 }
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/week'
     | '/tasks/$taskId'
     | '/tasks/new'
+    | '/tasks/$taskId/delete'
     | '/tasks/$taskId/extended'
     | '/tasks/$taskId/'
   fileRoutesByTo: FileRoutesByTo
@@ -157,6 +168,7 @@ export interface FileRouteTypes {
     | '/unscheduled'
     | '/week'
     | '/tasks/new'
+    | '/tasks/$taskId/delete'
     | '/tasks/$taskId/extended'
     | '/tasks/$taskId'
   id:
@@ -172,6 +184,7 @@ export interface FileRouteTypes {
     | '/_authenticated/week'
     | '/_authenticated/tasks/$taskId'
     | '/_authenticated/tasks/new'
+    | '/_authenticated/tasks/$taskId/delete'
     | '/_authenticated/tasks/$taskId/extended'
     | '/_authenticated/tasks/$taskId/'
   fileRoutesById: FileRoutesById
@@ -268,6 +281,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTasksTaskIdIndexRouteImport
       parentRoute: typeof AuthenticatedTasksTaskIdRoute
     }
+    '/_authenticated/tasks/$taskId/delete': {
+      id: '/_authenticated/tasks/$taskId/delete'
+      path: '/delete'
+      fullPath: '/tasks/$taskId/delete'
+      preLoaderRoute: typeof AuthenticatedTasksTaskIdDeleteRouteImport
+      parentRoute: typeof AuthenticatedTasksTaskIdRoute
+    }
     '/_authenticated/tasks/$taskId/extended': {
       id: '/_authenticated/tasks/$taskId/extended'
       path: '/extended'
@@ -279,12 +299,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedTasksTaskIdRouteChildren {
+  AuthenticatedTasksTaskIdDeleteRoute: typeof AuthenticatedTasksTaskIdDeleteRoute
   AuthenticatedTasksTaskIdExtendedRoute: typeof AuthenticatedTasksTaskIdExtendedRoute
   AuthenticatedTasksTaskIdIndexRoute: typeof AuthenticatedTasksTaskIdIndexRoute
 }
 
 const AuthenticatedTasksTaskIdRouteChildren: AuthenticatedTasksTaskIdRouteChildren =
   {
+    AuthenticatedTasksTaskIdDeleteRoute: AuthenticatedTasksTaskIdDeleteRoute,
     AuthenticatedTasksTaskIdExtendedRoute:
       AuthenticatedTasksTaskIdExtendedRoute,
     AuthenticatedTasksTaskIdIndexRoute: AuthenticatedTasksTaskIdIndexRoute,

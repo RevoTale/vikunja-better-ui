@@ -8,6 +8,43 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
+func TestTaskModelMapsCompletionOutcome(t *testing.T) {
+	t.Parallel()
+
+	projects := map[int64]vikunja.Project{7: {ID: 7, Title: "Home"}}
+	completed, err := taskModel(vikunja.Task{
+		ID: 9, ProjectID: 7, Done: true,
+	}, projects, "UTC", time.Now(), 7)
+	if err != nil {
+		t.Fatalf("taskModel(completed) error = %v", err)
+	}
+	if completed.CompletionOutcome == nil || *completed.CompletionOutcome != model.CompletionOutcomeCompleted {
+		t.Fatalf("completed outcome = %#v", completed.CompletionOutcome)
+	}
+
+	skipped, err := taskModel(vikunja.Task{
+		ID: 10, ProjectID: 7, Done: true,
+		Labels: []vikunja.Label{
+			{ID: 1, Title: "vbu:recurrence-history"},
+			{ID: 2, Title: "vbu:skipped"},
+		},
+	}, projects, "UTC", time.Now(), 7)
+	if err != nil {
+		t.Fatalf("taskModel(skipped) error = %v", err)
+	}
+	if skipped.CompletionOutcome == nil || *skipped.CompletionOutcome != model.CompletionOutcomeSkipped {
+		t.Fatalf("skipped outcome = %#v", skipped.CompletionOutcome)
+	}
+
+	active, err := taskModel(vikunja.Task{ID: 11, ProjectID: 7}, projects, "UTC", time.Now(), 7)
+	if err != nil {
+		t.Fatalf("taskModel(active) error = %v", err)
+	}
+	if active.CompletionOutcome != nil {
+		t.Fatalf("active outcome = %#v", active.CompletionOutcome)
+	}
+}
+
 func TestTaskModelMapsDateOnlyTask(t *testing.T) {
 	t.Parallel()
 

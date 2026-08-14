@@ -122,6 +122,13 @@ function TaskMetadata({
           {taskKindLabel(task)}
         </Badge>
       </li>
+      {task.completionOutcome ? (
+        <li className="min-w-0 max-w-full">
+          <Badge variant={task.completionOutcome === "SKIPPED" ? "secondary" : "outline"}>
+            {task.completionOutcome === "SKIPPED" ? "Skipped" : "Completed"}
+          </Badge>
+        </li>
+      ) : null}
       {labels.map((label) => (
         <li className="min-w-0 max-w-full" key={label.id}>
           <Badge

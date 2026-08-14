@@ -17,6 +17,7 @@ query TaskList($input: TaskListInput!) {
       kind
       isDone
       doneAt
+      completionOutcome
       project {
         id
         title

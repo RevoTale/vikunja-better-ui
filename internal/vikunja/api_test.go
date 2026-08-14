@@ -180,6 +180,30 @@ func TestClientTaskRoundTrip(t *testing.T) {
 	}
 }
 
+func TestClientDeleteTaskUsesV2TaskEndpoint(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.Method != http.MethodDelete || request.URL.Path != "/api/v2/tasks/42" {
+			t.Fatalf("request = %s %s", request.Method, request.URL.Path)
+		}
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	t.Cleanup(server.Close)
+
+	if err := testClient(t, server.URL, "test-token").DeleteTask(context.Background(), 42); err != nil {
+		t.Fatalf("DeleteTask() error = %v", err)
+	}
+}
+
+func TestClientDeleteTaskRejectsInvalidID(t *testing.T) {
+	t.Parallel()
+
+	if err := testClient(t, "http://example.test", "test-token").DeleteTask(context.Background(), 0); err == nil {
+		t.Fatal("DeleteTask() error = nil, want invalid ID error")
+	}
+}
+
 func TestClientTasksBuildsPinnedQuery(t *testing.T) {
 	t.Parallel()
 

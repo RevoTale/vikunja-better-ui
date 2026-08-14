@@ -67,6 +67,15 @@ type CreatorDiagnostic struct {
 	Name     string `json:"name"`
 }
 
+type DeleteTaskInput struct {
+	CsrfToken string `json:"csrfToken"`
+	TaskID    string `json:"taskId"`
+}
+
+type DeleteTaskPayload struct {
+	DeletedTaskID string `json:"deletedTaskId"`
+}
+
 type Label struct {
 	ID    string `json:"id"`
 	Title string `json:"title"`
@@ -119,23 +128,29 @@ type Session struct {
 	VikunjaUser   *VikunjaUser `json:"vikunjaUser,omitempty"`
 }
 
+type SkipRecurringTaskInput struct {
+	CsrfToken string `json:"csrfToken"`
+	TaskID    string `json:"taskId"`
+}
+
 type Task struct {
-	ID             string          `json:"id"`
-	Title          string          `json:"title"`
-	Description    string          `json:"description"`
-	Kind           TaskKind        `json:"kind"`
-	IsDone         bool            `json:"isDone"`
-	DoneAt         *time.Time      `json:"doneAt,omitempty"`
-	Project        *Project        `json:"project"`
-	Priority       TaskPriority    `json:"priority"`
-	DueAt          *time.Time      `json:"dueAt,omitempty"`
-	HasDueTime     bool            `json:"hasDueTime"`
-	StartAt        *time.Time      `json:"startAt,omitempty"`
-	EndAt          *time.Time      `json:"endAt,omitempty"`
-	RecurrenceRule *RecurrenceRule `json:"recurrenceRule,omitempty"`
-	Labels         []*Label        `json:"labels"`
-	IsOverdue      bool            `json:"isOverdue"`
-	Timezone       string          `json:"timezone"`
+	ID                string             `json:"id"`
+	Title             string             `json:"title"`
+	Description       string             `json:"description"`
+	Kind              TaskKind           `json:"kind"`
+	IsDone            bool               `json:"isDone"`
+	DoneAt            *time.Time         `json:"doneAt,omitempty"`
+	CompletionOutcome *CompletionOutcome `json:"completionOutcome,omitempty"`
+	Project           *Project           `json:"project"`
+	Priority          TaskPriority       `json:"priority"`
+	DueAt             *time.Time         `json:"dueAt,omitempty"`
+	HasDueTime        bool               `json:"hasDueTime"`
+	StartAt           *time.Time         `json:"startAt,omitempty"`
+	EndAt             *time.Time         `json:"endAt,omitempty"`
+	RecurrenceRule    *RecurrenceRule    `json:"recurrenceRule,omitempty"`
+	Labels            []*Label           `json:"labels"`
+	IsOverdue         bool               `json:"isOverdue"`
+	Timezone          string             `json:"timezone"`
 }
 
 type TaskDiagnostics struct {
@@ -202,6 +217,61 @@ type VikunjaUser struct {
 	DefaultProjectID *string `json:"defaultProjectId,omitempty"`
 }
 
+type CompletionOutcome string
+
+const (
+	CompletionOutcomeCompleted CompletionOutcome = "COMPLETED"
+	CompletionOutcomeSkipped   CompletionOutcome = "SKIPPED"
+)
+
+var AllCompletionOutcome = []CompletionOutcome{
+	CompletionOutcomeCompleted,
+	CompletionOutcomeSkipped,
+}
+
+func (e CompletionOutcome) IsValid() bool {
+	switch e {
+	case CompletionOutcomeCompleted, CompletionOutcomeSkipped:
+		return true
+	}
+	return false
+}
+
+func (e CompletionOutcome) String() string {
+	return string(e)
+}
+
+func (e *CompletionOutcome) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = CompletionOutcome(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid CompletionOutcome", str)
+	}
+	return nil
+}
+
+func (e CompletionOutcome) MarshalGQL(w io.Writer) {
+	fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *CompletionOutcome) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e CompletionOutcome) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type CompletionStatus string
 
 const (
@@ -263,17 +333,19 @@ const (
 	MarkerKindJob               MarkerKind = "JOB"
 	MarkerKindDateOnly          MarkerKind = "DATE_ONLY"
 	MarkerKindRecurrenceHistory MarkerKind = "RECURRENCE_HISTORY"
+	MarkerKindSkipped           MarkerKind = "SKIPPED"
 )
 
 var AllMarkerKind = []MarkerKind{
 	MarkerKindJob,
 	MarkerKindDateOnly,
 	MarkerKindRecurrenceHistory,
+	MarkerKindSkipped,
 }
 
 func (e MarkerKind) IsValid() bool {
 	switch e {
-	case MarkerKindJob, MarkerKindDateOnly, MarkerKindRecurrenceHistory:
+	case MarkerKindJob, MarkerKindDateOnly, MarkerKindRecurrenceHistory, MarkerKindSkipped:
 		return true
 	}
 	return false
@@ -488,6 +560,7 @@ const (
 	RepairStepAttachJob               RepairStep = "ATTACH_JOB"
 	RepairStepAttachDateOnly          RepairStep = "ATTACH_DATE_ONLY"
 	RepairStepAttachRecurrenceHistory RepairStep = "ATTACH_RECURRENCE_HISTORY"
+	RepairStepAttachSkipped           RepairStep = "ATTACH_SKIPPED"
 	RepairStepNormalizeDue            RepairStep = "NORMALIZE_DUE"
 )
 
@@ -496,12 +569,13 @@ var AllRepairStep = []RepairStep{
 	RepairStepAttachJob,
 	RepairStepAttachDateOnly,
 	RepairStepAttachRecurrenceHistory,
+	RepairStepAttachSkipped,
 	RepairStepNormalizeDue,
 }
 
 func (e RepairStep) IsValid() bool {
 	switch e {
-	case RepairStepCreateHistorySnapshot, RepairStepAttachJob, RepairStepAttachDateOnly, RepairStepAttachRecurrenceHistory, RepairStepNormalizeDue:
+	case RepairStepCreateHistorySnapshot, RepairStepAttachJob, RepairStepAttachDateOnly, RepairStepAttachRecurrenceHistory, RepairStepAttachSkipped, RepairStepNormalizeDue:
 		return true
 	}
 	return false

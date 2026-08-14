@@ -1,6 +1,5 @@
 import { useQuery } from "@apollo/client/react";
-import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Bug } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { buttonVariants } from "@/components/ui/button";
@@ -9,11 +8,14 @@ import { TaskDetailsDocument } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
 import { formatDateTime } from "./format-date-time";
 import { PriorityBadge } from "./priority-badge";
+import { TaskDetailActions } from "./task-detail-actions";
 import { taskKindLabel } from "./task-kind-label";
 
 export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo: string }) {
-  const { data, loading, error } = useQuery(TaskDetailsDocument, { variables: { id: taskId } });
-  if (loading) return <p>Loading task…</p>;
+  const { data, loading, error, refetch } = useQuery(TaskDetailsDocument, {
+    variables: { id: taskId },
+  });
+  if (loading && !data) return <p>Loading task…</p>;
   if (error)
     return (
       <p role="alert" className="text-destructive">
@@ -37,14 +39,7 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
           </p>
           <h1 className="mt-1 font-serif text-3xl font-semibold">{task.title}</h1>
         </div>
-        <Link
-          to="/tasks/$taskId/extended"
-          params={{ taskId }}
-          search={{ returnTo }}
-          className={cn(buttonVariants({ variant: "outline", size: "compact" }))}
-        >
-          <Bug /> Extended
-        </Link>
+        <TaskDetailActions task={task} returnTo={returnTo} onChanged={() => refetch()} />
       </div>
       <Card className="mt-6">
         <CardHeader>
@@ -52,12 +47,9 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2">
-            <Fact
-              label="Status"
-              value={task.isDone ? "Completed" : task.isOverdue ? "Overdue" : "Open"}
-            />
+            <Fact label="Status" value={taskStatus(task)} />
             <Fact label="Priority" value={<PriorityBadge priority={task.priority} />} />
-            {task.doneAt ? (
+            {task.isDone && task.doneAt ? (
               <Fact label="Completed" value={format(task.doneAt, true, task.timezone)} />
             ) : null}
             <Fact label="Due" value={format(task.dueAt, task.hasDueTime, task.timezone)} />
@@ -82,6 +74,16 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
       </Card>
     </section>
   );
+}
+
+function taskStatus(task: {
+  completionOutcome: "COMPLETED" | "SKIPPED" | null;
+  isDone: boolean;
+  isOverdue: boolean;
+}): string {
+  if (task.completionOutcome === "SKIPPED") return "Skipped";
+  if (task.isDone) return "Completed";
+  return task.isOverdue ? "Overdue" : "Open";
 }
 
 function Fact({ label, value }: { label: string; value: ReactNode }) {

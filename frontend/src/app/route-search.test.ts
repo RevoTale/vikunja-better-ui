@@ -12,6 +12,9 @@ describe("safeReturnTo", () => {
 
   it("keeps an allowlisted application URL with search state", () => {
     expect(safeReturnTo("/jobs?project=8&page=2")).toBe("/jobs?project=8&page=2");
+    expect(safeReturnTo("/tasks/42/delete?returnTo=%2Ftoday")).toBe(
+      "/tasks/42/delete?returnTo=%2Ftoday",
+    );
   });
 });
 

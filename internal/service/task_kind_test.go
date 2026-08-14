@@ -14,14 +14,28 @@ func TestClassifyTask(t *testing.T) {
 		task         vikunja.Task
 		wantKind     TaskKind
 		wantDateOnly bool
+		wantOutcome  CompletionOutcome
 	}{
 		{name: "one time", task: vikunja.Task{}, wantKind: TaskKindOneTime},
+		{
+			name:        "completed one time",
+			task:        vikunja.Task{Done: true},
+			wantKind:    TaskKindOneTime,
+			wantOutcome: CompletionOutcomeCompleted,
+		},
 		{name: "job", task: taskWithLabels(jobLabel), wantKind: TaskKindJob},
 		{name: "recurring", task: vikunja.Task{RepeatAfter: 86400}, wantKind: TaskKindRecurring},
 		{
-			name:     "completed recurrence snapshot",
-			task:     taskWithDoneAndLabels(true, recurrenceHistoryLabel),
-			wantKind: TaskKindRecurring,
+			name:        "completed recurrence snapshot",
+			task:        taskWithDoneAndLabels(true, recurrenceHistoryLabel),
+			wantKind:    TaskKindRecurring,
+			wantOutcome: CompletionOutcomeCompleted,
+		},
+		{
+			name:        "skipped recurrence snapshot",
+			task:        taskWithDoneAndLabels(true, recurrenceHistoryLabel, skippedLabel),
+			wantKind:    TaskKindRecurring,
+			wantOutcome: CompletionOutcomeSkipped,
 		},
 		{
 			name:         "date only is independent",
@@ -50,6 +64,26 @@ func TestClassifyTask(t *testing.T) {
 			wantKind: TaskKindInvalid,
 		},
 		{
+			name:     "active skipped marker is invalid",
+			task:     taskWithLabels(skippedLabel),
+			wantKind: TaskKindInvalid,
+		},
+		{
+			name:     "completed skipped marker without history is invalid",
+			task:     taskWithDoneAndLabels(true, skippedLabel),
+			wantKind: TaskKindInvalid,
+		},
+		{
+			name:     "active skipped history is invalid",
+			task:     taskWithLabels(recurrenceHistoryLabel, skippedLabel),
+			wantKind: TaskKindInvalid,
+		},
+		{
+			name:     "recurring skipped history is invalid",
+			task:     recurringTaskWithDoneAndLabels(true, recurrenceHistoryLabel, skippedLabel),
+			wantKind: TaskKindInvalid,
+		},
+		{
 			name:     "marker matching is exact and case sensitive",
 			task:     taskWithLabels("Job", " vbu:date-only "),
 			wantKind: TaskKindOneTime,
@@ -61,8 +95,15 @@ func TestClassifyTask(t *testing.T) {
 			t.Parallel()
 
 			classification := ClassifyTask(test.task)
-			if classification.Kind != test.wantKind || classification.DateOnly != test.wantDateOnly {
-				t.Fatalf("ClassifyTask() = %#v, want kind %q dateOnly %v", classification, test.wantKind, test.wantDateOnly)
+			if classification.Kind != test.wantKind || classification.DateOnly != test.wantDateOnly ||
+				classification.Outcome != test.wantOutcome {
+				t.Fatalf(
+					"ClassifyTask() = %#v, want kind %q dateOnly %v outcome %q",
+					classification,
+					test.wantKind,
+					test.wantDateOnly,
+					test.wantOutcome,
+				)
 			}
 		})
 	}

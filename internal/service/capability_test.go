@@ -95,6 +95,7 @@ func TestRecurringRepairCapabilityIsOpaqueAndRoundTrips(t *testing.T) {
 	want := RecurringRepairGrant{
 		TaskID: 9, ProjectID: 7, LiveETag: `"v2"`, CompletionKey: "completion-key",
 		DueAt: now.Add(-time.Hour), StartAt: now.Add(-2 * time.Hour), EndAt: now.Add(-90 * time.Minute),
+		Outcome: CompletionOutcomeSkipped,
 	}
 	token, err := manager.IssueRecurringRepair("session-1", want)
 	if err != nil {

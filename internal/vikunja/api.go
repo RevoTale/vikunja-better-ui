@@ -196,6 +196,16 @@ func (client *Client) Task(ctx context.Context, taskID int64) (Task, ResponseMet
 	return task, metadata, nil
 }
 
+func (client *Client) DeleteTask(ctx context.Context, taskID int64) error {
+	if taskID <= 0 {
+		return fmt.Errorf("task ID must be positive")
+	}
+
+	path := "tasks/" + strconv.FormatInt(taskID, 10)
+	_, err := client.doJSON(ctx, http.MethodDelete, path, nil, "", nil)
+	return err
+}
+
 func (client *Client) CreateTask(ctx context.Context, projectID int64, input TaskWrite) (Task, error) {
 	return client.createTask(ctx, projectID, input, markdownQuery())
 }

@@ -27,6 +27,7 @@ func taskModel(
 		return nil, err
 	}
 	classification := service.ClassifyTask(task)
+	completionOutcome := completionOutcomeModel(classification.Outcome)
 	recurrence, err := recurrenceRuleModel(task)
 	if err != nil {
 		return nil, err
@@ -39,6 +40,7 @@ func taskModel(
 	return &model.Task{
 		ID: strconv.FormatInt(task.ID, 10), Title: task.Title, Description: task.Description,
 		Kind: taskKindModel(classification.Kind), IsDone: task.Done, DoneAt: optionalTime(task.DoneAt),
+		CompletionOutcome: completionOutcome,
 		Project: &model.Project{
 			ID: strconv.FormatInt(project.ID, 10), Title: project.Title,
 			IsDefault: project.ID == defaultProjectID,
@@ -50,6 +52,19 @@ func taskModel(
 		IsOverdue: !task.Done && !task.DueDate.IsZero() && task.DueDate.Before(now),
 		Timezone:  timezone,
 	}, nil
+}
+
+func completionOutcomeModel(outcome service.CompletionOutcome) *model.CompletionOutcome {
+	var value model.CompletionOutcome
+	switch outcome {
+	case service.CompletionOutcomeCompleted:
+		value = model.CompletionOutcomeCompleted
+	case service.CompletionOutcomeSkipped:
+		value = model.CompletionOutcomeSkipped
+	default:
+		return nil
+	}
+	return &value
 }
 
 func recurrenceRuleModel(task vikunja.Task) (*model.RecurrenceRule, error) {

@@ -6,6 +6,7 @@ query TaskDetails($id: ID!) {
     kind
     isDone
     doneAt
+    completionOutcome
     priority
     dueAt
     hasDueTime
@@ -27,6 +28,29 @@ query TaskDetails($id: ID!) {
       id
       title
     }
+  }
+}
+
+mutation SkipRecurringTask($input: SkipRecurringTaskInput!) {
+  skipRecurringTask(input: $input) {
+    status
+    completedTask {
+      id
+      completionOutcome
+    }
+    nextOccurrence {
+      id
+      dueAt
+    }
+    repairCapability
+    missingMarkers
+    remainingRepairSteps
+  }
+}
+
+mutation DeleteTask($input: DeleteTaskInput!) {
+  deleteTask(input: $input) {
+    deletedTaskId
   }
 }
 

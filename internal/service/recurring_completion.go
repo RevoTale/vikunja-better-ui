@@ -35,6 +35,27 @@ func CompleteRecurring(
 	taskID int64,
 	location *time.Location,
 ) (RecurringCompletion, error) {
+	return completeRecurring(ctx, client, capabilities, taskID, location, CompletionOutcomeCompleted)
+}
+
+func SkipRecurring(
+	ctx context.Context,
+	client recurringCompletionClient,
+	capabilities *CapabilityManager,
+	taskID int64,
+	location *time.Location,
+) (RecurringCompletion, error) {
+	return completeRecurring(ctx, client, capabilities, taskID, location, CompletionOutcomeSkipped)
+}
+
+func completeRecurring(
+	ctx context.Context,
+	client recurringCompletionClient,
+	capabilities *CapabilityManager,
+	taskID int64,
+	location *time.Location,
+	outcome CompletionOutcome,
+) (RecurringCompletion, error) {
 	before, metadata, err := client.Task(ctx, taskID)
 	if err != nil {
 		return RecurringCompletion{}, err
@@ -71,10 +92,10 @@ func CompleteRecurring(
 		LiveTask: renewed, CompletionKey: key,
 		RepairGrant: RecurringRepairGrant{
 			TaskID: taskID, ProjectID: before.ProjectID, LiveETag: finalMetadata.ETag, CompletionKey: key,
-			DueAt: before.DueDate, StartAt: before.StartDate, EndAt: before.EndDate,
+			Outcome: outcome, DueAt: before.DueDate, StartAt: before.StartDate, EndAt: before.EndDate,
 		},
 	}
-	if existing, found, err := findSnapshot(ctx, client, before.ProjectID, key); err != nil {
+	if existing, found, err := findSnapshot(ctx, client, before.ProjectID, key, outcome); err != nil {
 		baseResult.RepairRequired = true
 		baseResult.RepairCause = err
 		return baseResult, nil
@@ -83,7 +104,7 @@ func CompleteRecurring(
 		return baseResult, nil
 	}
 
-	snapshot, err := createSnapshot(ctx, client, before, key)
+	snapshot, err := createSnapshot(ctx, client, before, key, outcome)
 	if err != nil {
 		baseResult.RepairRequired = true
 		baseResult.RepairCause = err
@@ -172,12 +193,13 @@ func findSnapshot(
 	client recurringCompletionClient,
 	projectID int64,
 	key string,
+	outcome CompletionOutcome,
 ) (vikunja.Task, bool, error) {
 	task, found, err := findSnapshotCandidate(ctx, client, projectID, key)
 	if err != nil || !found {
 		return task, found, err
 	}
-	if !validSnapshot(task) {
+	if !snapshotMatchesOutcome(task, outcome) {
 		return vikunja.Task{}, false, fmt.Errorf("completion key belongs to an invalid snapshot")
 	}
 	return task, true, nil
@@ -230,7 +252,7 @@ func RepairRecurringSnapshot(
 		before.DueDate = grant.DueAt
 		before.StartDate = grant.StartAt
 		before.EndDate = grant.EndAt
-		candidate, err = createSnapshot(ctx, client, before, grant.CompletionKey)
+		candidate, err = createSnapshot(ctx, client, before, grant.CompletionKey, grant.Outcome)
 		if err != nil {
 			return RecurringCompletion{}, err
 		}
@@ -239,14 +261,18 @@ func RepairRecurringSnapshot(
 	if candidate.RepeatAfter != 0 || candidate.RepeatMode != 0 {
 		return RecurringCompletion{}, fmt.Errorf("completion key belongs to a non-snapshot task")
 	}
-	if err := attachMissingSnapshotLabels(ctx, client, live.Labels, &candidate); err != nil {
+	if grant.Outcome == CompletionOutcomeCompleted && hasLabel(candidate.Labels, skippedLabel) {
+		return RecurringCompletion{}, fmt.Errorf("completion key belongs to a skipped snapshot")
+	}
+	if err := attachMissingSnapshotLabels(ctx, client, live.Labels, &candidate, grant.Outcome); err != nil {
 		return RecurringCompletion{}, err
 	}
-	confirmed, err := finalizeSnapshot(ctx, client, candidate.ID, grant.CompletionKey)
+	confirmed, err := finalizeSnapshot(ctx, client, candidate.ID, grant.CompletionKey, grant.Outcome)
 	if err != nil {
 		return RecurringCompletion{}, err
 	}
-	if !validSnapshot(confirmed) || !strings.Contains(confirmed.Description, completionMetadata(grant.CompletionKey)) {
+	if !snapshotMatchesOutcome(confirmed, grant.Outcome) ||
+		!strings.Contains(confirmed.Description, completionMetadata(grant.CompletionKey)) {
 		return RecurringCompletion{}, vikunja.ErrRejectedResponse
 	}
 	return RecurringCompletion{LiveTask: live, Snapshot: confirmed, CompletionKey: grant.CompletionKey}, nil
@@ -257,9 +283,10 @@ func attachMissingSnapshotLabels(
 	client recurringCompletionClient,
 	liveLabels []vikunja.Label,
 	snapshot *vikunja.Task,
+	outcome CompletionOutcome,
 ) error {
 	for _, label := range liveLabels {
-		if label.Title == recurrenceHistoryLabel || hasLabelID(snapshot.Labels, label.ID) {
+		if label.Title == recurrenceHistoryLabel || label.Title == skippedLabel || hasLabelID(snapshot.Labels, label.ID) {
 			continue
 		}
 		if err := client.AttachLabel(ctx, snapshot.ID, label.ID); err != nil {
@@ -267,17 +294,27 @@ func attachMissingSnapshotLabels(
 		}
 		snapshot.Labels = append(snapshot.Labels, label)
 	}
-	if hasLabel(snapshot.Labels, recurrenceHistoryLabel) {
+	if !hasLabel(snapshot.Labels, recurrenceHistoryLabel) {
+		historyMarker, err := ResolveMarker(ctx, client, recurrenceHistoryLabel)
+		if err != nil {
+			return err
+		}
+		if err := client.AttachLabel(ctx, snapshot.ID, historyMarker.ID); err != nil {
+			return err
+		}
+		snapshot.Labels = append(snapshot.Labels, historyMarker)
+	}
+	if outcome != CompletionOutcomeSkipped || hasLabel(snapshot.Labels, skippedLabel) {
 		return nil
 	}
-	historyMarker, err := ResolveMarker(ctx, client, recurrenceHistoryLabel)
+	skippedMarker, err := ResolveMarker(ctx, client, skippedLabel)
 	if err != nil {
 		return err
 	}
-	if err := client.AttachLabel(ctx, snapshot.ID, historyMarker.ID); err != nil {
+	if err := client.AttachLabel(ctx, snapshot.ID, skippedMarker.ID); err != nil {
 		return err
 	}
-	snapshot.Labels = append(snapshot.Labels, historyMarker)
+	snapshot.Labels = append(snapshot.Labels, skippedMarker)
 	return nil
 }
 
@@ -295,10 +332,18 @@ func createSnapshot(
 	client recurringCompletionClient,
 	before vikunja.Task,
 	key string,
+	outcome CompletionOutcome,
 ) (vikunja.Task, error) {
 	historyMarker, err := ResolveMarker(ctx, client, recurrenceHistoryLabel)
 	if err != nil {
 		return vikunja.Task{}, err
+	}
+	var skippedMarker vikunja.Label
+	if outcome == CompletionOutcomeSkipped {
+		skippedMarker, err = ResolveMarker(ctx, client, skippedLabel)
+		if err != nil {
+			return vikunja.Task{}, err
+		}
 	}
 	input := vikunja.TaskWrite{
 		Title: before.Title, Description: appendCompletionMetadata(before.Description, key),
@@ -313,7 +358,7 @@ func createSnapshot(
 		return vikunja.Task{}, vikunja.ErrRejectedResponse
 	}
 	for _, label := range before.Labels {
-		if label.Title == recurrenceHistoryLabel {
+		if label.Title == recurrenceHistoryLabel || label.Title == skippedLabel {
 			continue
 		}
 		if err := client.AttachLabel(ctx, created.ID, label.ID); err != nil {
@@ -325,7 +370,13 @@ func createSnapshot(
 		return vikunja.Task{}, err
 	}
 	created.Labels = append(created.Labels, historyMarker)
-	return finalizeSnapshot(ctx, client, created.ID, key)
+	if outcome == CompletionOutcomeSkipped {
+		if err := client.AttachLabel(ctx, created.ID, skippedMarker.ID); err != nil {
+			return vikunja.Task{}, err
+		}
+		created.Labels = append(created.Labels, skippedMarker)
+	}
+	return finalizeSnapshot(ctx, client, created.ID, key, outcome)
 }
 
 func finalizeSnapshot(
@@ -333,6 +384,7 @@ func finalizeSnapshot(
 	client recurringCompletionClient,
 	taskID int64,
 	key string,
+	outcome CompletionOutcome,
 ) (vikunja.Task, error) {
 	task, metadata, err := client.Task(ctx, taskID)
 	if err != nil {
@@ -357,7 +409,7 @@ func finalizeSnapshot(
 			return vikunja.Task{}, err
 		}
 	}
-	if !validSnapshot(task) || !strings.Contains(task.Description, completionMetadata(key)) {
+	if !snapshotMatchesOutcome(task, outcome) || !strings.Contains(task.Description, completionMetadata(key)) {
 		return vikunja.Task{}, vikunja.ErrRejectedResponse
 	}
 	return task, nil
@@ -366,6 +418,10 @@ func finalizeSnapshot(
 func validSnapshot(task vikunja.Task) bool {
 	return task.Done && !task.DoneAt.IsZero() && task.RepeatAfter == 0 && task.RepeatMode == 0 &&
 		hasLabel(task.Labels, recurrenceHistoryLabel)
+}
+
+func snapshotMatchesOutcome(task vikunja.Task, outcome CompletionOutcome) bool {
+	return validSnapshot(task) && ClassifyTask(task).Outcome == outcome
 }
 
 func appendCompletionMetadata(description string, key string) string {

@@ -10,6 +10,7 @@ describe("visibleTaskLabels", () => {
         { id: "2", title: "focus" },
         { id: "3", title: "vbu:date-only" },
         { id: "4", title: "vbu:recurrence-history" },
+        { id: "5", title: "vbu:skipped" },
       ]),
     ).toEqual([{ id: "2", title: "focus" }]);
   });

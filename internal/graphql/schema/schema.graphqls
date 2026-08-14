@@ -39,10 +39,16 @@ enum RecurrenceMode {
   SCHEDULED_CYCLE
 }
 
+enum CompletionOutcome {
+  COMPLETED
+  SKIPPED
+}
+
 enum MarkerKind {
   JOB
   DATE_ONLY
   RECURRENCE_HISTORY
+  SKIPPED
 }
 
 enum RepairStep {
@@ -50,6 +56,7 @@ enum RepairStep {
   ATTACH_JOB
   ATTACH_DATE_ONLY
   ATTACH_RECURRENCE_HISTORY
+  ATTACH_SKIPPED
   NORMALIZE_DUE
 }
 
@@ -111,6 +118,7 @@ type Task {
   kind: TaskKind!
   isDone: Boolean!
   doneAt: DateTime
+  completionOutcome: CompletionOutcome
   project: Project!
   priority: TaskPriority!
   dueAt: DateTime
@@ -244,6 +252,20 @@ input CompleteTaskInput {
   expectedKind: TaskKind!
 }
 
+input SkipRecurringTaskInput {
+  csrfToken: String!
+  taskId: ID!
+}
+
+input DeleteTaskInput {
+  csrfToken: String!
+  taskId: ID!
+}
+
+type DeleteTaskPayload {
+  deletedTaskId: ID!
+}
+
 input UndoTaskCompletionInput {
   csrfToken: String!
   capability: String!
@@ -269,6 +291,8 @@ type Mutation {
   createRecurringTask(input: CreateRecurringTaskInput!): TaskMutationPayload!
   createJob(input: CreateJobInput!): TaskMutationPayload!
   completeTask(input: CompleteTaskInput!): CompletionPayload!
+  skipRecurringTask(input: SkipRecurringTaskInput!): CompletionPayload!
+  deleteTask(input: DeleteTaskInput!): DeleteTaskPayload!
   undoTaskCompletion(input: UndoTaskCompletionInput!): TaskMutationPayload!
   repairTaskMetadata(input: RepairTaskMetadataInput!): TaskMutationPayload!
 }

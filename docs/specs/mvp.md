@@ -4,9 +4,12 @@ Status: Accepted on 2026-08-12.
 
 Product authority: `docs/ideas/recurring-task-client.md`.
 
-This specification retains the accepted exact `job` label and introduces the
-reserved `vbu:date-only` and `vbu:recurrence-history` markers. Vikunja has no
-native all-day flag and retains only the latest completion time when it renews
+This specification retains the accepted exact `job` label and reserves the
+`vbu:` label namespace for metadata owned by the current Better Vikunja system.
+The reserved markers are `vbu:date-only`, `vbu:recurrence-history`, and
+`vbu:skipped`. This namespace is an application convention, not an official
+Vikunja namespace. Vikunja has no native all-day flag, skipped outcome, or
+occurrence history and retains only the latest completion time when it renews
 a recurring task in place.
 
 ## Objective
@@ -25,9 +28,13 @@ The application is successful when the user can:
 5. Complete a recurring occurrence with one click, observe one renewed schedule
    in Vikunja, and retain a completed history snapshot in Vikunja.
 6. Complete one-time tasks and jobs with a short Undo opportunity.
-7. Inspect recent completed tasks and a read-only diagnostic subset of the real
+7. Skip one recurring occurrence while preserving its future series and a
+   truthful, distinguishable history record.
+8. Delete an active task, including stopping an active recurring series,
+   without allowing History to be mutated.
+9. Inspect recent completed tasks and a read-only diagnostic subset of the real
    Vikunja task fields.
-8. Use the same flows comfortably on phone, tablet, and desktop.
+10. Use the same flows comfortably on phone, tablet, and desktop.
 
 Vikunja remains the only task store. This application stores no tasks,
 preferences, completion history, sessions, or recurrence series in a database.
@@ -42,6 +49,7 @@ preferences, completion history, sessions, or recurrence series in a database.
 - One-time, recurring, and job creation.
 - Task details and read-only Extended diagnostics pages.
 - One-click completion and the agreed Undo behavior.
+- One-click recurring Skip and confirmed deletion of active tasks.
 - Responsive UI that follows the system light or dark color scheme, based on
   the exact TweakCN Zen Inspired Theme.
 - Real Vikunja API v2 integration, tests, CI, container image, and automated
@@ -159,8 +167,28 @@ an addition requires separate approval.
   label is present.
 - A task is `INVALID` when it combines recurrence with `job`, combines a
   recurrence-history marker with recurrence or `job`, or has a
-  recurrence-history marker while incomplete. Invalid tasks are diagnostic-only
-  and cannot be completed in this app until corrected in Vikunja.
+  recurrence-history marker while incomplete. A `vbu:skipped` marker is valid
+  only on a completed recurrence-history snapshot; every other combination is
+  invalid. Invalid tasks are diagnostic-only and cannot be completed or skipped
+  in this app until corrected in Vikunja.
+
+### Reserved marker namespace and completion outcome
+
+`vbu:` is reserved by this application for exact-title Vikunja labels that
+encode state Vikunja 2.5.0 cannot represent natively. The current system owns:
+
+- `vbu:date-only`: the due timestamp represents a date without a user-selected
+  time;
+- `vbu:recurrence-history`: the completed task is an archival occurrence of a
+  live recurring series; and
+- `vbu:skipped`: the archival occurrence was intentionally skipped rather than
+  performed.
+
+These remain ordinary Vikunja task labels and are the durable source of truth;
+the app stores no parallel state. GraphQL exposes the derived nullable
+`completionOutcome`: active and invalid tasks return `null`, valid completed
+tasks normally return `COMPLETED`, and valid completed snapshots with both
+recurrence-history and skipped markers return `SKIPPED`.
 
 Marker labels are classified by exact title. If several labels have the same
 marker title, any of them classifies a task and the lowest existing ID is the
@@ -170,10 +198,10 @@ the lowest ID and recognize every exact-title duplicate. The app never deletes
 or merges user labels automatically.
 
 Labels are user-controlled Vikunja data. Renaming or removing `job`,
-`vbu:date-only`, or `vbu:recurrence-history` intentionally changes how the next
-read classifies that task; without local persistence there is no reliable way
-to infer a former marker. Extended diagnostics exposes current label IDs and
-titles so this is debuggable.
+`vbu:date-only`, `vbu:recurrence-history`, or `vbu:skipped` intentionally
+changes how the next read classifies that task; without local persistence there
+is no reliable way to infer a former marker. Extended diagnostics exposes
+current label IDs and titles so this is debuggable.
 
 ### Date-only convention
 
@@ -238,6 +266,7 @@ Invalid values are replaced with safe defaults instead of reaching GraphQL.
 /tasks/new?type=one-time|recurring|job&returnTo=<validated-internal-url>
 /tasks/:id?returnTo=<validated-internal-url>
 /tasks/:id/extended?returnTo=<validated-internal-url>
+/tasks/:id/delete?returnTo=<validated-internal-url>
 ```
 
 - `/` redirects to `/today` when authenticated and `/login` otherwise.
@@ -252,6 +281,12 @@ Invalid values are replaced with safe defaults instead of reaching GraphQL.
   available.
 - Unscheduled project collapse state remains local and is intentionally not in
   the URL.
+- An active task detail page places `Skip` and `Delete` beside `Extended`.
+  `Skip` is shown only for a valid recurring task. `Delete` is shown for every
+  active task. Completed tasks and History entries show neither action.
+- The delete route is a semantic confirmation page, not a modal. It names the
+  task, preserves a validated `returnTo`, and offers destructive `Delete task`
+  and non-destructive `Cancel` actions.
 
 ## List behavior
 
@@ -376,7 +411,11 @@ day.
 - Sort by `doneAt` descending, then ID descending.
 - Show completion time, title, kind, project, priority, and scheduled due date
   or time when present.
+- Show `Skipped` for snapshots marked with both `vbu:recurrence-history` and
+  `vbu:skipped`; show `Completed` for ordinary completion outcomes.
 - Show 30 items per page with numbered pagination.
+- History is read-only in this app. History rows and detail pages offer no
+  Delete, Skip, completion, Undo, or repair initiation action.
 - History does not use the active-list 10,000-match materialization limit. It
   requests the selected Vikunja page in authoritative `doneAt` descending
   order. A failed upstream page fails the query without presenting misleading
@@ -541,6 +580,47 @@ The UI does not use optimistic completion, confirmation, automatic mutation
 retry, or Undo for recurring tasks. It clearly reports that renewal succeeded
 when only archival repair remains.
 
+### Skipping a recurring occurrence
+
+Skip is a distinct user intent built on the same native renewal primitive as
+recurring completion:
+
+1. Accept only an incomplete task classified as a valid live `RECURRING` task.
+2. Perform the same checked native completion and renewal verification as the
+   recurring completion workflow. Vikunja's native behavior is authoritative,
+   including advancement past multiple overdue fixed intervals.
+3. Create or reconcile the same non-recurring completed history snapshot.
+4. Attach both `vbu:recurrence-history` and `vbu:skipped` to the snapshot before
+   reporting confirmed success. Never attach `vbu:skipped` to the renewed live
+   task.
+5. Return the skipped snapshot as `completedTask`, with
+   `completionOutcome=SKIPPED`, and the renewed live task as `nextOccurrence`.
+
+Skip creates no task comment, requires no confirmation, provides no Undo, and
+is never retried optimistically. Recurring repair capabilities carry the
+intended completion outcome so repair attaches every required marker without
+renewing the live task again. Reconciliation must reject a snapshot whose
+marker outcome conflicts with the capability.
+
+### Deleting an active task
+
+1. Accept a CSRF-protected task ID and fetch the authoritative Vikunja task.
+2. Reject the mutation with `TASK_NOT_ACTIVE` when the task is completed or has
+   `vbu:recurrence-history` or `vbu:skipped`. This server guard applies even if
+   a client bypasses the UI.
+3. Delete the upstream task only after the guard passes. A recurring-task
+   deletion removes the live series; its separate completed and skipped
+   snapshots remain in History.
+4. Return only the deleted task ID. The frontend evicts it from Apollo and
+   returns to the validated originating route after confirmed upstream success.
+
+Deletion has no Undo in this app. Vikunja 2.5.0 internally soft-deletes tasks,
+but this app does not expose recovery. Its v2 DELETE route has no conditional
+precondition, so the read-before-delete activity guard cannot be atomic against
+a simultaneous mutation made directly through another Vikunja client. The app
+serializes its own pending actions for the task and documents this upstream
+race instead of claiming a stronger guarantee.
+
 ### Recurrence rule boundary
 
 `RecurrenceRule` is a value separate from `Task`. Creating a recurring task
@@ -563,12 +643,14 @@ enum TaskKind { ONE_TIME RECURRING JOB INVALID }
 enum TaskScope { TODAY WEEK MONTH JOBS UNSCHEDULED HISTORY }
 enum RecurrenceUnit { DAY WEEK MONTH }
 enum RecurrenceMode { FROM_COMPLETION SCHEDULED_CYCLE }
-enum MarkerKind { JOB DATE_ONLY RECURRENCE_HISTORY }
+enum CompletionOutcome { COMPLETED SKIPPED }
+enum MarkerKind { JOB DATE_ONLY RECURRENCE_HISTORY SKIPPED }
 enum RepairStep {
   CREATE_HISTORY_SNAPSHOT
   ATTACH_JOB
   ATTACH_DATE_ONLY
   ATTACH_RECURRENCE_HISTORY
+  ATTACH_SKIPPED
   NORMALIZE_DUE
 }
 enum TaskMutationStatus { CONFIRMED REPAIR_REQUIRED }
@@ -627,6 +709,7 @@ type Task {
   kind: TaskKind!
   isDone: Boolean!
   doneAt: DateTime
+  completionOutcome: CompletionOutcome
   project: Project!
   priority: TaskPriority!
   dueAt: DateTime
@@ -760,6 +843,20 @@ input CompleteTaskInput {
   expectedKind: TaskKind!
 }
 
+input SkipRecurringTaskInput {
+  csrfToken: String!
+  taskId: ID!
+}
+
+input DeleteTaskInput {
+  csrfToken: String!
+  taskId: ID!
+}
+
+type DeleteTaskPayload {
+  deletedTaskId: ID!
+}
+
 input UndoTaskCompletionInput {
   csrfToken: String!
   capability: String!
@@ -785,6 +882,8 @@ type Mutation {
   createRecurringTask(input: CreateRecurringTaskInput!): TaskMutationPayload!
   createJob(input: CreateJobInput!): TaskMutationPayload!
   completeTask(input: CompleteTaskInput!): CompletionPayload!
+  skipRecurringTask(input: SkipRecurringTaskInput!): CompletionPayload!
+  deleteTask(input: DeleteTaskInput!): DeleteTaskPayload!
   undoTaskCompletion(input: UndoTaskCompletionInput!): TaskMutationPayload!
   repairTaskMetadata(input: RepairTaskMetadataInput!): TaskMutationPayload!
 }
@@ -805,6 +904,11 @@ Contract rules:
 - Mutation payloads return complete affected task objects and explicit
   completion metadata so Apollo can update or evict normalized entities.
 - History and active lists share one `Task` object contract.
+- `skipRecurringTask` uses `CompletionPayload` because it has the same verified
+  renewal, snapshot, and repair states as recurring completion. It differs by
+  the snapshot's `completionOutcome` and required skipped marker.
+- `deleteTask` never returns a task that no longer exists upstream. Its payload
+  contains the deleted ID so Apollo can evict the normalized entity.
 - Input constraints that GraphQL SDL cannot express, including positive IDs,
   bounds, due-time dependency, accessible projects, and capability validity,
   are validated once at the resolver/service boundary as defined in the
@@ -821,13 +925,18 @@ Contract rules:
   recurring-history snapshots do not; confirmed recurring completion has
   `completedTask` and `nextOccurrence`; recurring completion that renewed but
   still needs archival repair has no `completedTask`; non-recurring completion
-  has Undo fields; repair-required results have a repair capability.
+  has Undo fields; repair-required results have a repair capability; active
+  and invalid tasks have no completion outcome; valid completed History tasks
+  have `COMPLETED` or `SKIPPED`.
 
 ### Task result shape
 
 `Task.recurrenceRule` is a distinct immutable value in the browser contract.
 It is present on the live recurring task and absent on its completed archival
 snapshots. No GraphQL operation edits an existing rule in this MVP.
+
+`Task.completionOutcome` is derived from authoritative done state and reserved
+markers. It is not accepted as mutation input and is never stored separately.
 
 `TaskDiagnostics` is a read-only, explicitly typed allowlist containing fields
 present on the real Vikunja task: task and project IDs, timestamps, done state,
@@ -845,6 +954,7 @@ Use stable `extensions.code` values:
 - `VALIDATION_FAILED`
 - `NOT_FOUND`
 - `INVALID_TASK_KIND`
+- `TASK_NOT_ACTIVE`
 - `CREATION_OUTCOME_UNKNOWN`
 - `REPAIR_REQUIRED`
 - `RESULT_SET_TOO_LARGE`
@@ -1005,6 +1115,10 @@ confusion, token leakage through redirects/logs, and open redirects through
 - Use a live region for mutation success/failure and Undo availability.
 - Recurring completion shows a pending state until verification finishes; it
   never disappears optimistically.
+- Task details group `Extended`, `Skip`, and `Delete` as peer actions with
+  consistent sizes. Skip is non-destructive; Delete alone uses the destructive
+  variant. The routed delete confirmation moves focus to its heading, names the
+  task, and keeps both actions keyboard and touch accessible.
 
 ## Project structure
 
@@ -1159,7 +1273,8 @@ and Taskfile together.
 - Go tests live beside source and cover configuration validation, session and
   CSRF signing, login throttling, URL validation, Vikunja decoding, task
   classification, sorting, scope boundaries, DST rejection, recurrence mapping,
-  and job date calculation.
+  job date calculation, skipped-snapshot classification and repair, and active-
+  only deletion guards.
 - Vitest covers pure frontend route-search validation, display mapping, and
   cache helper logic. UI interaction behavior is primarily tested in a real
   browser rather than a simulated DOM.
@@ -1247,9 +1362,11 @@ flow needs the additional WebKit project; the full suite is not duplicated.
 - Required flows: login/logout, route restoration, project filtering, all list
   scopes, every creation type, job calculations, completion/Undo, both
   recurrence modes, same-ID native renewal, one non-recurring marked history
-  snapshot, date-only normalization, history pagination, invalid mixed task,
-  Extended diagnostics, loading/empty/error states, keyboard navigation, and
-  automated accessibility checks.
+  snapshot, skipped recurrence with both reserved markers, active task
+  deletion, recurring-series deletion with preserved History, server rejection
+  of completed-task deletion, date-only normalization, history pagination,
+  invalid mixed task, Extended diagnostics, loading/empty/error states,
+  keyboard navigation, and automated accessibility checks.
 - Production credentials are never accepted by the harness.
 
 ### Runtime entry gates
@@ -1279,6 +1396,10 @@ prove:
 8. Completed-task listing supports server-side `doneAt` descending order with a
    stable ID tie-breaker and page traversal, so History never requires loading
    the complete history into memory.
+9. Task DELETE removes an active task and a recurring live series while leaving
+   separate history snapshots untouched. The route exposes no conditional
+   precondition, so the application guard remains a documented read-before-
+   delete boundary.
 
 Failure of a gate changes the specification before product code is written. It
 does not justify local persistence, heuristic duplicate creation, or API v1.
@@ -1398,6 +1519,12 @@ environment, never Vite variables.
   modes. Conditional writes prevent two app instances from renewing the same
   version. Snapshot repair reconciles its deterministic completion key before
   creation and never repeats native renewal.
+- Skipping a recurring occurrence advances the same live task through native
+  completion once and creates one completed snapshot carrying both
+  `vbu:recurrence-history` and `vbu:skipped`; History renders it as `Skipped`.
+- GraphQL rejects deletion of every completed or marker-owned history task.
+  Confirmed deletion removes an active task from Vikunja; deleting a recurring
+  live task leaves prior History snapshots intact.
 - One-time and job completion Undo restores the same Vikunja task during the
   defined window only with a valid session-bound capability and unchanged
   upstream version.
@@ -1448,6 +1575,10 @@ request approval before continuing that behavior.
 - `vbu:recurrence-history` marks non-recurring completed snapshots because
   Vikunja 2.5.0 renews one live task in place and overwrites its prior
   completion timestamp. See `docs/decisions/0001-recurring-history-snapshots.md`.
+- `vbu:skipped` marks a recurrence-history snapshot whose occurrence was
+  intentionally not performed. A label is preferred over a comment because it
+  is filterable, survives when comments are disabled, and fits the stateless
+  marker model. See `docs/decisions/0003-skipped-recurring-occurrences.md`.
 - Page-based pagination mirrors Vikunja v2 and keeps Back/refresh semantics
   simple.
 - A direct pinned Vikunja binary is preferred over Docker-in-Docker or a
@@ -1462,6 +1593,8 @@ request approval before continuing that behavior.
   https://vikunja.io/docs/api-v2/
 - Vikunja dates and native recurring completion:
   https://vikunja.io/help/dates-and-reminders/
+- Vikunja 2.5.0 task fields, recurrence advancement, and soft deletion:
+  https://github.com/go-vikunja/vikunja/blob/v2.5.0/pkg/models/tasks.go
 - Vikunja maintainer explanation that due dates always include a time:
   https://community.vikunja.io/t/list-view-improvements/2674/2
 - Vikunja 2.5.0 release:

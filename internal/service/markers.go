@@ -50,5 +50,5 @@ func lowestExactLabel(labels []vikunja.Label, title string) (vikunja.Label, bool
 }
 
 func isMarkerTitle(title string) bool {
-	return title == jobLabel || title == dateOnlyLabel || title == recurrenceHistoryLabel
+	return title == jobLabel || title == dateOnlyLabel || title == recurrenceHistoryLabel || title == skippedLabel
 }

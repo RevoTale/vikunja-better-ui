@@ -54,6 +54,10 @@ type ComplexityRoot struct {
 		Username func(childComplexity int) int
 	}
 
+	DeleteTaskPayload struct {
+		DeletedTaskID func(childComplexity int) int
+	}
+
 	Label struct {
 		ID    func(childComplexity int) int
 		Title func(childComplexity int) int
@@ -72,9 +76,11 @@ type ComplexityRoot struct {
 		CreateJob           func(childComplexity int, input model.CreateJobInput) int
 		CreateOneTimeTask   func(childComplexity int, input model.CreateOneTimeTaskInput) int
 		CreateRecurringTask func(childComplexity int, input model.CreateRecurringTaskInput) int
+		DeleteTask          func(childComplexity int, input model.DeleteTaskInput) int
 		Login               func(childComplexity int, input model.LoginInput) int
 		Logout              func(childComplexity int, csrfToken string) int
 		RepairTaskMetadata  func(childComplexity int, input model.RepairTaskMetadataInput) int
+		SkipRecurringTask   func(childComplexity int, input model.SkipRecurringTaskInput) int
 		UndoTaskCompletion  func(childComplexity int, input model.UndoTaskCompletionInput) int
 	}
 
@@ -110,22 +116,23 @@ type ComplexityRoot struct {
 	}
 
 	Task struct {
-		Description    func(childComplexity int) int
-		DoneAt         func(childComplexity int) int
-		DueAt          func(childComplexity int) int
-		EndAt          func(childComplexity int) int
-		HasDueTime     func(childComplexity int) int
-		ID             func(childComplexity int) int
-		IsDone         func(childComplexity int) int
-		IsOverdue      func(childComplexity int) int
-		Kind           func(childComplexity int) int
-		Labels         func(childComplexity int) int
-		Priority       func(childComplexity int) int
-		Project        func(childComplexity int) int
-		RecurrenceRule func(childComplexity int) int
-		StartAt        func(childComplexity int) int
-		Timezone       func(childComplexity int) int
-		Title          func(childComplexity int) int
+		CompletionOutcome func(childComplexity int) int
+		Description       func(childComplexity int) int
+		DoneAt            func(childComplexity int) int
+		DueAt             func(childComplexity int) int
+		EndAt             func(childComplexity int) int
+		HasDueTime        func(childComplexity int) int
+		ID                func(childComplexity int) int
+		IsDone            func(childComplexity int) int
+		IsOverdue         func(childComplexity int) int
+		Kind              func(childComplexity int) int
+		Labels            func(childComplexity int) int
+		Priority          func(childComplexity int) int
+		Project           func(childComplexity int) int
+		RecurrenceRule    func(childComplexity int) int
+		StartAt           func(childComplexity int) int
+		Timezone          func(childComplexity int) int
+		Title             func(childComplexity int) int
 	}
 
 	TaskDiagnostics struct {
@@ -192,6 +199,8 @@ type MutationResolver interface {
 	CreateRecurringTask(ctx context.Context, input model.CreateRecurringTaskInput) (*model.TaskMutationPayload, error)
 	CreateJob(ctx context.Context, input model.CreateJobInput) (*model.TaskMutationPayload, error)
 	CompleteTask(ctx context.Context, input model.CompleteTaskInput) (*model.CompletionPayload, error)
+	SkipRecurringTask(ctx context.Context, input model.SkipRecurringTaskInput) (*model.CompletionPayload, error)
+	DeleteTask(ctx context.Context, input model.DeleteTaskInput) (*model.DeleteTaskPayload, error)
 	UndoTaskCompletion(ctx context.Context, input model.UndoTaskCompletionInput) (*model.TaskMutationPayload, error)
 	RepairTaskMetadata(ctx context.Context, input model.RepairTaskMetadataInput) (*model.TaskMutationPayload, error)
 }
@@ -289,6 +298,13 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.CreatorDiagnostic.Username(childComplexity), true
 
+	case "DeleteTaskPayload.deletedTaskId":
+		if e.ComplexityRoot.DeleteTaskPayload.DeletedTaskID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.DeleteTaskPayload.DeletedTaskID(childComplexity), true
+
 	case "Label.id":
 		if e.ComplexityRoot.Label.ID == nil {
 			break
@@ -360,6 +376,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateRecurringTask(childComplexity, args["input"].(model.CreateRecurringTaskInput)), true
+	case "Mutation.deleteTask":
+		if e.ComplexityRoot.Mutation.DeleteTask == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_deleteTask_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.DeleteTask(childComplexity, args["input"].(model.DeleteTaskInput)), true
 	case "Mutation.login":
 		if e.ComplexityRoot.Mutation.Login == nil {
 			break
@@ -393,6 +420,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RepairTaskMetadata(childComplexity, args["input"].(model.RepairTaskMetadataInput)), true
+	case "Mutation.skipRecurringTask":
+		if e.ComplexityRoot.Mutation.SkipRecurringTask == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_skipRecurringTask_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SkipRecurringTask(childComplexity, args["input"].(model.SkipRecurringTaskInput)), true
 	case "Mutation.undoTaskCompletion":
 		if e.ComplexityRoot.Mutation.UndoTaskCompletion == nil {
 			break
@@ -521,6 +559,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Session.VikunjaUser(childComplexity), true
 
+	case "Task.completionOutcome":
+		if e.ComplexityRoot.Task.CompletionOutcome == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Task.CompletionOutcome(childComplexity), true
 	case "Task.description":
 		if e.ComplexityRoot.Task.Description == nil {
 			break
@@ -857,8 +901,10 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateJobInput,
 		ec.unmarshalInputCreateOneTimeTaskInput,
 		ec.unmarshalInputCreateRecurringTaskInput,
+		ec.unmarshalInputDeleteTaskInput,
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputRepairTaskMetadataInput,
+		ec.unmarshalInputSkipRecurringTaskInput,
 		ec.unmarshalInputTaskListInput,
 		ec.unmarshalInputUndoTaskCompletionInput,
 	)
@@ -977,10 +1023,16 @@ enum RecurrenceMode {
   SCHEDULED_CYCLE
 }
 
+enum CompletionOutcome {
+  COMPLETED
+  SKIPPED
+}
+
 enum MarkerKind {
   JOB
   DATE_ONLY
   RECURRENCE_HISTORY
+  SKIPPED
 }
 
 enum RepairStep {
@@ -988,6 +1040,7 @@ enum RepairStep {
   ATTACH_JOB
   ATTACH_DATE_ONLY
   ATTACH_RECURRENCE_HISTORY
+  ATTACH_SKIPPED
   NORMALIZE_DUE
 }
 
@@ -1049,6 +1102,7 @@ type Task {
   kind: TaskKind!
   isDone: Boolean!
   doneAt: DateTime
+  completionOutcome: CompletionOutcome
   project: Project!
   priority: TaskPriority!
   dueAt: DateTime
@@ -1182,6 +1236,20 @@ input CompleteTaskInput {
   expectedKind: TaskKind!
 }
 
+input SkipRecurringTaskInput {
+  csrfToken: String!
+  taskId: ID!
+}
+
+input DeleteTaskInput {
+  csrfToken: String!
+  taskId: ID!
+}
+
+type DeleteTaskPayload {
+  deletedTaskId: ID!
+}
+
 input UndoTaskCompletionInput {
   csrfToken: String!
   capability: String!
@@ -1207,6 +1275,8 @@ type Mutation {
   createRecurringTask(input: CreateRecurringTaskInput!): TaskMutationPayload!
   createJob(input: CreateJobInput!): TaskMutationPayload!
   completeTask(input: CompleteTaskInput!): CompletionPayload!
+  skipRecurringTask(input: SkipRecurringTaskInput!): CompletionPayload!
+  deleteTask(input: DeleteTaskInput!): DeleteTaskPayload!
   undoTaskCompletion(input: UndoTaskCompletionInput!): TaskMutationPayload!
   repairTaskMetadata(input: RepairTaskMetadataInput!): TaskMutationPayload!
 }
@@ -1250,6 +1320,14 @@ func (ec *executionContext) childFields_CreatorDiagnostic(ctx context.Context, f
 		return ec.fieldContext_CreatorDiagnostic_name(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type CreatorDiagnostic", field.Name)
+}
+
+func (ec *executionContext) childFields_DeleteTaskPayload(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "deletedTaskId":
+		return ec.fieldContext_DeleteTaskPayload_deletedTaskId(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type DeleteTaskPayload", field.Name)
 }
 
 func (ec *executionContext) childFields_Label(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -1338,6 +1416,8 @@ func (ec *executionContext) childFields_Task(ctx context.Context, field graphql.
 		return ec.fieldContext_Task_isDone(ctx, field)
 	case "doneAt":
 		return ec.fieldContext_Task_doneAt(ctx, field)
+	case "completionOutcome":
+		return ec.fieldContext_Task_completionOutcome(ctx, field)
 	case "project":
 		return ec.fieldContext_Task_project(ctx, field)
 	case "priority":
@@ -1638,6 +1718,20 @@ func (ec *executionContext) field_Mutation_createRecurringTask_args(ctx context.
 	return args, nil
 }
 
+func (ec *executionContext) field_Mutation_deleteTask_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.DeleteTaskInput, error) {
+			return ec.unmarshalNDeleteTaskInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐDeleteTaskInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
 func (ec *executionContext) field_Mutation_login_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
 	var err error
 	args := map[string]any{}
@@ -1672,6 +1766,20 @@ func (ec *executionContext) field_Mutation_repairTaskMetadata_args(ctx context.C
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.RepairTaskMetadataInput, error) {
 			return ec.unmarshalNRepairTaskMetadataInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐRepairTaskMetadataInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_skipRecurringTask_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.SkipRecurringTaskInput, error) {
+			return ec.unmarshalNSkipRecurringTaskInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐSkipRecurringTaskInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -2081,6 +2189,29 @@ func (ec *executionContext) fieldContext_CreatorDiagnostic_name(_ context.Contex
 	return graphql.NewScalarFieldContext("CreatorDiagnostic", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _DeleteTaskPayload_deletedTaskId(ctx context.Context, field graphql.CollectedField, obj *model.DeleteTaskPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_DeleteTaskPayload_deletedTaskId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DeletedTaskID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_DeleteTaskPayload_deletedTaskId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("DeleteTaskPayload", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
 func (ec *executionContext) _Label_id(ctx context.Context, field graphql.CollectedField, obj *model.Label) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -2440,6 +2571,94 @@ func (ec *executionContext) fieldContext_Mutation_completeTask(ctx context.Conte
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Mutation_completeTask_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_skipRecurringTask(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_skipRecurringTask(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SkipRecurringTask(ctx, fc.Args["input"].(model.SkipRecurringTaskInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CompletionPayload) graphql.Marshaler {
+			return ec.marshalNCompletionPayload2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐCompletionPayload(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_skipRecurringTask(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_CompletionPayload(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_skipRecurringTask_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Mutation_deleteTask(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_deleteTask(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().DeleteTask(ctx, fc.Args["input"].(model.DeleteTaskInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.DeleteTaskPayload) graphql.Marshaler {
+			return ec.marshalNDeleteTaskPayload2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐDeleteTaskPayload(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_deleteTask(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_DeleteTaskPayload(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_deleteTask_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -3213,6 +3432,29 @@ func (ec *executionContext) _Task_doneAt(ctx context.Context, field graphql.Coll
 }
 func (ec *executionContext) fieldContext_Task_doneAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Task", field, false, false, errors.New("field of type DateTime does not have child fields"))
+}
+
+func (ec *executionContext) _Task_completionOutcome(ctx context.Context, field graphql.CollectedField, obj *model.Task) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Task_completionOutcome(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CompletionOutcome, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.CompletionOutcome) graphql.Marshaler {
+			return ec.marshalOCompletionOutcome2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐCompletionOutcome(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Task_completionOutcome(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Task", field, false, false, errors.New("field of type CompletionOutcome does not have child fields"))
 }
 
 func (ec *executionContext) _Task_project(ctx context.Context, field graphql.CollectedField, obj *model.Task) (ret graphql.Marshaler) {
@@ -5732,6 +5974,43 @@ func (ec *executionContext) unmarshalInputCreateRecurringTaskInput(ctx context.C
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputDeleteTaskInput(ctx context.Context, obj any) (model.DeleteTaskInput, error) {
+	var it model.DeleteTaskInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"csrfToken", "taskId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "csrfToken":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("csrfToken"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CsrfToken = data
+		case "taskId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("taskId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TaskID = data
+		}
+	}
+	return it, nil
+}
+
 func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj any) (model.LoginInput, error) {
 	var it model.LoginInput
 	if obj == nil {
@@ -5801,6 +6080,43 @@ func (ec *executionContext) unmarshalInputRepairTaskMetadataInput(ctx context.Co
 				return it, err
 			}
 			it.Capability = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputSkipRecurringTaskInput(ctx context.Context, obj any) (model.SkipRecurringTaskInput, error) {
+	var it model.SkipRecurringTaskInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"csrfToken", "taskId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "csrfToken":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("csrfToken"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CsrfToken = data
+		case "taskId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("taskId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TaskID = data
 		}
 	}
 	return it, nil
@@ -6030,6 +6346,44 @@ func (ec *executionContext) _CreatorDiagnostic(ctx context.Context, sel ast.Sele
 	return out
 }
 
+var deleteTaskPayloadImplementors = []string{"DeleteTaskPayload"}
+
+func (ec *executionContext) _DeleteTaskPayload(ctx context.Context, sel ast.SelectionSet, obj *model.DeleteTaskPayload) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, deleteTaskPayloadImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("DeleteTaskPayload")
+		case "deletedTaskId":
+			out.Values[i] = ec._DeleteTaskPayload_deletedTaskId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var labelImplementors = []string{"Label"}
 
 func (ec *executionContext) _Label(ctx context.Context, sel ast.SelectionSet, obj *model.Label) graphql.Marshaler {
@@ -6207,6 +6561,20 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		case "completeTask":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_completeTask(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "skipRecurringTask":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_skipRecurringTask(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "deleteTask":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_deleteTask(ctx, field)
 			})
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
@@ -6637,6 +7005,11 @@ func (ec *executionContext) _Task(ctx context.Context, sel ast.SelectionSet, obj
 			}
 		case "doneAt":
 			out.Values[i] = ec._Task_doneAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "completionOutcome":
+			out.Values[i] = ec._Task_completionOutcome(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
@@ -7529,6 +7902,25 @@ func (ec *executionContext) marshalNDateTime2timeᚐTime(ctx context.Context, se
 	return res
 }
 
+func (ec *executionContext) unmarshalNDeleteTaskInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐDeleteTaskInput(ctx context.Context, v any) (model.DeleteTaskInput, error) {
+	res, err := ec.unmarshalInputDeleteTaskInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNDeleteTaskPayload2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐDeleteTaskPayload(ctx context.Context, sel ast.SelectionSet, v model.DeleteTaskPayload) graphql.Marshaler {
+	return ec._DeleteTaskPayload(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNDeleteTaskPayload2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐDeleteTaskPayload(ctx context.Context, sel ast.SelectionSet, v *model.DeleteTaskPayload) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._DeleteTaskPayload(ctx, sel, v)
+}
+
 func (ec *executionContext) unmarshalNID2string(ctx context.Context, v any) (string, error) {
 	res, err := graphql.UnmarshalID(v)
 	return res, graphql.ErrorOnPath(ctx, err)
@@ -7807,6 +8199,11 @@ func (ec *executionContext) marshalNSession2ᚖgithubᚗcomᚋRevoTaleᚋvikunja
 		return graphql.Null
 	}
 	return ec._Session(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNSkipRecurringTaskInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐSkipRecurringTaskInput(ctx context.Context, v any) (model.SkipRecurringTaskInput, error) {
+	res, err := ec.unmarshalInputSkipRecurringTaskInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNString2string(ctx context.Context, v any) (string, error) {
@@ -8123,6 +8520,22 @@ func (ec *executionContext) marshalOBoolean2ᚖbool(ctx context.Context, sel ast
 	_ = ctx
 	res := graphql.MarshalBoolean(*v)
 	return res
+}
+
+func (ec *executionContext) unmarshalOCompletionOutcome2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐCompletionOutcome(ctx context.Context, v any) (*model.CompletionOutcome, error) {
+	if v == nil {
+		return nil, nil
+	}
+	var res = new(model.CompletionOutcome)
+	err := res.UnmarshalGQL(v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOCompletionOutcome2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐCompletionOutcome(ctx context.Context, sel ast.SelectionSet, v *model.CompletionOutcome) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return v
 }
 
 func (ec *executionContext) marshalOCreatorDiagnostic2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐCreatorDiagnostic(ctx context.Context, sel ast.SelectionSet, v *model.CreatorDiagnostic) graphql.Marshaler {

@@ -74,7 +74,9 @@ secret.
 
 Use a dedicated Vikunja token with the smallest practical permissions. The app
 needs to read projects and tasks, create/update tasks, and read/create labels
-and task-label relations. Do not reuse the app login credentials for Vikunja.
+and task-label relations. It also needs task deletion so an active task or
+recurring series can be removed from the task detail page. Do not reuse the app
+login credentials for Vikunja.
 
 ## Development
 

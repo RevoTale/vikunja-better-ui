@@ -26,6 +26,7 @@ type taskClient interface {
 	CreateTaskHTML(context.Context, int64, vikunja.TaskWrite) (vikunja.Task, error)
 	PatchTask(context.Context, int64, vikunja.TaskPatch, string) (vikunja.Task, error)
 	PatchTaskChecked(context.Context, int64, vikunja.TaskPatch, vikunja.TaskCheck) (vikunja.Task, error)
+	DeleteTask(context.Context, int64) error
 	Labels(context.Context) ([]vikunja.Label, error)
 	CreateLabel(context.Context, vikunja.LabelWrite) (vikunja.Label, error)
 	AttachLabel(context.Context, int64, int64) error
