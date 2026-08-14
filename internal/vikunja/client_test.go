@@ -141,6 +141,22 @@ func TestClientRejectsTrailingJSONValues(t *testing.T) {
 	}
 }
 
+func TestClientRejectsResponseBodyOverLimit(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"value":"` + strings.Repeat("x", maxResponseBodyBytes) + `"}`))
+	}))
+	t.Cleanup(server.Close)
+
+	client := testClient(t, server.URL, "test-token")
+	_, err := client.doJSON(context.Background(), http.MethodGet, "user", nil, "", &struct{}{})
+	if err == nil {
+		t.Fatal("doJSON() error = nil, want oversized response rejection")
+	}
+}
+
 func testClient(t *testing.T, rawURL string, token string) *Client {
 	t.Helper()
 

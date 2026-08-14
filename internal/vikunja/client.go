@@ -149,19 +149,15 @@ func (client *Client) doJSONWithQueryAndContentType(
 		return metadata, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
 	}
 
-	limitedBody := io.LimitReader(response.Body, maxResponseBodyBytes+1)
-	responseBytes, err := io.ReadAll(limitedBody)
-	if err != nil {
-		return metadata, fmt.Errorf("read Vikunja response: %w", err)
-	}
-	if len(responseBytes) > maxResponseBodyBytes {
-		return metadata, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
-	}
-	decoder := json.NewDecoder(bytes.NewReader(responseBytes))
+	limitedBody := &io.LimitedReader{R: response.Body, N: maxResponseBodyBytes + 1}
+	decoder := json.NewDecoder(limitedBody)
 	if err := decoder.Decode(output); err != nil {
 		return metadata, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
 	}
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		return metadata, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
+	}
+	if limitedBody.N == 0 {
 		return metadata, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
 	}
 

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/hmac"
@@ -203,7 +204,7 @@ func (manager *CapabilityManager) parsePayload(token string, destination any) er
 	if err != nil {
 		return ErrInvalidCapability
 	}
-	decoder := json.NewDecoder(strings.NewReader(string(payload)))
+	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(destination); err != nil {
 		return ErrInvalidCapability
@@ -246,7 +247,7 @@ func (manager *CapabilityManager) openPayload(token string, destination any) err
 	if err != nil {
 		return ErrInvalidCapability
 	}
-	decoder := json.NewDecoder(strings.NewReader(string(plaintext)))
+	decoder := json.NewDecoder(bytes.NewReader(plaintext))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(destination); err != nil {
 		return ErrInvalidCapability

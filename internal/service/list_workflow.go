@@ -65,7 +65,7 @@ func ListTasks(ctx context.Context, client taskListClient, request ListRequest) 
 
 func listActive(ctx context.Context, client taskListClient, request ListRequest) (ListResult, error) {
 	if request.Scope == TaskScopeJobs && len(request.JobLabelIDs) == 0 {
-		return completeList(request, []TaskListItem{}, 0), nil
+		return completeCandidateList(request, nil), nil
 	}
 	query := activeTaskQuery(request)
 	firstPage, err := client.TasksPage(ctx, query)
@@ -76,7 +76,11 @@ func listActive(ctx context.Context, client taskListClient, request ListRequest)
 		return incompleteList(request, ListIssueTooLarge, nil), nil
 	}
 
-	tasks := append([]vikunja.Task(nil), firstPage.Items...)
+	candidates := make([]taskListCandidate, 0, int(firstPage.Total))
+	candidates = appendTaskListCandidates(
+		candidates, firstPage.Items, request.ProjectTitles, request.Scope, request.Now, request.Location, request.WeekStart,
+	)
+	loadedTasks := int64(len(firstPage.Items))
 	for pageNumber := int64(2); pageNumber <= firstPage.TotalPages; pageNumber++ {
 		query.Page = pageNumber
 		page, pageErr := client.TasksPage(ctx, query)
@@ -86,16 +90,17 @@ func listActive(ctx context.Context, client taskListClient, request ListRequest)
 		if page.Total != firstPage.Total || page.TotalPages != firstPage.TotalPages {
 			return incompleteList(request, ListIssueUpstreamPartial, vikunja.ErrRejectedResponse), nil
 		}
-		tasks = append(tasks, page.Items...)
+		loadedTasks += int64(len(page.Items))
+		candidates = appendTaskListCandidates(
+			candidates, page.Items, request.ProjectTitles, request.Scope, request.Now, request.Location, request.WeekStart,
+		)
 	}
-	if int64(len(tasks)) != firstPage.Total {
+	if loadedTasks != firstPage.Total {
 		return incompleteList(request, ListIssueUpstreamPartial, vikunja.ErrRejectedResponse), nil
 	}
 
-	items := BuildTaskList(
-		tasks, request.ProjectTitles, request.Scope, request.Now, request.Location, request.WeekStart,
-	)
-	return completeList(request, items, int64(len(items))), nil
+	sortTaskList(candidates, request.Scope, request.Now)
+	return completeCandidateList(request, candidates), nil
 }
 
 func listHistory(ctx context.Context, client taskListClient, request ListRequest) (ListResult, error) {
@@ -167,7 +172,16 @@ func appendProjectFilter(parts []string, projectID *int64) []string {
 	return parts
 }
 
-func completeList(request ListRequest, items []TaskListItem, total int64) ListResult {
+func completeCandidateList(request ListRequest, candidates []taskListCandidate) ListResult {
+	total := int64(len(candidates))
+	start, end, totalPages := listPageBounds(request, total)
+	return ListResult{
+		Items: materializeTaskList(candidates[start:end]), Page: request.Page, PageSize: request.PageSize,
+		TotalItems: total, TotalPages: totalPages, HasMore: int64(request.Page) < totalPages, IsComplete: true,
+	}
+}
+
+func listPageBounds(request ListRequest, total int64) (int64, int64, int64) {
 	start := int64((request.Page - 1) * request.PageSize)
 	if start > total {
 		start = total
@@ -177,10 +191,7 @@ func completeList(request ListRequest, items []TaskListItem, total int64) ListRe
 		end = total
 	}
 	totalPages := (total + int64(request.PageSize) - 1) / int64(request.PageSize)
-	return ListResult{
-		Items: items[start:end], Page: request.Page, PageSize: request.PageSize,
-		TotalItems: total, TotalPages: totalPages, HasMore: int64(request.Page) < totalPages, IsComplete: true,
-	}
+	return start, end, totalPages
 }
 
 func incompleteList(request ListRequest, code ListIssueCode, cause error) ListResult {

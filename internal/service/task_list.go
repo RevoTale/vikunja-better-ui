@@ -25,6 +25,12 @@ type TaskListItem struct {
 	ProjectTitle   string
 }
 
+type taskListCandidate struct {
+	Task           *vikunja.Task
+	Classification TaskClassification
+	ProjectTitle   string
+}
+
 func BuildTaskList(
 	tasks []vikunja.Task,
 	projectTitles map[int64]string,
@@ -33,24 +39,47 @@ func BuildTaskList(
 	location *time.Location,
 	weekStart time.Weekday,
 ) []TaskListItem {
+	candidates := make([]taskListCandidate, 0, len(tasks))
+	candidates = appendTaskListCandidates(candidates, tasks, projectTitles, scope, now, location, weekStart)
+	sortTaskList(candidates, scope, now)
+	return materializeTaskList(candidates)
+}
+
+func appendTaskListCandidates(
+	candidates []taskListCandidate,
+	tasks []vikunja.Task,
+	projectTitles map[int64]string,
+	scope TaskScope,
+	now time.Time,
+	location *time.Location,
+	weekStart time.Weekday,
+) []taskListCandidate {
 	if location == nil {
 		location = time.UTC
 	}
 
-	items := make([]TaskListItem, 0, len(tasks))
-	for _, task := range tasks {
-		classification := ClassifyTask(task)
-		if !taskMatchesScope(task, classification, scope, now, location, weekStart) {
+	for index := range tasks {
+		task := &tasks[index]
+		classification := ClassifyTask(*task)
+		if !taskMatchesScope(*task, classification, scope, now, location, weekStart) {
 			continue
 		}
-		items = append(items, TaskListItem{
+		candidates = append(candidates, taskListCandidate{
 			Task:           task,
 			Classification: classification,
 			ProjectTitle:   projectTitles[task.ProjectID],
 		})
 	}
+	return candidates
+}
 
-	sortTaskList(items, scope, now)
+func materializeTaskList(candidates []taskListCandidate) []TaskListItem {
+	items := make([]TaskListItem, len(candidates))
+	for index, candidate := range candidates {
+		items[index] = TaskListItem{
+			Task: *candidate.Task, Classification: candidate.Classification, ProjectTitle: candidate.ProjectTitle,
+		}
+	}
 	return items
 }
 
@@ -106,23 +135,23 @@ func nextMonthBoundary(now time.Time, location *time.Location) time.Time {
 	return start.AddDate(0, 1, 0)
 }
 
-func sortTaskList(items []TaskListItem, scope TaskScope, now time.Time) {
+func sortTaskList(items []taskListCandidate, scope TaskScope, now time.Time) {
 	comparison := compareScopedTask(scope, now)
-	slices.SortStableFunc(items, comparison)
+	slices.SortFunc(items, comparison)
 }
 
-func compareScopedTask(scope TaskScope, now time.Time) func(TaskListItem, TaskListItem) int {
+func compareScopedTask(scope TaskScope, now time.Time) func(taskListCandidate, taskListCandidate) int {
 	switch scope {
 	case TaskScopeToday:
-		return func(left TaskListItem, right TaskListItem) int {
+		return func(left taskListCandidate, right taskListCandidate) int {
 			return compareToday(left, right, now)
 		}
 	case TaskScopeWeek, TaskScopeMonth:
-		return func(left TaskListItem, right TaskListItem) int {
+		return func(left taskListCandidate, right taskListCandidate) int {
 			return compareDateScope(left, right, now)
 		}
 	case TaskScopeJobs:
-		return func(left TaskListItem, right TaskListItem) int {
+		return func(left taskListCandidate, right taskListCandidate) int {
 			return compareJobs(left, right, now)
 		}
 	case TaskScopeUnscheduled:
@@ -130,13 +159,13 @@ func compareScopedTask(scope TaskScope, now time.Time) func(TaskListItem, TaskLi
 	case TaskScopeHistory:
 		return compareHistory
 	default:
-		return func(left TaskListItem, right TaskListItem) int {
+		return func(left taskListCandidate, right taskListCandidate) int {
 			return cmp.Compare(left.Task.ID, right.Task.ID)
 		}
 	}
 }
 
-func compareToday(left TaskListItem, right TaskListItem, now time.Time) int {
+func compareToday(left taskListCandidate, right taskListCandidate, now time.Time) int {
 	leftGroup := todayGroup(left, now)
 	rightGroup := todayGroup(right, now)
 	if result := cmp.Compare(leftGroup, rightGroup); result != 0 {
@@ -153,7 +182,7 @@ func compareToday(left TaskListItem, right TaskListItem, now time.Time) int {
 	}
 }
 
-func todayGroup(item TaskListItem, now time.Time) int {
+func todayGroup(item taskListCandidate, now time.Time) int {
 	if item.Task.DueDate.Before(now) {
 		return 0
 	}
@@ -163,7 +192,7 @@ func todayGroup(item TaskListItem, now time.Time) int {
 	return 2
 }
 
-func compareDateScope(left TaskListItem, right TaskListItem, now time.Time) int {
+func compareDateScope(left taskListCandidate, right taskListCandidate, now time.Time) int {
 	leftOverdue := left.Task.DueDate.Before(now)
 	rightOverdue := right.Task.DueDate.Before(now)
 	if leftOverdue != rightOverdue {
@@ -178,7 +207,7 @@ func compareDateScope(left TaskListItem, right TaskListItem, now time.Time) int 
 	return compareDuePriorityTitleID(left, right)
 }
 
-func compareJobs(left TaskListItem, right TaskListItem, now time.Time) int {
+func compareJobs(left taskListCandidate, right taskListCandidate, now time.Time) int {
 	leftOverdue := !left.Task.DueDate.IsZero() && left.Task.DueDate.Before(now)
 	rightOverdue := !right.Task.DueDate.IsZero() && right.Task.DueDate.Before(now)
 	if leftOverdue != rightOverdue {
@@ -193,7 +222,7 @@ func compareJobs(left TaskListItem, right TaskListItem, now time.Time) int {
 	return comparePriorityTitleID(left, right)
 }
 
-func compareUnscheduled(left TaskListItem, right TaskListItem) int {
+func compareUnscheduled(left taskListCandidate, right taskListCandidate) int {
 	if result := cmp.Compare(left.ProjectTitle, right.ProjectTitle); result != 0 {
 		return result
 	}
@@ -203,14 +232,14 @@ func compareUnscheduled(left TaskListItem, right TaskListItem) int {
 	return comparePriorityTitleID(left, right)
 }
 
-func compareHistory(left TaskListItem, right TaskListItem) int {
+func compareHistory(left taskListCandidate, right taskListCandidate) int {
 	if result := right.Task.DoneAt.Compare(left.Task.DoneAt); result != 0 {
 		return result
 	}
 	return cmp.Compare(right.Task.ID, left.Task.ID)
 }
 
-func comparePriorityDueTitleID(left TaskListItem, right TaskListItem) int {
+func comparePriorityDueTitleID(left taskListCandidate, right taskListCandidate) int {
 	if result := cmp.Compare(right.Task.Priority, left.Task.Priority); result != 0 {
 		return result
 	}
@@ -220,21 +249,21 @@ func comparePriorityDueTitleID(left TaskListItem, right TaskListItem) int {
 	return compareTitleID(left, right)
 }
 
-func compareDuePriorityTitleID(left TaskListItem, right TaskListItem) int {
+func compareDuePriorityTitleID(left taskListCandidate, right taskListCandidate) int {
 	if result := left.Task.DueDate.Compare(right.Task.DueDate); result != 0 {
 		return result
 	}
 	return comparePriorityTitleID(left, right)
 }
 
-func comparePriorityTitleID(left TaskListItem, right TaskListItem) int {
+func comparePriorityTitleID(left taskListCandidate, right taskListCandidate) int {
 	if result := cmp.Compare(right.Task.Priority, left.Task.Priority); result != 0 {
 		return result
 	}
 	return compareTitleID(left, right)
 }
 
-func compareTitleID(left TaskListItem, right TaskListItem) int {
+func compareTitleID(left taskListCandidate, right taskListCandidate) int {
 	if result := cmp.Compare(left.Task.Title, right.Task.Title); result != 0 {
 		return result
 	}

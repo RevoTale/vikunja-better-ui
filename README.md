@@ -118,6 +118,13 @@ docker run --rm -p 8080:8080 --env-file .env ghcr.io/revotale/vikunja-better-ui:
 The runtime image contains CA certificates and timezone data and runs as a
 non-root user.
 
+The Go process uses about 10 MiB RSS while idle in the development fixture, but
+peak memory depends on Vikunja task payloads and concurrent requests. In a
+memory-limited container, set Go's `GOMEMLIMIT` 5–10% below the container limit;
+for example, use `GOMEMLIMIT=115MiB` with a 128 MiB limit. Go 1.26 handles
+cgroup CPU limits automatically. See [the performance budget](docs/performance.md)
+for reproducible benchmarks, measured allocations, and tuning constraints.
+
 ## CI and releases
 
 Pull requests and `main` run one reusable required-checks job covering generated

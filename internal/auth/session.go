@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -109,7 +110,7 @@ func (manager *SessionManager) Parse(token string) (Session, error) {
 	}
 
 	var payload sessionPayload
-	decoder := json.NewDecoder(strings.NewReader(string(payloadBytes)))
+	decoder := json.NewDecoder(bytes.NewReader(payloadBytes))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&payload); err != nil {
 		return Session{}, ErrInvalidSession

@@ -166,7 +166,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await expect(page.getByText(invalidTitle, { exact: true })).toBeVisible();
   await expect(page.getByText("Invalid: both recurring and job", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: `Complete ${invalidTitle}` })).toHaveCount(0);
-  await page.getByLabel("Project").selectOption(projectID);
+  await page.getByLabel("Project", { exact: true }).selectOption(projectID);
   await expect(page).toHaveURL(new RegExp(`project=${projectID}`));
   await page.goto("/week");
   await expect(page.getByRole("heading", { name: "This week" })).toBeVisible();
@@ -289,7 +289,7 @@ test("task lists expose loading, empty, error, and project-filter states", async
   await page.goto(`/today?project=${emptyProjectID}&page=1`);
   await expect(page.getByText("Loading tasks…", { exact: true })).toBeVisible();
   await expect(page.getByText("No tasks here.", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Project")).toHaveValue(emptyProjectID);
+  await expect(page.getByLabel("Project", { exact: true })).toHaveValue(emptyProjectID);
 
   await page.unroute("**/graphql");
   await page.route("**/graphql", async (route) => {
