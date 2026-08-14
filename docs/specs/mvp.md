@@ -284,11 +284,10 @@ The task list content, including its heading, project filter, rows, and
 pagination, is centered and limited to `max-w-5xl` (1024px) on large screens.
 It remains full-width within page padding at smaller breakpoints.
 
-Active task rows use three semantic regions:
+Active task rows use two semantic columns at every breakpoint:
 
 1. A fixed-width schedule and importance column on the left.
-2. Flexible task content in the middle.
-3. Right-aligned project and completion controls.
+2. A flexible content column on the right.
 
 The schedule value is the primary time-sensitivity signal. Overdue values use
 the destructive state, values due within two hours use the warning state,
@@ -302,12 +301,30 @@ and its independent semantic palette. Urgency color must not be reused to imply
 priority. Existing list ordering remains authoritative; visual treatment does
 not reorder tasks.
 
-The middle region contains title, task kind, and ordinary user labels. The
-right region places the muted project name at the outer edge and the completion
-control below it. On narrow phones, the row becomes two columns; project and
-completion share a compact row below the title, with completion kept at the
-right. The project may truncate with an accessible full name, and completion
-remains a 44px reachable control. Invalid tasks never show completion.
+The content column places the title and 44px completion control in its first
+row, the muted project name beneath them, and task kind plus ordinary user
+labels in the final row. Long titles and badges wrap without widening the row.
+The project may truncate with an accessible full name. Invalid tasks never
+show completion. Phone, tablet, and desktop use this same information order;
+only column widths and spacing change.
+
+This wireframe is normative for every breakpoint. Preserve the row order when
+changing spacing, typography, or column widths:
+
+```text
++--------------+----------------------------------------+
+| 14 Aug       | Task title                  [Complete] |
+| 19:15        | Project                                |
+| Overdue      |                                        |
+| [Medium]     | [Recurring] [practice]                 |
++--------------+----------------------------------------+
+  schedule       content
+```
+
+The title may wrap beside the completion control. The project remains below
+that first row. Task type and user labels remain the bottom content row. An
+invalid or completed task leaves out the completion control without changing
+the remaining order.
 
 Jobs use a slightly wider schedule region containing the local work interval,
 for example `10:15-11:00`. Their distinct due timestamp is shown as `Complete

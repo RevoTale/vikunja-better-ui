@@ -73,9 +73,8 @@ wants a smaller, purpose-built task workflow.
 
 - Center list content and limit it to `max-w-5xl` (1024px) on larger screens.
   Keep it full-width inside the normal page padding on phone and tablet widths.
-- Use a stable three-part row: a fixed-width schedule column on the left, the
-  task content in the middle, and project plus completion controls on the
-  right.
+- Use two semantic columns at every breakpoint: a fixed-width schedule column
+  on the left and one flexible content column on the right.
 - The left schedule column communicates time sensitivity:
   - overdue uses the destructive state;
   - due within two hours uses the warning state;
@@ -87,11 +86,10 @@ wants a smaller, purpose-built task workflow.
   12:00` in the task metadata.
 - Place the priority badge directly below the schedule. Priority keeps its own
   semantic palette and label; schedule color represents urgency only.
-- Keep title, task kind, and ordinary labels in the middle column. Labels sit
-  below the title metadata instead of competing with the primary line.
-- Put the muted project name at the right edge and the completion control below
-  it. On narrow phones, use two columns and place project plus completion in a
-  compact row below the title, with completion reachable on the right.
+- Put the title and completion control in the first content row, the muted
+  project below them, and task kind plus ordinary labels in the final row. Use
+  the same order on phone, tablet, and desktop. Long titles and badges must wrap
+  within the content column instead of widening the row.
 - Do not rely on color alone. Text, labels, ordering, and overdue wording must
   communicate the same states. Invalid mixed tasks remain diagnostic-only and
   do not gain a completion control.

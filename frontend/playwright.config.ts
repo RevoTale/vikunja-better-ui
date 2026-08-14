@@ -31,6 +31,16 @@ export default defineConfig({
       },
     },
     {
+      name: "phone-webkit",
+      grep: /login restores/,
+      use: {
+        browserName: "webkit",
+        viewport: { width: 320, height: 800 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
       name: "tablet-768",
       grep: /login restores/,
       use: { viewport: { width: 768, height: 1024 } },

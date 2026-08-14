@@ -434,6 +434,7 @@ async function selectDate(page: Page, label: string, value: string) {
   await page.getByLabel(`${label} year`).selectOption(value.slice(0, 4));
 }
 async function expectTaskRowLayout(page: Page, title: string, label: string) {
+  const isPhone = test.info().project.name.startsWith("phone-");
   const card = page.locator('[data-slot="card"]').filter({ hasText: title });
   const scheduleBox = await card.locator('[data-slot="task-schedule"]').boundingBox();
   const titleBox = await card.getByRole("link", { name: title }).boundingBox();
@@ -452,22 +453,39 @@ async function expectTaskRowLayout(page: Page, title: string, label: string) {
   expect(Math.abs(kindBox.y - labelBox.y)).toBeLessThanOrEqual(1);
   expect(Math.abs(kindBox.height - labelBox.height)).toBeLessThanOrEqual(1);
   expect(completeBox.x).toBeGreaterThan(titleBox.x);
-  if (test.info().project.name !== "phone-320") expect(projectBox.x).toBeGreaterThan(titleBox.x);
+  expect(completeBox.y).toBeLessThan(projectBox.y);
+  expect(projectBox.y).toBeGreaterThanOrEqual(titleBox.y + titleBox.height);
+  expect(kindBox.y).toBeGreaterThan(projectBox.y);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => document.documentElement.clientWidth),
   );
-  if (test.info().project.name === "phone-320") {
+  if (isPhone) {
     const headerBox = await page.locator("header").boundingBox();
     const headingBox = await page.getByRole("heading", { name: "Today" }).boundingBox();
     const filterBox = await page.getByLabel("Project").boundingBox();
     const firstCardBox = await page.locator('[data-slot="card"]').first().boundingBox();
     const invalidKind = page.getByText("Invalid: both recurring and job", { exact: true });
-    if (!headerBox || !headingBox || !filterBox || !firstCardBox) {
+    const invalidCardBox = await page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: invalidTitle })
+      .boundingBox();
+    const invalidKindBox = await invalidKind.boundingBox();
+    if (
+      !headerBox ||
+      !headingBox ||
+      !filterBox ||
+      !firstCardBox ||
+      !invalidCardBox ||
+      !invalidKindBox
+    ) {
       throw new Error("mobile task list spacing is not measurable");
     }
     expect(headingBox.y - (headerBox.y + headerBox.height)).toBeLessThanOrEqual(20);
     expect(firstCardBox.y - (filterBox.y + filterBox.height)).toBeLessThanOrEqual(20);
     expect(await renderedLineCount(invalidKind)).toBeLessThanOrEqual(2);
+    expect(invalidKindBox.x + invalidKindBox.width).toBeLessThanOrEqual(
+      invalidCardBox.x + invalidCardBox.width,
+    );
   }
 }
 async function expectTaskPriorityLayout(page: Page, title: string, priority: string) {
