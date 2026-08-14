@@ -19,6 +19,11 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
+      - name: Set up pnpm
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 11.21.0
+          run_install: false
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -27,7 +32,6 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
       - name: Install pinned tools
         run: |
-          corepack enable
           go install github.com/go-task/task/v3/cmd/task@v3.52.0
           go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
           pnpm --dir frontend install --frozen-lockfile
