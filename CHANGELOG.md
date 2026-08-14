@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/RevoTale/vikunja-better-ui/compare/v1.0.0...v1.0.1) (2026-08-14)
+
+
+### Performance Improvements
+
+* **go:** reduce proxy request allocations ([ee56e3e](https://github.com/RevoTale/vikunja-better-ui/commit/ee56e3ebb210312159b36d7c13cd60043eb0a0c2))
+
 ## 1.0.0 (2026-08-14)
 
 
