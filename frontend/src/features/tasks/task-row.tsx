@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Check } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TaskListQuery } from "@/graphql/graphql";
@@ -34,32 +35,18 @@ export function TaskRow({
           priority={task.priority}
         />
         <div className="min-w-0" data-slot="task-content">
-          <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2">
-            <Link
-              to="/tasks/$taskId"
-              params={{ taskId: task.id }}
-              search={{ returnTo }}
-              className="font-medium hover:underline"
-            >
-              {task.title}
-            </Link>
-            <KindBadge task={task} />
-          </div>
+          <Link
+            to="/tasks/$taskId"
+            params={{ taskId: task.id }}
+            search={{ returnTo }}
+            className="font-medium hover:underline"
+          >
+            {task.title}
+          </Link>
           {schedule.completeBy ? (
             <p className="mt-1 text-xs text-muted-foreground">{schedule.completeBy}</p>
           ) : null}
-          {labels.length > 0 ? (
-            <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Labels">
-              {labels.map((label) => (
-                <li
-                  key={label.id}
-                  className="rounded-full border px-2 py-0.5 text-xs text-muted-foreground"
-                >
-                  {label.title}
-                </li>
-              ))}
-            </ul>
-          ) : null}
+          <TaskMetadata task={task} labels={labels} />
         </div>
         <div
           className="col-start-2 row-start-2 flex min-w-0 items-end justify-between gap-2 self-stretch sm:col-start-auto sm:row-start-auto sm:flex-col sm:gap-3"
@@ -121,10 +108,25 @@ function urgencyClassName(urgency: TaskUrgency): string {
   return "text-foreground";
 }
 
-function KindBadge({ task }: { task: TaskItem }) {
+function TaskMetadata({
+  task,
+  labels,
+}: {
+  task: TaskItem;
+  labels: ReadonlyArray<TaskItem["labels"][number]>;
+}) {
   return (
-    <span className="rounded-full border px-2 py-0.5 text-[0.7rem] font-medium">
-      {taskKindLabel(task)}
-    </span>
+    <ul className="mt-2 flex flex-wrap items-center gap-1.5" aria-label="Task type and labels">
+      <li>
+        <Badge variant="outline">{taskKindLabel(task)}</Badge>
+      </li>
+      {labels.map((label) => (
+        <li key={label.id}>
+          <Badge className="text-muted-foreground" variant="outline">
+            {label.title}
+          </Badge>
+        </li>
+      ))}
+    </ul>
   );
 }

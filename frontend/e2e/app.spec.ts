@@ -257,11 +257,11 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await page.goto("/history");
   const historyTasks = page.locator('main a[href^="/tasks/"]:not([href^="/tasks/new"])');
   await expect(historyTasks).toHaveCount(30);
-  await page.getByRole("button", { name: "Go to page 2" }).click();
-  await expect(page).toHaveURL(/\/history\?project=all&page=2/);
+  await page.getByRole("button", { name: "Go to page 5" }).click();
+  await expect(page).toHaveURL(/\/history\?project=all&page=5/);
   await expect.poll(() => historyTasks.count()).toBeGreaterThan(0);
   await expect(historyTasks).not.toHaveCount(30);
-  await expect(page.getByRole("button", { name: "Go to page 2" })).toHaveAttribute(
+  await expect(page.getByRole("button", { name: "Go to page 5" })).toHaveAttribute(
     "aria-current",
     "page",
   );
@@ -437,17 +437,20 @@ async function expectTaskRowLayout(page: Page, title: string, label: string) {
   const card = page.locator('[data-slot="card"]').filter({ hasText: title });
   const scheduleBox = await card.locator('[data-slot="task-schedule"]').boundingBox();
   const titleBox = await card.getByRole("link", { name: title }).boundingBox();
+  const kindBox = await card.getByText("One-time", { exact: true }).boundingBox();
   const labelBox = await card.getByText(label, { exact: true }).boundingBox();
   const completeBox = await card.getByRole("button", { name: `Complete ${title}` }).boundingBox();
   const projectBox = await card
     .locator('[data-slot="task-project"]')
     .filter({ visible: true })
     .boundingBox();
-  if (!scheduleBox || !titleBox || !labelBox || !completeBox || !projectBox) {
+  if (!scheduleBox || !titleBox || !kindBox || !labelBox || !completeBox || !projectBox) {
     throw new Error("task row layout is not measurable");
   }
   expect(scheduleBox.x).toBeLessThan(titleBox.x);
   expect(labelBox.y).toBeGreaterThan(titleBox.y);
+  expect(Math.abs(kindBox.y - labelBox.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(kindBox.height - labelBox.height)).toBeLessThanOrEqual(1);
   expect(completeBox.x).toBeGreaterThan(titleBox.x);
   if (test.info().project.name !== "phone-320") expect(projectBox.x).toBeGreaterThan(titleBox.x);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
@@ -482,10 +485,11 @@ async function renderedLineCount(locator: Locator) {
   });
 }
 async function expectBrandTimezone(page: Page) {
-  const brand = page.getByText("Better Vikunja", { exact: true }).filter({ visible: true });
+  const brand = page.getByRole("link", { name: /Better Vikunja/ }).filter({ visible: true });
   const timezone = page
-    .getByText(`Vikunja time · ${vikunjaTimezone}`, { exact: true })
+    .getByText(`Timezone ${vikunjaTimezone}`, { exact: true })
     .filter({ visible: true });
+  await expect(brand).toHaveAttribute("href", "/today?project=all&page=1");
   await expect(timezone).toBeVisible();
   const brandBox = await brand.boundingBox();
   const timezoneBox = await timezone.boundingBox();

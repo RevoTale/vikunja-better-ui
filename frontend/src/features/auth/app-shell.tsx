@@ -94,12 +94,18 @@ export function AppShell() {
 
 function Brand({ timezone }: { timezone: string | undefined }) {
   return (
-    <div className="leading-tight">
-      <span className="font-serif text-lg font-semibold tracking-tight">Better Vikunja</span>
+    <Link
+      to="/today"
+      search={{ project: "all", page: 1 }}
+      className="block w-fit rounded-sm leading-tight outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+    >
+      <span className="block font-serif text-lg font-semibold tracking-tight">Better Vikunja</span>
       {timezone ? (
-        <p className="mt-0.5 text-[0.65rem] text-muted-foreground">Vikunja time · {timezone}</p>
+        <span className="mt-0.5 block text-[0.65rem] text-muted-foreground">
+          Timezone {timezone}
+        </span>
       ) : null}
-    </div>
+    </Link>
   );
 }
 

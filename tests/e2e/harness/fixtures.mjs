@@ -43,23 +43,6 @@ if (currentUser.settings?.timezone !== fixtureTimezone) {
   throw new Error(`user timezone is ${currentUser.settings?.timezone}, want ${fixtureTimezone}`);
 }
 
-for (let index = 1; index <= 31; index += 1) {
-  const task = await request(`/projects/${project.id}/tasks`, {
-    method: "POST",
-    token: jwt,
-    body: JSON.stringify({ title: `History seed ${String(index).padStart(2, "0")}` }),
-  });
-  await request(`/tasks/${task.id}`, {
-    method: "PATCH",
-    token: jwt,
-    contentType: "application/json-patch+json",
-    body: JSON.stringify([
-      { op: "test", path: "/done", value: false },
-      { op: "replace", path: "/done", value: true },
-    ]),
-  });
-}
-
 const jobLabel = await request("/labels", {
   method: "POST",
   token: jwt,
@@ -70,6 +53,91 @@ const focusLabel = await request("/labels", {
   token: jwt,
   body: JSON.stringify({ title: "focus" }),
 });
+const workLabel = await createLabel("work");
+const sportLabel = await createLabel("sport");
+const readingLabel = await createLabel("reading");
+const practiceLabel = await createLabel("practice");
+
+const schedule = [
+  {
+    title: "Prepare weekly status update",
+    description: "Review progress, blockers, and the next priorities.",
+    priority: 4,
+    labels: [jobLabel, workLabel],
+    history: { hour: 9, minute: 0, duration: 90 },
+    active: {
+      start_date: scheduledAfter(15),
+      end_date: scheduledAfter(105),
+      due_date: scheduledAfter(135),
+    },
+  },
+  {
+    title: "Client follow-up and invoices",
+    description: "Reply to open questions and send this week's invoices.",
+    priority: 3,
+    labels: [jobLabel, workLabel],
+    history: { hour: 14, minute: 0, duration: 60 },
+    active: {
+      start_date: scheduledAfter(180),
+      end_date: scheduledAfter(240),
+      due_date: scheduledAfter(300),
+    },
+  },
+  {
+    title: "Morning run",
+    priority: 2,
+    labels: [sportLabel],
+    history: { hour: 7, minute: 30 },
+    active: { due_date: scheduledAt(7, 30), repeat_after: 86400, repeat_mode: 0 },
+  },
+  {
+    title: "Strength training",
+    priority: 3,
+    labels: [sportLabel],
+    history: { hour: 18, minute: 30 },
+    active: { due_date: scheduledAt(18, 30), repeat_after: 3 * 86400, repeat_mode: 2 },
+  },
+  {
+    title: "Practice vocal warm-ups",
+    priority: 2,
+    labels: [practiceLabel],
+    history: { hour: 19, minute: 15 },
+    active: { due_date: scheduledAt(19, 15), repeat_after: 86400, repeat_mode: 2 },
+  },
+  {
+    title: "Read 20 pages",
+    priority: 0,
+    labels: [readingLabel],
+    history: { hour: 21, minute: 30 },
+    active: { due_date: scheduledAt(21, 30), repeat_after: 86400, repeat_mode: 2 },
+  },
+  {
+    title: "Plan tomorrow",
+    priority: 1,
+    labels: [focusLabel],
+    history: { hour: 22, minute: 0 },
+    active: { due_date: scheduledAt(22, 0) },
+  },
+];
+for (let index = 0; index < 125; index += 1) {
+  const scheduled = schedule[index % schedule.length];
+  const dayOffset = -Math.floor(index / schedule.length) - 1;
+  const task = await createTask(historyTask(scheduled, dayOffset), scheduled.labels);
+  await completeTask(task.id);
+}
+
+for (const scheduled of schedule) {
+  await createTask(
+    {
+      title: scheduled.title,
+      description: scheduled.description,
+      priority: scheduled.priority,
+      ...scheduled.active,
+    },
+    scheduled.labels,
+  );
+}
+
 const labeledTitle = "Labeled task fixture";
 const labeledTask = await request(`/projects/${project.id}/tasks`, {
   method: "POST",
@@ -148,6 +216,108 @@ async function request(path, options = {}) {
 function requiredString(value, name) {
   if (typeof value !== "string" || value.length === 0) throw new Error(`${name} is missing`);
   return value;
+}
+
+async function createLabel(title) {
+  return request("/labels", {
+    method: "POST",
+    token: jwt,
+    body: JSON.stringify({ title }),
+  });
+}
+
+async function createTask(task, labels) {
+  const created = await request(`/projects/${project.id}/tasks`, {
+    method: "POST",
+    token: jwt,
+    body: JSON.stringify(task),
+  });
+  for (const label of labels) {
+    await request(`/tasks/${created.id}/labels`, {
+      method: "POST",
+      token: jwt,
+      body: JSON.stringify({ label_id: label.id }),
+    });
+  }
+  return created;
+}
+
+async function completeTask(taskID) {
+  await request(`/tasks/${taskID}`, {
+    method: "PATCH",
+    token: jwt,
+    contentType: "application/json-patch+json",
+    body: JSON.stringify([
+      { op: "test", path: "/done", value: false },
+      { op: "replace", path: "/done", value: true },
+    ]),
+  });
+}
+
+function historyTask(scheduled, dayOffset) {
+  const { hour, minute, duration } = scheduled.history;
+  const startDate = scheduledAt(hour, minute, dayOffset);
+  return {
+    title: scheduled.title,
+    priority: scheduled.priority,
+    due_date: duration ? scheduledAt(hour, minute + duration + 60, dayOffset) : startDate,
+    ...(duration
+      ? {
+          start_date: startDate,
+          end_date: scheduledAt(hour, minute + duration, dayOffset),
+        }
+      : {}),
+  };
+}
+
+function scheduledAt(hour, minute, dayOffset = 0) {
+  const now = new Date();
+  const today = zonedParts(now);
+  const localTimestamp = Date.UTC(
+    today.year,
+    today.month - 1,
+    today.day + dayOffset,
+    hour,
+    minute,
+  );
+  let instant = new Date(localTimestamp);
+
+  for (let iteration = 0; iteration < 2; iteration += 1) {
+    const represented = zonedParts(instant);
+    const representedTimestamp = Date.UTC(
+      represented.year,
+      represented.month - 1,
+      represented.day,
+      represented.hour,
+      represented.minute,
+    );
+    instant = new Date(instant.getTime() + localTimestamp - representedTimestamp);
+  }
+  return instant.toISOString();
+}
+
+function scheduledAfter(minutes) {
+  return new Date(Date.now() + minutes * 60 * 1000).toISOString();
+}
+
+function zonedParts(value) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: fixtureTimezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(value);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+  };
 }
 
 function selectPermissions(routes, group, names) {

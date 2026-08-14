@@ -23,8 +23,8 @@ export const taskPriorityOptions = [
   {
     value: "MEDIUM",
     label: "Medium",
-    className: "border-emerald-600/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    selectClassName: "border-emerald-600/40 text-emerald-700 dark:text-emerald-300",
+    className: "border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300",
+    selectClassName: "border-emerald-600/40 text-emerald-800 dark:text-emerald-300",
   },
   {
     value: "HIGH",
