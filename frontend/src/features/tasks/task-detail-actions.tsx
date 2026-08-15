@@ -13,6 +13,7 @@ import {
   TaskListDocument,
 } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
+import { graphQLErrorMessage } from "@/lib/user-error";
 import { taskDetailActionPolicy } from "./task-detail-action-policy";
 
 type TaskDetail = NonNullable<TaskDetailsQuery["task"]>;
@@ -27,7 +28,7 @@ export function TaskDetailActions({
   onChanged: () => Promise<unknown>;
 }) {
   const client = useApolloClient();
-  const { data: sessionData } = useQuery(SessionDocument);
+  const { data: sessionData, error: sessionError } = useQuery(SessionDocument);
   const [skip] = useMutation(SkipRecurringTaskDocument);
   const [repair] = useMutation(RepairTaskMetadataDocument);
   const [repairCapability, setRepairCapability] = useState<string>();
@@ -47,7 +48,12 @@ export function TaskDetailActions({
     setNotice("");
     const csrfToken = sessionData?.session.csrfToken;
     if (!csrfToken) {
-      setError("Refresh the page before trying again.");
+      setError(
+        graphQLErrorMessage(
+          sessionError,
+          "Refresh the page and sign in again before trying again.",
+        ),
+      );
       return;
     }
     setActionPending("skip");
@@ -56,8 +62,13 @@ export function TaskDetailActions({
       try {
         payload = (await skip({ variables: { input: { csrfToken, taskId: task.id } } })).data
           ?.skipRecurringTask;
-      } catch {
-        setError("Skip could not be confirmed. The task was refreshed before you try again.");
+      } catch (caught) {
+        setError(
+          graphQLErrorMessage(
+            caught,
+            "Skip could not be confirmed. The task was refreshed before you try again.",
+          ),
+        );
         await onChanged().catch(() => undefined);
         return;
       }
@@ -74,8 +85,13 @@ export function TaskDetailActions({
       );
       try {
         await refreshAffectedTasks();
-      } catch {
-        setError("The occurrence was skipped, but refreshed task data could not be loaded.");
+      } catch (caught) {
+        setError(
+          graphQLErrorMessage(
+            caught,
+            "The occurrence was skipped, but refreshed task data could not be loaded.",
+          ),
+        );
       }
     } finally {
       setActionPending(undefined);
@@ -89,17 +105,33 @@ export function TaskDetailActions({
     setActionPending("repair");
     try {
       try {
-        await repair({ variables: { input: { csrfToken, capability: repairCapability } } });
-      } catch {
-        setError("History repair did not finish. Retrying will not renew the task again.");
+        const result = await repair({
+          variables: { input: { csrfToken, capability: repairCapability } },
+        });
+        if (!result.data?.repairTaskMetadata) {
+          setError("History repair could not be confirmed. Refresh the task before trying again.");
+          return;
+        }
+      } catch (caught) {
+        setError(
+          graphQLErrorMessage(
+            caught,
+            "History repair did not finish. Retrying will not renew the task again.",
+          ),
+        );
         return;
       }
       setRepairCapability(undefined);
       setNotice("The skipped history entry was repaired.");
       try {
         await refreshAffectedTasks();
-      } catch {
-        setError("The history entry was repaired, but refreshed task data could not be loaded.");
+      } catch (caught) {
+        setError(
+          graphQLErrorMessage(
+            caught,
+            "The history entry was repaired, but refreshed task data could not be loaded.",
+          ),
+        );
       }
     } finally {
       setActionPending(undefined);

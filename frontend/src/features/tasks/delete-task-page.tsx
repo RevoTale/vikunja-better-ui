@@ -7,12 +7,13 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DeleteTaskDocument, SessionDocument, TaskDetailsDocument } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
+import { graphQLErrorMessage } from "@/lib/user-error";
 import { taskDetailActionPolicy } from "./task-detail-action-policy";
 
 export function DeleteTaskPage({ taskId, returnTo }: { taskId: string; returnTo: string }) {
   const navigate = useNavigate();
   const client = useApolloClient();
-  const { data: sessionData } = useQuery(SessionDocument);
+  const { data: sessionData, error: sessionError } = useQuery(SessionDocument);
   const { data, loading, error } = useQuery(TaskDetailsDocument, { variables: { id: taskId } });
   const [deleteTask, deleteState] = useMutation(DeleteTaskDocument);
   const [mutationError, setMutationError] = useState("");
@@ -20,14 +21,25 @@ export function DeleteTaskPage({ taskId, returnTo }: { taskId: string; returnTo:
 
   async function confirmDelete() {
     const csrfToken = sessionData?.session.csrfToken;
-    if (!csrfToken || !task) return;
+    if (!csrfToken) {
+      setMutationError(
+        graphQLErrorMessage(
+          sessionError,
+          "Your session is unavailable. Refresh the page and sign in again.",
+        ),
+      );
+      return;
+    }
+    if (!task) return;
     setMutationError("");
     let deletedTaskID: string | undefined;
     try {
       deletedTaskID = (await deleteTask({ variables: { input: { csrfToken, taskId: task.id } } }))
         .data?.deleteTask.deletedTaskId;
-    } catch {
-      setMutationError("The task was not deleted. Refresh it and try again.");
+    } catch (caught) {
+      setMutationError(
+        graphQLErrorMessage(caught, "The task was not deleted. Refresh it and try again."),
+      );
       return;
     }
     if (!deletedTaskID) {
@@ -50,7 +62,7 @@ export function DeleteTaskPage({ taskId, returnTo }: { taskId: string; returnTo:
   if (error || !task)
     return (
       <p role="alert" className="text-destructive">
-        Task could not be loaded.
+        {graphQLErrorMessage(error, "Task could not be loaded.")}
       </p>
     );
 

@@ -24,6 +24,7 @@ import {
   UndoTaskCompletionDocument,
 } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
+import { graphQLErrorMessage } from "@/lib/user-error";
 import type { ListSearch } from "./list-search";
 import { paginationRange } from "./pagination-range";
 import { type TaskItem, TaskRow } from "./task-row";
@@ -38,8 +39,8 @@ type TaskListPageProps = {
 
 export function TaskListPage({ title, description, scope, search, setSearch }: TaskListPageProps) {
   const location = useLocation();
-  const { data: sessionData } = useQuery(SessionDocument);
-  const { data: projectData } = useQuery(ProjectsDocument);
+  const { data: sessionData, error: sessionError } = useQuery(SessionDocument);
+  const { data: projectData, error: projectError } = useQuery(ProjectsDocument);
   const { data, loading, error, refetch } = useQuery(TaskListDocument, {
     variables: {
       input: {
@@ -76,23 +77,43 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
         variables: { input: { csrfToken, taskId: task.id, expectedKind: task.kind } },
       });
       const payload = result.data?.completeTask;
-      if (!payload) return;
+      if (!payload) {
+        setNotice("Completion could not be confirmed. Refresh the task before trying again.");
+        await refetch().catch(() => undefined);
+        return;
+      }
+      let completionNotice: string;
       if (payload.status === "CONFIRMED_REPAIR_REQUIRED") {
-        setNotice("The recurring task renewed, but its history entry still needs repair.");
+        completionNotice = "The recurring task renewed, but its history entry still needs repair.";
         if (payload.repairCapability) {
           setRepairInfo({ capability: payload.repairCapability, title: task.title });
         }
       } else if (task.kind === "RECURRING") {
-        setNotice("Recurring task completed and renewed.");
+        completionNotice = "Recurring task completed and renewed.";
       } else {
-        setNotice(`${task.title} completed.`);
+        completionNotice = `${task.title} completed.`;
         if (payload.undoCapability)
           setUndo({ capability: payload.undoCapability, title: task.title });
       }
-      await refetch();
-    } catch {
-      setNotice("Completion failed. The task was refreshed so you can safely try again.");
-      await refetch();
+      setNotice(completionNotice);
+      try {
+        await refetch();
+      } catch (caught) {
+        setNotice(
+          `${completionNotice} ${graphQLErrorMessage(
+            caught,
+            "Refreshed task data could not be loaded.",
+          )}`,
+        );
+      }
+    } catch (caught) {
+      setNotice(
+        graphQLErrorMessage(
+          caught,
+          "Completion failed. The task was refreshed so you can safely try again.",
+        ),
+      );
+      await refetch().catch(() => undefined);
     } finally {
       setCompletingTaskID(undefined);
     }
@@ -103,12 +124,32 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
     try {
       const csrfToken = sessionData?.session.csrfToken;
       if (!csrfToken) throw new Error("missing session");
-      await undoCompletion({ variables: { input: { csrfToken, capability: undo.capability } } });
+      const result = await undoCompletion({
+        variables: { input: { csrfToken, capability: undo.capability } },
+      });
+      if (!result.data?.undoTaskCompletion) {
+        setNotice("Undo could not be confirmed. Refresh the task before trying again.");
+        return;
+      }
       setNotice(`${undo.title} restored.`);
       setUndo(undefined);
-      await refetch();
-    } catch {
-      setNotice("Undo could not be applied because the task changed or the Undo window expired.");
+      try {
+        await refetch();
+      } catch (caught) {
+        setNotice(
+          `${undo.title} restored. ${graphQLErrorMessage(
+            caught,
+            "Refreshed task data could not be loaded.",
+          )}`,
+        );
+      }
+    } catch (caught) {
+      setNotice(
+        graphQLErrorMessage(
+          caught,
+          "Undo could not be applied because the task changed or the Undo window expired.",
+        ),
+      );
     }
   }
 
@@ -117,13 +158,31 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
     try {
       const csrfToken = sessionData?.session.csrfToken;
       if (!csrfToken) throw new Error("missing session");
-      await repair({ variables: { input: { csrfToken, capability: repairInfo.capability } } });
+      const result = await repair({
+        variables: { input: { csrfToken, capability: repairInfo.capability } },
+      });
+      if (!result.data?.repairTaskMetadata) {
+        setNotice("History repair could not be confirmed. Refresh the task before trying again.");
+        return;
+      }
       setNotice(`${repairInfo.title} history repaired.`);
       setRepairInfo(undefined);
-      await refetch();
-    } catch {
+      try {
+        await refetch();
+      } catch (caught) {
+        setNotice(
+          `${repairInfo.title} history repaired. ${graphQLErrorMessage(
+            caught,
+            "Refreshed task data could not be loaded.",
+          )}`,
+        );
+      }
+    } catch (caught) {
       setNotice(
-        "History repair did not finish. It is safe to retry; the recurring task will not renew again.",
+        graphQLErrorMessage(
+          caught,
+          "History repair did not finish. It is safe to retry; the recurring task will not renew again.",
+        ),
       );
     }
   }
@@ -133,7 +192,9 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
     loading && !data ? (
       <ListMessage>Loading tasks…</ListMessage>
     ) : error ? (
-      <ListMessage tone="error">Tasks could not be loaded. Try refreshing this page.</ListMessage>
+      <ListMessage tone="error">
+        {graphQLErrorMessage(error, "Tasks could not be loaded. Try refreshing this page.")}
+      </ListMessage>
     ) : !taskPage?.isComplete ? (
       <IssueList issues={taskPage?.issues ?? []} />
     ) : taskPage.items.length === 0 ? (
@@ -183,6 +244,14 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
         </Select>
       </div>
       <div className="mt-4 sm:mt-6" aria-busy={loading}>
+        {!error && (sessionError || projectError) ? (
+          <ListMessage tone="error">
+            {graphQLErrorMessage(
+              sessionError ?? projectError,
+              "Task settings could not be loaded. Refresh the page and try again.",
+            )}
+          </ListMessage>
+        ) : null}
         {content}
       </div>
       {taskPage?.isComplete && taskPage.totalPages > 1 ? (

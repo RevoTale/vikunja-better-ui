@@ -10,12 +10,15 @@ import {
   Plus,
   TimerOff,
 } from "lucide-react";
+import { useState } from "react";
 
+import { BrandMark } from "@/components/brand-mark";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { createActionForPath } from "@/features/tasks/create-action";
 import { LogoutDocument, SessionDocument } from "@/graphql/graphql";
 import { setCSRFToken } from "@/lib/apollo";
 import { cn } from "@/lib/cn";
+import { graphQLErrorMessage } from "@/lib/user-error";
 
 const navigation = [
   { to: "/today", label: "Today", mobileLabel: "Today", icon: CheckCircle2 },
@@ -30,16 +33,38 @@ export function AppShell() {
   const apollo = useApolloClient();
   const navigate = useNavigate();
   const location = useLocation();
-  const { data } = useQuery(SessionDocument);
+  const { data, error: sessionError } = useQuery(SessionDocument);
   const [logout, { loading }] = useMutation(LogoutDocument);
+  const [signOutError, setSignOutError] = useState("");
 
   async function signOut() {
+    setSignOutError("");
     const csrfToken = data?.session.csrfToken;
-    if (!csrfToken) return;
-    await logout({ variables: { csrfToken } });
+    if (!csrfToken) {
+      setSignOutError(
+        graphQLErrorMessage(sessionError, "Your session is unavailable. Refresh the page."),
+      );
+      return;
+    }
+    try {
+      const result = await logout({ variables: { csrfToken } });
+      if (result.data?.logout.authenticated !== false) {
+        setSignOutError("Sign-out could not be confirmed. Refresh the page before trying again.");
+        return;
+      }
+    } catch (caught) {
+      setSignOutError(graphQLErrorMessage(caught, "Sign-out failed. Try again."));
+      return;
+    }
     setCSRFToken(undefined);
-    await apollo.clearStore();
-    await navigate({ to: "/login", search: { returnTo: "/today" }, replace: true });
+    try {
+      await apollo.clearStore();
+      await navigate({ to: "/login", search: { returnTo: "/today" }, replace: true });
+    } catch {
+      setSignOutError(
+        "You are signed out, but the login page could not be opened. Refresh the page.",
+      );
+    }
   }
 
   const returnTo = `${location.pathname}${location.searchStr}`;
@@ -58,6 +83,11 @@ export function AppShell() {
           <Button variant="ghost" className="justify-start" onClick={signOut} disabled={loading}>
             <LogOut /> Sign out
           </Button>
+          {signOutError ? (
+            <p className="text-sm text-destructive" role="alert">
+              {signOutError}
+            </p>
+          ) : null}
         </div>
       </aside>
       <div className="min-w-0 pb-20 lg:pb-0">
@@ -97,14 +127,19 @@ function Brand({ timezone }: { timezone: string | undefined }) {
     <Link
       to="/today"
       search={{ project: "all", page: 1 }}
-      className="block w-fit rounded-sm leading-tight outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="flex w-fit items-center gap-2.5 rounded-sm leading-tight outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <span className="block font-serif text-lg font-semibold tracking-tight">Better Vikunja</span>
-      {timezone ? (
-        <span className="mt-0.5 block text-[0.65rem] text-muted-foreground">
-          Timezone {timezone}
+      <BrandMark className="size-8" />
+      <span>
+        <span className="block font-serif text-lg font-semibold tracking-tight">
+          Better Vikunja
         </span>
-      ) : null}
+        {timezone ? (
+          <span className="mt-0.5 block text-[0.65rem] text-muted-foreground">
+            Timezone {timezone}
+          </span>
+        ) : null}
+      </span>
     </Link>
   );
 }

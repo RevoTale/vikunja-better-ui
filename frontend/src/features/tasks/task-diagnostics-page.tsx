@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskDiagnosticsDocument } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
+import { graphQLErrorMessage } from "@/lib/user-error";
 import { taskPriorityLabel } from "./task-priority";
 
 export function TaskDiagnosticsPage({ taskId, returnTo }: { taskId: string; returnTo: string }) {
@@ -13,7 +14,7 @@ export function TaskDiagnosticsPage({ taskId, returnTo }: { taskId: string; retu
   if (error)
     return (
       <p role="alert" className="text-destructive">
-        Diagnostics could not be loaded.
+        {graphQLErrorMessage(error, "Diagnostics could not be loaded.")}
       </p>
     );
   const task = data?.taskDiagnostics;

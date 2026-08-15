@@ -2,12 +2,14 @@ import { useMutation } from "@apollo/client/react";
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 
+import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { LoginDocument, SessionDocument } from "@/graphql/graphql";
 import { setCSRFToken } from "@/lib/apollo";
+import { graphQLErrorMessage } from "@/lib/user-error";
 
 type LoginPageProps = {
   returnTo: string;
@@ -44,9 +46,15 @@ export function LoginPage({ returnTo }: LoginPageProps) {
         return;
       }
       setCSRFToken(session.csrfToken);
-      await navigate({ href: returnTo, replace: true });
-    } catch {
-      setError("The username or password is incorrect.");
+      try {
+        await navigate({ href: returnTo, replace: true });
+      } catch {
+        setError(
+          "You are signed in, but the requested page could not be opened. Refresh the page.",
+        );
+      }
+    } catch (caught) {
+      setError(graphQLErrorMessage(caught, "Sign-in failed. Check your connection and try again."));
     }
   }
 
@@ -54,9 +62,12 @@ export function LoginPage({ returnTo }: LoginPageProps) {
     <main className="grid min-h-svh place-items-center px-4 py-10">
       <Card className="w-full max-w-sm">
         <CardHeader>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Vikunja
-          </p>
+          <div className="mb-2 flex items-center gap-3">
+            <BrandMark className="size-10" />
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Better Vikunja
+            </p>
+          </div>
           <CardTitle>Better daily tasks</CardTitle>
           <CardDescription>Sign in with the credentials configured for this app.</CardDescription>
         </CardHeader>

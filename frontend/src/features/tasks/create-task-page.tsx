@@ -21,6 +21,7 @@ import {
   type TaskPriority,
 } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
+import { graphQLErrorMessage } from "@/lib/user-error";
 import { SharedFields } from "./create-shared-fields";
 import { TaskTypeFields } from "./create-type-fields";
 import { defaultJobStart, jobTitlePlaceholder } from "./job-title";
@@ -44,8 +45,16 @@ type CreatePayload =
 
 export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnTo: string }) {
   const navigate = useNavigate();
-  const { data: sessionData, loading: sessionLoading } = useQuery(SessionDocument);
-  const { data: projectData, loading: projectsLoading } = useQuery(ProjectsDocument);
+  const {
+    data: sessionData,
+    loading: sessionLoading,
+    error: sessionError,
+  } = useQuery(SessionDocument);
+  const {
+    data: projectData,
+    loading: projectsLoading,
+    error: projectsError,
+  } = useQuery(ProjectsDocument);
   const [createOneTime, oneTimeState] = useMutation(CreateOneTimeTaskDocument);
   const [createRecurring, recurringState] = useMutation(CreateRecurringTaskDocument);
   const [createJob, jobState] = useMutation(CreateJobDocument);
@@ -159,11 +168,17 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
         });
         return;
       }
-      await navigate({
-        to: "/tasks/$taskId",
-        params: { taskId: payload.task.id },
-        search: { returnTo },
-      });
+      try {
+        await navigate({
+          to: "/tasks/$taskId",
+          params: { taskId: payload.task.id },
+          search: { returnTo },
+        });
+      } catch {
+        setError(
+          "The task was created, but its page could not be opened. Return to the task list.",
+        );
+      }
     } catch (caught) {
       const validationMessage = graphQLValidationMessage(caught);
       const serverErrors = validationMessage
@@ -175,7 +190,10 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
         return;
       }
       setError(
-        "The task could not be created. Refresh the relevant list before trying again if the result is uncertain.",
+        graphQLErrorMessage(
+          caught,
+          "The task could not be created. Refresh the relevant list before trying again if the result is uncertain.",
+        ),
       );
     }
   }
@@ -196,14 +214,23 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
         });
         return;
       }
-      await navigate({
-        to: "/tasks/$taskId",
-        params: { taskId: payload.task.id },
-        search: { returnTo },
-      });
-    } catch {
+      try {
+        await navigate({
+          to: "/tasks/$taskId",
+          params: { taskId: payload.task.id },
+          search: { returnTo },
+        });
+      } catch {
+        setError(
+          "Metadata repair finished, but the task page could not be opened. Return to the task list.",
+        );
+      }
+    } catch (caught) {
       setError(
-        "Metadata repair did not finish. You can safely retry this repair; the task will not be created again.",
+        graphQLErrorMessage(
+          caught,
+          "Metadata repair did not finish. You can safely retry this repair; the task will not be created again.",
+        ),
       );
     }
   }
@@ -278,6 +305,13 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
       ) : null}
       {sessionLoading || projectsLoading ? (
         <p className="mt-6">Loading task settings…</p>
+      ) : sessionError || projectsError ? (
+        <p className="mt-6 text-destructive" role="alert">
+          {graphQLErrorMessage(
+            sessionError ?? projectsError,
+            "Task settings could not be loaded. Refresh the page and try again.",
+          )}
+        </p>
       ) : !timezone || !defaultDate ? (
         <p className="mt-6" role="alert">
           Configure a valid timezone in Vikunja before creating tasks.

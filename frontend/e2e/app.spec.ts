@@ -55,9 +55,51 @@ test("login restores the requested route and core navigation is accessible", asy
   await expectTaskRowLayout(page, labeledTitle, "focus");
 });
 
+test("login displays the GraphQL error returned by the app", async ({ page }) => {
+  await blockBrowserVikunjaCalls(page);
+  await page.route("**/graphql", async (route) => {
+    const operation = route.request().postDataJSON() as { operationName?: string };
+    if (operation.operationName !== "Login") {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        errors: [
+          {
+            message: "Vikunja is unavailable. Try again shortly.",
+            path: ["login"],
+            extensions: { code: "UPSTREAM_UNAVAILABLE" },
+          },
+        ],
+        data: null,
+      }),
+    });
+  });
+
+  await page.goto("/login");
+  await login(page);
+
+  await expect(page.getByRole("alert")).toHaveText("Vikunja is unavailable. Try again shortly.");
+  await expect(page).toHaveURL(/\/login/);
+});
+
 test("theme follows system color scheme changes", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/login");
+  await expect(page).toHaveTitle("Better Vikunja — Fast recurring task workflows");
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    "content",
+    "A focused, self-hosted interface for fast, predictable recurring-task workflows on Vikunja.",
+  );
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    "content",
+    "noindex, nofollow, noarchive",
+  );
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
+  await expect(page.locator('[data-slot="brand-mark"]')).toBeVisible();
   await expect
     .poll(() =>
       page.locator("html").evaluate((element) => getComputedStyle(element).backgroundColor),

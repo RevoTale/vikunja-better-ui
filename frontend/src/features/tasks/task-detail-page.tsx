@@ -6,6 +6,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskDetailsDocument } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
+import { graphQLErrorMessage } from "@/lib/user-error";
 import { formatDateTime } from "./format-date-time";
 import { PriorityBadge } from "./priority-badge";
 import { TaskDetailActions } from "./task-detail-actions";
@@ -19,7 +20,7 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
   if (error)
     return (
       <p role="alert" className="text-destructive">
-        Task could not be loaded.
+        {graphQLErrorMessage(error, "Task could not be loaded.")}
       </p>
     );
   const task = data?.task;

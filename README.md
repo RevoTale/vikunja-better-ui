@@ -72,11 +72,21 @@ secret.
 | `APP_ENV` | No | `development`, `test`, or `production`; defaults to `production`. |
 | `APP_ALLOWED_ORIGIN` | Production/test | Exact public app origin used for CSRF checks. Development defaults to `http://localhost:5173`. |
 
-Use a dedicated Vikunja token with the smallest practical permissions. The app
-needs to read projects and tasks, create/update tasks, and read/create labels
-and task-label relations. It also needs task deletion so an active task or
-recurring series can be removed from the task detail page. Do not reuse the app
-login credentials for Vikunja.
+Use a dedicated Vikunja API token with these permissions:
+
+| Permission group | Actions |
+| --- | --- |
+| `other` | `user` |
+| `projects` | `read_all` |
+| `tasks` | `create`, `read_all`, `read_one`, `update`, `delete` |
+| `labels` | `create`, `read_all` |
+| `tasks_labels` | `create`, `read_all` |
+
+This is the minimum permission set exercised by the app's end-to-end tests.
+Missing permissions can make login or task operations fail because the backend
+validates the token by reading the current Vikunja user immediately after app
+authentication. Store the generated token value as `APP_VIKUNJA_API_TOKEN`.
+Do not use the app username or password to authenticate with Vikunja.
 
 ## Development
 
