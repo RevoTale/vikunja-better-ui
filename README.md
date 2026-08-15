@@ -103,6 +103,7 @@ task fix        # format Go and frontend files
 task validate   # lint, typecheck, vet, and build
 task test       # Go race tests and frontend unit tests
 task e2e        # real browser tests against isolated Vikunja 2.5.0
+task demo       # run the complete isolated demo at http://localhost:4180
 task dev        # run the application
 ```
 
@@ -110,6 +111,41 @@ task dev        # run the application
 arm64, verifies its pinned SHA-256 digest and detached signature, and runs it
 directly with an isolated SQLite directory. Every run creates deterministic
 fixtures and a short-lived scoped token, then removes its temporary data.
+
+### Preview the complete E2E app
+
+Run this inside the Dev Container:
+
+```sh
+task demo
+```
+
+Open <http://localhost:4180> and sign in with:
+
+```text
+Username: app-user
+Password: app-password-strong
+```
+
+The command builds the frontend and Go server, starts an isolated Vikunja 2.5.0
+instance, creates deterministic fixtures and a scoped API token, and serves the
+complete app. Stop it with `Ctrl-C`; its temporary database and files are then
+removed.
+
+The Dev Container forwards port `4180`. If VS Code assigns a different local
+port, restart the demo with that forwarded address. For example, when VS Code
+uses local port `4181`, run:
+
+```sh
+task demo DEMO_ORIGIN=http://localhost:4181
+```
+
+`DEMO_PORT` controls the container listener; `DEMO_ORIGIN` controls the browser
+origin accepted by the server. To use port `4190` on both sides, run
+`task demo DEMO_PORT=4190` and forward local port `4190`.
+
+Running only the frontend development server is not a complete preview: GraphQL
+requests to `/graphql` return 404 because the Go API is not present.
 
 ## Container image
 

@@ -48,6 +48,18 @@ tasks:
     cmds:
       - tests/e2e/harness/run.sh
 
+  demo:
+    desc: Run the complete isolated demo on port 4180
+    vars:
+      DEMO_PORT: '{{default "4180" .DEMO_PORT}}'
+      DEMO_ORIGIN: '{{default (printf "http://localhost:%s" .DEMO_PORT) .DEMO_ORIGIN}}'
+    env:
+      E2E_DEMO: "1"
+      E2E_APP_PORT: "{{.DEMO_PORT}}"
+      E2E_DEMO_ORIGIN: "{{.DEMO_ORIGIN}}"
+    cmds:
+      - tests/e2e/harness/run.sh
+
   image:smoke:
     desc: Build and smoke-test the non-root production image
     cmds:

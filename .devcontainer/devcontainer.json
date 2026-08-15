@@ -17,6 +17,13 @@
 			"moby": false
 		}
 	},
+	"forwardPorts": [4180],
+	"portsAttributes": {
+		"4180": {
+			"label": "Better Vikunja E2E demo",
+			"onAutoForward": "notify"
+		}
+	},
 	"customizations": {
 		"vscode": {
 			"extensions": [

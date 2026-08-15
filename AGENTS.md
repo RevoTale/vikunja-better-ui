@@ -210,6 +210,7 @@ task gen:check # Verify generated files are current
 task fix       # Format Go and frontend files
 task validate  # Run non-mutating lint, typecheck, vet, and build checks
 task test      # Run all safe tests
+task demo      # Run the complete isolated E2E demo on port 4180
 task dev       # Run the development application
 ```
 
