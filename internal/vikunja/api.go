@@ -180,6 +180,15 @@ func (client *Client) AttachLabel(ctx context.Context, taskID int64, labelID int
 	return nil
 }
 
+func (client *Client) DetachLabel(ctx context.Context, taskID int64, labelID int64) error {
+	if taskID <= 0 || labelID <= 0 {
+		return fmt.Errorf("task ID and label ID must be positive")
+	}
+	path := "tasks/" + strconv.FormatInt(taskID, 10) + "/labels/" + strconv.FormatInt(labelID, 10)
+	_, err := client.doJSON(ctx, http.MethodDelete, path, nil, "", nil)
+	return err
+}
+
 func (client *Client) Task(ctx context.Context, taskID int64) (Task, ResponseMetadata, error) {
 	if taskID <= 0 {
 		return Task{}, ResponseMetadata{}, fmt.Errorf("task ID must be positive")

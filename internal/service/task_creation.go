@@ -53,6 +53,7 @@ type RecurringInput struct {
 	Interval     int
 	Unit         RecurrenceUnit
 	Mode         RecurrenceMode
+	KeepDueTime  bool
 }
 
 type RecurrenceWrite struct {
@@ -88,6 +89,10 @@ func BuildRecurringTask(input RecurringInput, location *time.Location) (vikunja.
 	rule, err := BuildIntervalRecurrence(input.Interval, input.Unit, input.Mode)
 	if err != nil {
 		return vikunja.TaskWrite{}, false, err
+	}
+	if input.KeepDueTime && (dateOnly || input.Mode != RecurrenceModeFromCompletion ||
+		(input.Unit != RecurrenceUnitDay && input.Unit != RecurrenceUnitWeek)) {
+		return vikunja.TaskWrite{}, false, fmt.Errorf("keep due time requires a timed day or week recurrence from completion")
 	}
 	base.DueDate = due
 	base.RepeatAfter = rule.RepeatAfter

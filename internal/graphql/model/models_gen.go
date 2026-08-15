@@ -11,9 +11,10 @@ import (
 )
 
 type CompleteTaskInput struct {
-	CsrfToken    string   `json:"csrfToken"`
-	TaskID       string   `json:"taskId"`
-	ExpectedKind TaskKind `json:"expectedKind"`
+	CsrfToken     string     `json:"csrfToken"`
+	TaskID        string     `json:"taskId"`
+	ExpectedKind  TaskKind   `json:"expectedKind"`
+	ExpectedDueAt *time.Time `json:"expectedDueAt,omitempty"`
 }
 
 type CompletionPayload struct {
@@ -59,6 +60,7 @@ type CreateRecurringTaskInput struct {
 	Interval     int            `json:"interval"`
 	Unit         RecurrenceUnit `json:"unit"`
 	Mode         RecurrenceMode `json:"mode"`
+	KeepDueTime  bool           `json:"keepDueTime"`
 }
 
 type CreatorDiagnostic struct {
@@ -111,9 +113,10 @@ type Query struct {
 }
 
 type RecurrenceRule struct {
-	Interval int            `json:"interval"`
-	Unit     RecurrenceUnit `json:"unit"`
-	Mode     RecurrenceMode `json:"mode"`
+	Interval    int            `json:"interval"`
+	Unit        RecurrenceUnit `json:"unit"`
+	Mode        RecurrenceMode `json:"mode"`
+	KeepDueTime bool           `json:"keepDueTime"`
 }
 
 type RepairTaskMetadataInput struct {
@@ -128,9 +131,16 @@ type Session struct {
 	VikunjaUser   *VikunjaUser `json:"vikunjaUser,omitempty"`
 }
 
-type SkipRecurringTaskInput struct {
+type SetRecurringKeepDueTimeInput struct {
 	CsrfToken string `json:"csrfToken"`
 	TaskID    string `json:"taskId"`
+	Enabled   bool   `json:"enabled"`
+}
+
+type SkipRecurringTaskInput struct {
+	CsrfToken     string    `json:"csrfToken"`
+	TaskID        string    `json:"taskId"`
+	ExpectedDueAt time.Time `json:"expectedDueAt"`
 }
 
 type Task struct {
@@ -334,6 +344,7 @@ const (
 	MarkerKindDateOnly          MarkerKind = "DATE_ONLY"
 	MarkerKindRecurrenceHistory MarkerKind = "RECURRENCE_HISTORY"
 	MarkerKindSkipped           MarkerKind = "SKIPPED"
+	MarkerKindFixedDueTime      MarkerKind = "FIXED_DUE_TIME"
 )
 
 var AllMarkerKind = []MarkerKind{
@@ -341,11 +352,12 @@ var AllMarkerKind = []MarkerKind{
 	MarkerKindDateOnly,
 	MarkerKindRecurrenceHistory,
 	MarkerKindSkipped,
+	MarkerKindFixedDueTime,
 }
 
 func (e MarkerKind) IsValid() bool {
 	switch e {
-	case MarkerKindJob, MarkerKindDateOnly, MarkerKindRecurrenceHistory, MarkerKindSkipped:
+	case MarkerKindJob, MarkerKindDateOnly, MarkerKindRecurrenceHistory, MarkerKindSkipped, MarkerKindFixedDueTime:
 		return true
 	}
 	return false
@@ -562,6 +574,7 @@ const (
 	RepairStepAttachRecurrenceHistory RepairStep = "ATTACH_RECURRENCE_HISTORY"
 	RepairStepAttachSkipped           RepairStep = "ATTACH_SKIPPED"
 	RepairStepNormalizeDue            RepairStep = "NORMALIZE_DUE"
+	RepairStepAttachFixedDueTime      RepairStep = "ATTACH_FIXED_DUE_TIME"
 )
 
 var AllRepairStep = []RepairStep{
@@ -571,11 +584,12 @@ var AllRepairStep = []RepairStep{
 	RepairStepAttachRecurrenceHistory,
 	RepairStepAttachSkipped,
 	RepairStepNormalizeDue,
+	RepairStepAttachFixedDueTime,
 }
 
 func (e RepairStep) IsValid() bool {
 	switch e {
-	case RepairStepCreateHistorySnapshot, RepairStepAttachJob, RepairStepAttachDateOnly, RepairStepAttachRecurrenceHistory, RepairStepAttachSkipped, RepairStepNormalizeDue:
+	case RepairStepCreateHistorySnapshot, RepairStepAttachJob, RepairStepAttachDateOnly, RepairStepAttachRecurrenceHistory, RepairStepAttachSkipped, RepairStepNormalizeDue, RepairStepAttachFixedDueTime:
 		return true
 	}
 	return false

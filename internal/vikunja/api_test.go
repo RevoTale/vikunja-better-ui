@@ -326,6 +326,8 @@ func TestClientLabelRoundTrip(t *testing.T) {
 			}
 			writer.WriteHeader(http.StatusCreated)
 			_, _ = writer.Write([]byte(`{"label_id":5}`))
+		case request.Method == http.MethodDelete && request.URL.Path == "/api/v2/tasks/9/labels/5":
+			writer.WriteHeader(http.StatusNoContent)
 		default:
 			t.Errorf("unexpected request %s %s", request.Method, request.URL.Path)
 		}
@@ -343,6 +345,9 @@ func TestClientLabelRoundTrip(t *testing.T) {
 	}
 	if err := client.AttachLabel(context.Background(), 9, 5); err != nil {
 		t.Fatalf("AttachLabel() error = %v", err)
+	}
+	if err := client.DetachLabel(context.Background(), 9, 5); err != nil {
+		t.Fatalf("DetachLabel() error = %v", err)
 	}
 }
 

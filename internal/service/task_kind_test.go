@@ -2,6 +2,7 @@ package service
 
 import (
 	"testing"
+	"time"
 
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
@@ -10,11 +11,12 @@ func TestClassifyTask(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name         string
-		task         vikunja.Task
-		wantKind     TaskKind
-		wantDateOnly bool
-		wantOutcome  CompletionOutcome
+		name             string
+		task             vikunja.Task
+		wantKind         TaskKind
+		wantDateOnly     bool
+		wantFixedDueTime bool
+		wantOutcome      CompletionOutcome
 	}{
 		{name: "one time", task: vikunja.Task{}, wantKind: TaskKindOneTime},
 		{
@@ -25,6 +27,44 @@ func TestClassifyTask(t *testing.T) {
 		},
 		{name: "job", task: taskWithLabels(jobLabel), wantKind: TaskKindJob},
 		{name: "recurring", task: vikunja.Task{RepeatAfter: 86400}, wantKind: TaskKindRecurring},
+		{
+			name: "fixed due time recurrence",
+			task: vikunja.Task{
+				DueDate:     time.Date(2026, time.August, 15, 20, 0, 0, 0, time.UTC),
+				RepeatAfter: 86400, RepeatMode: 2,
+				Labels: []vikunja.Label{{ID: 1, Title: fixedDueTimeLabel}},
+			},
+			wantKind: TaskKindRecurring, wantFixedDueTime: true,
+		},
+		{
+			name: "fixed due time scheduled recurrence is invalid",
+			task: vikunja.Task{
+				DueDate:     time.Date(2026, time.August, 15, 20, 0, 0, 0, time.UTC),
+				RepeatAfter: 86400,
+				Labels:      []vikunja.Label{{ID: 1, Title: fixedDueTimeLabel}},
+			},
+			wantKind: TaskKindInvalid, wantFixedDueTime: true,
+		},
+		{
+			name: "fixed due time date-only recurrence is invalid",
+			task: vikunja.Task{
+				DueDate:     time.Date(2026, time.August, 15, 23, 59, 59, 0, time.UTC),
+				RepeatAfter: 86400, RepeatMode: 2,
+				Labels: []vikunja.Label{
+					{ID: 1, Title: fixedDueTimeLabel}, {ID: 2, Title: dateOnlyLabel},
+				},
+			},
+			wantKind: TaskKindInvalid, wantDateOnly: true, wantFixedDueTime: true,
+		},
+		{
+			name: "fixed due time completed recurrence is invalid",
+			task: vikunja.Task{
+				Done: true, DueDate: time.Date(2026, time.August, 15, 20, 0, 0, 0, time.UTC),
+				RepeatAfter: 86400, RepeatMode: 2,
+				Labels: []vikunja.Label{{ID: 1, Title: fixedDueTimeLabel}},
+			},
+			wantKind: TaskKindInvalid, wantFixedDueTime: true,
+		},
 		{
 			name:        "completed recurrence snapshot",
 			task:        taskWithDoneAndLabels(true, recurrenceHistoryLabel),
@@ -96,12 +136,14 @@ func TestClassifyTask(t *testing.T) {
 
 			classification := ClassifyTask(test.task)
 			if classification.Kind != test.wantKind || classification.DateOnly != test.wantDateOnly ||
+				classification.FixedDueTime != test.wantFixedDueTime ||
 				classification.Outcome != test.wantOutcome {
 				t.Fatalf(
-					"ClassifyTask() = %#v, want kind %q dateOnly %v outcome %q",
+					"ClassifyTask() = %#v, want kind %q dateOnly %v fixedDueTime %v outcome %q",
 					classification,
 					test.wantKind,
 					test.wantDateOnly,
+					test.wantFixedDueTime,
 					test.wantOutcome,
 				)
 			}

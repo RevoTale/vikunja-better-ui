@@ -32,6 +32,7 @@ query TaskList($input: TaskListInput!) {
         interval
         unit
         mode
+        keepDueTime
       }
       labels {
         id
@@ -80,6 +81,7 @@ mutation CompleteTask($input: CompleteTaskInput!) {
         interval
         unit
         mode
+        keepDueTime
       }
       labels {
         id
@@ -109,6 +111,7 @@ mutation CompleteTask($input: CompleteTaskInput!) {
         interval
         unit
         mode
+        keepDueTime
       }
       labels {
         id
@@ -149,6 +152,7 @@ mutation UndoTaskCompletion($input: UndoTaskCompletionInput!) {
         interval
         unit
         mode
+        keepDueTime
       }
       labels {
         id

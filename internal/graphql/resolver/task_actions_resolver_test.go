@@ -62,6 +62,53 @@ func TestDeleteTaskMapsCompletedTaskToStableError(t *testing.T) {
 	})
 }
 
+func TestSetRecurringKeepDueTimeEnablesEligibleSeries(t *testing.T) {
+	t.Parallel()
+
+	client := &taskActionClientStub{task: vikunja.Task{
+		ID: 9, ProjectID: 7, Title: "Read",
+		DueDate:     time.Date(2026, time.August, 16, 20, 0, 0, 0, time.UTC),
+		RepeatAfter: 2 * 86400, RepeatMode: 2,
+	}}
+	root, sessions, session, cookie := taskActionResolver(t, client)
+
+	withTaskActionContext(t, sessions, session, cookie, func(ctx context.Context) {
+		payload, err := (&mutationResolver{root}).SetRecurringKeepDueTime(
+			ctx,
+			model.SetRecurringKeepDueTimeInput{
+				CsrfToken: sessions.CSRFToken(session), TaskID: "9", Enabled: true,
+			},
+		)
+		if err != nil {
+			t.Fatalf("SetRecurringKeepDueTime() error = %v", err)
+		}
+		if payload.Task.RecurrenceRule == nil || !payload.Task.RecurrenceRule.KeepDueTime ||
+			client.attachedLabel != 10 {
+			t.Fatalf("SetRecurringKeepDueTime() = %#v, attached = %d", payload, client.attachedLabel)
+		}
+	})
+}
+
+func TestRecurringRepairStepsIncludeDueNormalizationFirst(t *testing.T) {
+	t.Parallel()
+
+	steps := recurringRepairSteps("SKIPPED", true)
+	want := []model.RepairStep{
+		model.RepairStepNormalizeDue,
+		model.RepairStepCreateHistorySnapshot,
+		model.RepairStepAttachRecurrenceHistory,
+		model.RepairStepAttachSkipped,
+	}
+	if len(steps) != len(want) {
+		t.Fatalf("recurringRepairSteps() = %#v", steps)
+	}
+	for index := range want {
+		if steps[index] != want[index] {
+			t.Fatalf("recurringRepairSteps() = %#v, want %#v", steps, want)
+		}
+	}
+}
+
 func withTaskActionContext(
 	t *testing.T,
 	sessions *auth.SessionManager,
@@ -114,6 +161,7 @@ func taskActionResolver(
 type taskActionClientStub struct {
 	task          vikunja.Task
 	deletedTaskID int64
+	attachedLabel int64
 }
 
 func (client *taskActionClientStub) TasksPage(context.Context, vikunja.TaskQuery) (vikunja.TaskPage, error) {
@@ -151,13 +199,19 @@ func (client *taskActionClientStub) DeleteTask(_ context.Context, taskID int64) 
 }
 
 func (client *taskActionClientStub) Labels(context.Context) ([]vikunja.Label, error) {
-	return nil, nil
+	return []vikunja.Label{{ID: 10, Title: "vbu:fixed-due-time"}}, nil
 }
 
-func (client *taskActionClientStub) CreateLabel(context.Context, vikunja.LabelWrite) (vikunja.Label, error) {
-	return vikunja.Label{}, nil
+func (client *taskActionClientStub) CreateLabel(_ context.Context, input vikunja.LabelWrite) (vikunja.Label, error) {
+	return vikunja.Label{ID: 10, Title: input.Title}, nil
 }
 
-func (client *taskActionClientStub) AttachLabel(context.Context, int64, int64) error {
+func (client *taskActionClientStub) AttachLabel(_ context.Context, _ int64, labelID int64) error {
+	client.attachedLabel = labelID
+	client.task.Labels = append(client.task.Labels, vikunja.Label{ID: labelID, Title: "vbu:fixed-due-time"})
+	return nil
+}
+
+func (client *taskActionClientStub) DetachLabel(context.Context, int64, int64) error {
 	return nil
 }

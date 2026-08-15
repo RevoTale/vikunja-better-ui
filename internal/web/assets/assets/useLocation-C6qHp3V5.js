@@ -1,0 +1,1 @@
+import{i as e,t}from"./useStore-DF5kmhBj.js";import{b as n}from"./graphql-BuaeGIFb.js";function r(r){let i=e();return t(i.stores.location,n(r,i))}export{r as t};

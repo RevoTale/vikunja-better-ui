@@ -49,6 +49,7 @@ enum MarkerKind {
   DATE_ONLY
   RECURRENCE_HISTORY
   SKIPPED
+  FIXED_DUE_TIME
 }
 
 enum RepairStep {
@@ -58,6 +59,7 @@ enum RepairStep {
   ATTACH_RECURRENCE_HISTORY
   ATTACH_SKIPPED
   NORMALIZE_DUE
+  ATTACH_FIXED_DUE_TIME
 }
 
 enum TaskMutationStatus {
@@ -109,6 +111,7 @@ type RecurrenceRule {
   interval: Int!
   unit: RecurrenceUnit!
   mode: RecurrenceMode!
+  keepDueTime: Boolean!
 }
 
 type Task {
@@ -233,6 +236,7 @@ input CreateRecurringTaskInput {
   interval: Int!
   unit: RecurrenceUnit!
   mode: RecurrenceMode! = FROM_COMPLETION
+  keepDueTime: Boolean! = true
 }
 
 input CreateJobInput {
@@ -250,11 +254,19 @@ input CompleteTaskInput {
   csrfToken: String!
   taskId: ID!
   expectedKind: TaskKind!
+  expectedDueAt: DateTime
 }
 
 input SkipRecurringTaskInput {
   csrfToken: String!
   taskId: ID!
+  expectedDueAt: DateTime!
+}
+
+input SetRecurringKeepDueTimeInput {
+  csrfToken: String!
+  taskId: ID!
+  enabled: Boolean!
 }
 
 input DeleteTaskInput {
@@ -292,6 +304,7 @@ type Mutation {
   createJob(input: CreateJobInput!): TaskMutationPayload!
   completeTask(input: CompleteTaskInput!): CompletionPayload!
   skipRecurringTask(input: SkipRecurringTaskInput!): CompletionPayload!
+  setRecurringKeepDueTime(input: SetRecurringKeepDueTimeInput!): TaskMutationPayload!
   deleteTask(input: DeleteTaskInput!): DeleteTaskPayload!
   undoTaskCompletion(input: UndoTaskCompletionInput!): TaskMutationPayload!
   repairTaskMetadata(input: RepairTaskMetadataInput!): TaskMutationPayload!

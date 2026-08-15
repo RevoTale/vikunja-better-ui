@@ -23,7 +23,12 @@ func (resolver *Resolver) completeRecurringTask(
 	if err != nil {
 		return nil, clientError("VALIDATION_FAILED", "Task ID is invalid.")
 	}
-	result, err := service.CompleteRecurring(ctx, resolver.tasks, resolver.capabilities, taskID, location)
+	if input.ExpectedDueAt == nil {
+		return nil, clientError("VALIDATION_FAILED", "The recurring occurrence due date is required.")
+	}
+	result, err := service.CompleteRecurring(
+		ctx, resolver.tasks, resolver.capabilities, taskID, *input.ExpectedDueAt, location,
+	)
 	if err != nil {
 		return nil, completionClientError(resolver, err)
 	}
@@ -47,14 +52,18 @@ func (resolver *Resolver) recurringCompletionPayload(
 		capability, capabilityErr := resolver.capabilities.IssueRecurringRepair(session.ID, result.RepairGrant)
 		if capabilityErr != nil {
 			resolver.logError("issue recurring repair capability", capabilityErr)
-			return nil, clientError("INTERNAL", "Recurring archival repair could not be authorized.")
+			return nil, clientError("INTERNAL", "Recurring task repair could not be authorized.")
 		}
 		return &model.CompletionPayload{
-			Status:               model.CompletionStatusConfirmedRepairRequired,
-			NextOccurrence:       liveTask,
-			RepairCapability:     &capability,
-			MissingMarkers:       recurringMissingMarkers(result.RepairGrant.Outcome),
-			RemainingRepairSteps: recurringRepairSteps(result.RepairGrant.Outcome),
+			Status:           model.CompletionStatusConfirmedRepairRequired,
+			NextOccurrence:   liveTask,
+			RepairCapability: &capability,
+			MissingMarkers:   recurringMissingMarkers(result.RepairGrant.Outcome),
+			RemainingRepairSteps: recurringRepairSteps(
+				result.RepairGrant.Outcome,
+				!result.RepairGrant.TargetDueAt.IsZero() &&
+					!result.LiveTask.DueDate.Equal(result.RepairGrant.TargetDueAt),
+			),
 		}, nil
 	}
 	snapshot, err := taskModel(
@@ -77,11 +86,15 @@ func recurringMissingMarkers(outcome service.CompletionOutcome) []model.MarkerKi
 	return markers
 }
 
-func recurringRepairSteps(outcome service.CompletionOutcome) []model.RepairStep {
-	steps := []model.RepairStep{
+func recurringRepairSteps(outcome service.CompletionOutcome, normalizeDue bool) []model.RepairStep {
+	steps := make([]model.RepairStep, 0, 4)
+	if normalizeDue {
+		steps = append(steps, model.RepairStepNormalizeDue)
+	}
+	steps = append(steps,
 		model.RepairStepCreateHistorySnapshot,
 		model.RepairStepAttachRecurrenceHistory,
-	}
+	)
 	if outcome == service.CompletionOutcomeSkipped {
 		steps = append(steps, model.RepairStepAttachSkipped)
 	}
@@ -188,6 +201,8 @@ func markerModels(title string) (model.MarkerKind, model.RepairStep) {
 		return model.MarkerKindRecurrenceHistory, model.RepairStepAttachRecurrenceHistory
 	case "vbu:skipped":
 		return model.MarkerKindSkipped, model.RepairStepAttachSkipped
+	case "vbu:fixed-due-time":
+		return model.MarkerKindFixedDueTime, model.RepairStepAttachFixedDueTime
 	default:
 		return model.MarkerKindDateOnly, model.RepairStepAttachDateOnly
 	}

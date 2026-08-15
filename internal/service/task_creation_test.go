@@ -92,6 +92,37 @@ func TestBuildRecurringTaskCombinesDueAndRule(t *testing.T) {
 	}
 }
 
+func TestBuildRecurringTaskValidatesFixedDueTimeEligibility(t *testing.T) {
+	t.Parallel()
+
+	valid := RecurringInput{
+		Title: "Water plants", FirstDueDate: "2026-08-12", DueTime: "09:15",
+		Interval: 3, Unit: RecurrenceUnitDay, Mode: RecurrenceModeFromCompletion,
+		KeepDueTime: true,
+	}
+	if _, _, err := BuildRecurringTask(valid, time.UTC); err != nil {
+		t.Fatalf("BuildRecurringTask(valid) error = %v", err)
+	}
+	for _, input := range []RecurringInput{
+		{
+			Title: "Date only", FirstDueDate: "2026-08-12", Interval: 1,
+			Unit: RecurrenceUnitDay, Mode: RecurrenceModeFromCompletion, KeepDueTime: true,
+		},
+		{
+			Title: "Scheduled", FirstDueDate: "2026-08-12", DueTime: "09:15", Interval: 1,
+			Unit: RecurrenceUnitDay, Mode: RecurrenceModeScheduled, KeepDueTime: true,
+		},
+		{
+			Title: "Monthly", FirstDueDate: "2026-08-12", DueTime: "09:15", Interval: 1,
+			Unit: RecurrenceUnitMonth, Mode: RecurrenceModeScheduled, KeepDueTime: true,
+		},
+	} {
+		if _, _, err := BuildRecurringTask(input, time.UTC); err == nil {
+			t.Fatalf("BuildRecurringTask(%#v) error = nil", input)
+		}
+	}
+}
+
 func TestBuildJobTaskRejectsInvalidDurations(t *testing.T) {
 	t.Parallel()
 

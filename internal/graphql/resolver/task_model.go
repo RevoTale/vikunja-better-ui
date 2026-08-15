@@ -68,12 +68,14 @@ func completionOutcomeModel(outcome service.CompletionOutcome) *model.Completion
 }
 
 func recurrenceRuleModel(task vikunja.Task) (*model.RecurrenceRule, error) {
+	keepDueTime := service.ClassifyTask(task).FixedDueTime
 	if task.RepeatAfter == 0 && task.RepeatMode == 0 {
 		return nil, nil
 	}
 	if task.RepeatMode == 1 {
 		return &model.RecurrenceRule{
 			Interval: 1, Unit: model.RecurrenceUnitMonth, Mode: model.RecurrenceModeScheduledCycle,
+			KeepDueTime: keepDueTime,
 		}, nil
 	}
 	if task.RepeatAfter <= 0 || (task.RepeatMode != 0 && task.RepeatMode != 2) {
@@ -88,7 +90,9 @@ func recurrenceRuleModel(task vikunja.Task) (*model.RecurrenceRule, error) {
 	if task.RepeatMode == 2 {
 		mode = model.RecurrenceModeFromCompletion
 	}
-	return &model.RecurrenceRule{Interval: int(interval), Unit: unit, Mode: mode}, nil
+	return &model.RecurrenceRule{
+		Interval: int(interval), Unit: unit, Mode: mode, KeepDueTime: keepDueTime,
+	}, nil
 }
 
 func intervalRule(seconds int64) (int64, model.RecurrenceUnit, bool) {

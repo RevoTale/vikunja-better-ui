@@ -101,7 +101,9 @@ type completionClientStub struct {
 	readCalls  int
 	patchCalls int
 	patchDone  *bool
+	patchDues  []time.Time
 	patchCheck vikunja.TaskCheck
+	patchErrs  []error
 }
 
 func (client *completionClientStub) Task(_ context.Context, _ int64) (vikunja.Task, vikunja.ResponseMetadata, error) {
@@ -113,6 +115,12 @@ func (client *completionClientStub) Task(_ context.Context, _ int64) (vikunja.Ta
 func (client *completionClientStub) PatchTaskChecked(_ context.Context, _ int64, patch vikunja.TaskPatch, check vikunja.TaskCheck) (vikunja.Task, error) {
 	client.patchCalls++
 	client.patchDone = patch.Done
+	if patch.DueDate != nil {
+		client.patchDues = append(client.patchDues, *patch.DueDate)
+	}
 	client.patchCheck = check
+	if index := client.patchCalls - 1; index < len(client.patchErrs) {
+		return vikunja.Task{}, client.patchErrs[index]
+	}
 	return vikunja.Task{}, nil
 }

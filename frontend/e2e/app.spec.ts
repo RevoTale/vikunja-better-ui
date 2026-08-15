@@ -408,6 +408,61 @@ test("skip and delete actions preserve recurring history in Vikunja", async ({ p
   expect(await vikunjaTaskStatus(oneTimeID)).toBe(404);
 });
 
+test("completion-based recurrence keeps or releases the configured due time", async ({ page }) => {
+  await blockBrowserVikunjaCalls(page);
+  await page.goto("/today");
+  await login(page);
+
+  const title = `Fixed due time E2E ${Date.now()}`;
+  const completionDate = localDate();
+  const taskID = await createTask(page, "recurring task", title, async () => {
+    await selectDate(page, "First due date", completionDate);
+    await page.getByLabel("Due time", { exact: true }).selectOption("20");
+    await page.getByLabel("Due time minute").selectOption("00");
+    await page.getByLabel("Every").fill("2");
+  });
+
+  const setting = page.getByRole("checkbox", { name: /^Keep due time/ });
+  await expect(setting).toBeChecked();
+  let upstream = await vikunjaTask(taskID);
+  expect(hasLabelTitle(upstream, "vbu:fixed-due-time")).toBe(true);
+
+  await page.goto("/today");
+  await page.getByRole("button", { name: `Complete ${title}` }).click();
+  await expect(page.getByRole("status")).toHaveText("Recurring task completed and renewed.");
+  upstream = await vikunjaTask(taskID);
+  expect(localDateTime(upstream.due_date)).toBe(`${addCalendarDays(completionDate, 2)}T20:00`);
+  expect(hasLabelTitle(upstream, "vbu:fixed-due-time")).toBe(true);
+
+  await page.goto(`/tasks/${taskID}?returnTo=%2Ftoday`);
+  await page.getByRole("checkbox", { name: /^Keep due time/ }).click();
+  await expect(page.getByRole("status")).toHaveText(
+    "Future occurrences will use the exact elapsed interval.",
+  );
+  await expect(page.getByRole("checkbox", { name: /^Keep due time/ })).not.toBeChecked();
+  upstream = await vikunjaTask(taskID);
+  expect(hasLabelTitle(upstream, "vbu:fixed-due-time")).toBe(false);
+
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
+  await expect(
+    page.getByText("This occurrence was skipped and the next one is ready.", { exact: true }),
+  ).toBeVisible();
+  upstream = await vikunjaTask(taskID);
+  expect(
+    Math.abs(new Date(upstream.due_date).getTime() - new Date(upstream.done_at).getTime()),
+  ).toBeLessThanOrEqual(48 * 60 * 60 * 1000 + 2_000);
+  expect(
+    Math.abs(new Date(upstream.due_date).getTime() - new Date(upstream.done_at).getTime()),
+  ).toBeGreaterThanOrEqual(48 * 60 * 60 * 1000 - 2_000);
+
+  const matching = await searchTasks(title);
+  const snapshots = matching.filter((task) => task.done && task.repeat_after === 0);
+  expect(snapshots).toHaveLength(2);
+  for (const snapshot of snapshots) {
+    expect(hasLabelTitle(snapshot, "vbu:fixed-due-time")).toBe(false);
+  }
+});
+
 async function login(page: Page) {
   await expect(page).toHaveURL(/\/login/);
   await page.getByLabel("Username").fill("app-user");
@@ -527,6 +582,16 @@ function localDate() {
     day: "2-digit",
   }).formatToParts(new Date());
   return `${datePart(parts, "year")}-${datePart(parts, "month")}-${datePart(parts, "day")}`;
+}
+
+function addCalendarDays(value: string, days: number) {
+  const date = new Date(`${value}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function hasLabelTitle(task: { labels?: Array<{ title?: string }> }, title: string) {
+  return task.labels?.some((label) => label.title === title) ?? false;
 }
 function localDateTime(value: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {

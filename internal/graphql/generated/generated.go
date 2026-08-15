@@ -72,16 +72,17 @@ type ComplexityRoot struct {
 	}
 
 	Mutation struct {
-		CompleteTask        func(childComplexity int, input model.CompleteTaskInput) int
-		CreateJob           func(childComplexity int, input model.CreateJobInput) int
-		CreateOneTimeTask   func(childComplexity int, input model.CreateOneTimeTaskInput) int
-		CreateRecurringTask func(childComplexity int, input model.CreateRecurringTaskInput) int
-		DeleteTask          func(childComplexity int, input model.DeleteTaskInput) int
-		Login               func(childComplexity int, input model.LoginInput) int
-		Logout              func(childComplexity int, csrfToken string) int
-		RepairTaskMetadata  func(childComplexity int, input model.RepairTaskMetadataInput) int
-		SkipRecurringTask   func(childComplexity int, input model.SkipRecurringTaskInput) int
-		UndoTaskCompletion  func(childComplexity int, input model.UndoTaskCompletionInput) int
+		CompleteTask            func(childComplexity int, input model.CompleteTaskInput) int
+		CreateJob               func(childComplexity int, input model.CreateJobInput) int
+		CreateOneTimeTask       func(childComplexity int, input model.CreateOneTimeTaskInput) int
+		CreateRecurringTask     func(childComplexity int, input model.CreateRecurringTaskInput) int
+		DeleteTask              func(childComplexity int, input model.DeleteTaskInput) int
+		Login                   func(childComplexity int, input model.LoginInput) int
+		Logout                  func(childComplexity int, csrfToken string) int
+		RepairTaskMetadata      func(childComplexity int, input model.RepairTaskMetadataInput) int
+		SetRecurringKeepDueTime func(childComplexity int, input model.SetRecurringKeepDueTimeInput) int
+		SkipRecurringTask       func(childComplexity int, input model.SkipRecurringTaskInput) int
+		UndoTaskCompletion      func(childComplexity int, input model.UndoTaskCompletionInput) int
 	}
 
 	Project struct {
@@ -103,9 +104,10 @@ type ComplexityRoot struct {
 	}
 
 	RecurrenceRule struct {
-		Interval func(childComplexity int) int
-		Mode     func(childComplexity int) int
-		Unit     func(childComplexity int) int
+		Interval    func(childComplexity int) int
+		KeepDueTime func(childComplexity int) int
+		Mode        func(childComplexity int) int
+		Unit        func(childComplexity int) int
 	}
 
 	Session struct {
@@ -200,6 +202,7 @@ type MutationResolver interface {
 	CreateJob(ctx context.Context, input model.CreateJobInput) (*model.TaskMutationPayload, error)
 	CompleteTask(ctx context.Context, input model.CompleteTaskInput) (*model.CompletionPayload, error)
 	SkipRecurringTask(ctx context.Context, input model.SkipRecurringTaskInput) (*model.CompletionPayload, error)
+	SetRecurringKeepDueTime(ctx context.Context, input model.SetRecurringKeepDueTimeInput) (*model.TaskMutationPayload, error)
 	DeleteTask(ctx context.Context, input model.DeleteTaskInput) (*model.DeleteTaskPayload, error)
 	UndoTaskCompletion(ctx context.Context, input model.UndoTaskCompletionInput) (*model.TaskMutationPayload, error)
 	RepairTaskMetadata(ctx context.Context, input model.RepairTaskMetadataInput) (*model.TaskMutationPayload, error)
@@ -420,6 +423,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.RepairTaskMetadata(childComplexity, args["input"].(model.RepairTaskMetadataInput)), true
+	case "Mutation.setRecurringKeepDueTime":
+		if e.ComplexityRoot.Mutation.SetRecurringKeepDueTime == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_setRecurringKeepDueTime_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.SetRecurringKeepDueTime(childComplexity, args["input"].(model.SetRecurringKeepDueTimeInput)), true
 	case "Mutation.skipRecurringTask":
 		if e.ComplexityRoot.Mutation.SkipRecurringTask == nil {
 			break
@@ -521,6 +535,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.RecurrenceRule.Interval(childComplexity), true
+	case "RecurrenceRule.keepDueTime":
+		if e.ComplexityRoot.RecurrenceRule.KeepDueTime == nil {
+			break
+		}
+
+		return e.ComplexityRoot.RecurrenceRule.KeepDueTime(childComplexity), true
 	case "RecurrenceRule.mode":
 		if e.ComplexityRoot.RecurrenceRule.Mode == nil {
 			break
@@ -904,6 +924,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputDeleteTaskInput,
 		ec.unmarshalInputLoginInput,
 		ec.unmarshalInputRepairTaskMetadataInput,
+		ec.unmarshalInputSetRecurringKeepDueTimeInput,
 		ec.unmarshalInputSkipRecurringTaskInput,
 		ec.unmarshalInputTaskListInput,
 		ec.unmarshalInputUndoTaskCompletionInput,
@@ -1033,6 +1054,7 @@ enum MarkerKind {
   DATE_ONLY
   RECURRENCE_HISTORY
   SKIPPED
+  FIXED_DUE_TIME
 }
 
 enum RepairStep {
@@ -1042,6 +1064,7 @@ enum RepairStep {
   ATTACH_RECURRENCE_HISTORY
   ATTACH_SKIPPED
   NORMALIZE_DUE
+  ATTACH_FIXED_DUE_TIME
 }
 
 enum TaskMutationStatus {
@@ -1093,6 +1116,7 @@ type RecurrenceRule {
   interval: Int!
   unit: RecurrenceUnit!
   mode: RecurrenceMode!
+  keepDueTime: Boolean!
 }
 
 type Task {
@@ -1217,6 +1241,7 @@ input CreateRecurringTaskInput {
   interval: Int!
   unit: RecurrenceUnit!
   mode: RecurrenceMode! = FROM_COMPLETION
+  keepDueTime: Boolean! = true
 }
 
 input CreateJobInput {
@@ -1234,11 +1259,19 @@ input CompleteTaskInput {
   csrfToken: String!
   taskId: ID!
   expectedKind: TaskKind!
+  expectedDueAt: DateTime
 }
 
 input SkipRecurringTaskInput {
   csrfToken: String!
   taskId: ID!
+  expectedDueAt: DateTime!
+}
+
+input SetRecurringKeepDueTimeInput {
+  csrfToken: String!
+  taskId: ID!
+  enabled: Boolean!
 }
 
 input DeleteTaskInput {
@@ -1276,6 +1309,7 @@ type Mutation {
   createJob(input: CreateJobInput!): TaskMutationPayload!
   completeTask(input: CompleteTaskInput!): CompletionPayload!
   skipRecurringTask(input: SkipRecurringTaskInput!): CompletionPayload!
+  setRecurringKeepDueTime(input: SetRecurringKeepDueTimeInput!): TaskMutationPayload!
   deleteTask(input: DeleteTaskInput!): DeleteTaskPayload!
   undoTaskCompletion(input: UndoTaskCompletionInput!): TaskMutationPayload!
   repairTaskMetadata(input: RepairTaskMetadataInput!): TaskMutationPayload!
@@ -1384,6 +1418,8 @@ func (ec *executionContext) childFields_RecurrenceRule(ctx context.Context, fiel
 		return ec.fieldContext_RecurrenceRule_unit(ctx, field)
 	case "mode":
 		return ec.fieldContext_RecurrenceRule_mode(ctx, field)
+	case "keepDueTime":
+		return ec.fieldContext_RecurrenceRule_keepDueTime(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type RecurrenceRule", field.Name)
 }
@@ -1766,6 +1802,20 @@ func (ec *executionContext) field_Mutation_repairTaskMetadata_args(ctx context.C
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.RepairTaskMetadataInput, error) {
 			return ec.unmarshalNRepairTaskMetadataInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐRepairTaskMetadataInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_setRecurringKeepDueTime_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.SetRecurringKeepDueTimeInput, error) {
+			return ec.unmarshalNSetRecurringKeepDueTimeInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐSetRecurringKeepDueTimeInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -2621,6 +2671,50 @@ func (ec *executionContext) fieldContext_Mutation_skipRecurringTask(ctx context.
 	return fc, nil
 }
 
+func (ec *executionContext) _Mutation_setRecurringKeepDueTime(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_setRecurringKeepDueTime(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().SetRecurringKeepDueTime(ctx, fc.Args["input"].(model.SetRecurringKeepDueTimeInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.TaskMutationPayload) graphql.Marshaler {
+			return ec.marshalNTaskMutationPayload2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskMutationPayload(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_setRecurringKeepDueTime(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_TaskMutationPayload(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_setRecurringKeepDueTime_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) _Mutation_deleteTask(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3193,6 +3287,29 @@ func (ec *executionContext) _RecurrenceRule_mode(ctx context.Context, field grap
 }
 func (ec *executionContext) fieldContext_RecurrenceRule_mode(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("RecurrenceRule", field, false, false, errors.New("field of type RecurrenceMode does not have child fields"))
+}
+
+func (ec *executionContext) _RecurrenceRule_keepDueTime(ctx context.Context, field graphql.CollectedField, obj *model.RecurrenceRule) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_RecurrenceRule_keepDueTime(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.KeepDueTime, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_RecurrenceRule_keepDueTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("RecurrenceRule", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _Session_authenticated(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
@@ -5689,7 +5806,7 @@ func (ec *executionContext) unmarshalInputCompleteTaskInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"csrfToken", "taskId", "expectedKind"}
+	fieldsInOrder := [...]string{"csrfToken", "taskId", "expectedKind", "expectedDueAt"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -5717,6 +5834,13 @@ func (ec *executionContext) unmarshalInputCompleteTaskInput(ctx context.Context,
 				return it, err
 			}
 			it.ExpectedKind = data
+		case "expectedDueAt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedDueAt"))
+			data, err := ec.unmarshalODateTime2ᚖtimeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedDueAt = data
 		}
 	}
 	return it, nil
@@ -5891,8 +6015,11 @@ func (ec *executionContext) unmarshalInputCreateRecurringTaskInput(ctx context.C
 	if _, present := asMap["mode"]; !present {
 		asMap["mode"] = "FROM_COMPLETION"
 	}
+	if _, present := asMap["keepDueTime"]; !present {
+		asMap["keepDueTime"] = true
+	}
 
-	fieldsInOrder := [...]string{"csrfToken", "title", "description", "projectId", "priority", "firstDueDate", "dueTime", "interval", "unit", "mode"}
+	fieldsInOrder := [...]string{"csrfToken", "title", "description", "projectId", "priority", "firstDueDate", "dueTime", "interval", "unit", "mode", "keepDueTime"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -5969,6 +6096,13 @@ func (ec *executionContext) unmarshalInputCreateRecurringTaskInput(ctx context.C
 				return it, err
 			}
 			it.Mode = data
+		case "keepDueTime":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("keepDueTime"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.KeepDueTime = data
 		}
 	}
 	return it, nil
@@ -6085,8 +6219,8 @@ func (ec *executionContext) unmarshalInputRepairTaskMetadataInput(ctx context.Co
 	return it, nil
 }
 
-func (ec *executionContext) unmarshalInputSkipRecurringTaskInput(ctx context.Context, obj any) (model.SkipRecurringTaskInput, error) {
-	var it model.SkipRecurringTaskInput
+func (ec *executionContext) unmarshalInputSetRecurringKeepDueTimeInput(ctx context.Context, obj any) (model.SetRecurringKeepDueTimeInput, error) {
+	var it model.SetRecurringKeepDueTimeInput
 	if obj == nil {
 		return it, nil
 	}
@@ -6096,7 +6230,7 @@ func (ec *executionContext) unmarshalInputSkipRecurringTaskInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"csrfToken", "taskId"}
+	fieldsInOrder := [...]string{"csrfToken", "taskId", "enabled"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6117,6 +6251,57 @@ func (ec *executionContext) unmarshalInputSkipRecurringTaskInput(ctx context.Con
 				return it, err
 			}
 			it.TaskID = data
+		case "enabled":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("enabled"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Enabled = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputSkipRecurringTaskInput(ctx context.Context, obj any) (model.SkipRecurringTaskInput, error) {
+	var it model.SkipRecurringTaskInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"csrfToken", "taskId", "expectedDueAt"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "csrfToken":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("csrfToken"))
+			data, err := ec.unmarshalNString2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.CsrfToken = data
+		case "taskId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("taskId"))
+			data, err := ec.unmarshalNID2string(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.TaskID = data
+		case "expectedDueAt":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedDueAt"))
+			data, err := ec.unmarshalNDateTime2timeᚐTime(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedDueAt = data
 		}
 	}
 	return it, nil
@@ -6572,6 +6757,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "setRecurringKeepDueTime":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_setRecurringKeepDueTime(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "deleteTask":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_deleteTask(ctx, field)
@@ -6889,6 +7081,11 @@ func (ec *executionContext) _RecurrenceRule(ctx context.Context, sel ast.Selecti
 			}
 		case "mode":
 			out.Values[i] = ec._RecurrenceRule_mode(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "keepDueTime":
+			out.Values[i] = ec._RecurrenceRule_keepDueTime(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -8199,6 +8396,11 @@ func (ec *executionContext) marshalNSession2ᚖgithubᚗcomᚋRevoTaleᚋvikunja
 		return graphql.Null
 	}
 	return ec._Session(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNSetRecurringKeepDueTimeInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐSetRecurringKeepDueTimeInput(ctx context.Context, v any) (model.SetRecurringKeepDueTimeInput, error) {
+	res, err := ec.unmarshalInputSetRecurringKeepDueTimeInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) unmarshalNSkipRecurringTaskInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐSkipRecurringTaskInput(ctx context.Context, v any) (model.SkipRecurringTaskInput, error) {

@@ -74,7 +74,14 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
       const csrfToken = sessionData?.session.csrfToken;
       if (!csrfToken) throw new Error("missing session");
       const result = await complete({
-        variables: { input: { csrfToken, taskId: task.id, expectedKind: task.kind } },
+        variables: {
+          input: {
+            csrfToken,
+            taskId: task.id,
+            expectedKind: task.kind,
+            expectedDueAt: task.kind === "RECURRING" ? task.dueAt : null,
+          },
+        },
       });
       const payload = result.data?.completeTask;
       if (!payload) {
@@ -84,7 +91,8 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
       }
       let completionNotice: string;
       if (payload.status === "CONFIRMED_REPAIR_REQUIRED") {
-        completionNotice = "The recurring task renewed, but its history entry still needs repair.";
+        completionNotice =
+          "The recurring task renewed, but its due time or History still needs repair.";
         if (payload.repairCapability) {
           setRepairInfo({ capability: payload.repairCapability, title: task.title });
         }
@@ -162,7 +170,9 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
         variables: { input: { csrfToken, capability: repairInfo.capability } },
       });
       if (!result.data?.repairTaskMetadata) {
-        setNotice("History repair could not be confirmed. Refresh the task before trying again.");
+        setNotice(
+          "Recurring task repair could not be confirmed. Refresh the task before trying again.",
+        );
         return;
       }
       setNotice(`${repairInfo.title} history repaired.`);
@@ -181,7 +191,7 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
       setNotice(
         graphQLErrorMessage(
           caught,
-          "History repair did not finish. It is safe to retry; the recurring task will not renew again.",
+          "Recurring task repair did not finish. It is safe to retry; the task will not renew again.",
         ),
       );
     }
@@ -280,7 +290,7 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
       {repairInfo ? (
         <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-4">
           <p className="text-sm">
-            Renewal is complete. Repair only the missing Vikunja history entry.
+            Renewal is complete. Repair the due-time adjustment or missing Vikunja History entry.
           </p>
           <Button
             className="mt-3"

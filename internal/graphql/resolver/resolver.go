@@ -30,6 +30,7 @@ type taskClient interface {
 	Labels(context.Context) ([]vikunja.Label, error)
 	CreateLabel(context.Context, vikunja.LabelWrite) (vikunja.Label, error)
 	AttachLabel(context.Context, int64, int64) error
+	DetachLabel(context.Context, int64, int64) error
 }
 
 type Dependencies struct {

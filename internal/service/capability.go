@@ -52,6 +52,11 @@ type RecurringRepairGrant struct {
 	DueAt         time.Time
 	StartAt       time.Time
 	EndAt         time.Time
+	RenewedDoneAt time.Time
+	NativeDueAt   time.Time
+	TargetDueAt   time.Time
+	RepeatAfter   int64
+	RepeatMode    int
 }
 
 type CapabilityManager struct {
@@ -63,8 +68,13 @@ func NewCapabilityManager(secret []byte, now func() time.Time) *CapabilityManage
 	return &CapabilityManager{secret: append([]byte(nil), secret...), now: now}
 }
 
-func (manager *CapabilityManager) CompletionKey(taskID int64, completedAt time.Time) string {
-	message := fmt.Sprintf("vbu:completion:v1:%d:%s", taskID, completedAt.UTC().Format(time.RFC3339Nano))
+func (manager *CapabilityManager) CompletionKey(taskID int64, completedAt time.Time, occurrenceDueAt time.Time) string {
+	message := fmt.Sprintf(
+		"vbu:completion:v1:%d:%s:%s",
+		taskID,
+		completedAt.UTC().Format(time.RFC3339Nano),
+		occurrenceDueAt.UTC().Format(time.RFC3339Nano),
+	)
 	mac := hmac.New(sha256.New, manager.secret)
 	_, _ = mac.Write([]byte(message))
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
@@ -144,7 +154,9 @@ func (manager *CapabilityManager) IssueRecurringRepair(sessionID string, grant R
 		TaskID: grant.TaskID, ProjectID: grant.ProjectID, LiveETag: grant.LiveETag,
 		CompletionKey: grant.CompletionKey, Outcome: grant.Outcome,
 		DueAt: formatOptionalInstant(grant.DueAt), StartAt: formatOptionalInstant(grant.StartAt),
-		EndAt:     formatOptionalInstant(grant.EndAt),
+		EndAt: formatOptionalInstant(grant.EndAt), RenewedDoneAt: formatOptionalInstant(grant.RenewedDoneAt),
+		NativeDueAt: formatOptionalInstant(grant.NativeDueAt), TargetDueAt: formatOptionalInstant(grant.TargetDueAt),
+		RepeatAfter: grant.RepeatAfter, RepeatMode: grant.RepeatMode,
 		ExpiresAt: manager.now().UTC().Truncate(time.Second).Add(repairLifetime).Unix(),
 	}
 	return manager.sealPayload(payload)
@@ -167,10 +179,24 @@ func (manager *CapabilityManager) ParseRecurringRepair(sessionID string, token s
 	if err != nil {
 		return RecurringRepairGrant{}, ErrInvalidCapability
 	}
+	renewedDoneAt, err := parseOptionalInstant(payload.RenewedDoneAt)
+	if err != nil {
+		return RecurringRepairGrant{}, ErrInvalidCapability
+	}
+	nativeDueAt, err := parseOptionalInstant(payload.NativeDueAt)
+	if err != nil {
+		return RecurringRepairGrant{}, ErrInvalidCapability
+	}
+	targetDueAt, err := parseOptionalInstant(payload.TargetDueAt)
+	if err != nil {
+		return RecurringRepairGrant{}, ErrInvalidCapability
+	}
 	grant := RecurringRepairGrant{
 		TaskID: payload.TaskID, ProjectID: payload.ProjectID, LiveETag: payload.LiveETag,
 		CompletionKey: payload.CompletionKey, Outcome: payload.Outcome,
 		DueAt: dueAt, StartAt: startAt, EndAt: endAt,
+		RenewedDoneAt: renewedDoneAt, NativeDueAt: nativeDueAt, TargetDueAt: targetDueAt,
+		RepeatAfter: payload.RepeatAfter, RepeatMode: payload.RepeatMode,
 	}
 	if payload.Version != capabilityVersion || payload.Purpose != recurringRepairPurpose || payload.SessionID != sessionID ||
 		!validRecurringRepairGrant(sessionID, grant) {
@@ -285,8 +311,12 @@ func validMarkerRepairGrant(sessionID string, grant MarkerRepairGrant) bool {
 
 func validRecurringRepairGrant(sessionID string, grant RecurringRepairGrant) bool {
 	validOutcome := grant.Outcome == CompletionOutcomeCompleted || grant.Outcome == CompletionOutcomeSkipped
+	legacy := grant.RenewedDoneAt.IsZero() && grant.NativeDueAt.IsZero() && grant.TargetDueAt.IsZero() &&
+		grant.RepeatAfter == 0 && grant.RepeatMode == 0
+	boundRenewal := !grant.RenewedDoneAt.IsZero() && !grant.NativeDueAt.IsZero() && grant.RepeatAfter > 0 &&
+		(grant.RepeatMode == 0 || grant.RepeatMode == 1 || grant.RepeatMode == 2)
 	return sessionID != "" && grant.TaskID > 0 && grant.ProjectID > 0 && grant.LiveETag != "" &&
-		grant.CompletionKey != "" && validOutcome
+		grant.CompletionKey != "" && validOutcome && (legacy || boundRenewal)
 }
 
 func formatOptionalInstant(value time.Time) string {
@@ -336,5 +366,10 @@ type recurringRepairCapabilityPayload struct {
 	DueAt         string            `json:"due_at"`
 	StartAt       string            `json:"start_at"`
 	EndAt         string            `json:"end_at"`
+	RenewedDoneAt string            `json:"renewed_done_at,omitempty"`
+	NativeDueAt   string            `json:"native_due_at,omitempty"`
+	TargetDueAt   string            `json:"target_due_at,omitempty"`
+	RepeatAfter   int64             `json:"repeat_after,omitempty"`
+	RepeatMode    int               `json:"repeat_mode,omitempty"`
 	ExpiresAt     int64             `json:"exp"`
 }

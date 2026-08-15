@@ -56,12 +56,19 @@ export function TaskDetailActions({
       );
       return;
     }
+    if (!task.dueAt) {
+      setError("This recurring occurrence has no due date. Refresh the task before trying again.");
+      return;
+    }
     setActionPending("skip");
     try {
       let payload: SkipRecurringTaskMutation["skipRecurringTask"] | undefined;
       try {
-        payload = (await skip({ variables: { input: { csrfToken, taskId: task.id } } })).data
-          ?.skipRecurringTask;
+        payload = (
+          await skip({
+            variables: { input: { csrfToken, taskId: task.id, expectedDueAt: task.dueAt } },
+          })
+        ).data?.skipRecurringTask;
       } catch (caught) {
         setError(
           graphQLErrorMessage(
@@ -80,7 +87,7 @@ export function TaskDetailActions({
       setRepairCapability(payload.repairCapability ?? undefined);
       setNotice(
         payload.status === "CONFIRMED_REPAIR_REQUIRED"
-          ? "This occurrence was skipped and renewed. Its history entry still needs repair."
+          ? "This occurrence was skipped and renewed. Its due time or History still needs repair."
           : "This occurrence was skipped and the next one is ready.",
       );
       try {
@@ -109,27 +116,29 @@ export function TaskDetailActions({
           variables: { input: { csrfToken, capability: repairCapability } },
         });
         if (!result.data?.repairTaskMetadata) {
-          setError("History repair could not be confirmed. Refresh the task before trying again.");
+          setError(
+            "Recurring task repair could not be confirmed. Refresh the task before trying again.",
+          );
           return;
         }
       } catch (caught) {
         setError(
           graphQLErrorMessage(
             caught,
-            "History repair did not finish. Retrying will not renew the task again.",
+            "Recurring task repair did not finish. Retrying will not renew the task again.",
           ),
         );
         return;
       }
       setRepairCapability(undefined);
-      setNotice("The skipped history entry was repaired.");
+      setNotice("The renewed task and skipped History entry were repaired.");
       try {
         await refreshAffectedTasks();
       } catch (caught) {
         setError(
           graphQLErrorMessage(
             caught,
-            "The history entry was repaired, but refreshed task data could not be loaded.",
+            "The recurring task was repaired, but refreshed task data could not be loaded.",
           ),
         );
       }
@@ -186,7 +195,7 @@ export function TaskDetailActions({
       ) : null}
       {repairCapability ? (
         <Button size="compact" variant="outline" disabled={pending} onClick={repairHistory}>
-          {actionPending === "repair" ? "Repairing…" : "Repair skipped history"}
+          {actionPending === "repair" ? "Repairing…" : "Repair recurring task"}
         </Button>
       ) : null}
     </div>

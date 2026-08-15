@@ -11,6 +11,7 @@ import { formatDateTime } from "./format-date-time";
 import { PriorityBadge } from "./priority-badge";
 import { TaskDetailActions } from "./task-detail-actions";
 import { taskKindLabel } from "./task-kind-label";
+import { TaskRecurrenceSetting } from "./task-recurrence-setting";
 
 export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo: string }) {
   const { data, loading, error, refetch } = useQuery(TaskDetailsDocument, {
@@ -71,6 +72,7 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
               .
             </p>
           ) : null}
+          <TaskRecurrenceSetting task={task} onChanged={() => refetch()} />
         </CardContent>
       </Card>
     </section>

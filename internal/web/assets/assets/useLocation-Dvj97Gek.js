@@ -1,1 +1,0 @@
-import{i as e,t}from"./useStore-DF5kmhBj.js";import{y as n}from"./graphql-CEyEMldf.js";function r(r){let i=e();return t(i.stores.location,n(r,i))}export{r as t};

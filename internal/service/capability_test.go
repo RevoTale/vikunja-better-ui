@@ -79,11 +79,13 @@ func TestCompletionKeyIsDeterministicAndOccurrenceBound(t *testing.T) {
 
 	manager := NewCapabilityManager([]byte("01234567890123456789012345678901"), time.Now)
 	completedAt := time.Date(2026, time.August, 12, 12, 0, 0, 123, time.UTC)
-	first := manager.CompletionKey(9, completedAt)
-	second := manager.CompletionKey(9, completedAt)
-	other := manager.CompletionKey(9, completedAt.Add(time.Nanosecond))
-	if first == "" || first != second || first == other {
-		t.Fatalf("keys = %q, %q, %q", first, second, other)
+	dueAt := time.Date(2026, time.August, 12, 20, 0, 0, 0, time.UTC)
+	first := manager.CompletionKey(9, completedAt, dueAt)
+	second := manager.CompletionKey(9, completedAt, dueAt)
+	otherCompletion := manager.CompletionKey(9, completedAt.Add(time.Nanosecond), dueAt)
+	otherOccurrence := manager.CompletionKey(9, completedAt, dueAt.Add(24*time.Hour))
+	if first == "" || first != second || first == otherCompletion || first == otherOccurrence {
+		t.Fatalf("keys = %q, %q, %q, %q", first, second, otherCompletion, otherOccurrence)
 	}
 }
 
@@ -95,7 +97,9 @@ func TestRecurringRepairCapabilityIsOpaqueAndRoundTrips(t *testing.T) {
 	want := RecurringRepairGrant{
 		TaskID: 9, ProjectID: 7, LiveETag: `"v2"`, CompletionKey: "completion-key",
 		DueAt: now.Add(-time.Hour), StartAt: now.Add(-2 * time.Hour), EndAt: now.Add(-90 * time.Minute),
-		Outcome: CompletionOutcomeSkipped,
+		Outcome: CompletionOutcomeSkipped, RenewedDoneAt: now,
+		NativeDueAt: now.Add(48 * time.Hour), TargetDueAt: now.Add(58 * time.Hour),
+		RepeatAfter: 2 * 86400, RepeatMode: 2,
 	}
 	token, err := manager.IssueRecurringRepair("session-1", want)
 	if err != nil {

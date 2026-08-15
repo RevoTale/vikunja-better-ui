@@ -46,6 +46,24 @@ describe("validateTaskForm", () => {
     ).toMatchObject({ interval: "Choose a smaller interval." });
   });
 
+  it("requires an eligible timed recurrence when keeping the due time", () => {
+    expect(validateTaskForm("recurring", values({ keepDueTime: "on", dueTime: "" }))).toMatchObject(
+      { dueTime: "Choose a due time to keep." },
+    );
+    expect(
+      validateTaskForm(
+        "recurring",
+        values({ keepDueTime: "on", dueTime: "20:00", mode: "SCHEDULED_CYCLE" }),
+      ),
+    ).toMatchObject({ mode: "Keep due time requires From completion." });
+    expect(
+      validateTaskForm(
+        "recurring",
+        values({ keepDueTime: "on", dueTime: "20:00", unit: "MONTH", mode: "SCHEDULED_CYCLE" }),
+      ),
+    ).toMatchObject({ unit: "Keep due time supports days or weeks." });
+  });
+
   it("validates all required job fields", () => {
     expect(
       validateTaskForm(

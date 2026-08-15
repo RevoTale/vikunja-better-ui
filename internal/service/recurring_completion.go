@@ -33,9 +33,10 @@ func CompleteRecurring(
 	client recurringCompletionClient,
 	capabilities *CapabilityManager,
 	taskID int64,
+	expectedDueAt time.Time,
 	location *time.Location,
 ) (RecurringCompletion, error) {
-	return completeRecurring(ctx, client, capabilities, taskID, location, CompletionOutcomeCompleted)
+	return completeRecurring(ctx, client, capabilities, taskID, expectedDueAt, location, CompletionOutcomeCompleted)
 }
 
 func SkipRecurring(
@@ -43,9 +44,10 @@ func SkipRecurring(
 	client recurringCompletionClient,
 	capabilities *CapabilityManager,
 	taskID int64,
+	expectedDueAt time.Time,
 	location *time.Location,
 ) (RecurringCompletion, error) {
-	return completeRecurring(ctx, client, capabilities, taskID, location, CompletionOutcomeSkipped)
+	return completeRecurring(ctx, client, capabilities, taskID, expectedDueAt, location, CompletionOutcomeSkipped)
 }
 
 func completeRecurring(
@@ -53,6 +55,7 @@ func completeRecurring(
 	client recurringCompletionClient,
 	capabilities *CapabilityManager,
 	taskID int64,
+	expectedDueAt time.Time,
 	location *time.Location,
 	outcome CompletionOutcome,
 ) (RecurringCompletion, error) {
@@ -60,8 +63,21 @@ func completeRecurring(
 	if err != nil {
 		return RecurringCompletion{}, err
 	}
-	if before.Done || metadata.ETag == "" || ClassifyTask(before).Kind != TaskKindRecurring {
+	classification := ClassifyTask(before)
+	if before.Done || metadata.ETag == "" || classification.Kind != TaskKindRecurring {
 		return RecurringCompletion{}, ErrTaskKindMismatch
+	}
+	if expectedDueAt.IsZero() || !before.DueDate.Equal(expectedDueAt) {
+		return RecurringCompletion{}, ErrTaskStateChanged
+	}
+	var fixedTarget time.Time
+	if classification.FixedDueTime {
+		fixedTarget, err = resolveCompletionDateDueTime(
+			capabilities.now(), before.DueDate, before.RepeatAfter, location,
+		)
+		if err != nil {
+			return RecurringCompletion{}, err
+		}
 	}
 
 	done := true
@@ -78,6 +94,24 @@ func completeRecurring(
 	if err := verifyRenewal(before, renewed); err != nil {
 		return RecurringCompletion{}, err
 	}
+	key := capabilities.CompletionKey(taskID, renewed.DoneAt, before.DueDate)
+	repairGrant := RecurringRepairGrant{
+		TaskID: taskID, ProjectID: before.ProjectID, LiveETag: renewedMetadata.ETag, CompletionKey: key,
+		Outcome: outcome, DueAt: before.DueDate, StartAt: before.StartDate, EndAt: before.EndDate,
+		RenewedDoneAt: renewed.DoneAt, NativeDueAt: renewed.DueDate, TargetDueAt: fixedTarget,
+		RepeatAfter: renewed.RepeatAfter, RepeatMode: renewed.RepeatMode,
+	}
+	if !fixedTarget.IsZero() {
+		normalized, normalizeErr := normalizeRenewedDue(ctx, client, renewed, renewedMetadata.ETag, fixedTarget)
+		err = normalizeErr
+		if err != nil {
+			return RecurringCompletion{
+				LiveTask: renewed, CompletionKey: key, RepairRequired: true,
+				RepairCause: err, RepairGrant: repairGrant,
+			}, nil
+		}
+		renewed = normalized
+	}
 	_, err = normalizeRenewedDateOnly(ctx, client, renewed, renewedMetadata.ETag, location)
 	if err != nil {
 		return RecurringCompletion{}, err
@@ -87,14 +121,11 @@ func completeRecurring(
 		return RecurringCompletion{}, fmt.Errorf("read final renewed task: %w", err)
 	}
 
-	key := capabilities.CompletionKey(taskID, renewed.DoneAt)
 	baseResult := RecurringCompletion{
 		LiveTask: renewed, CompletionKey: key,
-		RepairGrant: RecurringRepairGrant{
-			TaskID: taskID, ProjectID: before.ProjectID, LiveETag: finalMetadata.ETag, CompletionKey: key,
-			Outcome: outcome, DueAt: before.DueDate, StartAt: before.StartDate, EndAt: before.EndDate,
-		},
+		RepairGrant: repairGrant,
 	}
+	baseResult.RepairGrant.LiveETag = finalMetadata.ETag
 	if existing, found, err := findSnapshot(ctx, client, before.ProjectID, key, outcome); err != nil {
 		baseResult.RepairRequired = true
 		baseResult.RepairCause = err
@@ -114,16 +145,45 @@ func completeRecurring(
 	return baseResult, nil
 }
 
+func normalizeRenewedDue(
+	ctx context.Context,
+	client recurringCompletionClient,
+	task vikunja.Task,
+	etag string,
+	target time.Time,
+) (vikunja.Task, error) {
+	if task.DueDate.Equal(target) {
+		return task, nil
+	}
+	if etag == "" {
+		return vikunja.Task{}, fmt.Errorf("renewed task has no ETag")
+	}
+	if _, err := client.PatchTaskChecked(ctx, task.ID, vikunja.TaskPatch{DueDate: &target}, vikunja.TaskCheck{
+		Done: boolValue(false), DueDate: &task.DueDate,
+		RepeatAfter: &task.RepeatAfter, RepeatMode: &task.RepeatMode,
+	}); err != nil {
+		return vikunja.Task{}, taskPatchError(err)
+	}
+	confirmed, _, err := client.Task(ctx, task.ID)
+	if err != nil {
+		return vikunja.Task{}, err
+	}
+	if !confirmed.DueDate.Equal(target) || ClassifyTask(confirmed).Kind != TaskKindRecurring {
+		return vikunja.Task{}, fmt.Errorf("fixed due time normalization was not confirmed")
+	}
+	return confirmed, nil
+}
+
 func verifyRenewal(before vikunja.Task, renewed vikunja.Task) error {
 	if renewed.ID != before.ID || renewed.Done || renewed.DoneAt.IsZero() || renewed.DueDate.IsZero() ||
 		ClassifyTask(renewed).Kind != TaskKindRecurring {
 		return fmt.Errorf("recurring renewal could not be confirmed")
 	}
-	if !renewed.DueDate.After(before.DueDate) {
-		return fmt.Errorf("recurring due date did not advance")
-	}
 	switch before.RepeatMode {
 	case 0:
+		if !renewed.DueDate.After(before.DueDate) {
+			return fmt.Errorf("recurring due date did not advance")
+		}
 		step := time.Duration(before.RepeatAfter) * time.Second
 		if step <= 0 {
 			return fmt.Errorf("scheduled recurrence interval is invalid")
@@ -136,6 +196,9 @@ func verifyRenewal(before vikunja.Task, renewed vikunja.Task) error {
 			return fmt.Errorf("scheduled recurrence advanced unexpectedly")
 		}
 	case 1:
+		if !renewed.DueDate.After(before.DueDate) {
+			return fmt.Errorf("recurring due date did not advance")
+		}
 		expected := time.Date(
 			before.DueDate.Year(), before.DueDate.Month()+1, before.DueDate.Day(),
 			before.DueDate.Hour(), before.DueDate.Minute(), before.DueDate.Second(), before.DueDate.Nanosecond(),
@@ -240,8 +303,14 @@ func RepairRecurringSnapshot(
 	if err != nil {
 		return RecurringCompletion{}, err
 	}
-	if metadata.ETag != grant.LiveETag || live.Done || ClassifyTask(live).Kind != TaskKindRecurring {
+	if !repairLiveStateMatches(live, metadata.ETag, grant) {
 		return RecurringCompletion{}, ErrTaskStateChanged
+	}
+	if !grant.TargetDueAt.IsZero() && live.DueDate.Equal(grant.NativeDueAt) {
+		live, err = normalizeRenewedDue(ctx, client, live, metadata.ETag, grant.TargetDueAt)
+		if err != nil {
+			return RecurringCompletion{}, err
+		}
 	}
 	candidate, found, err := findSnapshotCandidate(ctx, client, grant.ProjectID, grant.CompletionKey)
 	if err != nil {
@@ -278,6 +347,19 @@ func RepairRecurringSnapshot(
 	return RecurringCompletion{LiveTask: live, Snapshot: confirmed, CompletionKey: grant.CompletionKey}, nil
 }
 
+func repairLiveStateMatches(live vikunja.Task, etag string, grant RecurringRepairGrant) bool {
+	if live.Done || ClassifyTask(live).Kind != TaskKindRecurring {
+		return false
+	}
+	if grant.RenewedDoneAt.IsZero() {
+		return etag == grant.LiveETag
+	}
+	allowedDue := live.DueDate.Equal(grant.NativeDueAt) ||
+		(!grant.TargetDueAt.IsZero() && live.DueDate.Equal(grant.TargetDueAt))
+	return live.DoneAt.Equal(grant.RenewedDoneAt) && live.RepeatAfter == grant.RepeatAfter &&
+		live.RepeatMode == grant.RepeatMode && allowedDue
+}
+
 func attachMissingSnapshotLabels(
 	ctx context.Context,
 	client recurringCompletionClient,
@@ -286,7 +368,7 @@ func attachMissingSnapshotLabels(
 	outcome CompletionOutcome,
 ) error {
 	for _, label := range liveLabels {
-		if label.Title == recurrenceHistoryLabel || label.Title == skippedLabel || hasLabelID(snapshot.Labels, label.ID) {
+		if !snapshotLabelAllowed(label.Title) || hasLabelID(snapshot.Labels, label.ID) {
 			continue
 		}
 		if err := client.AttachLabel(ctx, snapshot.ID, label.ID); err != nil {
@@ -358,7 +440,7 @@ func createSnapshot(
 		return vikunja.Task{}, vikunja.ErrRejectedResponse
 	}
 	for _, label := range before.Labels {
-		if label.Title == recurrenceHistoryLabel || label.Title == skippedLabel {
+		if !snapshotLabelAllowed(label.Title) {
 			continue
 		}
 		if err := client.AttachLabel(ctx, created.ID, label.ID); err != nil {
@@ -377,6 +459,10 @@ func createSnapshot(
 		created.Labels = append(created.Labels, skippedMarker)
 	}
 	return finalizeSnapshot(ctx, client, created.ID, key, outcome)
+}
+
+func snapshotLabelAllowed(title string) bool {
+	return title != recurrenceHistoryLabel && title != skippedLabel && title != fixedDueTimeLabel
 }
 
 func finalizeSnapshot(

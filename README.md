@@ -35,6 +35,29 @@ the whole repository.
 
 Only Vikunja 2.5.0 and its REST API v2 are supported.
 
+## Recurring renewal behavior
+
+Timed recurring tasks that renew **From completion date** default
+**Keep due time** to enabled. The completion date controls the next calendar
+date, while the task keeps its configured local deadline.
+
+For a task due at 20:00 every two days:
+
+| Renewal configuration | Completed | Next due |
+| --- | --- | --- |
+| From completion date; Keep due time on | Sunday 10:00 | Tuesday 20:00 |
+| From completion date; Keep due time on | Sunday 21:00 | Tuesday 20:00 |
+| From completion date; Keep due time off | Sunday 21:00 | Tuesday 21:00 |
+| Scheduled cycle; current due Monday 20:00 | Tuesday 10:00 | Wednesday 20:00 |
+
+Turning **Keep due time** off retains strict elapsed recurrence: two days means
+exactly 48 hours. Scheduled cycle remains anchored to the existing schedule.
+Complete and Skip use the same calculation. Date-only tasks do not show this
+option.
+
+See the [Keep due time specification](docs/specs/keep-due-time.md) for marker,
+timezone, daylight-saving, validation, repair, and History behavior.
+
 ## Architecture and security boundaries
 
 ```text
@@ -80,7 +103,7 @@ Use a dedicated Vikunja API token with these permissions:
 | `projects` | `read_all` |
 | `tasks` | `create`, `read_all`, `read_one`, `update`, `delete` |
 | `labels` | `create`, `read_all` |
-| `tasks_labels` | `create`, `read_all` |
+| `tasks_labels` | `create`, `read_all`, `delete` |
 
 This is the minimum permission set exercised by the app's end-to-end tests.
 Missing permissions can make login or task operations fail because the backend

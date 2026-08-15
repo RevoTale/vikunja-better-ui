@@ -127,6 +127,7 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
                 interval: Number(text(form, "interval")),
                 unit: text(form, "unit") as RecurrenceUnit,
                 mode: text(form, "mode") as RecurrenceMode,
+                keepDueTime: text(form, "keepDueTime") === "on",
               },
             },
           })

@@ -77,6 +77,10 @@ function OneTimeFields({ errors, defaultDate }: { errors: TaskFormErrors; defaul
 function RecurringFields({ errors, defaultDate }: { errors: TaskFormErrors; defaultDate: string }) {
   const [firstDueDate, setFirstDueDate] = useState(defaultDate);
   const [dueTime, setDueTime] = useState("");
+  const [unit, setUnit] = useState("DAY");
+  const [mode, setMode] = useState("FROM_COMPLETION");
+  const [keepDueTime, setKeepDueTime] = useState(true);
+  const canKeepDueTime = Boolean(dueTime) && mode === "FROM_COMPLETION" && unit !== "MONTH";
   return (
     <>
       <div className="grid gap-5 sm:grid-cols-2">
@@ -124,7 +128,13 @@ function RecurringFields({ errors, defaultDate }: { errors: TaskFormErrors; defa
         </ValidatedField>
         <ValidatedField name="unit" label="Unit" error={errors.unit}>
           {(attributes) => (
-            <Select id="unit" name="unit" defaultValue="DAY" {...attributes}>
+            <Select
+              id="unit"
+              name="unit"
+              value={unit}
+              onChange={(event) => setUnit(event.currentTarget.value)}
+              {...attributes}
+            >
               <option value="DAY">Days</option>
               <option value="WEEK">Weeks</option>
               <option value="MONTH">Months</option>
@@ -133,13 +143,44 @@ function RecurringFields({ errors, defaultDate }: { errors: TaskFormErrors; defa
         </ValidatedField>
         <ValidatedField name="mode" label="Renewal" error={errors.mode}>
           {(attributes) => (
-            <Select id="mode" name="mode" defaultValue="FROM_COMPLETION" {...attributes}>
+            <Select
+              id="mode"
+              name="mode"
+              value={mode}
+              onChange={(event) => setMode(event.currentTarget.value)}
+              {...attributes}
+            >
               <option value="FROM_COMPLETION">From completion</option>
               <option value="SCHEDULED_CYCLE">Scheduled cycle</option>
             </Select>
           )}
         </ValidatedField>
       </div>
+      {canKeepDueTime ? (
+        <div className="rounded-md border bg-muted/30 p-4">
+          <label className="flex cursor-pointer items-start gap-3" htmlFor="keepDueTime">
+            <input
+              id="keepDueTime"
+              name="keepDueTime"
+              type="checkbox"
+              checked={keepDueTime}
+              onChange={(event) => setKeepDueTime(event.currentTarget.checked)}
+              className="mt-1 size-4 accent-primary"
+              aria-describedby="keepDueTime-description"
+            />
+            <span>
+              <span className="block text-sm font-medium">Keep due time</span>
+              <span
+                id="keepDueTime-description"
+                className="mt-1 block text-sm text-muted-foreground"
+              >
+                Schedule from the completion date while keeping this local time. Turn it off for an
+                exact elapsed interval.
+              </span>
+            </span>
+          </label>
+        </div>
+      ) : null}
     </>
   );
 }

@@ -115,6 +115,7 @@ func (r *mutationResolver) CreateRecurringTask(ctx context.Context, input model.
 		Title: input.Title, Description: optionalString(input.Description), Priority: priority,
 		FirstDueDate: string(input.FirstDueDate), DueTime: optionalLocalTime(input.DueTime), Interval: input.Interval,
 		Unit: service.RecurrenceUnit(input.Unit), Mode: service.RecurrenceMode(input.Mode),
+		KeepDueTime: input.KeepDueTime,
 	}, location)
 	if err != nil {
 		return nil, validationClientError(err)
@@ -122,6 +123,8 @@ func (r *mutationResolver) CreateRecurringTask(ctx context.Context, input model.
 	marker := ""
 	if dateOnly {
 		marker = "vbu:date-only"
+	} else if input.KeepDueTime {
+		marker = "vbu:fixed-due-time"
 	}
 	return r.createTaskPayload(ctx, session, user, projects, projectID, write, marker)
 }
@@ -209,11 +212,45 @@ func (r *mutationResolver) SkipRecurringTask(ctx context.Context, input model.Sk
 	if err != nil {
 		return nil, err
 	}
-	result, err := service.SkipRecurring(ctx, r.tasks, r.capabilities, taskID, location)
+	result, err := service.SkipRecurring(
+		ctx, r.tasks, r.capabilities, taskID, input.ExpectedDueAt, location,
+	)
 	if err != nil {
 		return nil, completionClientError(r.Resolver, err)
 	}
 	return r.recurringCompletionPayload(session, user, projects, result)
+}
+
+// SetRecurringKeepDueTime is the resolver for the setRecurringKeepDueTime field.
+func (r *mutationResolver) SetRecurringKeepDueTime(
+	ctx context.Context,
+	input model.SetRecurringKeepDueTimeInput,
+) (*model.TaskMutationPayload, error) {
+	if _, err := r.requireCSRF(ctx, input.CsrfToken); err != nil {
+		return nil, err
+	}
+	user, projects, _, err := r.taskContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	taskID, err := parsePositiveID(input.TaskID)
+	if err != nil {
+		return nil, clientError("VALIDATION_FAILED", "Task ID is invalid.")
+	}
+	task, err := service.SetFixedDueTime(ctx, r.tasks, taskID, input.Enabled)
+	if err != nil {
+		return nil, completionClientError(r.Resolver, err)
+	}
+	mapped, err := taskModel(
+		task, projectMap(projects), user.Settings.Timezone, r.now(), user.Settings.DefaultProjectID,
+	)
+	if err != nil {
+		return nil, clientError("UPSTREAM_REJECTED", "The updated task uses unsupported fields.")
+	}
+	return &model.TaskMutationPayload{
+		Task: mapped, Status: model.TaskMutationStatusConfirmed,
+		MissingMarkers: []model.MarkerKind{}, RemainingRepairSteps: []model.RepairStep{},
+	}, nil
 }
 
 // DeleteTask is the resolver for the deleteTask field.

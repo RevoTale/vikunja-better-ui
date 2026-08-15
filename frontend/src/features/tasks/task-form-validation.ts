@@ -13,6 +13,7 @@ export type TaskFormField =
   | "interval"
   | "unit"
   | "mode"
+  | "keepDueTime"
   | "startDate"
   | "startTime"
   | "durationMinutes"
@@ -105,6 +106,7 @@ function validateRecurringFields(form: FormData, errors: TaskFormErrors): void {
   const dueTime = value(form, "dueTime");
   const unit = value(form, "unit");
   const mode = value(form, "mode");
+  const keepDueTime = value(form, "keepDueTime") === "on";
   const interval = wholeNumber(value(form, "interval"), 1);
 
   if (!firstDueDate) errors.firstDueDate = "Choose the first due date.";
@@ -129,6 +131,13 @@ function validateRecurringFields(form: FormData, errors: TaskFormErrors): void {
   }
   if (unit === "MONTH" && mode === "FROM_COMPLETION") {
     errors.mode = "Monthly recurrence must use Scheduled cycle.";
+  }
+  if (keepDueTime && !dueTime) errors.dueTime = "Choose a due time to keep.";
+  if (keepDueTime && mode !== "FROM_COMPLETION") {
+    errors.mode = "Keep due time requires From completion.";
+  }
+  if (keepDueTime && unit !== "DAY" && unit !== "WEEK") {
+    errors.unit = "Keep due time supports days or weeks.";
   }
 }
 

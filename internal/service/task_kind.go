@@ -7,6 +7,7 @@ const (
 	dateOnlyLabel          = "vbu:date-only"
 	recurrenceHistoryLabel = "vbu:recurrence-history"
 	skippedLabel           = "vbu:skipped"
+	fixedDueTimeLabel      = "vbu:fixed-due-time"
 )
 
 type TaskKind string
@@ -19,9 +20,10 @@ const (
 )
 
 type TaskClassification struct {
-	Kind     TaskKind
-	DateOnly bool
-	Outcome  CompletionOutcome
+	Kind         TaskKind
+	DateOnly     bool
+	FixedDueTime bool
+	Outcome      CompletionOutcome
 }
 
 type CompletionOutcome string
@@ -36,9 +38,11 @@ func ClassifyTask(task vikunja.Task) TaskClassification {
 	hasDateOnly := hasLabel(task.Labels, dateOnlyLabel)
 	hasHistory := hasLabel(task.Labels, recurrenceHistoryLabel)
 	hasSkipped := hasLabel(task.Labels, skippedLabel)
+	hasFixedDueTime := hasLabel(task.Labels, fixedDueTimeLabel)
 	hasRecurrence := task.RepeatAfter > 0 || task.RepeatMode != 0
 	validHistory := hasHistory && task.Done && !hasRecurrence && !hasJob
 	validSkipped := hasSkipped && validHistory
+	validFixedDueTime := hasFixedDueTime && fixedDueTimeEligible(task)
 
 	kind := TaskKindOneTime
 	switch {
@@ -53,6 +57,9 @@ func ClassifyTask(task vikunja.Task) TaskClassification {
 	case hasJob:
 		kind = TaskKindJob
 	}
+	if hasFixedDueTime && !validFixedDueTime {
+		kind = TaskKindInvalid
+	}
 
 	var outcome CompletionOutcome
 	if task.Done && kind != TaskKindInvalid {
@@ -62,7 +69,16 @@ func ClassifyTask(task vikunja.Task) TaskClassification {
 		}
 	}
 
-	return TaskClassification{Kind: kind, DateOnly: hasDateOnly, Outcome: outcome}
+	return TaskClassification{
+		Kind: kind, DateOnly: hasDateOnly, FixedDueTime: hasFixedDueTime, Outcome: outcome,
+	}
+}
+
+func fixedDueTimeEligible(task vikunja.Task) bool {
+	return !task.Done && !task.DueDate.IsZero() && task.RepeatAfter > 0 &&
+		task.RepeatAfter%recurrenceDaySeconds == 0 && task.RepeatMode == 2 &&
+		!hasLabel(task.Labels, dateOnlyLabel) && !hasLabel(task.Labels, recurrenceHistoryLabel) &&
+		!hasLabel(task.Labels, skippedLabel) && !hasLabel(task.Labels, jobLabel)
 }
 
 func hasLabel(labels []vikunja.Label, title string) bool {

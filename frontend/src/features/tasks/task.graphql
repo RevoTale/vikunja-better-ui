@@ -23,6 +23,7 @@ query TaskDetails($id: ID!) {
       interval
       unit
       mode
+      keepDueTime
     }
     labels {
       id
@@ -41,6 +42,27 @@ mutation SkipRecurringTask($input: SkipRecurringTaskInput!) {
     nextOccurrence {
       id
       dueAt
+    }
+    repairCapability
+    missingMarkers
+    remainingRepairSteps
+  }
+}
+
+mutation SetRecurringKeepDueTime($input: SetRecurringKeepDueTimeInput!) {
+  setRecurringKeepDueTime(input: $input) {
+    status
+    task {
+      id
+      kind
+      dueAt
+      hasDueTime
+      recurrenceRule {
+        interval
+        unit
+        mode
+        keepDueTime
+      }
     }
     repairCapability
     missingMarkers
@@ -70,6 +92,7 @@ query TaskDiagnostics($id: ID!) {
       interval
       unit
       mode
+      keepDueTime
     }
     labels {
       id

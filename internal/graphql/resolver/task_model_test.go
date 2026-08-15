@@ -104,13 +104,17 @@ func TestTaskModelMapsSupportedRecurrenceRule(t *testing.T) {
 	t.Parallel()
 
 	result, err := taskModel(vikunja.Task{
-		ID: 9, ProjectID: 7, Title: "Water", RepeatAfter: 2 * 7 * 24 * 60 * 60, RepeatMode: 2,
+		ID: 9, ProjectID: 7, Title: "Water",
+		DueDate:     time.Date(2026, time.August, 16, 20, 0, 0, 0, time.UTC),
+		RepeatAfter: 2 * 7 * 24 * 60 * 60, RepeatMode: 2,
+		Labels: []vikunja.Label{{ID: 10, Title: "vbu:fixed-due-time"}},
 	}, map[int64]vikunja.Project{7: {ID: 7, Title: "Home"}}, "UTC", time.Now(), 7)
 	if err != nil {
 		t.Fatalf("taskModel() error = %v", err)
 	}
 	if result.RecurrenceRule == nil || result.RecurrenceRule.Interval != 2 ||
-		result.RecurrenceRule.Unit != model.RecurrenceUnitWeek || result.RecurrenceRule.Mode != model.RecurrenceModeFromCompletion {
+		result.RecurrenceRule.Unit != model.RecurrenceUnitWeek ||
+		result.RecurrenceRule.Mode != model.RecurrenceModeFromCompletion || !result.RecurrenceRule.KeepDueTime {
 		t.Fatalf("taskModel() recurrence = %#v", result.RecurrenceRule)
 	}
 }

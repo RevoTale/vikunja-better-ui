@@ -66,6 +66,19 @@ func TestResolveMarkerAcceptsSkippedMarker(t *testing.T) {
 	}
 }
 
+func TestResolveMarkerAcceptsFixedDueTimeMarker(t *testing.T) {
+	t.Parallel()
+
+	client := &markerClientStub{labelPages: [][]vikunja.Label{{{ID: 12, Title: fixedDueTimeLabel}}}}
+	label, err := ResolveMarker(context.Background(), client, fixedDueTimeLabel)
+	if err != nil {
+		t.Fatalf("ResolveMarker() error = %v", err)
+	}
+	if label.ID != 12 {
+		t.Fatalf("ResolveMarker() = %#v, want fixed due time marker", label)
+	}
+}
+
 type markerClientStub struct {
 	labelPages  [][]vikunja.Label
 	listCalls   int

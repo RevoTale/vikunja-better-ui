@@ -178,7 +178,7 @@ const permissions = {
     "delete",
   ]),
   labels: selectPermissions(routes, "labels", ["create", "read_all"]),
-  tasks_labels: selectPermissions(routes, "tasks_labels", ["create", "read_all"]),
+  tasks_labels: selectPermissions(routes, "tasks_labels", ["create", "read_all", "delete"]),
 };
 
 const apiToken = await request("/tokens", {
