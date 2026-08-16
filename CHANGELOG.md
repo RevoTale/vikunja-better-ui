@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/RevoTale/vikunja-better-ui/compare/v1.2.0...v1.2.1) (2026-08-16)
+
+
+### Performance Improvements
+
+* **api:** parallelize Vikunja metadata reads ([5fb0855](https://github.com/RevoTale/vikunja-better-ui/commit/5fb0855ea1f502c7530e3e4558870570d6a10a8c))
+
 ## [1.2.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.1.0...v1.2.0) (2026-08-16)
 
 
