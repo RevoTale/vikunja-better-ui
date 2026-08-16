@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -155,6 +156,74 @@ func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 	}
 	if cacheControl := recorder.Header().Get("Cache-Control"); cacheControl != "private, no-store" {
 		t.Fatalf("cache control = %q", cacheControl)
+	}
+}
+
+func TestJobsHandlerLoadsProjectsAndLabelsConcurrently(t *testing.T) {
+	t.Parallel()
+
+	started := make(chan string, 2)
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	releaseCalls := func() { releaseOnce.Do(func() { close(release) }) }
+	defer releaseCalls()
+
+	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.URL.Path {
+		case "/api/v2/user":
+			writeTestJSON(t, writer, map[string]any{
+				"id": 1, "username": "dashboard", "settings": map[string]any{"timezone": "UTC", "week_start": 1},
+			})
+		case "/api/v2/projects":
+			started <- "projects"
+			<-release
+			writeTestPage(t, writer, []map[string]any{{"id": 7, "title": "Home"}})
+		case "/api/v2/labels":
+			started <- "labels"
+			<-release
+			writeTestPage(t, writer, []map[string]any{{"id": 4, "title": "job"}})
+		case "/api/v2/tasks":
+			writeTestJSON(t, writer, map[string]any{
+				"items": []map[string]any{}, "total": 0, "page": 1, "per_page": 1000, "total_pages": 0,
+			})
+		default:
+			http.NotFound(writer, request)
+		}
+	}))
+	defer upstream.Close()
+
+	handler := newTestJobsHandler(t, upstream.URL, time.Now)
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/integrations/v1/jobs", nil)
+	request.Header.Set("Authorization", "Bearer tk_glance")
+	recorder := httptest.NewRecorder()
+	done := make(chan struct{})
+	go func() {
+		handler.ServeHTTP(recorder, request)
+		close(done)
+	}()
+
+	seen := map[string]bool{<-started: true}
+	timer := time.NewTimer(200 * time.Millisecond)
+	select {
+	case name := <-started:
+		seen[name] = true
+	case <-timer.C:
+	}
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+	releaseCalls()
+	<-done
+
+	if !seen["projects"] || !seen["labels"] {
+		t.Fatalf("calls did not overlap: started = %v", seen)
+	}
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d; body = %q", recorder.Code, recorder.Body.String())
 	}
 }
 

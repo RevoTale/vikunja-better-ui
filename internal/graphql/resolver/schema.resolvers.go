@@ -358,21 +358,20 @@ func (r *queryResolver) Projects(ctx context.Context) (*model.ProjectResult, err
 	if _, err := requireSession(ctx); err != nil {
 		return nil, err
 	}
-	user, err := r.users.CurrentUser(ctx)
-	if err != nil {
-		r.logError("read Vikunja user for projects", err)
+	metadata := r.loadQueryMetadata(ctx, false)
+	if metadata.userErr != nil {
+		r.logError("read Vikunja user for projects", metadata.userErr)
 		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja is unavailable. Try again shortly.")
 	}
-	projects, err := r.projects.Projects(ctx)
-	if err != nil {
-		r.logError("read Vikunja projects", err)
+	if metadata.projectsErr != nil {
+		r.logError("read Vikunja projects", metadata.projectsErr)
 		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja projects could not be loaded.")
 	}
-	items := make([]*model.Project, 0, len(projects))
-	for _, project := range projects {
+	items := make([]*model.Project, 0, len(metadata.projects))
+	for _, project := range metadata.projects {
 		items = append(items, &model.Project{
 			ID: strconv.FormatInt(project.ID, 10), Title: project.Title,
-			IsDefault: project.ID == user.Settings.DefaultProjectID,
+			IsDefault: project.ID == metadata.user.Settings.DefaultProjectID,
 		})
 	}
 	return &model.ProjectResult{Items: items}, nil
@@ -380,7 +379,8 @@ func (r *queryResolver) Projects(ctx context.Context) (*model.ProjectResult, err
 
 // Tasks is the resolver for the tasks field.
 func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*model.TaskPage, error) {
-	user, projects, location, err := r.taskContext(ctx)
+	includeLabels := input.Scope == model.TaskScopeJobs
+	user, projects, labels, location, err := r.taskContextMetadata(ctx, includeLabels)
 	if err != nil {
 		return nil, err
 	}
@@ -395,12 +395,7 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 		projectByID[project.ID] = project
 	}
 	var jobLabelIDs []int64
-	if input.Scope == model.TaskScopeJobs {
-		labels, labelErr := r.tasks.Labels(ctx)
-		if labelErr != nil {
-			r.logError("resolve job marker labels", labelErr)
-			return nil, upstreamClientError(labelErr, "Job markers could not be loaded.")
-		}
+	if includeLabels {
 		jobLabelIDs = service.ExactLabelIDs(labels, "job")
 	}
 	result, err := service.ListTasks(ctx, r.tasks, service.ListRequest{

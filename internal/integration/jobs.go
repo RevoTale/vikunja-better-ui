@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -137,13 +138,19 @@ func (handler *jobsHandler) jobs(
 	if err != nil || user.Settings.Timezone == "" {
 		return jobsResponse{}, vikunja.ErrRejectedResponse
 	}
-	projects, err := client.Projects(ctx)
-	if err != nil {
-		return jobsResponse{}, err
+	var projects []vikunja.Project
+	var labels []vikunja.Label
+	var projectsErr error
+	var labelsErr error
+	var waitGroup sync.WaitGroup
+	waitGroup.Go(func() { projects, projectsErr = client.Projects(ctx) })
+	waitGroup.Go(func() { labels, labelsErr = client.Labels(ctx) })
+	waitGroup.Wait()
+	if projectsErr != nil {
+		return jobsResponse{}, projectsErr
 	}
-	labels, err := client.Labels(ctx)
-	if err != nil {
-		return jobsResponse{}, err
+	if labelsErr != nil {
+		return jobsResponse{}, labelsErr
 	}
 	jobLabelIDs := service.ExactLabelIDs(labels, "job")
 	var filterLabelIDs []int64
