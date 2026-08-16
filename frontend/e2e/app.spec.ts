@@ -22,11 +22,20 @@ test("login restores the requested route and core navigation is accessible", asy
   await expect(page).toHaveURL(/\/tasks\/new\?type=job/);
   await expect(page.getByRole("heading", { name: "New job" })).toBeVisible();
   await expect(page.getByLabel("Title (optional)")).toBeFocused();
-  await expect(page.getByLabel("Start date", { exact: true })).toBeVisible();
-  const startHour = page.getByLabel("Start time", { exact: true });
-  await expect(startHour).toBeVisible();
-  await expect(startHour.locator("option")).toHaveCount(25);
-  await expect(startHour.locator("option", { hasText: /AM|PM/ })).toHaveCount(0);
+  await expect(datePickerButton(page, "Start date")).toBeVisible();
+  const startTime = page.getByLabel("Start time", { exact: true });
+  await expect(startTime).toBeVisible();
+  await expect(startTime).toHaveAttribute("type", "time");
+  await expect(page.locator('[data-slot="select-icon"]').first()).toBeVisible();
+  const controlHeights = await Promise.all(
+    [
+      page.getByLabel("Title (optional)"),
+      datePickerButton(page, "Start date"),
+      startTime,
+      page.getByLabel("Project", { exact: true }),
+    ].map(async (control) => (await control.boundingBox())?.height),
+  );
+  expect(controlHeights).toEqual([44, 44, 44, 44]);
   const taskTypeButtons = page.getByRole("group", { name: "Task type" }).getByRole("button");
   await expect(taskTypeButtons).toHaveCount(3);
   for (const button of await taskTypeButtons.all()) {
@@ -42,6 +51,11 @@ test("login restores the requested route and core navigation is accessible", asy
     await expect(
       page.getByRole("navigation", { name: "Main navigation" }).getByText("No date"),
     ).toBeVisible();
+  }
+  if (test.info().project.name.startsWith("phone-")) {
+    await datePickerButton(page, "Start date").click();
+    await expect(page.getByRole("heading", { name: "Choose start date" })).toBeVisible();
+    await page.getByRole("button", { name: "Cancel" }).click();
   }
   await page.getByRole("link", { name: "Back" }).click();
   await expect(page).toHaveURL(/\/jobs\?project=all&page=1/);
@@ -159,8 +173,7 @@ test("task creation and display use the Vikunja timezone", async ({ page }) => {
   const title = `Timezone E2E ${Date.now()}`;
   await page.getByLabel("Title").fill(title);
   await selectDate(page, "Due date", dueDate);
-  await page.getByLabel("Due time", { exact: true }).selectOption("00");
-  await page.getByLabel("Due time minute").selectOption("30");
+  await page.getByLabel("Due time", { exact: true }).fill("00:30");
   await page.getByRole("button", { name: "Create one-time task", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
@@ -261,8 +274,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   );
   const job = `Job ${displayDate(jobDate)} - 10:15`;
   await selectDate(page, "Start date", jobDate);
-  await page.getByLabel("Start time", { exact: true }).selectOption("10");
-  await page.getByLabel("Start time minute").selectOption("15");
+  await page.getByLabel("Start time", { exact: true }).fill("10:15");
   await expect(page.getByLabel("Title (optional)")).toHaveAttribute("placeholder", job);
   await page.getByLabel("Duration in minutes").fill("45");
   await page.getByLabel("Time to complete after it ends").fill("60");
@@ -417,8 +429,7 @@ test("completion-based recurrence keeps or releases the configured due time", as
   const completionDate = localDate();
   const taskID = await createTask(page, "recurring task", title, async () => {
     await selectDate(page, "First due date", completionDate);
-    await page.getByLabel("Due time", { exact: true }).selectOption("20");
-    await page.getByLabel("Due time minute").selectOption("00");
+    await page.getByLabel("Due time", { exact: true }).fill("20:00");
     await page.getByLabel("Every").fill("2");
   });
 
@@ -618,14 +629,17 @@ function displayShortDate(value: string) {
   return `${value.slice(8, 10)} ${month}`;
 }
 async function selectDate(page: Page, label: string, value: string) {
-  const day = page.getByLabel(label, { exact: true });
+  await datePickerButton(page, label).click();
   if (!value) {
-    await day.selectOption("");
+    await page.getByRole("button", { name: "Clear date" }).click();
     return;
   }
-  await day.selectOption(value.slice(8, 10));
-  await page.getByLabel(`${label} month`).selectOption(value.slice(5, 7));
-  await page.getByLabel(`${label} year`).selectOption(value.slice(0, 4));
+  await page.locator(`button[data-day="${value}"]`).click();
+}
+function datePickerButton(page: Page, label: string) {
+  return page.getByRole("button", {
+    name: new RegExp(`^(Choose|Change) ${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(,|$)`),
+  });
 }
 async function expectTaskRowLayout(page: Page, title: string, label: string) {
   const isPhone = test.info().project.name.startsWith("phone-");

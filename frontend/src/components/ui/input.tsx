@@ -1,13 +1,15 @@
 import type { InputHTMLAttributes } from "react";
 
 import { cn } from "@/lib/cn";
+import { formControlSurface } from "./form-control";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return (
     <input
       data-slot="input"
       className={cn(
-        "min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-base outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring aria-invalid:border-destructive aria-invalid:ring-2 aria-invalid:ring-destructive/20 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        formControlSurface,
+        "h-11 min-w-0 px-3 py-2 text-base placeholder:text-muted-foreground md:text-sm",
         className,
       )}
       {...props}

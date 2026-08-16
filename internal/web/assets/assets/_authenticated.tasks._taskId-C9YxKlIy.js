@@ -1,1 +1,0 @@
-import{n as e}from"./Match-DC0My3hD.js";var t=e;export{t as component};

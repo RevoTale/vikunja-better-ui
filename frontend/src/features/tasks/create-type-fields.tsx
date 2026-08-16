@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { DateInputDayFirst } from "./date-input-day-first";
+import { DatePickerField } from "./date-picker-field";
 import { JobStartFields } from "./job-start-fields";
 import type { LocalDateTimeParts } from "./local-date-time";
 import type { CreationType, TaskFormErrors } from "./task-form-validation";
@@ -42,11 +42,10 @@ function OneTimeFields({ errors, defaultDate }: { errors: TaskFormErrors; defaul
     <div className="grid gap-5 sm:grid-cols-2">
       <ValidatedField name="dueDate" label="Due date" error={errors.dueDate}>
         {(attributes) => (
-          <DateInputDayFirst
+          <DatePickerField
             id="dueDate"
             name="dueDate"
-            monthLabel="Due date month"
-            yearLabel="Due date year"
+            label="Due date"
             value={dueDate}
             defaultDate={defaultDate}
             onChange={(value) => {
@@ -62,7 +61,6 @@ function OneTimeFields({ errors, defaultDate }: { errors: TaskFormErrors; defaul
           <TimeInput24
             id="dueTime"
             name="dueTime"
-            minuteLabel="Due time minute"
             value={dueTime}
             onChange={setDueTime}
             disabled={!hasDueDate}
@@ -86,11 +84,10 @@ function RecurringFields({ errors, defaultDate }: { errors: TaskFormErrors; defa
       <div className="grid gap-5 sm:grid-cols-2">
         <ValidatedField name="firstDueDate" label="First due date" error={errors.firstDueDate}>
           {(attributes) => (
-            <DateInputDayFirst
+            <DatePickerField
               id="firstDueDate"
               name="firstDueDate"
-              monthLabel="First due date month"
-              yearLabel="First due date year"
+              label="First due date"
               value={firstDueDate}
               defaultDate={defaultDate}
               onChange={setFirstDueDate}
@@ -104,7 +101,6 @@ function RecurringFields({ errors, defaultDate }: { errors: TaskFormErrors; defa
             <TimeInput24
               id="dueTime"
               name="dueTime"
-              minuteLabel="Due time minute"
               value={dueTime}
               onChange={setDueTime}
               {...attributes}
