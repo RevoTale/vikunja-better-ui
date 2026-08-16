@@ -98,19 +98,19 @@ Use these stable baselines:
 - Vikunja REST API v2 exclusively. Do not add v1 fallbacks or compatibility
   branches.
 - React 19.
-- TypeScript 5.x with strict compiler options.
+- TypeScript 7.x with strict compiler options.
 - Vite's current stable major at scaffold time; no beta or release candidate.
 - Tailwind CSS 4.
 - Apollo Client 4.
 - TanStack Router 1.x.
-- GraphQL 16.x.
+- GraphQL 17.x.
 - GraphQL Code Generator CLI 7 with `typescript-operations` 6 and the client
   preset 6.
 - Biome 2.
 - Vitest's current stable major at scaffold time.
 - Playwright 1.x.
 - `gqlgen` 0.17.x and `golangci-lint` 2.x.
-- Node.js 24 LTS and the current stable pnpm major.
+- Node.js 26 and the current stable pnpm major.
 
 Resolve exact patch versions during the scaffold slice, review them, then pin
 them in `go.mod`, `go.sum`, `frontend/package.json`, `pnpm-lock.yaml`, the Dev
@@ -1459,7 +1459,7 @@ does not justify local persistence, heuristic duplicate creation, or API v1.
   a reviewed dependency requires them.
 - Third-party actions are pinned to reviewed immutable SHAs with version
   comments. Official GitHub actions receive the same treatment where practical.
-- Release Please uses the official `googleapis/release-please-action` v4 line,
+- Release Please uses the official `googleapis/release-please-action` v5 line,
   manifest configuration, Conventional Commits, and a reviewed immutable SHA.
 - Release creation depends on the complete reusable test workflow.
 - After a release is created, the reviewed immutable commit SHA corresponding

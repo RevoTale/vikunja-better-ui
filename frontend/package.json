@@ -3,10 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "packageManager": "pnpm@11.21.0",
+  "packageManager": "pnpm@11.22.0",
   "engines": {
-    "node": ">=24.19.0 <25",
-    "pnpm": ">=11.21.0 <12"
+    "node": ">=26.7.0 <27",
+    "pnpm": ">=11.22.0 <12"
   },
   "scripts": {
     "build": "vite build",
@@ -19,13 +19,13 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@apollo/client": "4.2.11",
+    "@apollo/client": "4.2.12",
     "@graphql-typed-document-node/core": "3.2.0",
-    "@tanstack/react-router": "1.170.27",
+    "@tanstack/react-router": "1.170.29",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "date-fns": "4.4.0",
-    "graphql": "16.14.2",
+    "graphql": "17.0.2",
     "lucide-react": "1.31.0",
     "react": "19.2.8",
     "react-day-picker": "10.0.1",
@@ -41,13 +41,13 @@
     "@graphql-codegen/typescript-operations": "6.1.6",
     "@playwright/test": "1.62.1",
     "@tailwindcss/vite": "4.3.3",
-    "@tanstack/router-plugin": "1.168.30",
-    "@types/node": "24.13.3",
+    "@tanstack/router-plugin": "1.168.32",
+    "@types/node": "26.2.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@vitejs/plugin-react": "6.0.5",
     "tailwindcss": "4.3.3",
-    "typescript": "5.9.3",
+    "typescript": "7.0.2",
     "vite": "8.2.1",
     "vitest": "4.1.10"
   }
