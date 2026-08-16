@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.1.0...v1.2.0) (2026-08-16)
+
+
+### Features
+
+* **integrations:** expose read-only jobs endpoint ([7cd4dca](https://github.com/RevoTale/vikunja-better-ui/commit/7cd4dca12d41875e93132ae4d51c6885a6fa509c))
+
 ## [1.1.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.0.1...v1.1.0) (2026-08-16)
 
 
