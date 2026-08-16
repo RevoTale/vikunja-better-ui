@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -60,9 +61,9 @@ func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 
 	now := time.Date(2026, time.August, 16, 12, 0, 0, 0, time.UTC)
 	dueAt := now.Add(2 * time.Hour)
-	requestCount := 0
+	var requestCount atomic.Int64
 	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		requestCount++
+		requestCount.Add(1)
 		if got := request.Header.Get("Authorization"); got != "Bearer tk_glance" {
 			t.Errorf("authorization = %q", got)
 		}
@@ -151,8 +152,8 @@ func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 		response.HasMore || !response.IsComplete || len(response.Issues) != 0 {
 		t.Fatalf("page = %#v", response)
 	}
-	if requestCount != 4 {
-		t.Fatalf("upstream requests = %d, want 4", requestCount)
+	if got := requestCount.Load(); got != 4 {
+		t.Fatalf("upstream requests = %d, want 4", got)
 	}
 	if cacheControl := recorder.Header().Get("Cache-Control"); cacheControl != "private, no-store" {
 		t.Fatalf("cache control = %q", cacheControl)
@@ -272,9 +273,9 @@ func TestJobsHandlerMapsVikunjaAuthorizationErrors(t *testing.T) {
 func TestJobsHandlerReturnsEmptyPageForUnknownLabel(t *testing.T) {
 	t.Parallel()
 
-	requestCount := 0
+	var requestCount atomic.Int64
 	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		requestCount++
+		requestCount.Add(1)
 		writer.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
 		case "/api/v2/user":
@@ -307,8 +308,8 @@ func TestJobsHandlerReturnsEmptyPageForUnknownLabel(t *testing.T) {
 	if len(response.Items) != 0 || response.TotalItems != 0 || !response.IsComplete {
 		t.Fatalf("response = %#v", response)
 	}
-	if requestCount != 3 {
-		t.Fatalf("upstream requests = %d, want 3", requestCount)
+	if got := requestCount.Load(); got != 3 {
+		t.Fatalf("upstream requests = %d, want 3", got)
 	}
 }
 
