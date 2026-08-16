@@ -73,6 +73,11 @@ Authentication has two separate boundaries:
    `APP_AUTH_PASSWORD`.
 2. The Go backend accesses Vikunja with `APP_VIKUNJA_API_TOKEN`.
 
+A separate read-only integration endpoint accepts a caller-provided Vikunja
+API token for server-to-server dashboards. It never exposes browser mutations
+or replaces the app session boundary. See
+[ADR-004](docs/decisions/0004-read-only-jobs-integration.md).
+
 The app is stateless. It uses a signed, expiring, HTTP-only session cookie and
 stores tasks, recurrence metadata, and history only in Vikunja. The exact
 recurring-history design is documented in
@@ -110,6 +115,80 @@ Missing permissions can make login or task operations fail because the backend
 validates the token by reading the current Vikunja user immediately after app
 authentication. Store the generated token value as `APP_VIKUNJA_API_TOKEN`.
 Do not use the app username or password to authenticate with Vikunja.
+
+## Read-only Jobs integration
+
+`GET /integrations/v1/jobs` exposes the existing Jobs classification, sorting,
+timezone, and pagination behavior as JSON for Glance and similar
+server-to-server dashboards. It accepts a dedicated Vikunja API token from the
+caller and uses it only against the configured `APP_VIKUNJA_URL`:
+
+```http
+GET /integrations/v1/jobs?label=dashboard&page=1&pageSize=30
+Authorization: Bearer <Vikunja API token>
+```
+
+The optional `label` parameter is an exact, case-sensitive label-title match.
+When present, returned tasks must have both the `job` marker and the requested
+label. An unknown label returns an empty page. `page` defaults to `1`, and
+`pageSize` defaults to `30` with a maximum of `100`.
+
+The caller token needs only these Vikunja permissions:
+
+| Permission group | Actions |
+| --- | --- |
+| `other` | `user` |
+| `projects` | `read_all` |
+| `tasks` | `read_all` |
+| `labels` | `read_all` |
+
+Create a separate token for the dashboard. Pass it in the `Authorization`
+header over HTTPS; never place it in a URL or commit it to configuration. The
+endpoint does not store, return, log, or use the token for mutations. It also
+does not use `APP_VIKUNJA_API_TOKEN`, so results reflect the projects and tasks
+visible to the caller token.
+
+Successful responses contain `items`, `page`, `pageSize`, `totalItems`,
+`totalPages`, `hasMore`, `isComplete`, and `issues`. Each item contains its ID,
+title, description, project, normalized priority, due/start/end timestamps,
+labels, timezone, overdue state, and absolute Better UI task URL. Timestamps
+are RFC 3339 values or `null`; priorities are `UNSET`, `LOW`, `MEDIUM`, `HIGH`,
+`URGENT`, or `DO_NOW`.
+
+### Glance custom API widget
+
+Provide `VBU_URL` and `VIKUNJA_JOBS_TOKEN` to the Glance container through its
+environment, then configure a custom API widget:
+
+```yaml
+- type: custom-api
+  title: Jobs
+  title-url: ${VBU_URL}/jobs
+  cache: 5m
+  url: ${VBU_URL}/integrations/v1/jobs
+  headers:
+    Authorization: Bearer ${VIKUNJA_JOBS_TOKEN}
+    Accept: application/json
+  parameters:
+    label: dashboard
+    pageSize: 100
+  template: |
+    <ul class="list list-gap-10">
+      {{ range .JSON.Array "items" }}
+        <li>
+          <a href="{{ .String "url" }}">{{ .String "title" }}</a>
+          <div class="size-h6 color-paragraph">{{ .String "project.title" }}</div>
+        </li>
+      {{ else }}
+        <li>No matching jobs.</li>
+      {{ end }}
+    </ul>
+```
+
+Glance performs this request from its server, not from the dashboard browser.
+Invalid or missing tokens return `401`; insufficient token permissions return
+`403`; invalid parameters return `400`; oversized result sets return `422`;
+and unavailable or invalid Vikunja responses return `502`.
 
 ## Development
 

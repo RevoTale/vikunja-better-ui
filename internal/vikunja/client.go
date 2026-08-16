@@ -67,6 +67,11 @@ func NewClient(baseURL *url.URL, apiToken string) *Client {
 	}
 }
 
+// CloseIdleConnections releases connections held by a short-lived client.
+func (client *Client) CloseIdleConnections() {
+	client.httpClient.CloseIdleConnections()
+}
+
 func (client *Client) doJSON(
 	ctx context.Context,
 	method string,

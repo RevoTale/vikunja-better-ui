@@ -401,7 +401,7 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 			r.logError("resolve job marker labels", labelErr)
 			return nil, upstreamClientError(labelErr, "Job markers could not be loaded.")
 		}
-		jobLabelIDs = exactLabelIDs(labels, "job")
+		jobLabelIDs = service.ExactLabelIDs(labels, "job")
 	}
 	result, err := service.ListTasks(ctx, r.tasks, service.ListRequest{
 		Scope: service.TaskScope(input.Scope), ProjectID: projectID,

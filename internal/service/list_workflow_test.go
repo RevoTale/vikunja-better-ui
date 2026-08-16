@@ -127,6 +127,33 @@ func TestListTasksReturnsEmptyJobsWithoutMarkerLabels(t *testing.T) {
 	}
 }
 
+func TestListTasksFiltersJobsByRequiredLabelBeforePagination(t *testing.T) {
+	t.Parallel()
+
+	jobLabel := vikunja.Label{ID: 4, Title: "job"}
+	dashboardLabel := vikunja.Label{ID: 8, Title: "dashboard"}
+	duplicateDashboardLabel := vikunja.Label{ID: 9, Title: "dashboard"}
+	client := &listClientStub{pages: []vikunja.TaskPage{{
+		Items: []vikunja.Task{
+			{ID: 1, Title: "Excluded", Labels: []vikunja.Label{jobLabel}},
+			{ID: 2, Title: "Included first", Labels: []vikunja.Label{jobLabel, dashboardLabel}},
+			{ID: 3, Title: "Included second", Labels: []vikunja.Label{jobLabel, duplicateDashboardLabel}},
+		},
+		Total: 3, Page: 1, PerPage: 1000, TotalPages: 1,
+	}}}
+	result, err := ListTasks(context.Background(), client, ListRequest{
+		Scope: TaskScopeJobs, Page: 1, PageSize: 1, Now: time.Now(), Location: time.UTC, Timezone: "UTC",
+		JobLabelIDs: []int64{4}, FilterLabelIDs: []int64{8, 9},
+	})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+	assertTaskIDs(t, result.Items, 2)
+	if result.TotalItems != 2 || !result.HasMore {
+		t.Fatalf("ListTasks() = %#v", result)
+	}
+}
+
 func TestListTasksReturnsNoPartialRowsOnUpstreamInterruption(t *testing.T) {
 	t.Parallel()
 

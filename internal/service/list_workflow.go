@@ -26,16 +26,17 @@ type ListIssue struct {
 }
 
 type ListRequest struct {
-	Scope         TaskScope
-	ProjectID     *int64
-	Page          int
-	PageSize      int
-	Now           time.Time
-	Location      *time.Location
-	Timezone      string
-	WeekStart     time.Weekday
-	ProjectTitles map[int64]string
-	JobLabelIDs   []int64
+	Scope          TaskScope
+	ProjectID      *int64
+	Page           int
+	PageSize       int
+	Now            time.Time
+	Location       *time.Location
+	Timezone       string
+	WeekStart      time.Weekday
+	ProjectTitles  map[int64]string
+	JobLabelIDs    []int64
+	FilterLabelIDs []int64
 }
 
 type ListResult struct {
@@ -99,8 +100,29 @@ func listActive(ctx context.Context, client taskListClient, request ListRequest)
 		return incompleteList(request, ListIssueUpstreamPartial, vikunja.ErrRejectedResponse), nil
 	}
 
+	candidates = filterCandidatesByAnyLabelID(candidates, request.FilterLabelIDs)
 	sortTaskList(candidates, request.Scope, request.Now)
 	return completeCandidateList(request, candidates), nil
+}
+
+func filterCandidatesByAnyLabelID(candidates []taskListCandidate, labelIDs []int64) []taskListCandidate {
+	if len(labelIDs) == 0 {
+		return candidates
+	}
+	allowed := make(map[int64]struct{}, len(labelIDs))
+	for _, labelID := range labelIDs {
+		allowed[labelID] = struct{}{}
+	}
+	filtered := candidates[:0]
+	for _, candidate := range candidates {
+		for _, label := range candidate.Task.Labels {
+			if _, ok := allowed[label.ID]; ok {
+				filtered = append(filtered, candidate)
+				break
+			}
+		}
+	}
+	return filtered
 }
 
 func listHistory(ctx context.Context, client taskListClient, request ListRequest) (ListResult, error) {
@@ -214,6 +236,11 @@ func validateListRequest(request ListRequest) error {
 	for _, labelID := range request.JobLabelIDs {
 		if labelID <= 0 {
 			return fmt.Errorf("job label ID must be positive")
+		}
+	}
+	for _, labelID := range request.FilterLabelIDs {
+		if labelID <= 0 {
+			return fmt.Errorf("filter label ID must be positive")
 		}
 	}
 	switch request.Scope {

@@ -15,6 +15,7 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/config"
 	graphqlserver "github.com/RevoTale/vikunja-better-ui/internal/graphql"
 	"github.com/RevoTale/vikunja-better-ui/internal/graphql/resolver"
+	"github.com/RevoTale/vikunja-better-ui/internal/integration"
 	"github.com/RevoTale/vikunja-better-ui/internal/service"
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 	"github.com/RevoTale/vikunja-better-ui/internal/web"
@@ -58,6 +59,10 @@ func run(configuration config.Config, logger *slog.Logger) error {
 	mux := http.NewServeMux()
 	graphQL := graphqlserver.NewHandler(root, production, logger)
 	mux.Handle("/graphql", web.GraphQLBoundary(configuration.AllowedOrigin)(auth.HTTPContext(sessions, cookies)(graphQL)))
+	mux.Handle(
+		"/integrations/v1/jobs",
+		integration.NewJobsHandler(configuration.VikunjaURL, configuration.AllowedOrigin, logger, now),
+	)
 	mux.HandleFunc("/healthz", healthHandler)
 	mux.Handle("/readyz", readinessHandler(vikunjaClient, logger))
 	mux.Handle("/", web.SPAHandler())

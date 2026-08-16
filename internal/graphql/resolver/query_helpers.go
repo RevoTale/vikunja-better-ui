@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
 	"strconv"
 	"time"
 
@@ -66,17 +65,6 @@ func projectMap(projects []vikunja.Project) map[int64]vikunja.Project {
 	for _, project := range projects {
 		result[project.ID] = project
 	}
-	return result
-}
-
-func exactLabelIDs(labels []vikunja.Label, title string) []int64 {
-	result := make([]int64, 0)
-	for _, label := range labels {
-		if label.Title == title && label.ID > 0 {
-			result = append(result, label.ID)
-		}
-	}
-	slices.Sort(result)
 	return result
 }
 

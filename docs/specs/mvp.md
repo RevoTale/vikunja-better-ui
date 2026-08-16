@@ -35,6 +35,8 @@ The application is successful when the user can:
 9. Inspect recent completed tasks and a read-only diagnostic subset of the real
    Vikunja task fields.
 10. Use the same flows comfortably on phone, tablet, and desktop.
+11. Read active Jobs from a server-to-server dashboard through a read-only,
+    caller-authenticated integration endpoint.
 
 Vikunja remains the only task store. This application stores no tasks,
 preferences, completion history, sessions, or recurrence series in a database.
@@ -54,6 +56,7 @@ preferences, completion history, sessions, or recurrence series in a database.
   the exact TweakCN Zen Inspired Theme.
 - Real Vikunja API v2 integration, tests, CI, container image, and automated
   releases.
+- Read-only Jobs integration for server-to-server dashboards.
 
 ### Excluded
 
@@ -72,6 +75,7 @@ preferences, completion history, sessions, or recurrence series in a database.
 
 ```text
 Browser React UI -> same-origin Go GraphQL API -> Vikunja REST API v2
+Dashboard -> read-only Go integration API -> Vikunja REST API v2
 ```
 
 - The Go binary embeds and serves the Vite static build with SPA fallback.
@@ -80,7 +84,34 @@ Browser React UI -> same-origin Go GraphQL API -> Vikunja REST API v2
   data APIs.
 - Only the Go backend receives `APP_VIKUNJA_API_TOKEN`.
 - The backend uses the configured token only as a Bearer token for Vikunja.
+- `GET /integrations/v1/jobs` may receive a dedicated Vikunja API token in its
+  `Authorization` header. The backend uses that request-scoped token only
+  against configured `APP_VIKUNJA_URL`, never stores or logs it, and exposes no
+  mutations through this authentication path.
 - No server-side rendering is added.
+
+### Read-only Jobs integration contract
+
+- The endpoint is `GET /integrations/v1/jobs` and returns JSON.
+- `Authorization: Bearer <Vikunja API token>` is required. Cookie sessions and
+  `APP_VIKUNJA_API_TOKEN` do not authenticate this endpoint.
+- Results use the same active `JOB` classification and ordering as the browser
+  Jobs view.
+- `label` optionally requires an additional exact, case-sensitive Vikunja
+  label title. Matching is resolved to numeric label IDs before filtering;
+  caller text is never inserted into Vikunja filter syntax.
+- Label filtering happens before result pagination. An unknown label produces
+  a complete empty page.
+- `page` defaults to 1. `pageSize` defaults to 30 and is limited to 100.
+- The response exposes only display fields: task and project IDs, title,
+  description, normalized priority, schedule timestamps, labels, timezone,
+  overdue state, pagination metadata, and an absolute app task URL.
+- Responses are marked `private, no-store` and vary on `Authorization`.
+- The minimum caller-token permissions are `other:user`,
+  `projects:read_all`, `tasks:read_all`, and `labels:read_all`.
+- Missing or rejected credentials, insufficient permissions, invalid inputs,
+  excessive result sets, and upstream failures use distinct HTTP statuses and
+  stable JSON error codes without exposing upstream response bodies.
 
 ### Why GraphQL remains useful here
 

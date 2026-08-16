@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
@@ -47,6 +48,18 @@ func lowestExactLabel(labels []vikunja.Label, title string) (vikunja.Label, bool
 		}
 	}
 	return selected, selected.ID > 0
+}
+
+// ExactLabelIDs returns the positive IDs for labels with the exact title.
+func ExactLabelIDs(labels []vikunja.Label, title string) []int64 {
+	result := make([]int64, 0)
+	for _, label := range labels {
+		if label.ID > 0 && label.Title == title {
+			result = append(result, label.ID)
+		}
+	}
+	slices.Sort(result)
+	return result
 }
 
 func isMarkerTitle(title string) bool {
