@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.1.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.0.1...v1.1.0) (2026-08-16)
+
+
+### Features
+
+* **dev:** add isolated E2E demo workflow ([00f11bb](https://github.com/RevoTale/vikunja-better-ui/commit/00f11bb7d14398808a03de3bc0c2cc6729dde1ba))
+* **recurrence:** add fixed due-time renewals ([6c7fd6d](https://github.com/RevoTale/vikunja-better-ui/commit/6c7fd6dda103abe6616015bab348e06668e26e66))
+* **ui:** add responsive date and time controls ([7a74937](https://github.com/RevoTale/vikunja-better-ui/commit/7a74937199ed8902aab84c7f0100383bc290568e))
+* **ui:** surface API errors and add app identity ([7a12089](https://github.com/RevoTale/vikunja-better-ui/commit/7a12089139f8244d98f229d68017fa06a56b1895))
+* **ui:** unify app mark and favicon ([a5b1d83](https://github.com/RevoTale/vikunja-better-ui/commit/a5b1d83a4ff44022f665d68bc2f832c0a36659a9))
+
 ## [1.0.1](https://github.com/RevoTale/vikunja-better-ui/compare/v1.0.0...v1.0.1) (2026-08-14)
 
 
