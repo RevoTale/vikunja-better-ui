@@ -7,7 +7,6 @@ package resolver
 
 import (
 	"context"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -442,28 +441,7 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 			return nil, err
 		}
 	}
-	projectByID := projectMap(projects)
-	if result.TotalItems > math.MaxInt32 || result.TotalPages > math.MaxInt32 {
-		return nil, clientError("UPSTREAM_REJECTED", "Vikunja returned more history than this client can represent.")
-	}
-	items := make([]*model.Task, 0, len(result.Items))
-	for _, item := range result.Items {
-		mapped, mapErr := taskModel(item.Task, projectByID, user.Settings.Timezone, r.now(), user.Settings.DefaultProjectID)
-		if mapErr != nil {
-			r.logError("map Vikunja task", mapErr)
-			return nil, clientError("UPSTREAM_REJECTED", "A Vikunja task uses fields this client cannot represent.")
-		}
-		items = append(items, mapped)
-	}
-	issues := make([]*model.TaskPageIssue, 0, 1)
-	if result.Issue != nil {
-		issues = append(issues, taskPageIssueModel(result.Issue))
-	}
-	return &model.TaskPage{
-		Items: items, Page: result.Page, PageSize: result.PageSize,
-		TotalItems: int(result.TotalItems), TotalPages: int(result.TotalPages),
-		HasMore: result.HasMore, IsComplete: result.IsComplete, Issues: issues,
-	}, nil
+	return r.taskPageModel(result, projects, user)
 }
 
 // Task is the resolver for the task field.

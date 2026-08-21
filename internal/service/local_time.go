@@ -30,7 +30,7 @@ func ResolveDateOnly(value string, location *time.Location) (time.Time, error) {
 
 func resolveLocalWallTime(value string, layout string, location *time.Location) (time.Time, error) {
 	if location == nil {
-		return time.Time{}, fmt.Errorf("timezone is required")
+		return time.Time{}, errors.New("timezone is required")
 	}
 	wallTime, err := time.Parse(layout, value)
 	if err != nil {

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -238,14 +239,8 @@ func completeCandidateList(request ListRequest, candidates []taskListCandidate) 
 }
 
 func listPageBounds(request ListRequest, total int64) (int64, int64, int64) {
-	start := int64((request.Page - 1) * request.PageSize)
-	if start > total {
-		start = total
-	}
-	end := start + int64(request.PageSize)
-	if end > total {
-		end = total
-	}
+	start := min(int64((request.Page-1)*request.PageSize), total)
+	end := min(start+int64(request.PageSize), total)
 	totalPages := (total + int64(request.PageSize) - 1) / int64(request.PageSize)
 	return start, end, totalPages
 }
@@ -259,28 +254,28 @@ func incompleteList(request ListRequest, code ListIssueCode, cause error) ListRe
 
 func validateListRequest(request ListRequest) error {
 	if request.Page < 1 || request.PageSize < 1 || request.PageSize > 100 {
-		return fmt.Errorf("page and page size are invalid")
+		return errors.New("page and page size are invalid")
 	}
 	if request.Location == nil || request.Timezone == "" {
-		return fmt.Errorf("timezone is required")
+		return errors.New("timezone is required")
 	}
 	if request.ProjectID != nil && *request.ProjectID <= 0 {
-		return fmt.Errorf("project ID must be positive")
+		return errors.New("project ID must be positive")
 	}
 	for _, labelID := range request.JobLabelIDs {
 		if labelID <= 0 {
-			return fmt.Errorf("job label ID must be positive")
+			return errors.New("job label ID must be positive")
 		}
 	}
 	for _, labelID := range request.FilterLabelIDs {
 		if labelID <= 0 {
-			return fmt.Errorf("filter label ID must be positive")
+			return errors.New("filter label ID must be positive")
 		}
 	}
 	switch request.Scope {
 	case TaskScopeToday, TaskScopeWeek, TaskScopeMonth, TaskScopeJobs, TaskScopeUnscheduled, TaskScopeHistory:
 		return nil
 	default:
-		return fmt.Errorf("task scope is invalid")
+		return errors.New("task scope is invalid")
 	}
 }

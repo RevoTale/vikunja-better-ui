@@ -82,7 +82,7 @@ func (manager *CapabilityManager) CompletionKey(taskID int64, completedAt time.T
 
 func (manager *CapabilityManager) IssueUndo(sessionID string, grant UndoGrant) (string, time.Time, error) {
 	if !validUndoGrant(sessionID, grant) {
-		return "", time.Time{}, fmt.Errorf("undo grant is invalid")
+		return "", time.Time{}, errors.New("undo grant is invalid")
 	}
 	expiresAt := manager.now().UTC().Truncate(time.Second).Add(undoLifetime)
 	payload := undoCapabilityPayload{
@@ -119,7 +119,7 @@ func (manager *CapabilityManager) ParseUndo(sessionID string, token string) (Und
 
 func (manager *CapabilityManager) IssueMarkerRepair(sessionID string, grant MarkerRepairGrant) (string, error) {
 	if !validMarkerRepairGrant(sessionID, grant) {
-		return "", fmt.Errorf("marker repair grant is invalid")
+		return "", errors.New("marker repair grant is invalid")
 	}
 	payload := markerRepairCapabilityPayload{
 		Version: capabilityVersion, Purpose: markerRepairPurpose, SessionID: sessionID,
@@ -147,7 +147,7 @@ func (manager *CapabilityManager) ParseMarkerRepair(sessionID string, token stri
 
 func (manager *CapabilityManager) IssueRecurringRepair(sessionID string, grant RecurringRepairGrant) (string, error) {
 	if !validRecurringRepairGrant(sessionID, grant) {
-		return "", fmt.Errorf("recurring repair grant is invalid")
+		return "", errors.New("recurring repair grant is invalid")
 	}
 	payload := recurringRepairCapabilityPayload{
 		Version: capabilityVersion, Purpose: recurringRepairPurpose, SessionID: sessionID,

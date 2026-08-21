@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -59,47 +60,23 @@ func completeRecurring(
 	location *time.Location,
 	outcome CompletionOutcome,
 ) (RecurringCompletion, error) {
-	before, metadata, err := client.Task(ctx, taskID)
+	before, fixedTarget, err := prepareRecurringCompletion(
+		ctx,
+		client,
+		capabilities,
+		taskID,
+		expectedDueAt,
+		location,
+	)
 	if err != nil {
 		return RecurringCompletion{}, err
-	}
-	classification := ClassifyTask(before)
-	if before.Done || metadata.ETag == "" || classification.Kind != TaskKindRecurring {
-		return RecurringCompletion{}, ErrTaskKindMismatch
-	}
-	if expectedDueAt.IsZero() || !before.DueDate.Equal(expectedDueAt) {
-		return RecurringCompletion{}, ErrTaskStateChanged
-	}
-	var fixedTarget time.Time
-	if classification.FixedDueTime {
-		fixedTarget, err = resolveCompletionDateDueTime(
-			capabilities.now(), before.DueDate, before.RepeatAfter, location,
-		)
-		if err != nil {
-			return RecurringCompletion{}, err
-		}
 	}
 
-	done := true
-	if _, err := client.PatchTaskChecked(ctx, taskID, vikunja.TaskPatch{Done: &done}, vikunja.TaskCheck{
-		Done: boolValue(false), DueDate: &before.DueDate,
-		RepeatAfter: &before.RepeatAfter, RepeatMode: &before.RepeatMode,
-	}); err != nil {
-		return RecurringCompletion{}, taskPatchError(err)
-	}
-	renewed, renewedMetadata, err := client.Task(ctx, taskID)
+	renewed, renewedMetadata, key, repairGrant, err := renewRecurringTask(
+		ctx, client, capabilities, before, fixedTarget, outcome,
+	)
 	if err != nil {
 		return RecurringCompletion{}, err
-	}
-	if err := verifyRenewal(before, renewed); err != nil {
-		return RecurringCompletion{}, err
-	}
-	key := capabilities.CompletionKey(taskID, renewed.DoneAt, before.DueDate)
-	repairGrant := RecurringRepairGrant{
-		TaskID: taskID, ProjectID: before.ProjectID, LiveETag: renewedMetadata.ETag, CompletionKey: key,
-		Outcome: outcome, DueAt: before.DueDate, StartAt: before.StartDate, EndAt: before.EndDate,
-		RenewedDoneAt: renewed.DoneAt, NativeDueAt: renewed.DueDate, TargetDueAt: fixedTarget,
-		RepeatAfter: renewed.RepeatAfter, RepeatMode: renewed.RepeatMode,
 	}
 	if !fixedTarget.IsZero() {
 		normalized, normalizeErr := normalizeRenewedDue(ctx, client, renewed, renewedMetadata.ETag, fixedTarget)
@@ -121,28 +98,98 @@ func completeRecurring(
 		return RecurringCompletion{}, fmt.Errorf("read final renewed task: %w", err)
 	}
 
-	baseResult := RecurringCompletion{
-		LiveTask: renewed, CompletionKey: key,
-		RepairGrant: repairGrant,
-	}
-	baseResult.RepairGrant.LiveETag = finalMetadata.ETag
-	if existing, found, err := findSnapshot(ctx, client, before.ProjectID, key, outcome); err != nil {
-		baseResult.RepairRequired = true
-		baseResult.RepairCause = err
-		return baseResult, nil
-	} else if found {
-		baseResult.Snapshot = existing
-		return baseResult, nil
-	}
+	repairGrant.LiveETag = finalMetadata.ETag
+	return completeRecurringSnapshot(ctx, client, before, renewed, key, repairGrant, outcome)
+}
 
+func prepareRecurringCompletion(
+	ctx context.Context,
+	client recurringCompletionClient,
+	capabilities *CapabilityManager,
+	taskID int64,
+	expectedDueAt time.Time,
+	location *time.Location,
+) (vikunja.Task, time.Time, error) {
+	task, metadata, err := client.Task(ctx, taskID)
+	if err != nil {
+		return vikunja.Task{}, time.Time{}, err
+	}
+	classification := ClassifyTask(task)
+	if task.Done || metadata.ETag == "" || classification.Kind != TaskKindRecurring {
+		return vikunja.Task{}, time.Time{}, ErrTaskKindMismatch
+	}
+	if expectedDueAt.IsZero() || !task.DueDate.Equal(expectedDueAt) {
+		return vikunja.Task{}, time.Time{}, ErrTaskStateChanged
+	}
+	if !classification.FixedDueTime {
+		return task, time.Time{}, nil
+	}
+	fixedTarget, err := resolveCompletionDateDueTime(
+		capabilities.now(), task.DueDate, task.RepeatAfter, location,
+	)
+	return task, fixedTarget, err
+}
+
+func renewRecurringTask(
+	ctx context.Context,
+	client recurringCompletionClient,
+	capabilities *CapabilityManager,
+	before vikunja.Task,
+	fixedTarget time.Time,
+	outcome CompletionOutcome,
+) (vikunja.Task, vikunja.ResponseMetadata, string, RecurringRepairGrant, error) {
+	done := true
+	if _, err := client.PatchTaskChecked(ctx, before.ID, vikunja.TaskPatch{Done: &done}, vikunja.TaskCheck{
+		Done: new(false), DueDate: &before.DueDate,
+		RepeatAfter: &before.RepeatAfter, RepeatMode: &before.RepeatMode,
+	}); err != nil {
+		return vikunja.Task{}, vikunja.ResponseMetadata{}, "", RecurringRepairGrant{}, taskPatchError(err)
+	}
+	renewed, metadata, err := client.Task(ctx, before.ID)
+	if err != nil {
+		return vikunja.Task{}, vikunja.ResponseMetadata{}, "", RecurringRepairGrant{}, err
+	}
+	if err := verifyRenewal(before, renewed); err != nil {
+		return vikunja.Task{}, vikunja.ResponseMetadata{}, "", RecurringRepairGrant{}, err
+	}
+	key := capabilities.CompletionKey(before.ID, renewed.DoneAt, before.DueDate)
+	grant := RecurringRepairGrant{
+		TaskID: before.ID, ProjectID: before.ProjectID, LiveETag: metadata.ETag, CompletionKey: key,
+		Outcome: outcome, DueAt: before.DueDate, StartAt: before.StartDate, EndAt: before.EndDate,
+		RenewedDoneAt: renewed.DoneAt, NativeDueAt: renewed.DueDate, TargetDueAt: fixedTarget,
+		RepeatAfter: renewed.RepeatAfter, RepeatMode: renewed.RepeatMode,
+	}
+	return renewed, metadata, key, grant, nil
+}
+
+func completeRecurringSnapshot(
+	ctx context.Context,
+	client recurringCompletionClient,
+	before vikunja.Task,
+	renewed vikunja.Task,
+	key string,
+	repairGrant RecurringRepairGrant,
+	outcome CompletionOutcome,
+) (RecurringCompletion, error) {
+	result := RecurringCompletion{LiveTask: renewed, CompletionKey: key, RepairGrant: repairGrant}
+	existing, found, err := findSnapshot(ctx, client, before.ProjectID, key, outcome)
+	if err != nil {
+		result.RepairRequired = true
+		result.RepairCause = err
+		return result, nil
+	}
+	if found {
+		result.Snapshot = existing
+		return result, nil
+	}
 	snapshot, err := createSnapshot(ctx, client, before, key, outcome)
 	if err != nil {
-		baseResult.RepairRequired = true
-		baseResult.RepairCause = err
-		return baseResult, nil
+		result.RepairRequired = true
+		result.RepairCause = err
+		return result, nil
 	}
-	baseResult.Snapshot = snapshot
-	return baseResult, nil
+	result.Snapshot = snapshot
+	return result, nil
 }
 
 func normalizeRenewedDue(
@@ -156,10 +203,10 @@ func normalizeRenewedDue(
 		return task, nil
 	}
 	if etag == "" {
-		return vikunja.Task{}, fmt.Errorf("renewed task has no ETag")
+		return vikunja.Task{}, errors.New("renewed task has no ETag")
 	}
 	if _, err := client.PatchTaskChecked(ctx, task.ID, vikunja.TaskPatch{DueDate: &target}, vikunja.TaskCheck{
-		Done: boolValue(false), DueDate: &task.DueDate,
+		Done: new(false), DueDate: &task.DueDate,
 		RepeatAfter: &task.RepeatAfter, RepeatMode: &task.RepeatMode,
 	}); err != nil {
 		return vikunja.Task{}, taskPatchError(err)
@@ -169,7 +216,7 @@ func normalizeRenewedDue(
 		return vikunja.Task{}, err
 	}
 	if !confirmed.DueDate.Equal(target) || ClassifyTask(confirmed).Kind != TaskKindRecurring {
-		return vikunja.Task{}, fmt.Errorf("fixed due time normalization was not confirmed")
+		return vikunja.Task{}, errors.New("fixed due time normalization was not confirmed")
 	}
 	return confirmed, nil
 }
@@ -177,27 +224,27 @@ func normalizeRenewedDue(
 func verifyRenewal(before vikunja.Task, renewed vikunja.Task) error {
 	if renewed.ID != before.ID || renewed.Done || renewed.DoneAt.IsZero() || renewed.DueDate.IsZero() ||
 		ClassifyTask(renewed).Kind != TaskKindRecurring {
-		return fmt.Errorf("recurring renewal could not be confirmed")
+		return errors.New("recurring renewal could not be confirmed")
 	}
 	switch before.RepeatMode {
 	case 0:
 		if !renewed.DueDate.After(before.DueDate) {
-			return fmt.Errorf("recurring due date did not advance")
+			return errors.New("recurring due date did not advance")
 		}
 		step := time.Duration(before.RepeatAfter) * time.Second
 		if step <= 0 {
-			return fmt.Errorf("scheduled recurrence interval is invalid")
+			return errors.New("scheduled recurrence interval is invalid")
 		}
 		expected := before.DueDate.Add(step)
 		for !expected.After(renewed.DoneAt) {
 			expected = expected.Add(step)
 		}
 		if !renewed.DueDate.Equal(expected) {
-			return fmt.Errorf("scheduled recurrence advanced unexpectedly")
+			return errors.New("scheduled recurrence advanced unexpectedly")
 		}
 	case 1:
 		if !renewed.DueDate.After(before.DueDate) {
-			return fmt.Errorf("recurring due date did not advance")
+			return errors.New("recurring due date did not advance")
 		}
 		expected := time.Date(
 			before.DueDate.Year(), before.DueDate.Month()+1, before.DueDate.Day(),
@@ -205,15 +252,15 @@ func verifyRenewal(before vikunja.Task, renewed vikunja.Task) error {
 			before.DueDate.Location(),
 		)
 		if !renewed.DueDate.Equal(expected) {
-			return fmt.Errorf("monthly recurrence advanced unexpectedly")
+			return errors.New("monthly recurrence advanced unexpectedly")
 		}
 	case 2:
 		expected := renewed.DoneAt.Add(time.Duration(before.RepeatAfter) * time.Second)
 		if absoluteDuration(renewed.DueDate.Sub(expected)) > 2*time.Second {
-			return fmt.Errorf("from-completion recurrence advanced unexpectedly")
+			return errors.New("from-completion recurrence advanced unexpectedly")
 		}
 	default:
-		return fmt.Errorf("recurrence mode is unsupported")
+		return errors.New("recurrence mode is unsupported")
 	}
 	return nil
 }
@@ -234,10 +281,10 @@ func normalizeRenewedDateOnly(
 		return task, nil
 	}
 	if etag == "" {
-		return vikunja.Task{}, fmt.Errorf("renewed task has no ETag")
+		return vikunja.Task{}, errors.New("renewed task has no ETag")
 	}
 	if _, err := client.PatchTaskChecked(ctx, task.ID, vikunja.TaskPatch{DueDate: &normalized}, vikunja.TaskCheck{
-		Done: boolValue(false), DueDate: &task.DueDate,
+		Done: new(false), DueDate: &task.DueDate,
 	}); err != nil {
 		return vikunja.Task{}, taskPatchError(err)
 	}
@@ -246,7 +293,7 @@ func normalizeRenewedDateOnly(
 		return vikunja.Task{}, err
 	}
 	if !confirmed.DueDate.Equal(normalized) || !ClassifyTask(confirmed).DateOnly {
-		return vikunja.Task{}, fmt.Errorf("date-only renewal normalization was not confirmed")
+		return vikunja.Task{}, errors.New("date-only renewal normalization was not confirmed")
 	}
 	return confirmed, nil
 }
@@ -263,7 +310,7 @@ func findSnapshot(
 		return task, found, err
 	}
 	if !snapshotMatchesOutcome(task, outcome) {
-		return vikunja.Task{}, false, fmt.Errorf("completion key belongs to an invalid snapshot")
+		return vikunja.Task{}, false, errors.New("completion key belongs to an invalid snapshot")
 	}
 	return task, true, nil
 }
@@ -286,7 +333,7 @@ func findSnapshotCandidate(
 		}
 	}
 	if len(matching) > 1 {
-		return vikunja.Task{}, false, fmt.Errorf("multiple recurring snapshots use one completion key")
+		return vikunja.Task{}, false, errors.New("multiple recurring snapshots use one completion key")
 	}
 	if len(matching) == 0 {
 		return vikunja.Task{}, false, nil
@@ -328,10 +375,10 @@ func RepairRecurringSnapshot(
 		return RecurringCompletion{LiveTask: live, Snapshot: candidate, CompletionKey: grant.CompletionKey}, nil
 	}
 	if candidate.RepeatAfter != 0 || candidate.RepeatMode != 0 {
-		return RecurringCompletion{}, fmt.Errorf("completion key belongs to a non-snapshot task")
+		return RecurringCompletion{}, errors.New("completion key belongs to a non-snapshot task")
 	}
 	if grant.Outcome == CompletionOutcomeCompleted && hasLabel(candidate.Labels, skippedLabel) {
-		return RecurringCompletion{}, fmt.Errorf("completion key belongs to a skipped snapshot")
+		return RecurringCompletion{}, errors.New("completion key belongs to a skipped snapshot")
 	}
 	if err := attachMissingSnapshotLabels(ctx, client, live.Labels, &candidate, grant.Outcome); err != nil {
 		return RecurringCompletion{}, err
@@ -486,7 +533,7 @@ func finalizeSnapshot(
 			return vikunja.Task{}, vikunja.ErrRejectedResponse
 		}
 		if _, err := client.PatchTaskChecked(ctx, taskID, vikunja.TaskPatch{Done: &done}, vikunja.TaskCheck{
-			Done: boolValue(false), RepeatAfter: &task.RepeatAfter, RepeatMode: &task.RepeatMode,
+			Done: new(false), RepeatAfter: &task.RepeatAfter, RepeatMode: &task.RepeatMode,
 		}); err != nil {
 			return vikunja.Task{}, taskPatchError(err)
 		}

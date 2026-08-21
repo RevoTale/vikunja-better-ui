@@ -5,7 +5,7 @@ let csrfToken: string | undefined;
 
 const csrfLink = new SetContextLink((previousContext) => ({
   headers: {
-    ...previousContext.headers,
+    ...previousContext["headers"],
     ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
   },
 }));

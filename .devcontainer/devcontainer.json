@@ -32,5 +32,5 @@
 			]
 		}
 	},
-	"postCreateCommand": "pnpm --dir frontend install --frozen-lockfile && pnpm --dir frontend exec playwright install --with-deps chromium && go mod download"
+	"postCreateCommand": "pnpm --dir frontend install --frozen-lockfile && pnpm --dir frontend exec playwright install --with-deps chromium webkit && go mod download"
 }

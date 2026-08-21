@@ -1,7 +1,7 @@
 package service
 
 import (
-	"fmt"
+	"errors"
 	"math"
 	"time"
 )
@@ -15,23 +15,23 @@ func resolveCompletionDateDueTime(
 	location *time.Location,
 ) (time.Time, error) {
 	if completedAt.IsZero() || currentDueAt.IsZero() {
-		return time.Time{}, fmt.Errorf("completion and due timestamps are required")
+		return time.Time{}, errors.New("completion and due timestamps are required")
 	}
 	if location == nil {
-		return time.Time{}, fmt.Errorf("timezone is required")
+		return time.Time{}, errors.New("timezone is required")
 	}
 	if repeatAfter <= 0 || repeatAfter%recurrenceDaySeconds != 0 {
-		return time.Time{}, fmt.Errorf("fixed due time requires a whole-day recurrence interval")
+		return time.Time{}, errors.New("fixed due time requires a whole-day recurrence interval")
 	}
 	days := repeatAfter / recurrenceDaySeconds
 	if days > math.MaxInt32 {
-		return time.Time{}, fmt.Errorf("recurrence interval is too large")
+		return time.Time{}, errors.New("recurrence interval is too large")
 	}
 
 	completionDate := completedAt.In(location)
 	targetDate := completionDate.AddDate(0, 0, int(days))
 	if targetDate.Year() < 1 || targetDate.Year() > 9999 {
-		return time.Time{}, fmt.Errorf("resulting timestamp is outside the supported range")
+		return time.Time{}, errors.New("resulting timestamp is outside the supported range")
 	}
 	clock := currentDueAt.In(location).Format("15:04:05")
 	return resolveLocalWallTime(

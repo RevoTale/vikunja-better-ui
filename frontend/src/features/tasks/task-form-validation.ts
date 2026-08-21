@@ -109,9 +109,27 @@ function validateRecurringFields(form: FormData, errors: TaskFormErrors): void {
   const keepDueTime = value(form, "keepDueTime") === "on";
   const interval = wholeNumber(value(form, "interval"), 1);
 
+  validateRecurringDate(firstDueDate, dueTime, errors);
+  validateRecurrenceRule(interval, unit, mode, errors);
+  validateFixedDueTime(keepDueTime, dueTime, unit, mode, errors);
+}
+
+function validateRecurringDate(
+  firstDueDate: string,
+  dueTime: string,
+  errors: TaskFormErrors,
+): void {
   if (!firstDueDate) errors.firstDueDate = "Choose the first due date.";
   else if (!isValidLocalDate(firstDueDate)) errors.firstDueDate = "Enter a valid date.";
   if (dueTime && !isValidLocalTime(dueTime)) errors.dueTime = "Enter a valid time.";
+}
+
+function validateRecurrenceRule(
+  interval: number | undefined,
+  unit: string,
+  mode: string,
+  errors: TaskFormErrors,
+): void {
   if (interval === undefined) errors.interval = "Enter a whole number of 1 or more.";
   if (unit !== "DAY" && unit !== "WEEK" && unit !== "MONTH") {
     errors.unit = "Choose days, weeks, or months.";
@@ -132,6 +150,15 @@ function validateRecurringFields(form: FormData, errors: TaskFormErrors): void {
   if (unit === "MONTH" && mode === "FROM_COMPLETION") {
     errors.mode = "Monthly recurrence must use Scheduled cycle.";
   }
+}
+
+function validateFixedDueTime(
+  keepDueTime: boolean,
+  dueTime: string,
+  unit: string,
+  mode: string,
+  errors: TaskFormErrors,
+): void {
   if (keepDueTime && !dueTime) errors.dueTime = "Choose a due time to keep.";
   if (keepDueTime && mode !== "FROM_COMPLETION") {
     errors.mode = "Keep due time requires From completion.";

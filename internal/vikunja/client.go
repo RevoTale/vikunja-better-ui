@@ -128,33 +128,9 @@ func (client *Client) doJSONWithQueryAndContentType(
 		client.logRequest(ctx, method, path, time.Since(startedAt), requestErr)
 	}()
 
-	requestURL, err := url.JoinPath(client.baseURL.String(), apiVersionPath, path)
-	if err != nil {
-		return ResponseMetadata{}, fmt.Errorf("build Vikunja request URL: %w", err)
-	}
-
-	body, err := encodeRequestBody(input)
+	request, err := client.newJSONRequest(ctx, method, path, query, input, ifMatch, contentType)
 	if err != nil {
 		return ResponseMetadata{}, err
-	}
-	parsedRequestURL, err := url.Parse(requestURL)
-	if err != nil {
-		return ResponseMetadata{}, fmt.Errorf("parse Vikunja request URL: %w", err)
-	}
-	parsedRequestURL.RawQuery = query.Encode()
-
-	request, err := http.NewRequestWithContext(ctx, method, parsedRequestURL.String(), body)
-	if err != nil {
-		return ResponseMetadata{}, fmt.Errorf("build Vikunja request: %w", err)
-	}
-	request.Header.Set("Accept", "application/json")
-	request.Header.Set("Authorization", "Bearer "+client.apiToken)
-	request.Header.Set("User-Agent", userAgent)
-	if input != nil {
-		request.Header.Set("Content-Type", contentType)
-	}
-	if ifMatch != "" {
-		request.Header.Set("If-Match", ifMatch)
 	}
 
 	response, err := client.httpClient.Do(request)
@@ -165,7 +141,49 @@ func (client *Client) doJSONWithQueryAndContentType(
 		_ = response.Body.Close()
 	}()
 
-	metadata = ResponseMetadata{ETag: response.Header.Get("ETag")}
+	return decodeJSONResponse(response, output)
+}
+
+func (client *Client) newJSONRequest(
+	ctx context.Context,
+	method string,
+	path string,
+	query url.Values,
+	input any,
+	ifMatch string,
+	contentType string,
+) (*http.Request, error) {
+	requestURL, err := url.JoinPath(client.baseURL.String(), apiVersionPath, path)
+	if err != nil {
+		return nil, fmt.Errorf("build Vikunja request URL: %w", err)
+	}
+	body, err := encodeRequestBody(input)
+	if err != nil {
+		return nil, err
+	}
+	parsedRequestURL, err := url.Parse(requestURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse Vikunja request URL: %w", err)
+	}
+	parsedRequestURL.RawQuery = query.Encode()
+	request, err := http.NewRequestWithContext(ctx, method, parsedRequestURL.String(), body)
+	if err != nil {
+		return nil, fmt.Errorf("build Vikunja request: %w", err)
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("Authorization", "Bearer "+client.apiToken)
+	request.Header.Set("User-Agent", userAgent)
+	if input != nil {
+		request.Header.Set("Content-Type", contentType)
+	}
+	if ifMatch != "" {
+		request.Header.Set("If-Match", ifMatch)
+	}
+	return request, nil
+}
+
+func decodeJSONResponse(response *http.Response, output any) (ResponseMetadata, error) {
+	metadata := ResponseMetadata{ETag: response.Header.Get("ETag")}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, maxResponseBodyBytes+1))
 		return metadata, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}

@@ -128,7 +128,7 @@ func parseEnvironment(value string) (Environment, error) {
 	case EnvironmentProduction, EnvironmentDevelopment, EnvironmentTest:
 		return environment, nil
 	default:
-		return "", fmt.Errorf("APP_ENV must be production, development, or test")
+		return "", errors.New("APP_ENV must be production, development, or test")
 	}
 }
 
@@ -138,7 +138,7 @@ func parseLogLevel(value string) (LogLevel, error) {
 	case LogLevelDebug, LogLevelInfo, LogLevelWarn, LogLevelError:
 		return level, nil
 	default:
-		return "", fmt.Errorf("APP_LOG_LEVEL must be debug, info, warn, or error")
+		return "", errors.New("APP_LOG_LEVEL must be debug, info, warn, or error")
 	}
 }
 

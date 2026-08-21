@@ -3,7 +3,7 @@ package resolver
 import (
 	"context"
 	"errors"
-	"fmt"
+	"math"
 	"net/http"
 	"strconv"
 	"sync"
@@ -93,7 +93,7 @@ func selectedProject(value *string, projects []vikunja.Project) (*int64, error) 
 func parsePositiveID(value string) (int64, error) {
 	parsed, err := strconv.ParseInt(value, 10, 64)
 	if err != nil || parsed <= 0 {
-		return 0, fmt.Errorf("ID must be a positive integer")
+		return 0, errors.New("ID must be a positive integer")
 	}
 	return parsed, nil
 }
@@ -127,6 +127,41 @@ func taskPageIssueModel(issue *service.ListIssue) *model.TaskPageIssue {
 		projectID = &value
 	}
 	return &model.TaskPageIssue{Code: code, Message: message, ProjectID: projectID}
+}
+
+func (resolver *Resolver) taskPageModel(
+	result service.ListResult,
+	projects []vikunja.Project,
+	user vikunja.User,
+) (*model.TaskPage, error) {
+	if result.TotalItems > math.MaxInt32 || result.TotalPages > math.MaxInt32 {
+		return nil, clientError("UPSTREAM_REJECTED", "Vikunja returned more history than this client can represent.")
+	}
+	projectByID := projectMap(projects)
+	items := make([]*model.Task, 0, len(result.Items))
+	for _, item := range result.Items {
+		mapped, err := taskModel(
+			item.Task,
+			projectByID,
+			user.Settings.Timezone,
+			resolver.now(),
+			user.Settings.DefaultProjectID,
+		)
+		if err != nil {
+			resolver.logError("map Vikunja task", err)
+			return nil, clientError("UPSTREAM_REJECTED", "A Vikunja task uses fields this client cannot represent.")
+		}
+		items = append(items, mapped)
+	}
+	issues := make([]*model.TaskPageIssue, 0, 1)
+	if result.Issue != nil {
+		issues = append(issues, taskPageIssueModel(result.Issue))
+	}
+	return &model.TaskPage{
+		Items: items, Page: result.Page, PageSize: result.PageSize,
+		TotalItems: int(result.TotalItems), TotalPages: int(result.TotalPages),
+		HasMore: result.HasMore, IsComplete: result.IsComplete, Issues: issues,
+	}, nil
 }
 
 func diagnosticsModel(task vikunja.Task, timezone string) (*model.TaskDiagnostics, error) {
@@ -185,8 +220,7 @@ func upstreamClientError(err error, fallback string) error {
 	if isUpstreamStatus(err, http.StatusPreconditionFailed) {
 		return clientError("CONFLICT", "The task changed. Refresh and try again.")
 	}
-	var upstreamError *vikunja.Error
-	if errors.As(err, &upstreamError) {
+	if _, ok := errors.AsType[*vikunja.Error](err); ok {
 		return clientError("UPSTREAM_REJECTED", fallback)
 	}
 	return clientError("UPSTREAM_UNAVAILABLE", fallback)

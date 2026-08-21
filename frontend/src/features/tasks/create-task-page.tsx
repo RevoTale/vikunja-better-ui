@@ -22,9 +22,9 @@ import {
 } from "@/graphql/graphql";
 import { cn } from "@/lib/cn";
 import { graphQLErrorMessage } from "@/lib/user-error";
-import { SharedFields } from "./create-shared-fields";
-import { TaskTypeFields } from "./create-type-fields";
-import { defaultJobStart, jobTitlePlaceholder } from "./job-title";
+import { CreateTaskForm } from "./create-task-form";
+import { shortTaskTypeLabel, taskTypeLabel } from "./creation-type";
+import { defaultJobStart } from "./job-title";
 import {
   composeLocalDateTime,
   currentDateInTimeZone,
@@ -95,71 +95,62 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
       return;
     }
     try {
-      let payload: CreatePayload | undefined;
-      if (type === "one-time") {
-        payload = (
-          await createOneTime({
-            variables: {
-              input: {
-                csrfToken,
-                title,
-                description: optional(form, "description"),
-                projectId,
-                priority,
-                dueDate: optional(form, "dueDate"),
-                dueTime: optional(form, "dueTime"),
+      const createByType: Record<CreationType, () => Promise<CreatePayload | undefined>> = {
+        "one-time": async () =>
+          (
+            await createOneTime({
+              variables: {
+                input: {
+                  csrfToken,
+                  title,
+                  description: optional(form, "description"),
+                  projectId,
+                  priority,
+                  dueDate: optional(form, "dueDate"),
+                  dueTime: optional(form, "dueTime"),
+                },
               },
-            },
-          })
-        ).data?.createOneTimeTask;
-      } else if (type === "recurring") {
-        payload = (
-          await createRecurring({
-            variables: {
-              input: {
-                csrfToken,
-                title,
-                description: optional(form, "description"),
-                projectId,
-                priority,
-                firstDueDate: text(form, "firstDueDate"),
-                dueTime: optional(form, "dueTime"),
-                interval: Number(text(form, "interval")),
-                unit: text(form, "unit") as RecurrenceUnit,
-                mode: text(form, "mode") as RecurrenceMode,
-                keepDueTime: text(form, "keepDueTime") === "on",
+            })
+          ).data?.createOneTimeTask,
+        recurring: async () =>
+          (
+            await createRecurring({
+              variables: {
+                input: {
+                  csrfToken,
+                  title,
+                  description: optional(form, "description"),
+                  projectId,
+                  priority,
+                  firstDueDate: text(form, "firstDueDate"),
+                  dueTime: optional(form, "dueTime"),
+                  interval: Number(text(form, "interval")),
+                  unit: text(form, "unit") as RecurrenceUnit,
+                  mode: text(form, "mode") as RecurrenceMode,
+                  keepDueTime: text(form, "keepDueTime") === "on",
+                },
               },
-            },
-          })
-        ).data?.createRecurringTask;
-      } else {
-        const startAt = composeLocalDateTime({
-          date: text(form, "startDate"),
-          time: text(form, "startTime"),
-        });
-        if (!startAt) {
-          const errors = validateTaskForm(type, form);
-          setFieldErrors(errors);
-          focusFirstInvalid(formElement, errors);
-          return;
-        }
-        payload = (
-          await createJob({
-            variables: {
-              input: {
-                csrfToken,
-                title: title || null,
-                description: optional(form, "description"),
-                projectId,
-                priority,
-                startAt,
-                durationMinutes: Number(text(form, "durationMinutes")),
-                completionWindowMinutes: Number(text(form, "completionWindowMinutes")),
+            })
+          ).data?.createRecurringTask,
+        job: async () =>
+          (
+            await createJob({
+              variables: {
+                input: {
+                  csrfToken,
+                  title: title || null,
+                  description: optional(form, "description"),
+                  projectId,
+                  priority,
+                  startAt: requiredJobStart(form),
+                  durationMinutes: Number(text(form, "durationMinutes")),
+                  completionWindowMinutes: Number(text(form, "completionWindowMinutes")),
+                },
               },
-            },
-          })
-        ).data?.createJob;
-      }
+            })
+          ).data?.createJob,
+      };
+      const payload = await createByType[type]();
       if (!payload) throw new Error("empty result");
       if (payload.status === "REPAIR_REQUIRED" && payload.repairCapability) {
         setRepairInfo({
@@ -264,13 +255,13 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
       >
         <ArrowLeft /> Back
       </a>
-      <h1 className="font-serif text-3xl font-semibold">New {label(type)}</h1>
+      <h1 className="font-serif text-3xl font-semibold">New {taskTypeLabel(type)}</h1>
       <fieldset className="mt-4 grid grid-cols-3 gap-2">
         <legend className="sr-only">Task type</legend>
         {(["one-time", "recurring", "job"] as const).map((value) => (
           <Button
             key={value}
-            aria-label={label(value)}
+            aria-label={taskTypeLabel(value)}
             aria-pressed={value === type}
             variant={value === type ? "default" : "outline"}
             className="min-w-0 whitespace-nowrap px-2"
@@ -285,7 +276,7 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
               });
             }}
           >
-            {shortLabel(value)}
+            {shortTaskTypeLabel(value)}
           </Button>
         ))}
       </fieldset>
@@ -305,53 +296,21 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
           Check the highlighted fields below.
         </div>
       ) : null}
-      {sessionLoading || projectsLoading ? (
-        <p className="mt-6">Loading task settings…</p>
-      ) : sessionError || projectsError ? (
-        <p className="mt-6 text-destructive" role="alert">
-          {graphQLErrorMessage(
-            sessionError ?? projectsError,
-            "Task settings could not be loaded. Refresh the page and try again.",
-          )}
-        </p>
-      ) : !timezone || !defaultDate ? (
-        <p className="mt-6" role="alert">
-          Configure a valid timezone in Vikunja before creating tasks.
-        </p>
-      ) : projects.length === 0 ? (
-        <p className="mt-6" role="alert">
-          No accessible Vikunja project is available. Create or grant access to a project first.
-        </p>
-      ) : (
-        <form
-          className="mt-6 grid gap-5"
-          onSubmit={submit}
-          onChange={(event) => {
-            if (hasTaskFormErrors(fieldErrors)) {
-              setFieldErrors(validateTaskForm(type, new FormData(event.currentTarget)));
-            }
-          }}
-          noValidate
-        >
-          <SharedFields
-            projects={projects}
-            defaultProject={defaultProject}
-            errors={fieldErrors}
-            type={type}
-            titlePlaceholder={jobTitlePlaceholder(selectedJobStart)}
-          />
-          <TaskTypeFields
-            type={type}
-            errors={fieldErrors}
-            defaultDate={defaultDate}
-            jobStart={selectedJobStart}
-            onJobStartChange={setJobStart}
-          />
-          <Button type="submit" disabled={loading}>
-            {loading ? "Creating…" : `Create ${label(type)}`}
-          </Button>
-        </form>
-      )}
+      <CreateTaskForm
+        type={type}
+        projects={projects}
+        defaultProject={defaultProject}
+        timezone={timezone}
+        defaultDate={defaultDate}
+        selectedJobStart={selectedJobStart}
+        fieldErrors={fieldErrors}
+        loading={loading}
+        settingsLoading={sessionLoading || projectsLoading}
+        settingsError={sessionError ?? projectsError}
+        onSubmit={submit}
+        onFieldErrorsChange={setFieldErrors}
+        onJobStartChange={setJobStart}
+      />
     </section>
   );
 }
@@ -362,6 +321,14 @@ function text(form: FormData, name: string) {
 function optional(form: FormData, name: string) {
   const value = text(form, name).trim();
   return value || null;
+}
+function requiredJobStart(form: FormData) {
+  const startAt = composeLocalDateTime({
+    date: text(form, "startDate"),
+    time: text(form, "startTime"),
+  });
+  if (!startAt) throw new Error("validated job start is unavailable");
+  return startAt;
 }
 function focusFirstInvalid(form: HTMLFormElement, errors: TaskFormErrors) {
   const firstName = Object.keys(errors)[0];
@@ -374,13 +341,7 @@ function focusFirstInvalid(form: HTMLFormElement, errors: TaskFormErrors) {
 function graphQLValidationMessage(error: unknown): string | undefined {
   if (!CombinedGraphQLErrors.is(error)) return undefined;
   return error.errors.find((item) => {
-    const code = item.extensions?.code;
+    const code = item.extensions?.["code"];
     return code === "VALIDATION_FAILED" || code === "FORBIDDEN";
   })?.message;
-}
-function label(type: CreationType) {
-  return { "one-time": "one-time task", recurring: "recurring task", job: "job" }[type];
-}
-function shortLabel(type: CreationType) {
-  return { "one-time": "One-time", recurring: "Recurring", job: "Job" }[type];
 }

@@ -101,17 +101,19 @@ export function Calendar({
 
 function CalendarDayButton({ className, day, modifiers, ...props }: DayButtonProps) {
   const ref = useRef<HTMLButtonElement>(null);
+  const focused = modifiers["focused"];
+  const selected = modifiers["selected"];
 
   useEffect(() => {
-    if (modifiers.focused) ref.current?.focus();
-  }, [modifiers.focused]);
+    if (focused) ref.current?.focus();
+  }, [focused]);
 
   return (
     <Button
       ref={ref}
       variant="ghost"
       data-day={day.date.toISOString().slice(0, 10)}
-      data-selected={modifiers.selected}
+      data-selected={selected}
       className={cn(
         "min-h-0 size-(--cell-size) rounded-md p-0 text-sm font-normal group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10 group-data-[focused=true]/day:ring-2 group-data-[focused=true]/day:ring-ring data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground",
         className,

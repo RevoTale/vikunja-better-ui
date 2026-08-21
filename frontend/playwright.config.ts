@@ -1,13 +1,13 @@
 import { defineConfig } from "@playwright/test";
 
-const baseURL = process.env.E2E_BASE_URL;
+const baseURL = process.env["E2E_BASE_URL"];
 if (!baseURL) throw new Error("E2E_BASE_URL is required; run task e2e through the harness");
 
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
   workers: 1,
-  retries: process.env.CI ? 1 : 0,
+  retries: process.env["CI"] ? 1 : 0,
   timeout: 45_000,
   expect: { timeout: 8_000 },
   reporter: [["line"], ["html", { open: "never", outputFolder: "playwright-report" }]],

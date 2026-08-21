@@ -5,7 +5,7 @@ import { TaskDiagnosticsPage } from "@/features/tasks/task-diagnostics-page";
 
 export const Route = createFileRoute("/_authenticated/tasks/$taskId/extended")({
   validateSearch: (search: Record<string, unknown>) => ({
-    returnTo: safeReturnTo(search.returnTo),
+    returnTo: safeReturnTo(search["returnTo"]),
   }),
   component: Page,
 });

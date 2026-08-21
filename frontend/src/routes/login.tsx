@@ -7,7 +7,7 @@ import { setCSRFToken } from "@/lib/apollo";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>) => ({
-    returnTo: safeReturnTo(search.returnTo),
+    returnTo: safeReturnTo(search["returnTo"]),
   }),
   beforeLoad: async ({ context, search }) => {
     const { data } = await context.apollo.query({

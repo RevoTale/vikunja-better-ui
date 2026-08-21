@@ -76,7 +76,7 @@ func BuildOneTimeTask(input OneTimeInput, location *time.Location) (vikunja.Task
 
 func BuildRecurringTask(input RecurringInput, location *time.Location) (vikunja.TaskWrite, bool, error) {
 	if input.FirstDueDate == "" {
-		return vikunja.TaskWrite{}, false, fmt.Errorf("first due date is required")
+		return vikunja.TaskWrite{}, false, errors.New("first due date is required")
 	}
 	base, err := baseTaskWrite(input.Title, input.Description, input.Priority)
 	if err != nil {
@@ -92,7 +92,7 @@ func BuildRecurringTask(input RecurringInput, location *time.Location) (vikunja.
 	}
 	if input.KeepDueTime && (dateOnly || input.Mode != RecurrenceModeFromCompletion ||
 		(input.Unit != RecurrenceUnitDay && input.Unit != RecurrenceUnitWeek)) {
-		return vikunja.TaskWrite{}, false, fmt.Errorf("keep due time requires a timed day or week recurrence from completion")
+		return vikunja.TaskWrite{}, false, errors.New("keep due time requires a timed day or week recurrence from completion")
 	}
 	base.DueDate = due
 	base.RepeatAfter = rule.RepeatAfter
@@ -102,7 +102,7 @@ func BuildRecurringTask(input RecurringInput, location *time.Location) (vikunja.
 
 func BuildJobTask(input JobInput, location *time.Location) (vikunja.TaskWrite, error) {
 	if input.DurationMinutes <= 0 || input.CompletionWindowMinutes <= 0 {
-		return vikunja.TaskWrite{}, fmt.Errorf("duration and completion window must be positive")
+		return vikunja.TaskWrite{}, errors.New("duration and completion window must be positive")
 	}
 
 	start, err := ResolveLocalDateTime(input.StartLocal, location)
@@ -134,7 +134,7 @@ func BuildJobTask(input JobInput, location *time.Location) (vikunja.TaskWrite, e
 
 func BuildIntervalRecurrence(interval int, unit RecurrenceUnit, mode RecurrenceMode) (RecurrenceWrite, error) {
 	if interval <= 0 {
-		return RecurrenceWrite{}, fmt.Errorf("recurrence interval must be positive")
+		return RecurrenceWrite{}, errors.New("recurrence interval must be positive")
 	}
 	if unit == RecurrenceUnitMonth {
 		if interval != 1 || mode != RecurrenceModeScheduled {
@@ -148,7 +148,7 @@ func BuildIntervalRecurrence(interval int, unit RecurrenceUnit, mode RecurrenceM
 		return RecurrenceWrite{}, err
 	}
 	if int64(interval) > (math.MaxInt64/int64(time.Second))/secondsPerUnit {
-		return RecurrenceWrite{}, fmt.Errorf("recurrence interval is too large")
+		return RecurrenceWrite{}, errors.New("recurrence interval is too large")
 	}
 
 	repeatMode := 0
@@ -157,7 +157,7 @@ func BuildIntervalRecurrence(interval int, unit RecurrenceUnit, mode RecurrenceM
 	case RecurrenceModeFromCompletion:
 		repeatMode = 2
 	default:
-		return RecurrenceWrite{}, fmt.Errorf("recurrence mode is invalid")
+		return RecurrenceWrite{}, errors.New("recurrence mode is invalid")
 	}
 	return RecurrenceWrite{RepeatAfter: int64(interval) * secondsPerUnit, RepeatMode: repeatMode}, nil
 }
@@ -169,18 +169,18 @@ func recurrenceUnitSeconds(unit RecurrenceUnit) (int64, error) {
 	case RecurrenceUnitWeek:
 		return int64(7 * 24 * time.Hour / time.Second), nil
 	case RecurrenceUnitMonth:
-		return 0, fmt.Errorf("recurrence unit is invalid")
+		return 0, errors.New("recurrence unit is invalid")
 	}
-	return 0, fmt.Errorf("recurrence unit is invalid")
+	return 0, errors.New("recurrence unit is invalid")
 }
 
 func addMinutes(value time.Time, minutes int) (time.Time, error) {
 	if int64(minutes) > math.MaxInt64/int64(time.Minute) {
-		return time.Time{}, fmt.Errorf("minute value overflows a duration")
+		return time.Time{}, errors.New("minute value overflows a duration")
 	}
 	result := value.Add(time.Duration(minutes) * time.Minute)
 	if result.Year() < 1 || result.Year() > 9999 || !result.After(value) {
-		return time.Time{}, fmt.Errorf("resulting timestamp is outside the supported range")
+		return time.Time{}, errors.New("resulting timestamp is outside the supported range")
 	}
 	return result, nil
 }
@@ -188,7 +188,7 @@ func addMinutes(value time.Time, minutes int) (time.Time, error) {
 func baseTaskWrite(title string, description string, priority int64) (vikunja.TaskWrite, error) {
 	title = strings.TrimSpace(title)
 	if title == "" {
-		return vikunja.TaskWrite{}, fmt.Errorf("title is required")
+		return vikunja.TaskWrite{}, errors.New("title is required")
 	}
 	return vikunja.TaskWrite{Title: title, Description: description, Priority: priority}, nil
 }
@@ -196,7 +196,7 @@ func baseTaskWrite(title string, description string, priority int64) (vikunja.Ta
 func resolveOptionalDue(date string, clock string, location *time.Location) (*time.Time, bool, error) {
 	if date == "" {
 		if clock != "" {
-			return nil, false, fmt.Errorf("due time requires a due date")
+			return nil, false, errors.New("due time requires a due date")
 		}
 		return nil, false, nil
 	}

@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"slices"
 
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
@@ -15,7 +15,7 @@ type markerClient interface {
 
 func ResolveMarker(ctx context.Context, client markerClient, title string) (vikunja.Label, error) {
 	if !isMarkerTitle(title) {
-		return vikunja.Label{}, fmt.Errorf("unknown marker label")
+		return vikunja.Label{}, errors.New("unknown marker label")
 	}
 
 	labels, err := client.Labels(ctx)

@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
@@ -85,7 +85,7 @@ func confirmFixedDueTime(
 		return vikunja.Task{}, vikunja.ErrRejectedResponse
 	}
 	if enabled && ClassifyTask(confirmed).Kind != TaskKindRecurring {
-		return vikunja.Task{}, fmt.Errorf("fixed due time marker produced an invalid task")
+		return vikunja.Task{}, errors.New("fixed due time marker produced an invalid task")
 	}
 	return confirmed, nil
 }

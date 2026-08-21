@@ -49,7 +49,7 @@ func CompleteNonRecurring(
 	}
 
 	done := true
-	if _, err := client.PatchTaskChecked(ctx, taskID, vikunja.TaskPatch{Done: &done}, vikunja.TaskCheck{Done: boolValue(false)}); err != nil {
+	if _, err := client.PatchTaskChecked(ctx, taskID, vikunja.TaskPatch{Done: &done}, vikunja.TaskCheck{Done: new(false)}); err != nil {
 		return NonRecurringCompletion{}, taskPatchError(err)
 	}
 	completed, completedMetadata, err := client.Task(ctx, taskID)
@@ -92,7 +92,7 @@ func UndoNonRecurring(
 
 	done := false
 	if _, err := client.PatchTaskChecked(ctx, task.ID, vikunja.TaskPatch{Done: &done}, vikunja.TaskCheck{
-		Done: boolValue(true), DoneAt: &task.DoneAt,
+		Done: new(true), DoneAt: &task.DoneAt,
 	}); err != nil {
 		return vikunja.Task{}, taskPatchError(err)
 	}
@@ -104,10 +104,6 @@ func UndoNonRecurring(
 		return vikunja.Task{}, vikunja.ErrRejectedResponse
 	}
 	return reopened, nil
-}
-
-func boolValue(value bool) *bool {
-	return &value
 }
 
 func taskPatchError(err error) error {

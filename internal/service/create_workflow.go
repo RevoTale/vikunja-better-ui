@@ -2,7 +2,7 @@ package service
 
 import (
 	"context"
-	"fmt"
+	"errors"
 
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
@@ -29,7 +29,7 @@ func CreateTaskWithMarker(
 	markerTitle string,
 ) (CreationResult, error) {
 	if projectID <= 0 {
-		return CreationResult{}, fmt.Errorf("project ID must be positive")
+		return CreationResult{}, errors.New("project ID must be positive")
 	}
 
 	var marker vikunja.Label

@@ -12,6 +12,7 @@ const config: CodegenConfig = {
       },
       config: {
         strictScalars: true,
+        useTypeImports: true,
         scalars: {
           DateTime: "string",
           LocalDate: "string",

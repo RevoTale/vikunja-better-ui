@@ -177,6 +177,15 @@ func (handler *jobsHandler) jobs(
 	if projectsErr != nil {
 		return jobsResponse{}, projectsErr
 	}
+	return handler.mapJobsResponse(result, projects, user, now)
+}
+
+func (handler *jobsHandler) mapJobsResponse(
+	result service.ListResult,
+	projects []vikunja.Project,
+	user vikunja.User,
+	now time.Time,
+) (jobsResponse, error) {
 	projectByID := make(map[int64]vikunja.Project, len(projects))
 	for _, project := range projects {
 		projectByID[project.ID] = project
@@ -265,8 +274,7 @@ func (handler *jobsHandler) writeIntegrationError(writer http.ResponseWriter, er
 		)
 		return
 	}
-	var upstream *vikunja.Error
-	if errors.As(err, &upstream) {
+	if upstream, ok := errors.AsType[*vikunja.Error](err); ok {
 		switch upstream.Status {
 		case http.StatusUnauthorized:
 			writer.Header().Set("WWW-Authenticate", "Bearer")

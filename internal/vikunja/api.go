@@ -3,7 +3,6 @@ package vikunja
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -107,17 +106,17 @@ func (client *Client) TasksPage(ctx context.Context, input TaskQuery) (TaskPage,
 
 func validateTaskQuery(input TaskQuery) error {
 	if input.Page < 1 || input.PerPage < 1 || input.PerPage > maxUpstreamPageSize {
-		return fmt.Errorf("page and per-page values are invalid")
+		return errors.New("page and per-page values are invalid")
 	}
 	if len(input.SortBy) != len(input.OrderBy) {
-		return fmt.Errorf("sort fields and orders must match")
+		return errors.New("sort fields and orders must match")
 	}
 	if input.Search != "" && input.Filter != "" {
-		return fmt.Errorf("search and filter cannot be combined")
+		return errors.New("search and filter cannot be combined")
 	}
 	for index, field := range input.SortBy {
 		if field == "" || (input.OrderBy[index] != "asc" && input.OrderBy[index] != "desc") {
-			return fmt.Errorf("sort field or order is invalid")
+			return errors.New("sort field or order is invalid")
 		}
 	}
 	return nil
@@ -163,7 +162,7 @@ func (client *Client) fetchLabels(ctx context.Context) ([]Label, error) {
 
 func (client *Client) CreateLabel(ctx context.Context, input LabelWrite) (Label, error) {
 	if input.Title == "" {
-		return Label{}, fmt.Errorf("label title is required")
+		return Label{}, errors.New("label title is required")
 	}
 	var label Label
 	if _, err := client.doJSON(ctx, http.MethodPost, "labels", input, "", &label); err != nil {
@@ -177,7 +176,7 @@ func (client *Client) CreateLabel(ctx context.Context, input LabelWrite) (Label,
 
 func (client *Client) AttachLabel(ctx context.Context, taskID int64, labelID int64) error {
 	if taskID <= 0 || labelID <= 0 {
-		return fmt.Errorf("task ID and label ID must be positive")
+		return errors.New("task ID and label ID must be positive")
 	}
 	input := labelTask{LabelID: labelID}
 	var response labelTask
@@ -193,7 +192,7 @@ func (client *Client) AttachLabel(ctx context.Context, taskID int64, labelID int
 
 func (client *Client) DetachLabel(ctx context.Context, taskID int64, labelID int64) error {
 	if taskID <= 0 || labelID <= 0 {
-		return fmt.Errorf("task ID and label ID must be positive")
+		return errors.New("task ID and label ID must be positive")
 	}
 	path := "tasks/" + strconv.FormatInt(taskID, 10) + "/labels/" + strconv.FormatInt(labelID, 10)
 	_, err := client.doJSON(ctx, http.MethodDelete, path, nil, "", nil)
@@ -202,7 +201,7 @@ func (client *Client) DetachLabel(ctx context.Context, taskID int64, labelID int
 
 func (client *Client) Task(ctx context.Context, taskID int64) (Task, ResponseMetadata, error) {
 	if taskID <= 0 {
-		return Task{}, ResponseMetadata{}, fmt.Errorf("task ID must be positive")
+		return Task{}, ResponseMetadata{}, errors.New("task ID must be positive")
 	}
 
 	var task Task
@@ -218,7 +217,7 @@ func (client *Client) Task(ctx context.Context, taskID int64) (Task, ResponseMet
 
 func (client *Client) DeleteTask(ctx context.Context, taskID int64) error {
 	if taskID <= 0 {
-		return fmt.Errorf("task ID must be positive")
+		return errors.New("task ID must be positive")
 	}
 
 	path := "tasks/" + strconv.FormatInt(taskID, 10)
@@ -239,7 +238,7 @@ func (client *Client) CreateTaskHTML(ctx context.Context, projectID int64, input
 
 func (client *Client) createTask(ctx context.Context, projectID int64, input TaskWrite, query url.Values) (Task, error) {
 	if projectID <= 0 {
-		return Task{}, fmt.Errorf("project ID must be positive")
+		return Task{}, errors.New("project ID must be positive")
 	}
 
 	var task Task
@@ -255,7 +254,7 @@ func (client *Client) createTask(ctx context.Context, projectID int64, input Tas
 
 func (client *Client) PatchTask(ctx context.Context, taskID int64, patch TaskPatch, etag string) (Task, error) {
 	if taskID <= 0 || etag == "" {
-		return Task{}, fmt.Errorf("task ID and ETag are required")
+		return Task{}, errors.New("task ID and ETag are required")
 	}
 
 	var task Task
@@ -277,15 +276,15 @@ type jsonPatchOperation struct {
 
 func (client *Client) PatchTaskChecked(ctx context.Context, taskID int64, patch TaskPatch, check TaskCheck) (Task, error) {
 	if taskID <= 0 {
-		return Task{}, fmt.Errorf("task ID must be positive")
+		return Task{}, errors.New("task ID must be positive")
 	}
 	operations := taskCheckOperations(check)
 	if len(operations) == 0 {
-		return Task{}, fmt.Errorf("at least one task state check is required")
+		return Task{}, errors.New("at least one task state check is required")
 	}
 	patchOperations := taskPatchOperations(patch)
 	if len(patchOperations) == 0 {
-		return Task{}, fmt.Errorf("task patch is empty")
+		return Task{}, errors.New("task patch is empty")
 	}
 	operations = append(operations, patchOperations...)
 	var task Task

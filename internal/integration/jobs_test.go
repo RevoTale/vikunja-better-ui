@@ -2,7 +2,6 @@ package integration
 
 import (
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -352,7 +351,7 @@ func newTestJobsHandler(t *testing.T, upstream string, now func() time.Time) htt
 	return NewJobsHandler(
 		upstreamURL,
 		&url.URL{Scheme: "https", Host: "tasks.example.test"},
-		slog.New(slog.NewTextHandler(io.Discard, nil)),
+		slog.New(slog.DiscardHandler),
 		now,
 	)
 }

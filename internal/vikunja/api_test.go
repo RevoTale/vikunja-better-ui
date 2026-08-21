@@ -390,7 +390,7 @@ func TestClientTaskRoundTrip(t *testing.T) {
 		t.Fatalf("CreateTaskHTML() = %#v, %v", htmlTask, err)
 	}
 
-	patched, err := client.PatchTask(context.Background(), 42, TaskPatch{Done: boolPointer(true)}, `"task-v1"`)
+	patched, err := client.PatchTask(context.Background(), 42, TaskPatch{Done: new(true)}, `"task-v1"`)
 	if err != nil || !patched.Done {
 		t.Fatalf("PatchTask() = %#v, %v", patched, err)
 	}
@@ -565,8 +565,4 @@ func TestClientLabelRoundTrip(t *testing.T) {
 	if err := client.DetachLabel(context.Background(), 9, 5); err != nil {
 		t.Fatalf("DetachLabel() error = %v", err)
 	}
-}
-
-func boolPointer(value bool) *bool {
-	return &value
 }

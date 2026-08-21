@@ -1,7 +1,7 @@
 package resolver
 
 import (
-	"fmt"
+	"errors"
 	"math"
 	"strconv"
 	"time"
@@ -20,7 +20,7 @@ func taskModel(
 ) (*model.Task, error) {
 	project, ok := projects[task.ProjectID]
 	if !ok {
-		return nil, fmt.Errorf("task references an inaccessible project")
+		return nil, errors.New("task references an inaccessible project")
 	}
 	priority, err := priorityModel(task.Priority)
 	if err != nil {
@@ -79,12 +79,12 @@ func recurrenceRuleModel(task vikunja.Task) (*model.RecurrenceRule, error) {
 		}, nil
 	}
 	if task.RepeatAfter <= 0 || (task.RepeatMode != 0 && task.RepeatMode != 2) {
-		return nil, fmt.Errorf("task recurrence fields are unsupported")
+		return nil, errors.New("task recurrence fields are unsupported")
 	}
 
 	interval, unit, ok := intervalRule(task.RepeatAfter)
 	if !ok || interval > math.MaxInt32 {
-		return nil, fmt.Errorf("task recurrence interval is unsupported")
+		return nil, errors.New("task recurrence interval is unsupported")
 	}
 	mode := model.RecurrenceModeScheduledCycle
 	if task.RepeatMode == 2 {

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
@@ -32,10 +33,5 @@ func DeleteActiveTask(ctx context.Context, client taskDeletionClient, taskID int
 }
 
 func containsID(ids []int64, target int64) bool {
-	for _, id := range ids {
-		if id == target {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(ids, target)
 }
