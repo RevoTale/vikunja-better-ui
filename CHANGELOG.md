@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/RevoTale/vikunja-better-ui/compare/v1.2.1...v1.2.2) (2026-08-21)
+
+
+### Performance Improvements
+
+* **tasks:** shorten fresh Vikunja loading ([c7003c5](https://github.com/RevoTale/vikunja-better-ui/commit/c7003c58a4cf062ee7694461cca190ad89df9465))
+
 ## [1.2.1](https://github.com/RevoTale/vikunja-better-ui/compare/v1.2.0...v1.2.1) (2026-08-16)
 
 
