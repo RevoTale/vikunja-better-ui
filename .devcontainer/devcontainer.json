@@ -3,7 +3,7 @@
 	"image": "mcr.microsoft.com/devcontainers/base:trixie@sha256:025b74bb5f7ac53edd77e01aa7188c359aab100e23a2f6220bde50bbb9fd31dd",
 	"features": {
 		"ghcr.io/devcontainers/features/go:1": {
-			"version": "1.26.6",
+			"version": "1.27.0",
 			"golangciLintVersion": "2.13.1"
 		},
 		"ghcr.io/devcontainers/features/node:2": {
