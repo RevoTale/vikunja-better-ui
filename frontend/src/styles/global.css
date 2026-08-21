@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "./theme.css";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 @theme inline {
   --color-background: var(--background);
@@ -35,11 +37,22 @@
   --radius-sm: calc(var(--radius) - 0.25rem);
   --radius-md: var(--radius);
   --radius-lg: calc(var(--radius) + 0.25rem);
+  --font-heading: var(--font-sans);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 @layer base {
   * {
     border-color: var(--border);
+    @apply border-border outline-ring/50;
   }
 
   html {
@@ -47,6 +60,7 @@
     color: var(--foreground);
     font-family: var(--font-sans);
     letter-spacing: var(--letter-spacing);
+    @apply font-sans;
   }
 
   body {
@@ -54,6 +68,7 @@
     min-height: 100svh;
     margin: 0;
     background: var(--background);
+    @apply bg-background text-foreground;
   }
 
   button,
@@ -61,6 +76,10 @@
   select,
   textarea {
     font: inherit;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
   }
 }
 

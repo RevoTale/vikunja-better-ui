@@ -1,11 +1,10 @@
 import { useState } from "react";
 
+import { AppInput } from "@/components/app-input";
+import { AppSelect } from "@/components/app-select";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { TaskPriority } from "@/graphql/graphql";
-import { cn } from "@/lib/cn";
 import type { CreationType, TaskFormErrors } from "./task-form-validation";
 import { isTaskPriority, taskPriorityOption, taskPriorityOptions } from "./task-priority";
 import { ValidatedField } from "./validated-field";
@@ -33,7 +32,7 @@ export function SharedFields({
         error={errors.title}
       >
         {(attributes) => (
-          <Input
+          <AppInput
             id="title"
             name="title"
             autoFocus
@@ -51,42 +50,36 @@ export function SharedFields({
       <div className="grid gap-5 sm:grid-cols-2">
         <ValidatedField name="projectId" label="Project" error={errors.projectId}>
           {(attributes) => (
-            <Select
+            <AppSelect
               id="projectId"
               name="projectId"
               defaultValue={defaultProject}
+              options={projects.map((project) => ({
+                value: project.id,
+                label: project.title,
+              }))}
               required
               {...attributes}
-            >
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.title}
-                </option>
-              ))}
-            </Select>
+            />
           )}
         </ValidatedField>
         <ValidatedField name="priority" label="Priority" error={errors.priority}>
           {(attributes) => (
-            <Select
+            <AppSelect
               id="priority"
               name="priority"
               value={priority}
-              className={cn("font-medium", taskPriorityOption(priority).selectClassName)}
-              onChange={(event) => {
-                if (isTaskPriority(event.currentTarget.value)) {
-                  setPriority(event.currentTarget.value);
-                }
+              className={taskPriorityOption(priority).selectClassName}
+              options={taskPriorityOptions.map((option) => ({
+                value: option.value,
+                label: option.label,
+              }))}
+              onValueChange={(nextPriority) => {
+                if (isTaskPriority(nextPriority)) setPriority(nextPriority);
               }}
               required
               {...attributes}
-            >
-              {taskPriorityOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </Select>
+            />
           )}
         </ValidatedField>
       </div>

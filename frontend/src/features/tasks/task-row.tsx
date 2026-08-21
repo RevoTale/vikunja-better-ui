@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TaskListQuery } from "@/graphql/graphql";
-import { cn } from "@/lib/cn";
+import { cn } from "@/lib/utils";
 import { PriorityBadge } from "./priority-badge";
 import { taskKindLabel } from "./task-kind-label";
 import { type TaskUrgency, taskSchedule } from "./task-schedule";
@@ -27,9 +27,9 @@ export function TaskRow({
   const labels = visibleTaskLabels(task.labels);
   const schedule = taskSchedule(task);
   return (
-    <Card className={cn(task.isOverdue && "border-destructive/50 bg-destructive/5")}>
+    <Card className={cn("py-0", task.isOverdue && "border-destructive/50 bg-destructive/5")}>
       <CardContent className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-x-3 p-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:p-4">
-        <Schedule schedule={schedule} priority={task.priority} />
+        <Schedule schedule={schedule} />
         <div
           className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2"
           data-slot="task-content"
@@ -66,21 +66,12 @@ export function TaskRow({
   );
 }
 
-function Schedule({
-  schedule,
-  priority,
-}: {
-  schedule: ReturnType<typeof taskSchedule>;
-  priority: TaskItem["priority"];
-}) {
+function Schedule({ schedule }: { schedule: ReturnType<typeof taskSchedule> }) {
   return (
     <div className={cn("min-w-0", urgencyClassName(schedule.urgency))} data-slot="task-schedule">
       <p className="text-sm font-semibold leading-tight">{schedule.date}</p>
       {schedule.time ? <p className="mt-1 whitespace-nowrap text-xs">{schedule.time}</p> : null}
       {schedule.status ? <p className="mt-1 text-xs font-medium">{schedule.status}</p> : null}
-      {priority !== "UNSET" ? (
-        <PriorityBadge className="mt-2 max-w-full" priority={priority} />
-      ) : null}
     </div>
   );
 }
@@ -104,25 +95,9 @@ function TaskMetadata({
   return (
     <ul
       className={cn("flex min-w-0 flex-wrap items-center gap-1.5", className)}
-      aria-label="Task project, type, and labels"
+      aria-label="Task labels, project, priority, and type"
       data-slot="task-metadata"
     >
-      <li className="min-w-0 max-w-full" data-slot="task-project" title={task.project.title}>
-        <Badge
-          className="max-w-full whitespace-normal wrap-anywhere text-left leading-tight"
-          variant="secondary"
-        >
-          Project: {task.project.title}
-        </Badge>
-      </li>
-      <li className="min-w-0 max-w-full">
-        <Badge
-          className="max-w-full whitespace-normal wrap-anywhere text-left leading-tight"
-          variant="outline"
-        >
-          {taskKindLabel(task)}
-        </Badge>
-      </li>
       {task.completionOutcome ? (
         <li className="min-w-0 max-w-full">
           <Badge variant={task.completionOutcome === "SKIPPED" ? "secondary" : "outline"}>
@@ -140,6 +115,27 @@ function TaskMetadata({
           </Badge>
         </li>
       ))}
+      <li className="min-w-0 max-w-full" data-slot="task-project" title={task.project.title}>
+        <Badge
+          className="max-w-full whitespace-normal wrap-anywhere text-left leading-tight"
+          variant="secondary"
+        >
+          Project: {task.project.title}
+        </Badge>
+      </li>
+      {task.priority !== "UNSET" ? (
+        <li className="min-w-0 max-w-full">
+          <PriorityBadge className="max-w-full" priority={task.priority} />
+        </li>
+      ) : null}
+      <li className="min-w-0 max-w-full">
+        <Badge
+          className="max-w-full whitespace-normal wrap-anywhere text-left leading-tight"
+          variant="outline"
+        >
+          {taskKindLabel(task)}
+        </Badge>
+      </li>
     </ul>
   );
 }

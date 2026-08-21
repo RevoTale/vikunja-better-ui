@@ -5,8 +5,8 @@ import type { ReactNode } from "react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskDetailsDocument } from "@/graphql/graphql";
-import { cn } from "@/lib/cn";
 import { graphQLErrorMessage } from "@/lib/user-error";
+import { cn } from "@/lib/utils";
 import { formatDateTime } from "./format-date-time";
 import { PriorityBadge } from "./priority-badge";
 import { TaskDetailActions } from "./task-detail-actions";
@@ -30,7 +30,7 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
     <section>
       <a
         href={returnTo}
-        className={cn(buttonVariants({ variant: "ghost", size: "compact" }), "mb-4 px-0")}
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-4 px-0")}
       >
         <ArrowLeft /> Back
       </a>
@@ -45,7 +45,9 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
       </div>
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>Task</CardTitle>
+          <CardTitle>
+            <h2>Task</h2>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <dl className="grid gap-4 sm:grid-cols-2">

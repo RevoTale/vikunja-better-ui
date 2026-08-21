@@ -73,7 +73,7 @@ export function CreateTaskForm({
     <form
       className="mt-6 grid gap-5"
       onSubmit={onSubmit}
-      onChange={(event) => {
+      onInput={(event) => {
         if (hasTaskFormErrors(fieldErrors)) {
           onFieldErrorsChange(validateTaskForm(type, new FormData(event.currentTarget)));
         }

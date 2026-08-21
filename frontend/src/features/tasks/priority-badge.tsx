@@ -1,5 +1,5 @@
 import type { TaskPriority } from "@/graphql/graphql";
-import { cn } from "@/lib/cn";
+import { cn } from "@/lib/utils";
 import { taskPriorityOption } from "./task-priority";
 
 export function PriorityBadge({

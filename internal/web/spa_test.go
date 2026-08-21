@@ -39,6 +39,9 @@ func TestSPAHandlerServesIndexForSemanticRoute(t *testing.T) {
 	if recorder.Header().Get("Cache-Control") != "no-cache" {
 		t.Fatalf("Cache-Control = %q", recorder.Header().Get("Cache-Control"))
 	}
+	if strings.Contains(recorder.Body.String(), cspNoncePlaceholder) {
+		t.Fatal("CSP nonce placeholder was not replaced")
+	}
 }
 
 func TestSPAHandlerServesNestedAsset(t *testing.T) {
@@ -65,8 +68,21 @@ func TestSecurityHeaders(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	handler := SecurityHeaders(true)(SPAHandler())
 	handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://app.test/", nil))
-	if !strings.Contains(recorder.Header().Get("Content-Security-Policy"), "frame-ancestors 'none'") {
-		t.Fatalf("CSP = %q", recorder.Header().Get("Content-Security-Policy"))
+	csp := recorder.Header().Get("Content-Security-Policy")
+	noncePattern := regexp.MustCompile(`style-src-elem 'self' 'nonce-([^']+)'`)
+	nonceMatch := noncePattern.FindStringSubmatch(csp)
+	if len(nonceMatch) != 2 || !strings.Contains(recorder.Body.String(), `name="csp-nonce" content="`+nonceMatch[1]+`"`) {
+		t.Fatalf("CSP nonce was not propagated to the index: %q", csp)
+	}
+	for _, directive := range []string{
+		"frame-ancestors 'none'",
+		"style-src 'self' 'unsafe-inline'",
+		"style-src-elem 'self' 'nonce-",
+		"style-src-attr 'unsafe-inline'",
+	} {
+		if !strings.Contains(csp, directive) {
+			t.Fatalf("CSP missing %q: %q", directive, csp)
+		}
 	}
 	if recorder.Header().Get("Strict-Transport-Security") == "" || recorder.Header().Get("X-Content-Type-Options") != "nosniff" {
 		t.Fatalf("security headers = %#v", recorder.Header())

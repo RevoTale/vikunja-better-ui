@@ -1,10 +1,25 @@
-import { CalendarDays } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  type DayButtonProps,
+  DayPicker,
+  type DayPickerProps,
+  getDefaultClassNames,
+} from "@daypicker/react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { cn } from "@/lib/cn";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useMediaQuery } from "@/lib/use-media-query";
+import { cn } from "@/lib/utils";
 import { calendarDateFromISO, isoDateFromCalendarDate } from "./calendar-date";
 
 type DatePickerFieldProps = {
@@ -33,42 +48,19 @@ export function DatePickerField({
 }: DatePickerFieldProps) {
   const [open, setOpen] = useState(false);
   const isMobile = useMediaQuery("(max-width: 639px)");
-  const rootRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const formattedDate = formatDate(value);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!isMobile || !dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [isMobile, open]);
-
-  useEffect(() => {
-    if (!open || isMobile) return;
-    const closeOnOutsidePress = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener("pointerdown", closeOnOutsidePress);
-    return () => document.removeEventListener("pointerdown", closeOnOutsidePress);
-  }, [isMobile, open]);
-
   const trigger = (
     <Button
-      ref={triggerRef}
       id={id}
       variant="outline"
       className={cn(
-        "w-full justify-start text-left font-normal",
+        "h-11 w-full justify-start text-left font-normal",
         !formattedDate && "text-muted-foreground",
       )}
       disabled={disabled}
       data-form-field={name}
-      aria-haspopup="dialog"
-      aria-expanded={open}
       aria-label={`${formattedDate ? `Change ${label}, ${formattedDate}` : `Choose ${label}`}${required ? ", required" : ""}`}
-      onClick={() => setOpen((current) => !current)}
       {...attributes}
     >
       <CalendarDays aria-hidden="true" className="size-4" />
@@ -76,80 +68,71 @@ export function DatePickerField({
     </Button>
   );
 
-  const closeAndRestoreFocus = () => {
-    setOpen(false);
-    requestAnimationFrame(() => triggerRef.current?.focus());
-  };
   const chooseDate = (date: Date) => {
     onChange(isoDateFromCalendarDate(date));
-    closeAndRestoreFocus();
+    notifyFormInput(inputRef);
+    setOpen(false);
   };
   const clearDate = () => {
     onChange("");
-    closeAndRestoreFocus();
+    notifyFormInput(inputRef);
+    setOpen(false);
   };
   const calendar = (
     <DateCalendar value={value} defaultDate={defaultDate} label={label} onSelect={chooseDate} />
   );
 
   return (
-    <div ref={rootRef} className="relative">
-      {trigger}
+    <>
       {isMobile ? (
-        <dialog
-          ref={dialogRef}
-          className="fixed inset-x-0 bottom-0 top-auto m-0 max-h-[calc(100dvh-3rem)] w-full max-w-none rounded-t-lg border bg-background p-0 text-foreground backdrop:bg-black/50"
-          aria-labelledby={`${id}-drawer-title`}
-          onCancel={(event) => {
-            event.preventDefault();
-            closeAndRestoreFocus();
-          }}
-          onClose={() => setOpen(false)}
-        >
-          <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-muted" />
-          <div className="grid gap-1.5 p-4 text-center">
-            <h2 id={`${id}-drawer-title`} className="font-semibold">
-              Choose {label.toLowerCase()}
-            </h2>
-            <p className="text-sm text-muted-foreground">Select a date from the calendar.</p>
-          </div>
-          <div className="flex max-h-[60dvh] justify-center overflow-y-auto px-2">{calendar}</div>
-          <div className="grid gap-2 p-4">
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger render={trigger} />
+          <DialogContent
+            className="top-auto bottom-0 left-0 max-h-[calc(100dvh-3rem)] max-w-none translate-x-0 translate-y-0 gap-0 rounded-t-xl rounded-b-none p-0 sm:max-w-none"
+            showCloseButton={false}
+          >
+            <div className="mx-auto mt-3 h-1.5 w-12 rounded-full bg-muted" />
+            <DialogHeader className="p-4 text-center">
+              <DialogTitle>Choose {label.toLowerCase()}</DialogTitle>
+              <DialogDescription>Select a date from the calendar.</DialogDescription>
+            </DialogHeader>
+            <div className="flex max-h-[60dvh] justify-center overflow-y-auto px-2">{calendar}</div>
+            <DialogFooter className="m-0 rounded-none p-4">
+              {value ? (
+                <Button variant="ghost" className="h-11" onClick={clearDate}>
+                  Clear date
+                </Button>
+              ) : null}
+              <Button variant="outline" className="h-11" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverTrigger render={trigger} />
+          <PopoverContent align="start" className="w-auto gap-0 p-0">
+            {calendar}
             {value ? (
-              <Button variant="ghost" onClick={clearDate}>
-                Clear date
-              </Button>
+              <div className="border-t p-2">
+                <Button variant="ghost" className="w-full" onClick={clearDate}>
+                  Clear date
+                </Button>
+              </div>
             ) : null}
-            <Button variant="outline" onClick={closeAndRestoreFocus}>
-              Cancel
-            </Button>
-          </div>
-        </dialog>
-      ) : open ? (
-        <div
-          role="dialog"
-          aria-label={`Choose ${label.toLowerCase()}`}
-          className="absolute left-0 top-[calc(100%+0.25rem)] z-50 w-auto rounded-md border bg-popover text-popover-foreground shadow-md"
-          onKeyDown={(event) => {
-            if (event.key === "Escape") {
-              event.preventDefault();
-              closeAndRestoreFocus();
-            }
-          }}
-        >
-          {calendar}
-          {value ? (
-            <div className="border-t p-2">
-              <Button variant="ghost" size="compact" className="w-full" onClick={clearDate}>
-                Clear date
-              </Button>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-      <input type="hidden" name={name} value={value} disabled={disabled} />
-    </div>
+          </PopoverContent>
+        </Popover>
+      )}
+      <input ref={inputRef} type="hidden" name={name} value={value} disabled={disabled} />
+    </>
   );
+}
+
+function notifyFormInput(inputRef: RefObject<HTMLInputElement | null>) {
+  queueMicrotask(() => {
+    inputRef.current?.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  });
 }
 
 function DateCalendar({
@@ -179,6 +162,97 @@ function DateCalendar({
       aria-label={`${label} calendar`}
       footer={selected ? `Selected ${formatDate(value)}` : "Choose a date."}
       onSelect={onSelect}
+    />
+  );
+}
+
+function Calendar({
+  className,
+  classNames,
+  showOutsideDays = true,
+  captionLayout = "label",
+  components,
+  ...props
+}: DayPickerProps) {
+  const defaults = getDefaultClassNames();
+
+  return (
+    <DayPicker
+      showOutsideDays={showOutsideDays}
+      captionLayout={captionLayout}
+      className={cn(
+        "group/calendar w-fit bg-background p-3 [--cell-size:2.5rem] sm:[--cell-size:2.25rem]",
+        className,
+      )}
+      classNames={{
+        root: cn("w-fit", defaults.root),
+        months: cn("relative flex flex-col gap-4", defaults.months),
+        month: cn("flex w-full flex-col gap-4", defaults.month),
+        nav: cn("absolute inset-x-0 top-0 flex justify-between", defaults.nav),
+        button_previous: cn(
+          buttonVariants({ variant: "ghost" }),
+          "size-(--cell-size) p-0",
+          defaults.button_previous,
+        ),
+        button_next: cn(
+          buttonVariants({ variant: "ghost" }),
+          "size-(--cell-size) p-0",
+          defaults.button_next,
+        ),
+        month_caption: cn(
+          "flex h-(--cell-size) items-center justify-center px-(--cell-size)",
+          defaults.month_caption,
+        ),
+        caption_label: cn("text-sm font-medium", defaults.caption_label),
+        month_grid: cn("w-full border-collapse", defaults.month_grid),
+        weekdays: cn("flex", defaults.weekdays),
+        weekday: cn("flex-1 text-xs text-muted-foreground", defaults.weekday),
+        week: cn("mt-1 flex", defaults.week),
+        day: cn("group/day relative aspect-square p-0 text-center", defaults.day),
+        today: cn("rounded-md bg-accent", defaults.today),
+        outside: cn("text-muted-foreground opacity-50", defaults.outside),
+        disabled: cn("text-muted-foreground opacity-50", defaults.disabled),
+        hidden: cn("invisible", defaults.hidden),
+        ...classNames,
+      }}
+      components={{
+        Chevron: ({ className: iconClassName, orientation, ...iconProps }) => {
+          const Icon =
+            orientation === "left"
+              ? ChevronLeft
+              : orientation === "right"
+                ? ChevronRight
+                : ChevronDown;
+          return <Icon className={cn("size-4", iconClassName)} {...iconProps} />;
+        },
+        DayButton: CalendarDayButton,
+        ...components,
+      }}
+      {...props}
+    />
+  );
+}
+
+function CalendarDayButton({ className, day, modifiers, ...props }: DayButtonProps) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const focused = modifiers["focused"];
+  const selected = modifiers["selected"];
+
+  useEffect(() => {
+    if (focused) ref.current?.focus();
+  }, [focused]);
+
+  return (
+    <Button
+      ref={ref}
+      variant="ghost"
+      data-day={day.date.toISOString().slice(0, 10)}
+      data-selected={selected}
+      className={cn(
+        "size-(--cell-size) rounded-md p-0 text-sm font-normal group-data-[focused=true]/day:ring-2 group-data-[focused=true]/day:ring-ring data-[selected=true]:bg-primary data-[selected=true]:text-primary-foreground",
+        className,
+      )}
+      {...props}
     />
   );
 }

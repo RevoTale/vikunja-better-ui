@@ -12,8 +12,8 @@ import {
   type TaskDetailsQuery,
   TaskListDocument,
 } from "@/graphql/graphql";
-import { cn } from "@/lib/cn";
 import { graphQLErrorMessage } from "@/lib/user-error";
+import { cn } from "@/lib/utils";
 import { taskDetailActionPolicy } from "./task-detail-action-policy";
 
 type TaskDetail = NonNullable<TaskDetailsQuery["task"]>;
@@ -155,12 +155,12 @@ export function TaskDetailActions({
           to="/tasks/$taskId/extended"
           params={{ taskId: task.id }}
           search={{ returnTo }}
-          className={cn(buttonVariants({ variant: "outline", size: "compact" }))}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
         >
           <Bug /> Extended
         </Link>
         {policy.canSkip ? (
-          <Button size="compact" variant="outline" disabled={pending} onClick={skipOccurrence}>
+          <Button size="sm" variant="outline" disabled={pending} onClick={skipOccurrence}>
             <SkipForward /> {actionPending === "skip" ? "Skipping…" : "Skip"}
           </Button>
         ) : null}
@@ -175,7 +175,7 @@ export function TaskDetailActions({
               if (pending) event.preventDefault();
             }}
             className={cn(
-              buttonVariants({ variant: "destructive", size: "compact" }),
+              buttonVariants({ variant: "destructive", size: "sm" }),
               pending && "pointer-events-none opacity-50",
             )}
           >
@@ -194,7 +194,7 @@ export function TaskDetailActions({
         </p>
       ) : null}
       {repairCapability ? (
-        <Button size="compact" variant="outline" disabled={pending} onClick={repairHistory}>
+        <Button size="sm" variant="outline" disabled={pending} onClick={repairHistory}>
           {actionPending === "repair" ? "Repairing…" : "Repair recurring task"}
         </Button>
       ) : null}

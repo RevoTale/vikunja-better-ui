@@ -3,17 +3,14 @@ import { useLocation } from "@tanstack/react-router";
 import { AlertTriangle, ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { AppSelect } from "@/components/app-select";
 import { Button } from "@/components/ui/button";
 import {
   Pagination,
-  PaginationButton,
   PaginationContent,
   PaginationEllipsis,
   PaginationItem,
-  PaginationNext,
-  PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Select } from "@/components/ui/select";
 import {
   ProjectsDocument,
   SessionDocument,
@@ -21,12 +18,13 @@ import {
   type TaskListQuery,
   type TaskScope,
 } from "@/graphql/graphql";
-import { cn } from "@/lib/cn";
 import { graphQLErrorMessage } from "@/lib/user-error";
+import { cn } from "@/lib/utils";
 import type { ListSearch } from "./list-search";
 import { paginationRange } from "./pagination-range";
 import { type TaskItem, TaskRow } from "./task-row";
 import { useTaskListActions } from "./use-task-list-actions";
+import { useTaskRefreshFeedback } from "./use-task-refresh-feedback";
 
 type TaskListPageProps = {
   title: string;
@@ -56,6 +54,14 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
   const actions = useTaskListActions(sessionData?.session.csrfToken ?? undefined, refetch);
 
   const taskPage = data?.tasks;
+  const backgroundError =
+    error && taskPage
+      ? graphQLErrorMessage(error, "Tasks could not be refreshed. Showing previously loaded data.")
+      : undefined;
+  useTaskRefreshFeedback({
+    refreshing: loading && Boolean(taskPage),
+    errorMessage: backgroundError,
+  });
 
   return (
     <section className="mx-auto w-full max-w-5xl" aria-labelledby="page-title">
@@ -66,37 +72,21 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
-        <Select
+        <AppSelect
           aria-label="Project"
           className="sm:w-64"
           value={search.project}
-          onChange={(event) => setSearch({ project: event.target.value, page: 1 })}
-        >
-          <option value="all">All projects</option>
-          {projectData?.projects.items.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.title}
-            </option>
-          ))}
-        </Select>
+          options={[
+            { value: "all", label: "All projects" },
+            ...(projectData?.projects.items.map((project) => ({
+              value: project.id,
+              label: project.title,
+            })) ?? []),
+          ]}
+          onValueChange={(project) => setSearch({ project, page: 1 })}
+        />
       </div>
       <div className="mt-4 sm:mt-6" aria-busy={loading}>
-        {loading && taskPage ? (
-          <p className="mb-3 text-sm text-muted-foreground" role="status">
-            Refreshing tasks…
-          </p>
-        ) : null}
-        {error && taskPage ? (
-          <p
-            className="mb-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
-            role="alert"
-          >
-            {graphQLErrorMessage(
-              error,
-              "Tasks could not be refreshed. Showing previously loaded data.",
-            )}
-          </p>
-        ) : null}
         {!error && (sessionError || projectError) ? (
           <ListMessage tone="error">
             {graphQLErrorMessage(
@@ -134,12 +124,7 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
       {actions.undo ? (
         <div className="fixed bottom-20 left-4 right-4 z-30 flex items-center justify-between gap-3 rounded-md border bg-card p-3 shadow-lg sm:left-auto sm:right-6 sm:w-96 lg:bottom-6">
           <span className="min-w-0 truncate text-sm">{actions.undo.title} completed</span>
-          <Button
-            size="compact"
-            variant="outline"
-            onClick={actions.restore}
-            disabled={actions.undoing}
-          >
+          <Button size="sm" variant="outline" onClick={actions.restore} disabled={actions.undoing}>
             <RotateCcw /> Undo
           </Button>
         </div>
@@ -151,7 +136,7 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
           </p>
           <Button
             className="mt-3"
-            size="compact"
+            size="sm"
             variant="outline"
             onClick={actions.repairHistory}
             disabled={actions.repairing}
@@ -231,31 +216,43 @@ function TaskPagination({
     <Pagination className="mt-5">
       <PaginationContent>
         <PaginationItem>
-          <PaginationPrevious
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Go to previous page"
             disabled={currentPage === 1}
             onClick={() => onPageChange(currentPage - 1)}
-          />
+          >
+            Previous
+          </Button>
         </PaginationItem>
         {paginationRange(currentPage, totalPages).map((item) => (
           <PaginationItem key={item}>
             {typeof item === "string" ? (
               <PaginationEllipsis />
             ) : (
-              <PaginationButton
-                isActive={item === currentPage}
+              <Button
+                variant={item === currentPage ? "outline" : "ghost"}
+                size="icon"
+                aria-current={item === currentPage ? "page" : undefined}
                 aria-label={`Go to page ${item}`}
                 onClick={() => onPageChange(item)}
               >
                 {item}
-              </PaginationButton>
+              </Button>
             )}
           </PaginationItem>
         ))}
         <PaginationItem>
-          <PaginationNext
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Go to next page"
             disabled={currentPage === totalPages}
             onClick={() => onPageChange(currentPage + 1)}
-          />
+          >
+            Next
+          </Button>
         </PaginationItem>
       </PaginationContent>
     </Pagination>

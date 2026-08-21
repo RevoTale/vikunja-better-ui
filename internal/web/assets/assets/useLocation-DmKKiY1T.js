@@ -1,0 +1,1 @@
+import{o as e,t}from"./useStore-CIUsBLqJ.js";import{rt as n}from"./button-fcq4wviz.js";function r(r){let i=e();return t(i.stores.location,n(r,i))}export{r as t};

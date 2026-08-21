@@ -1,12 +1,15 @@
 package web
 
 import (
+	"bytes"
 	"embed"
 	"io/fs"
 	"net/http"
 	"path"
 	"strings"
 )
+
+const cspNoncePlaceholder = "__CSP_NONCE__"
 
 //go:embed all:assets
 var embeddedAssets embed.FS
@@ -16,6 +19,10 @@ func SPAHandler() http.Handler {
 	if err != nil {
 		panic("embedded frontend assets are unavailable")
 	}
+	indexHTML, err := fs.ReadFile(assets, "index.html")
+	if err != nil {
+		panic("embedded frontend index is unavailable")
+	}
 	fileServer := http.FileServer(http.FS(assets))
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Method != http.MethodGet && request.Method != http.MethodHead {
@@ -23,8 +30,9 @@ func SPAHandler() http.Handler {
 			return
 		}
 		requestedPath := strings.TrimPrefix(path.Clean("/"+request.URL.Path), "/")
-		if requestedPath == "." || requestedPath == "" {
-			requestedPath = "index.html"
+		if requestedPath == "." || requestedPath == "" || requestedPath == "index.html" {
+			serveIndex(writer, request, indexHTML)
+			return
 		}
 		if file, openErr := assets.Open(requestedPath); openErr == nil {
 			_ = file.Close()
@@ -34,8 +42,17 @@ func SPAHandler() http.Handler {
 			fileServer.ServeHTTP(writer, request)
 			return
 		}
-		request.URL.Path = "/"
-		writer.Header().Set("Cache-Control", "no-cache")
-		fileServer.ServeHTTP(writer, request)
+		serveIndex(writer, request, indexHTML)
 	})
+}
+
+func serveIndex(writer http.ResponseWriter, request *http.Request, indexHTML []byte) {
+	body := bytes.Replace(indexHTML, []byte(cspNoncePlaceholder), []byte(cspNonce(request.Context())), 1)
+	writer.Header().Set("Cache-Control", "no-cache")
+	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writer.WriteHeader(http.StatusOK)
+	if request.Method == http.MethodHead {
+		return
+	}
+	_, _ = writer.Write(body)
 }

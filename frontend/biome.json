@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!src/routeTree.gen.ts", "!src/graphql"]
+    "includes": ["**", "!src/routeTree.gen.ts", "!src/graphql", "!src/components/ui"]
   },
   "formatter": {
     "enabled": true,

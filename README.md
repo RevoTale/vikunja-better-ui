@@ -86,6 +86,10 @@ recurring-history design is documented in
 Task lists keep Apollo-cached rows visible only while performing a mandatory
 fresh read. The backend overlaps independent Vikunja calls, coalesces duplicate
 metadata reads only while they are in flight, and does not retain a TTL cache.
+Background refreshes that finish within one second stay silent. A slower
+refresh uses a fixed toast, so task rows do not move; it closes on success and
+becomes an error toast on failure while cached rows remain visible. Initial
+loading and initial errors stay in the page because no cached list exists.
 See [ADR-005](docs/decisions/0005-fresh-task-loading.md) and the
 [performance guide](docs/performance.md) for the exact request graph,
 benchmarks, and safe latency logs.
@@ -215,6 +219,27 @@ task e2e        # real browser tests against isolated Vikunja 2.5.0
 task demo       # run the complete isolated demo at http://localhost:4180
 task dev        # run the application
 ```
+
+### Frontend components
+
+The frontend uses the current shadcn Base UI registry. Files under
+`frontend/src/components/ui` are generated vendor code: add or refresh a used
+component only from `frontend/` with
+`pnpm dlx shadcn@latest add <component>`. Do not edit those files directly;
+apply product defaults through props, semantic theme tokens, or wrappers in
+`frontend/src/components` and feature code.
+
+The date picker currently composes `@daypicker/react` v10 in feature code with
+generated Dialog, Popover, and Button components. This narrow exception avoids
+an upstream shadcn Calendar strict-TypeScript incompatibility and should be
+removed once the registry output compiles unchanged. See the
+[Base UI migration specification](docs/specs/shadcn-base-ui.md).
+
+Base UI is mounted with its CSP provider. The server generates a unique nonce
+for every response and passes it through the HTML to Base UI's inline style
+elements. Runtime style attributes used for popup positioning are allowed
+separately; `style-src` includes that allowance as a WebKit fallback, while
+`style-src-elem` remains nonce-restricted and `script-src` stays self-only.
 
 `task e2e` downloads the official Vikunja 2.5.0 binary for Linux amd64 or
 arm64, verifies its pinned SHA-256 digest and detached signature, and runs it

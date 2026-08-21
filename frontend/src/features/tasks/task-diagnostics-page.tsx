@@ -4,8 +4,8 @@ import { ArrowLeft } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TaskDiagnosticsDocument } from "@/graphql/graphql";
-import { cn } from "@/lib/cn";
 import { graphQLErrorMessage } from "@/lib/user-error";
+import { cn } from "@/lib/utils";
 import { taskPriorityLabel } from "./task-priority";
 
 export function TaskDiagnosticsPage({ taskId, returnTo }: { taskId: string; returnTo: string }) {
@@ -39,7 +39,7 @@ export function TaskDiagnosticsPage({ taskId, returnTo }: { taskId: string; retu
         to="/tasks/$taskId"
         params={{ taskId }}
         search={{ returnTo }}
-        className={cn(buttonVariants({ variant: "ghost", size: "compact" }), "mb-4 px-0")}
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-4 px-0")}
       >
         <ArrowLeft /> Back to task
       </Link>
@@ -47,7 +47,9 @@ export function TaskDiagnosticsPage({ taskId, returnTo }: { taskId: string; retu
       <p className="mt-1 text-sm text-muted-foreground">Read-only Vikunja-source diagnostics.</p>
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>{task.title}</CardTitle>
+          <CardTitle>
+            <h2>{task.title}</h2>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <dl className="divide-y">

@@ -17,8 +17,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { createActionForPath } from "@/features/tasks/create-action";
 import { LogoutDocument, SessionDocument } from "@/graphql/graphql";
 import { setCSRFToken } from "@/lib/apollo";
-import { cn } from "@/lib/cn";
 import { graphQLErrorMessage } from "@/lib/user-error";
+import { cn } from "@/lib/utils";
 
 const navigation = [
   { to: "/today", label: "Today", mobileLabel: "Today", icon: CheckCircle2 },
@@ -99,7 +99,7 @@ export function AppShell() {
             {data?.session.vikunjaUser?.username}
           </p>
           <Link
-            className={cn(buttonVariants({ size: "compact" }))}
+            className={cn(buttonVariants({ size: "sm" }))}
             to="/tasks/new"
             search={{ type: createAction.type, returnTo }}
           >

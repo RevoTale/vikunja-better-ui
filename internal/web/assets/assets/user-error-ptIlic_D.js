@@ -1,0 +1,1 @@
+import{f as e,h as t}from"./useStore-CIUsBLqJ.js";import{Pt as n,Tn as r,vn as i,yn as a}from"./button-fcq4wviz.js";var o=t(e(),1);function s(e){let t=o.useContext(i()),n=e||t.client;return a(!!n,28),n}var c=typeof r(()=>window.document.createElement)==`function`;function l(e,t){return n.is(e)?e.errors.find(e=>e.message.trim())?.message.trim()??t:t}export{c as n,s as r,l as t};

@@ -26,7 +26,7 @@ test("login restores the requested route and core navigation is accessible", asy
   const startTime = page.getByLabel("Start time", { exact: true });
   await expect(startTime).toBeVisible();
   await expect(startTime).toHaveAttribute("type", "time");
-  await expect(page.locator('[data-slot="select-icon"]').first()).toBeVisible();
+  await expect(page.getByLabel("Project", { exact: true }).locator("svg")).toBeVisible();
   const controlHeights = await Promise.all(
     [
       page.getByLabel("Title (optional)"),
@@ -67,6 +67,7 @@ test("login restores the requested route and core navigation is accessible", asy
   await page.reload();
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
   await expectTaskRowLayout(page, labeledTitle, "focus");
+  await expectBaseUICSP(page);
 });
 
 test("login displays the GraphQL error returned by the app", async ({ page }) => {
@@ -96,7 +97,7 @@ test("login displays the GraphQL error returned by the app", async ({ page }) =>
   await page.goto("/login");
   await login(page);
 
-  await expect(page.getByRole("alert")).toHaveText("Vikunja is unavailable. Try again shortly.");
+  await expect(page.getByText("Vikunja is unavailable. Try again shortly.")).toBeVisible();
   await expect(page).toHaveURL(/\/login/);
 });
 
@@ -136,10 +137,10 @@ test("task creation identifies invalid fields and clears corrected errors", asyn
   await page.getByLabel("Title").fill("   ");
   await selectDate(page, "First due date", "");
   await page.getByLabel("Every").fill("2");
-  await page.getByLabel("Unit").selectOption("MONTH");
+  await chooseSelectOption(page, "Unit", "Months");
   await page.getByRole("button", { name: "Create recurring task" }).click();
 
-  await expect(page.getByRole("alert")).toHaveText("Check the highlighted fields below.");
+  await expect(page.getByText("Check the highlighted fields below.")).toBeVisible();
   await expect(page.getByText("Enter a title.", { exact: true })).toBeVisible();
   await expect(page.getByText("Choose the first due date.", { exact: true })).toBeVisible();
   await expect(
@@ -153,10 +154,10 @@ test("task creation identifies invalid fields and clears corrected errors", asyn
   await expect(page.getByLabel("Title")).toBeFocused();
 
   await page.getByLabel("Title").fill("Valid recurring task");
-  await page.getByLabel("Priority").selectOption("UNSET");
+  await chooseSelectOption(page, "Priority", "No priority");
   await selectDate(page, "First due date", localDate());
   await page.getByLabel("Every").fill("1");
-  await page.getByLabel("Renewal").selectOption("SCHEDULED_CYCLE");
+  await chooseSelectOption(page, "Renewal", "Scheduled cycle");
 
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.getByText("Enter a title.", { exact: true })).toHaveCount(0);
@@ -205,7 +206,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
 
   const oneTimeId = await createTask(page, "one-time task", oneTime, async () => {
     await selectDate(page, "Due date", localDate());
-    await page.getByLabel("Priority").selectOption("HIGH");
+    await chooseSelectOption(page, "Priority", "High");
   });
   await expectVikunjaTask(oneTimeId, { title: oneTime, done: false });
   await expectDateOnlyTask(oneTimeId);
@@ -221,7 +222,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await expect(page.getByText(invalidTitle, { exact: true })).toBeVisible();
   await expect(page.getByText("Invalid: both recurring and job", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: `Complete ${invalidTitle}` })).toHaveCount(0);
-  await page.getByLabel("Project", { exact: true }).selectOption(projectID);
+  await chooseSelectOption(page, "Project", "E2E Daily Tasks");
   await expect(page).toHaveURL(new RegExp(`project=${projectID}`));
   await page.goto("/week");
   await expect(page.getByRole("heading", { name: "This week" })).toBeVisible();
@@ -254,7 +255,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   expect(snapshots.some((task) => task.done && task.repeat_after === 0)).toBe(true);
 
   const scheduledId = await createTask(page, "recurring task", scheduled, async () => {
-    await page.getByLabel("Renewal").selectOption("SCHEDULED_CYCLE");
+    await chooseSelectOption(page, "Renewal", "Scheduled cycle");
   });
   const scheduledBefore = await vikunjaTask(scheduledId);
   expect(scheduledBefore.repeat_mode).toBe(0);
@@ -343,7 +344,32 @@ test("task lists expose loading, empty, error, and project-filter states", async
   await page.goto(`/today?project=${emptyProjectID}&page=1`);
   await expect(page.getByText("Loading tasks…", { exact: true })).toBeVisible();
   await expect(page.getByText("No tasks here.", { exact: true })).toBeVisible();
-  await expect(page.getByLabel("Project", { exact: true })).toHaveValue(emptyProjectID);
+  await expect(page.getByLabel("Project", { exact: true })).toContainText("E2E Empty Project");
+
+  await page.unroute("**/graphql");
+  let refreshDelay = 400;
+  await page.route("**/graphql", async (route) => {
+    if (graphQLOperation(route.request().postData()) === "TaskList") {
+      await new Promise((resolve) => setTimeout(resolve, refreshDelay));
+    }
+    await route.continue();
+  });
+  let refreshResponse = page.waitForResponse(
+    (response) => graphQLOperation(response.request().postData()) === "TaskList",
+  );
+  await chooseSelectOption(page, "Project", "All projects");
+  await refreshResponse;
+  await expect(page.getByText("Refreshing tasks…", { exact: true })).toHaveCount(0);
+
+  refreshDelay = 1_200;
+  refreshResponse = page.waitForResponse(
+    (response) => graphQLOperation(response.request().postData()) === "TaskList",
+  );
+  await chooseSelectOption(page, "Project", "E2E Empty Project");
+  await expect(page.getByText("Refreshing tasks…", { exact: true })).toBeVisible();
+  await expect(page.getByText("No tasks here.", { exact: true })).toBeVisible();
+  await refreshResponse;
+  await expect(page.getByText("Refreshing tasks…", { exact: true })).toHaveCount(0);
 
   await page.unroute("**/graphql");
   await page.route("**/graphql", async (route) => {
@@ -353,6 +379,12 @@ test("task lists expose loading, empty, error, and project-filter states", async
     }
     await route.continue();
   });
+  await chooseSelectOption(page, "Project", "All projects");
+  await expect(
+    page.getByLabel("Notifications").getByText("Tasks could not be refreshed", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(labeledTitle, { exact: true })).toBeVisible();
+
   await page.goto(`/week?project=${emptyProjectID}&page=1`);
   await expect(page.getByRole("alert")).toHaveText(
     "Tasks could not be loaded. Try refreshing this page.",
@@ -645,6 +677,8 @@ function datePickerButton(page: Page, label: string) {
 async function expectTaskRowLayout(page: Page, title: string, label: string) {
   const isPhone = test.info().project.name.startsWith("phone-");
   const card = page.locator('[data-slot="card"]').filter({ hasText: title });
+  await expect(card).toHaveCSS("padding-top", "0px");
+  await expect(card).toHaveCSS("padding-bottom", "0px");
   const scheduleBox = await card.locator('[data-slot="task-schedule"]').boundingBox();
   const titleBox = await card.getByRole("link", { name: title }).boundingBox();
   const kindBox = await card.getByText("One-time", { exact: true }).boundingBox();
@@ -668,8 +702,8 @@ async function expectTaskRowLayout(page: Page, title: string, label: string) {
   }
   expect(scheduleBox.x).toBeLessThan(titleBox.x);
   expect(labelBox.y).toBeGreaterThan(titleBox.y);
+  expect(labelBox.y).toBeLessThanOrEqual(projectBox.y + 2);
   expect(projectBox.y).toBeLessThanOrEqual(kindBox.y + 2);
-  expect(kindBox.y).toBeLessThanOrEqual(labelBox.y + 2);
   expect(Math.abs(kindBox.height - labelBox.height)).toBeLessThanOrEqual(1);
   expect(completeBox.x).toBeGreaterThan(titleBox.x);
   expect(completeBox.y).toBeLessThan(projectBox.y);
@@ -678,9 +712,7 @@ async function expectTaskRowLayout(page: Page, title: string, label: string) {
   await expect(projectBadge).toHaveClass(/bg-secondary/);
   await expect(metadata).toHaveCSS("flex-wrap", "wrap");
   await expect(metadata).toHaveCSS("justify-content", "flex-end");
-  expect(Math.abs(labelBox.x + labelBox.width - (metadataBox.x + metadataBox.width))).toBeLessThan(
-    2,
-  );
+  expect(Math.abs(kindBox.x + kindBox.width - (metadataBox.x + metadataBox.width))).toBeLessThan(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => document.documentElement.clientWidth),
   );
@@ -711,15 +743,30 @@ async function expectTaskRowLayout(page: Page, title: string, label: string) {
     expect(invalidKindBox.x + invalidKindBox.width).toBeLessThanOrEqual(
       invalidCardBox.x + invalidCardBox.width,
     );
+  } else {
+    expect(labelBox.x + labelBox.width).toBeLessThan(projectBox.x);
+    expect(projectBox.x + projectBox.width).toBeLessThan(kindBox.x);
   }
 }
 async function expectTaskPriorityLayout(page: Page, title: string, priority: string) {
   const card = page.locator('[data-slot="card"]').filter({ hasText: title });
-  const scheduleBox = await card.locator('[data-slot="task-schedule"]').boundingBox();
-  const priorityBox = await card.getByText(priority, { exact: true }).boundingBox();
-  if (!scheduleBox || !priorityBox) throw new Error("task priority layout is not measurable");
-  expect(priorityBox.x).toBeGreaterThanOrEqual(scheduleBox.x);
-  expect(priorityBox.y).toBeGreaterThan(scheduleBox.y);
+  const metadata = card.locator('[data-slot="task-metadata"]');
+  const priorityBox = await metadata.getByText(priority, { exact: true }).boundingBox();
+  const projectBox = await metadata.locator('[data-slot="task-project"]').boundingBox();
+  const kindBox = await metadata.getByText("One-time", { exact: true }).boundingBox();
+  if (!priorityBox || !projectBox || !kindBox) {
+    throw new Error("task priority metadata layout is not measurable");
+  }
+  expect(Math.abs(priorityBox.y - projectBox.y)).toBeLessThanOrEqual(2);
+  expect(Math.abs(priorityBox.y - kindBox.y)).toBeLessThanOrEqual(2);
+  expect(projectBox.x + projectBox.width).toBeLessThan(priorityBox.x);
+  expect(priorityBox.x + priorityBox.width).toBeLessThan(kindBox.x);
+}
+async function chooseSelectOption(page: Page, label: string, option: string) {
+  const trigger = page.getByLabel(label, { exact: true });
+  await trigger.click();
+  await page.getByRole("option", { name: option, exact: true }).click();
+  await expect(trigger).toContainText(option);
 }
 async function renderedLineCount(locator: Locator) {
   return locator.evaluate((element) => {
@@ -738,6 +785,14 @@ async function expectBrandTimezone(page: Page) {
   const timezoneBox = await timezone.boundingBox();
   if (!brandBox || !timezoneBox) throw new Error("brand timezone layout is not measurable");
   expect(timezoneBox.y).toBeGreaterThan(brandBox.y);
+}
+async function expectBaseUICSP(page: Page) {
+  const nonce = await page.locator('meta[name="csp-nonce"]').getAttribute("content");
+  expect(nonce).toMatch(/^[A-Za-z0-9_-]{20,}$/);
+  const styleNonces = await page
+    .locator("style")
+    .evaluateAll((styles) => styles.map((style) => style.getAttribute("nonce")));
+  expect(styleNonces.every((styleNonce) => styleNonce === nonce)).toBe(true);
 }
 function requiredEnv(name: string) {
   const value = process.env[name];

@@ -20,8 +20,8 @@ import {
   SessionDocument,
   type TaskPriority,
 } from "@/graphql/graphql";
-import { cn } from "@/lib/cn";
 import { graphQLErrorMessage } from "@/lib/user-error";
+import { cn } from "@/lib/utils";
 import { CreateTaskForm } from "./create-task-form";
 import { shortTaskTypeLabel, taskTypeLabel } from "./creation-type";
 import { defaultJobStart } from "./job-title";
@@ -251,7 +251,7 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
     <section className="mx-auto max-w-2xl">
       <a
         href={returnTo}
-        className={cn(buttonVariants({ variant: "ghost", size: "compact" }), "mb-4 px-0")}
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-4 px-0")}
       >
         <ArrowLeft /> Back
       </a>

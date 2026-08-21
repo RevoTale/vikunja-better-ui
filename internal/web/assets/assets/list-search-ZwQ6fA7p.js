@@ -1,1 +1,0 @@
-function e(e){return{project:t(e.project),page:n(e.page)}}function t(e){return e===void 0||e===`all`?`all`:typeof e==`number`&&Number.isSafeInteger(e)&&e>0?String(e):typeof e!=`string`||!/^[1-9]\d*$/.test(e)?`all`:e}function n(e){if(e===void 0)return 1;let t=typeof e==`number`?e:Number(e);return Number.isSafeInteger(t)&&t>0?t:1}export{e as t};

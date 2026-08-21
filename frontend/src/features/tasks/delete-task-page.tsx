@@ -6,8 +6,8 @@ import { useState } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DeleteTaskDocument, SessionDocument, TaskDetailsDocument } from "@/graphql/graphql";
-import { cn } from "@/lib/cn";
 import { graphQLErrorMessage } from "@/lib/user-error";
+import { cn } from "@/lib/utils";
 import { taskDetailActionPolicy } from "./task-detail-action-policy";
 
 export function DeleteTaskPage({ taskId, returnTo }: { taskId: string; returnTo: string }) {
@@ -73,14 +73,14 @@ export function DeleteTaskPage({ taskId, returnTo }: { taskId: string; returnTo:
         to="/tasks/$taskId"
         params={{ taskId }}
         search={{ returnTo }}
-        className={cn(buttonVariants({ variant: "ghost", size: "compact" }), "mb-4 px-0")}
+        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-4 px-0")}
       >
         <ArrowLeft /> Back
       </Link>
       <Card>
         <CardHeader>
           <CardTitle>
-            {canDelete ? `Delete ${task.title}?` : "This task cannot be deleted"}
+            <h1>{canDelete ? `Delete ${task.title}?` : "This task cannot be deleted"}</h1>
           </CardTitle>
         </CardHeader>
         <CardContent>

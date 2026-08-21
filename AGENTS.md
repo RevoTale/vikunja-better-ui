@@ -158,6 +158,16 @@ generated files.
 - Keep components small, semantic, accessible, and keyboard-safe.
 - Prefer small files and focused functions. Split components and helpers by
   responsibility before they become multi-workflow modules.
+- Keep shadcn configured for Base UI in `frontend/components.json`. Add or
+  refresh a shadcn component only with
+  `pnpm dlx shadcn@latest add <component>` from `frontend/`; never handcraft or
+  directly edit files in `frontend/src/components/ui`.
+- Treat `frontend/src/components/ui` as generated vendor code. Customize
+  shadcn components through their public props, CSS tokens, or focused
+  application wrappers outside that directory. An unreferenced generated
+  component may be deleted, but must be re-added through the CLI.
+- Install only shadcn components that the application uses. Prefer the latest
+  Base UI composition and capabilities exposed by the generated component.
 - Show loading, empty, error, and success states for remote workflows.
 - Keep mobile and desktop layouts usable.
 - Confirm destructive actions and name the affected resource, except task

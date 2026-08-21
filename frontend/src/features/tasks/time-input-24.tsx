@@ -1,4 +1,4 @@
-import { Input } from "@/components/ui/input";
+import { AppInput } from "@/components/app-input";
 
 type TimeInput24Props = {
   id: string;
@@ -21,7 +21,7 @@ export function TimeInput24({
   ...attributes
 }: TimeInput24Props) {
   return (
-    <Input
+    <AppInput
       id={id}
       name={name}
       type="time"

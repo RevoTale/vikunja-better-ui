@@ -2,11 +2,11 @@ import { useMutation } from "@apollo/client/react";
 import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 
+import { AppInput } from "@/components/app-input";
 import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
 import { LoginDocument, SessionDocument } from "@/graphql/graphql";
 import { setCSRFToken } from "@/lib/apollo";
 import { graphQLErrorMessage } from "@/lib/user-error";
@@ -68,22 +68,21 @@ export function LoginPage({ returnTo }: LoginPageProps) {
               Better Vikunja
             </p>
           </div>
-          <CardTitle>Better daily tasks</CardTitle>
+          <CardTitle>
+            <h1>Better daily tasks</h1>
+          </CardTitle>
           <CardDescription>Sign in with the credentials configured for this app.</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="grid gap-4" onSubmit={submit} noValidate>
             {error ? (
-              <div
-                className="rounded-md border border-destructive/40 bg-destructive/10 p-3"
-                role="alert"
-              >
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
                 <FieldError>{error}</FieldError>
               </div>
             ) : null}
             <Field>
               <FieldLabel htmlFor="username">Username</FieldLabel>
-              <Input
+              <AppInput
                 id="username"
                 name="username"
                 autoComplete="username"
@@ -93,7 +92,7 @@ export function LoginPage({ returnTo }: LoginPageProps) {
             </Field>
             <Field>
               <FieldLabel htmlFor="password">Password</FieldLabel>
-              <Input
+              <AppInput
                 id="password"
                 name="password"
                 type="password"

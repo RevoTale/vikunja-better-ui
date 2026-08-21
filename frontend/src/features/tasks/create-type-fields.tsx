@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
+import { AppInput } from "@/components/app-input";
+import { AppSelect } from "@/components/app-select";
 import { DatePickerField } from "./date-picker-field";
 import { JobStartFields } from "./job-start-fields";
 import type { LocalDateTimeParts } from "./local-date-time";
@@ -111,7 +111,7 @@ function RecurringFields({ errors, defaultDate }: { errors: TaskFormErrors; defa
       <div className="grid gap-5 sm:grid-cols-3">
         <ValidatedField name="interval" label="Every" error={errors.interval}>
           {(attributes) => (
-            <Input
+            <AppInput
               id="interval"
               name="interval"
               type="number"
@@ -124,31 +124,33 @@ function RecurringFields({ errors, defaultDate }: { errors: TaskFormErrors; defa
         </ValidatedField>
         <ValidatedField name="unit" label="Unit" error={errors.unit}>
           {(attributes) => (
-            <Select
+            <AppSelect
               id="unit"
               name="unit"
               value={unit}
-              onChange={(event) => setUnit(event.currentTarget.value)}
+              options={[
+                { value: "DAY", label: "Days" },
+                { value: "WEEK", label: "Weeks" },
+                { value: "MONTH", label: "Months" },
+              ]}
+              onValueChange={setUnit}
               {...attributes}
-            >
-              <option value="DAY">Days</option>
-              <option value="WEEK">Weeks</option>
-              <option value="MONTH">Months</option>
-            </Select>
+            />
           )}
         </ValidatedField>
         <ValidatedField name="mode" label="Renewal" error={errors.mode}>
           {(attributes) => (
-            <Select
+            <AppSelect
               id="mode"
               name="mode"
               value={mode}
-              onChange={(event) => setMode(event.currentTarget.value)}
+              options={[
+                { value: "FROM_COMPLETION", label: "From completion" },
+                { value: "SCHEDULED_CYCLE", label: "Scheduled cycle" },
+              ]}
+              onValueChange={setMode}
               {...attributes}
-            >
-              <option value="FROM_COMPLETION">From completion</option>
-              <option value="SCHEDULED_CYCLE">Scheduled cycle</option>
-            </Select>
+            />
           )}
         </ValidatedField>
       </div>
@@ -207,7 +209,7 @@ function JobFields({
           error={errors.durationMinutes}
         >
           {(attributes) => (
-            <Input
+            <AppInput
               id="durationMinutes"
               name="durationMinutes"
               type="number"
@@ -224,7 +226,7 @@ function JobFields({
           error={errors.completionWindowMinutes}
         >
           {(attributes) => (
-            <Input
+            <AppInput
               id="completionWindowMinutes"
               name="completionWindowMinutes"
               type="number"
