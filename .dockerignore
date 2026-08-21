@@ -1,6 +1,7 @@
 .git
 .github
 .cache
+.pnpm-store
 .devcontainer
 .env
 frontend/node_modules

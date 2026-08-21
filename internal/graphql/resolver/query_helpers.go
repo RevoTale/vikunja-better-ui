@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/RevoTale/vikunja-better-ui/internal/concurrent"
 	"github.com/RevoTale/vikunja-better-ui/internal/graphql/model"
 	"github.com/RevoTale/vikunja-better-ui/internal/service"
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
@@ -17,60 +18,60 @@ import (
 type queryMetadata struct {
 	user        vikunja.User
 	projects    []vikunja.Project
-	labels      []vikunja.Label
 	userErr     error
 	projectsErr error
-	labelsErr   error
 }
 
-func (resolver *Resolver) loadQueryMetadata(ctx context.Context, includeLabels bool) queryMetadata {
+func (resolver *Resolver) loadQueryMetadata(ctx context.Context) queryMetadata {
 	var metadata queryMetadata
 	var waitGroup sync.WaitGroup
 	waitGroup.Go(func() { metadata.user, metadata.userErr = resolver.users.CurrentUser(ctx) })
 	waitGroup.Go(func() { metadata.projects, metadata.projectsErr = resolver.projects.Projects(ctx) })
-	if includeLabels {
-		waitGroup.Go(func() { metadata.labels, metadata.labelsErr = resolver.tasks.Labels(ctx) })
-	}
 	waitGroup.Wait()
 	return metadata
 }
 
 func (resolver *Resolver) taskContext(ctx context.Context) (vikunja.User, []vikunja.Project, *time.Location, error) {
-	user, projects, _, location, err := resolver.taskContextMetadata(ctx, false)
-	return user, projects, location, err
-}
-
-func (resolver *Resolver) taskContextMetadata(
-	ctx context.Context,
-	includeLabels bool,
-) (vikunja.User, []vikunja.Project, []vikunja.Label, *time.Location, error) {
 	if _, err := requireSession(ctx); err != nil {
-		return vikunja.User{}, nil, nil, nil, err
+		return vikunja.User{}, nil, nil, err
 	}
-	metadata := resolver.loadQueryMetadata(ctx, includeLabels)
-	if metadata.userErr != nil {
-		resolver.logError("read Vikunja user for tasks", metadata.userErr)
-		return vikunja.User{}, nil, nil, nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja is unavailable.")
-	}
-	location, err := time.LoadLocation(metadata.user.Settings.Timezone)
-	if err != nil || metadata.user.Settings.Timezone == "" {
-		return vikunja.User{}, nil, nil, nil, clientError(
-			"VALIDATION_FAILED", "Configure a valid timezone in Vikunja before using date-sensitive views.",
-		)
+	metadata := resolver.loadQueryMetadata(ctx)
+	location, err := resolver.taskLocation(metadata.user, metadata.userErr)
+	if err != nil {
+		return vikunja.User{}, nil, nil, err
 	}
 	if metadata.projectsErr != nil {
 		resolver.logError("read Vikunja projects for tasks", metadata.projectsErr)
-		return vikunja.User{}, nil, nil, nil, clientError(
+		return vikunja.User{}, nil, nil, clientError(
 			"UPSTREAM_UNAVAILABLE", "Vikunja projects could not be loaded.",
 		)
 	}
-	if metadata.labelsErr != nil {
-		resolver.logError("resolve job marker labels", metadata.labelsErr)
-		return vikunja.User{}, nil, nil, nil, upstreamClientError(
-			metadata.labelsErr, "Job markers could not be loaded.",
+	return metadata.user, metadata.projects, location, nil
+}
+
+func (resolver *Resolver) taskLocation(user vikunja.User, userErr error) (*time.Location, error) {
+	if userErr != nil {
+		resolver.logError("read Vikunja user for tasks", userErr)
+		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja is unavailable.")
+	}
+	location, err := time.LoadLocation(user.Settings.Timezone)
+	if err != nil || user.Settings.Timezone == "" {
+		return nil, clientError(
+			"VALIDATION_FAILED", "Configure a valid timezone in Vikunja before using date-sensitive views.",
 		)
 	}
-	return metadata.user, metadata.projects, metadata.labels, location, nil
+	return location, nil
+}
+
+func (resolver *Resolver) waitForTaskProjects(
+	projectsRead *concurrent.Future[[]vikunja.Project],
+) ([]vikunja.Project, error) {
+	projects, err := projectsRead.Wait()
+	if err != nil {
+		resolver.logError("read Vikunja projects for tasks", err)
+		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja projects could not be loaded.")
+	}
+	return projects, nil
 }
 
 func selectedProject(value *string, projects []vikunja.Project) (*int64, error) {
@@ -101,6 +102,14 @@ func projectMap(projects []vikunja.Project) map[int64]vikunja.Project {
 	result := make(map[int64]vikunja.Project, len(projects))
 	for _, project := range projects {
 		result[project.ID] = project
+	}
+	return result
+}
+
+func projectTitleMap(projects []vikunja.Project) map[int64]string {
+	result := make(map[int64]string, len(projects))
+	for _, project := range projects {
+		result[project.ID] = project.Title
 	}
 	return result
 }

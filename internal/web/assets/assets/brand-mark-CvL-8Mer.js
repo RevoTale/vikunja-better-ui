@@ -1,0 +1,1 @@
+import{c as e}from"./useStore-coJqnnkf.js";import{i as t}from"./user-error-DdAs-6hf.js";var n=e();function r({className:e,...r}){return(0,n.jsx)(`img`,{...r,alt:``,"aria-hidden":`true`,className:t(`shrink-0`,e),"data-slot":`brand-mark`,src:`/favicon.svg`})}export{r as t};

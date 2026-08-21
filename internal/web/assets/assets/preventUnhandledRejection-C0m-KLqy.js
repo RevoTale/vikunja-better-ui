@@ -1,0 +1,1 @@
+function e(e){return e.catch(()=>{}),e}export{e as t};

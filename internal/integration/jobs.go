@@ -9,10 +9,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"unicode/utf8"
 
+	"github.com/RevoTale/vikunja-better-ui/internal/concurrent"
 	"github.com/RevoTale/vikunja-better-ui/internal/service"
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
@@ -115,7 +115,7 @@ func (handler *jobsHandler) ServeHTTP(writer http.ResponseWriter, request *http.
 	}
 	ctx, cancel := context.WithTimeout(request.Context(), integrationTimeout)
 	defer cancel()
-	client := vikunja.NewClient(handler.vikunjaURL, input.token)
+	client := vikunja.NewClient(handler.vikunjaURL, input.token, vikunja.WithLogger(handler.logger))
 	defer client.CloseIdleConnections()
 	response, err := handler.jobs(ctx, client, input)
 	if err != nil {
@@ -130,7 +130,11 @@ func (handler *jobsHandler) jobs(
 	client *vikunja.Client,
 	input jobsRequest,
 ) (jobsResponse, error) {
-	user, err := client.CurrentUser(ctx)
+	userRead := concurrent.Start(func() (vikunja.User, error) { return client.CurrentUser(ctx) })
+	projectsRead := concurrent.Start(func() ([]vikunja.Project, error) { return client.Projects(ctx) })
+	labelsRead := concurrent.Start(func() ([]vikunja.Label, error) { return client.Labels(ctx) })
+
+	user, err := userRead.Wait()
 	if err != nil {
 		return jobsResponse{}, err
 	}
@@ -138,17 +142,7 @@ func (handler *jobsHandler) jobs(
 	if err != nil || user.Settings.Timezone == "" {
 		return jobsResponse{}, vikunja.ErrRejectedResponse
 	}
-	var projects []vikunja.Project
-	var labels []vikunja.Label
-	var projectsErr error
-	var labelsErr error
-	var waitGroup sync.WaitGroup
-	waitGroup.Go(func() { projects, projectsErr = client.Projects(ctx) })
-	waitGroup.Go(func() { labels, labelsErr = client.Labels(ctx) })
-	waitGroup.Wait()
-	if projectsErr != nil {
-		return jobsResponse{}, projectsErr
-	}
+	labels, labelsErr := labelsRead.Wait()
 	if labelsErr != nil {
 		return jobsResponse{}, labelsErr
 	}
@@ -157,20 +151,17 @@ func (handler *jobsHandler) jobs(
 	if input.label != "" {
 		filterLabelIDs = service.ExactLabelIDs(labels, input.label)
 		if len(filterLabelIDs) == 0 {
+			if _, projectsErr := projectsRead.Wait(); projectsErr != nil {
+				return jobsResponse{}, projectsErr
+			}
 			return emptyJobsResponse(input), nil
 		}
-	}
-	projectTitles := make(map[int64]string, len(projects))
-	projectByID := make(map[int64]vikunja.Project, len(projects))
-	for _, project := range projects {
-		projectTitles[project.ID] = project.Title
-		projectByID[project.ID] = project
 	}
 	now := handler.now()
 	result, err := service.ListTasks(ctx, client, service.ListRequest{
 		Scope: service.TaskScopeJobs, Page: input.page, PageSize: input.pageSize,
 		Now: now, Location: location, Timezone: user.Settings.Timezone,
-		WeekStart: time.Weekday(user.Settings.WeekStart), ProjectTitles: projectTitles,
+		WeekStart:   time.Weekday(user.Settings.WeekStart),
 		JobLabelIDs: jobLabelIDs, FilterLabelIDs: filterLabelIDs,
 	})
 	if err != nil {
@@ -181,6 +172,14 @@ func (handler *jobsHandler) jobs(
 			return jobsResponse{}, result.Issue.Cause
 		}
 		return jobsResponse{}, errResultSetTooLarge
+	}
+	projects, projectsErr := projectsRead.Wait()
+	if projectsErr != nil {
+		return jobsResponse{}, projectsErr
+	}
+	projectByID := make(map[int64]vikunja.Project, len(projects))
+	for _, project := range projects {
+		projectByID[project.ID] = project
 	}
 	items := make([]jobResponse, 0, len(result.Items))
 	for _, item := range result.Items {

@@ -21,6 +21,10 @@ var (
 )
 
 func (client *Client) CurrentUser(ctx context.Context) (User, error) {
+	return client.currentUserRequests.do(ctx, client.fetchCurrentUser)
+}
+
+func (client *Client) fetchCurrentUser(ctx context.Context) (User, error) {
 	var user User
 	if _, err := client.doJSON(ctx, http.MethodGet, "user", nil, "", &user); err != nil {
 		return User{}, err
@@ -32,12 +36,15 @@ func (client *Client) CurrentUser(ctx context.Context) (User, error) {
 }
 
 func (client *Client) Projects(ctx context.Context) ([]Project, error) {
+	return client.projectRequests.do(ctx, client.fetchProjects)
+}
+
+func (client *Client) fetchProjects(ctx context.Context) ([]Project, error) {
 	projects := make([]Project, 0)
 	for pageNumber := int64(1); ; pageNumber++ {
 		query := url.Values{
 			"page":     []string{strconv.FormatInt(pageNumber, 10)},
 			"per_page": []string{strconv.Itoa(maxUpstreamPageSize)},
-			"expand":   []string{"permissions"},
 		}
 		var response page[Project]
 		if _, err := client.doJSONWithQuery(ctx, http.MethodGet, "projects", query, nil, "", &response); err != nil {
@@ -123,6 +130,10 @@ func setOptionalQuery(query url.Values, key string, value string) {
 }
 
 func (client *Client) Labels(ctx context.Context) ([]Label, error) {
+	return client.labelRequests.do(ctx, client.fetchLabels)
+}
+
+func (client *Client) fetchLabels(ctx context.Context) ([]Label, error) {
 	labels := make([]Label, 0)
 	for pageNumber := int64(1); ; pageNumber++ {
 		query := url.Values{

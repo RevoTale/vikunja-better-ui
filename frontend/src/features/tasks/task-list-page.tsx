@@ -50,6 +50,7 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
         projectId: search.project === "all" ? null : search.project,
       },
     },
+    fetchPolicy: "cache-and-network",
     notifyOnNetworkStatusChange: true,
   });
   const [notice, setNotice] = useState("");
@@ -201,7 +202,7 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
   const content =
     loading && !data ? (
       <ListMessage>Loading tasks…</ListMessage>
-    ) : error ? (
+    ) : error && !taskPage ? (
       <ListMessage tone="error">
         {graphQLErrorMessage(error, "Tasks could not be loaded. Try refreshing this page.")}
       </ListMessage>
@@ -254,6 +255,22 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
         </Select>
       </div>
       <div className="mt-4 sm:mt-6" aria-busy={loading}>
+        {loading && taskPage ? (
+          <p className="mb-3 text-sm text-muted-foreground" role="status">
+            Refreshing tasks…
+          </p>
+        ) : null}
+        {error && taskPage ? (
+          <p
+            className="mb-3 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive"
+            role="alert"
+          >
+            {graphQLErrorMessage(
+              error,
+              "Tasks could not be refreshed. Showing previously loaded data.",
+            )}
+          </p>
+        ) : null}
         {!error && (sessionError || projectError) ? (
           <ListMessage tone="error">
             {graphQLErrorMessage(

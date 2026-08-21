@@ -83,6 +83,13 @@ stores tasks, recurrence metadata, and history only in Vikunja. The exact
 recurring-history design is documented in
 [ADR-001](docs/decisions/0001-recurring-history-snapshots.md).
 
+Task lists keep Apollo-cached rows visible only while performing a mandatory
+fresh read. The backend overlaps independent Vikunja calls, coalesces duplicate
+metadata reads only while they are in flight, and does not retain a TTL cache.
+See [ADR-005](docs/decisions/0005-fresh-task-loading.md) and the
+[performance guide](docs/performance.md) for the exact request graph,
+benchmarks, and safe latency logs.
+
 ## Configuration
 
 Copy `.env.example` to a local, ignored `.env` file and replace every example

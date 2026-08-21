@@ -1,13 +1,13 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { AppShell } from "@/features/auth/app-shell";
-import { SessionDocument } from "@/graphql/graphql";
+import { AuthSessionDocument } from "@/graphql/graphql";
 import { setCSRFToken } from "@/lib/apollo";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ context, location }) => {
     const { data } = await context.apollo.query({
-      query: SessionDocument,
+      query: AuthSessionDocument,
       fetchPolicy: "network-only",
     });
     setCSRFToken(data?.session.csrfToken);

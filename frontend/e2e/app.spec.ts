@@ -230,7 +230,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await page.goto("/today");
   await expectTaskPriorityLayout(page, oneTime, "High");
   await page.getByRole("button", { name: `Complete ${oneTime}` }).click();
-  await expect(page.getByRole("status")).toHaveText(`${oneTime} completed.`);
+  await expectStatusMessage(page, `${oneTime} completed.`);
   await expectVikunjaTask(oneTimeId, { title: oneTime, done: true });
   await page.getByRole("button", { name: "Undo" }).click();
   await expectVikunjaTask(oneTimeId, { title: oneTime, done: false });
@@ -241,7 +241,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await expectDateOnlyTask(recurringId);
   await page.goto("/today");
   await page.getByRole("button", { name: `Complete ${recurring}` }).click();
-  await expect(page.getByRole("status")).toHaveText("Recurring task completed and renewed.");
+  await expectStatusMessage(page, "Recurring task completed and renewed.");
   const recurringAfter = await vikunjaTask(recurringId);
   expect(String(recurringAfter.id)).toBe(recurringId);
   expect(recurringAfter.done).toBe(false);
@@ -260,7 +260,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   expect(scheduledBefore.repeat_mode).toBe(0);
   await page.goto("/today");
   await page.getByRole("button", { name: `Complete ${scheduled}` }).click();
-  await expect(page.getByRole("status")).toHaveText("Recurring task completed and renewed.");
+  await expectStatusMessage(page, "Recurring task completed and renewed.");
   const scheduledAfter = await vikunjaTask(scheduledId);
   expect(String(scheduledAfter.id)).toBe(scheduledId);
   expect(scheduledAfter.done).toBe(false);
@@ -369,9 +369,7 @@ test("skip and delete actions preserve recurring history in Vikunja", async ({ p
   const before = await vikunjaTask(taskID);
 
   await page.getByRole("button", { name: "Skip", exact: true }).click();
-  await expect(page.getByRole("status")).toHaveText(
-    "This occurrence was skipped and the next one is ready.",
-  );
+  await expectStatusMessage(page, "This occurrence was skipped and the next one is ready.");
   const renewed = await vikunjaTask(taskID);
   expect(renewed.done).toBe(false);
   expect(new Date(renewed.due_date).getTime()).toBeGreaterThan(new Date(before.due_date).getTime());
@@ -440,16 +438,14 @@ test("completion-based recurrence keeps or releases the configured due time", as
 
   await page.goto("/today");
   await page.getByRole("button", { name: `Complete ${title}` }).click();
-  await expect(page.getByRole("status")).toHaveText("Recurring task completed and renewed.");
+  await expectStatusMessage(page, "Recurring task completed and renewed.");
   upstream = await vikunjaTask(taskID);
   expect(localDateTime(upstream.due_date)).toBe(`${addCalendarDays(completionDate, 2)}T20:00`);
   expect(hasLabelTitle(upstream, "vbu:fixed-due-time")).toBe(true);
 
   await page.goto(`/tasks/${taskID}?returnTo=%2Ftoday`);
   await page.getByRole("checkbox", { name: /^Keep due time/ }).click();
-  await expect(page.getByRole("status")).toHaveText(
-    "Future occurrences will use the exact elapsed interval.",
-  );
+  await expectStatusMessage(page, "Future occurrences will use the exact elapsed interval.");
   await expect(page.getByRole("checkbox", { name: /^Keep due time/ })).not.toBeChecked();
   upstream = await vikunjaTask(taskID);
   expect(hasLabelTitle(upstream, "vbu:fixed-due-time")).toBe(false);
@@ -488,7 +484,9 @@ async function createTask(
   fill?: () => Promise<void>,
 ) {
   await page.goto("/tasks/new?type=one-time&returnTo=%2Ftoday");
-  await page.getByRole("button", { name: type, exact: true }).click();
+  const typeButton = page.getByRole("button", { name: type, exact: true });
+  await typeButton.click();
+  await expect(typeButton).toHaveAttribute("aria-pressed", "true");
   await page.getByLabel("Title").fill(title);
   if (fill) await fill();
   await page.getByRole("button", { name: `Create ${type}`, exact: true }).click();
@@ -533,6 +531,9 @@ async function expectVikunjaTask(id: string, expected: { title: string; done: bo
       return { title: task.title, done: task.done };
     })
     .toEqual(expected);
+}
+async function expectStatusMessage(page: Page, message: string) {
+  await expect(page.getByRole("status").filter({ hasText: message })).toHaveText(message);
 }
 async function expectDateOnlyTask(id: string) {
   const task = await vikunjaTask(id);

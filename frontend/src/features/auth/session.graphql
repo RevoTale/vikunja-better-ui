@@ -1,3 +1,11 @@
+query AuthSession {
+  session {
+    authenticated
+    csrfToken
+    expiresAt
+  }
+}
+
 query Session {
   session {
     authenticated

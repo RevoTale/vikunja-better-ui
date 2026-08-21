@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"net"
 	"net/http"
@@ -18,12 +19,25 @@ const (
 	apiVersionPath       = "api/v2"
 	maxResponseBodyBytes = 4 << 20
 	userAgent            = "vikunja-better-ui"
+	slowRequestThreshold = 500 * time.Millisecond
 )
 
 type Client struct {
-	baseURL    *url.URL
-	apiToken   string
-	httpClient *http.Client
+	baseURL             *url.URL
+	apiToken            string
+	httpClient          *http.Client
+	logger              *slog.Logger
+	currentUserRequests inflightGroup[User]
+	projectRequests     inflightGroup[[]Project]
+	labelRequests       inflightGroup[[]Label]
+}
+
+type Option func(*Client)
+
+func WithLogger(logger *slog.Logger) Option {
+	return func(client *Client) {
+		client.logger = logger
+	}
 }
 
 type ResponseMetadata struct {
@@ -39,9 +53,9 @@ func (err *Error) Error() string {
 	return fmt.Sprintf("Vikunja request failed with status %d", err.Status)
 }
 
-func NewClient(baseURL *url.URL, apiToken string) *Client {
+func NewClient(baseURL *url.URL, apiToken string, options ...Option) *Client {
 	clonedURL := *baseURL
-	return &Client{
+	client := &Client{
 		baseURL:  &clonedURL,
 		apiToken: apiToken,
 		httpClient: &http.Client{
@@ -65,6 +79,10 @@ func NewClient(baseURL *url.URL, apiToken string) *Client {
 			},
 		},
 	}
+	for _, option := range options {
+		option(client)
+	}
+	return client
 }
 
 // CloseIdleConnections releases connections held by a short-lived client.
@@ -104,7 +122,12 @@ func (client *Client) doJSONWithQueryAndContentType(
 	ifMatch string,
 	contentType string,
 	output any,
-) (ResponseMetadata, error) {
+) (metadata ResponseMetadata, requestErr error) {
+	startedAt := time.Now()
+	defer func() {
+		client.logRequest(ctx, method, path, time.Since(startedAt), requestErr)
+	}()
+
 	requestURL, err := url.JoinPath(client.baseURL.String(), apiVersionPath, path)
 	if err != nil {
 		return ResponseMetadata{}, fmt.Errorf("build Vikunja request URL: %w", err)
@@ -142,7 +165,7 @@ func (client *Client) doJSONWithQueryAndContentType(
 		_ = response.Body.Close()
 	}()
 
-	metadata := ResponseMetadata{ETag: response.Header.Get("ETag")}
+	metadata = ResponseMetadata{ETag: response.Header.Get("ETag")}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, maxResponseBodyBytes+1))
 		return metadata, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
@@ -167,6 +190,29 @@ func (client *Client) doJSONWithQueryAndContentType(
 	}
 
 	return metadata, nil
+}
+
+func (client *Client) logRequest(
+	ctx context.Context,
+	method string,
+	path string,
+	duration time.Duration,
+	err error,
+) {
+	if client.logger == nil {
+		return
+	}
+	level := slog.LevelDebug
+	if err != nil || duration >= slowRequestThreshold {
+		level = slog.LevelWarn
+	}
+	client.logger.Log(
+		ctx, level, "Vikunja request completed",
+		"method", method,
+		"resource", strings.SplitN(strings.Trim(path, "/"), "/", 2)[0],
+		"duration_ms", duration.Milliseconds(),
+		"failed", err != nil,
+	)
 }
 
 func encodeRequestBody(input any) (io.Reader, error) {

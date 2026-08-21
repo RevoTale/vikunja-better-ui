@@ -275,6 +275,7 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
             variant={value === type ? "default" : "outline"}
             className="min-w-0 whitespace-nowrap px-2"
             onClick={() => {
+              if (value === type) return;
               setError("");
               setFieldErrors({});
               return navigate({

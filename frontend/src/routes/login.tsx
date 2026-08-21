@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { safeReturnTo } from "@/app/route-search";
 import { LoginPage } from "@/features/auth/login-page";
-import { SessionDocument } from "@/graphql/graphql";
+import { AuthSessionDocument } from "@/graphql/graphql";
 import { setCSRFToken } from "@/lib/apollo";
 
 export const Route = createFileRoute("/login")({
@@ -10,7 +10,10 @@ export const Route = createFileRoute("/login")({
     returnTo: safeReturnTo(search.returnTo),
   }),
   beforeLoad: async ({ context, search }) => {
-    const { data } = await context.apollo.query({ query: SessionDocument });
+    const { data } = await context.apollo.query({
+      query: AuthSessionDocument,
+      fetchPolicy: "network-only",
+    });
     setCSRFToken(data?.session.csrfToken);
     if (data?.session.authenticated) {
       throw redirect({ href: search.returnTo });

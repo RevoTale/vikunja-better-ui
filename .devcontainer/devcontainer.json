@@ -4,14 +4,14 @@
 	"features": {
 		"ghcr.io/devcontainers/features/go:1": {
 			"version": "1.26.6",
-			"golangciLintVersion": "2.12.2"
+			"golangciLintVersion": "2.13.1"
 		},
 		"ghcr.io/devcontainers/features/node:2": {
 			"version": "26.7.0",
 			"pnpmVersion": "11.22.0"
 		},
 		"ghcr.io/eitsupi/devcontainer-features/go-task:1": {
-			"version": "3.52.0"
+			"version": "3.53.1"
 		},
 		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
 			"moby": false

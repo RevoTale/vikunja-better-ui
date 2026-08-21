@@ -1,9 +1,11 @@
 package vikunja
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -11,6 +13,42 @@ import (
 	"sync/atomic"
 	"testing"
 )
+
+func TestClientLogsSafeUpstreamTiming(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write([]byte(`{"id":42}`))
+	}))
+	t.Cleanup(server.Close)
+
+	baseURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	client := NewClient(baseURL, "secret-token", WithLogger(logger))
+	query := url.Values{"filter": {"secret-filter"}}
+	if _, err := client.doJSONWithQuery(
+		context.Background(), http.MethodGet, "tasks/42", query, nil, "", &struct{}{},
+	); err != nil {
+		t.Fatalf("doJSONWithQuery() error = %v", err)
+	}
+
+	entry := logs.String()
+	for _, expected := range []string{`"msg":"Vikunja request completed"`, `"resource":"tasks"`, `"duration_ms":`} {
+		if !strings.Contains(entry, expected) {
+			t.Fatalf("log entry %q does not contain %q", entry, expected)
+		}
+	}
+	for _, secret := range []string{"secret-token", "secret-filter", "tasks/42"} {
+		if strings.Contains(entry, secret) {
+			t.Fatalf("log entry exposed %q: %s", secret, entry)
+		}
+	}
+}
 
 func TestClientDoJSONUsesV2AndBearerToken(t *testing.T) {
 	t.Parallel()

@@ -8,9 +8,13 @@ import (
 	"time"
 
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
+	"golang.org/x/sync/errgroup"
 )
 
-const maxActiveCandidateTasks int64 = 10000
+const (
+	maxActiveCandidateTasks int64 = 10000
+	maxPageConcurrency      int   = 4
+)
 
 type ListIssueCode string
 
@@ -81,13 +85,12 @@ func listActive(ctx context.Context, client taskListClient, request ListRequest)
 	candidates = appendTaskListCandidates(
 		candidates, firstPage.Items, request.ProjectTitles, request.Scope, request.Now, request.Location, request.WeekStart,
 	)
+	pages, err := loadRemainingTaskPages(ctx, client, query, firstPage.TotalPages)
+	if err != nil {
+		return incompleteList(request, ListIssueUpstreamPartial, err), nil
+	}
 	loadedTasks := int64(len(firstPage.Items))
-	for pageNumber := int64(2); pageNumber <= firstPage.TotalPages; pageNumber++ {
-		query.Page = pageNumber
-		page, pageErr := client.TasksPage(ctx, query)
-		if pageErr != nil {
-			return incompleteList(request, ListIssueUpstreamPartial, pageErr), nil
-		}
+	for _, page := range pages {
 		if page.Total != firstPage.Total || page.TotalPages != firstPage.TotalPages {
 			return incompleteList(request, ListIssueUpstreamPartial, vikunja.ErrRejectedResponse), nil
 		}
@@ -103,6 +106,37 @@ func listActive(ctx context.Context, client taskListClient, request ListRequest)
 	candidates = filterCandidatesByAnyLabelID(candidates, request.FilterLabelIDs)
 	sortTaskList(candidates, request.Scope, request.Now)
 	return completeCandidateList(request, candidates), nil
+}
+
+func loadRemainingTaskPages(
+	ctx context.Context,
+	client taskListClient,
+	query vikunja.TaskQuery,
+	totalPages int64,
+) ([]vikunja.TaskPage, error) {
+	if totalPages <= 1 {
+		return nil, nil
+	}
+
+	pages := make([]vikunja.TaskPage, totalPages-1)
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(maxPageConcurrency)
+	for pageNumber := int64(2); pageNumber <= totalPages; pageNumber++ {
+		index := pageNumber - 2
+		group.Go(func() error {
+			pageQuery := query
+			pageQuery.Page = pageNumber
+			page, err := client.TasksPage(groupCtx, pageQuery)
+			if err == nil {
+				pages[index] = page
+			}
+			return err
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return nil, err
+	}
+	return pages, nil
 }
 
 func filterCandidatesByAnyLabelID(candidates []taskListCandidate, labelIDs []int64) []taskListCandidate {

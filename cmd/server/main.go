@@ -45,7 +45,9 @@ func main() {
 func run(configuration config.Config, logger *slog.Logger) error {
 	now := time.Now
 	production := configuration.Environment == config.EnvironmentProduction
-	vikunjaClient := vikunja.NewClient(configuration.VikunjaURL, configuration.VikunjaAPIToken)
+	vikunjaClient := vikunja.NewClient(
+		configuration.VikunjaURL, configuration.VikunjaAPIToken, vikunja.WithLogger(logger),
+	)
 	sessions := auth.NewSessionManager(configuration.SessionSecret, now, rand.Reader)
 	cookies := auth.NewSessionCookies(production)
 	capabilities := service.NewCapabilityManager(configuration.SessionSecret, now)

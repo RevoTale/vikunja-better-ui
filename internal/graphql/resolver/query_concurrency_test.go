@@ -87,6 +87,73 @@ func TestJobsQueryLoadsIndependentMetadataConcurrently(t *testing.T) {
 	}
 }
 
+func TestTaskQueryDoesNotWaitForProjectsWithoutProjectFilter(t *testing.T) {
+	t.Parallel()
+
+	projectStarted := make(chan struct{}, 1)
+	releaseProjects := make(chan struct{})
+	taskStarted := make(chan struct{}, 1)
+	reader := &overlapResolverReader{
+		projectStarted:  projectStarted,
+		releaseProjects: releaseProjects,
+	}
+	tasks := &overlapTaskClient{
+		taskActionClientStub: taskActionClientStub{},
+		started:              taskStarted,
+	}
+	now := time.Date(2026, time.August, 21, 12, 0, 0, 0, time.UTC)
+	sessions := auth.NewSessionManager(
+		[]byte("01234567890123456789012345678901"),
+		func() time.Time { return now },
+		bytes.NewReader([]byte("0123456789abcdef")),
+	)
+	token, _, err := sessions.Issue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := New(Dependencies{
+		Sessions: sessions, Users: reader, Projects: reader, Tasks: tasks,
+		Now: func() time.Time { return now },
+	})
+	cookie := &http.Cookie{
+		Name: "vbu_session", Value: token, HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
+	}
+	done := make(chan error, 1)
+	go withRequestContext(
+		t,
+		sessions,
+		auth.NewSessionCookies(false),
+		httptest.NewRecorder(),
+		cookie,
+		func(ctx context.Context) {
+			_, queryErr := (&queryResolver{root}).Tasks(ctx, model.TaskListInput{
+				Scope: model.TaskScopeToday, Page: 1, PageSize: 30,
+			})
+			done <- queryErr
+		},
+	)
+
+	select {
+	case <-projectStarted:
+	case <-time.After(200 * time.Millisecond):
+		close(releaseProjects)
+		t.Fatal("projects request did not start")
+	}
+	select {
+	case <-taskStarted:
+	case <-time.After(200 * time.Millisecond):
+		close(releaseProjects)
+		if queryErr := <-done; queryErr != nil {
+			t.Fatalf("Tasks() error = %v", queryErr)
+		}
+		t.Fatal("tasks request waited for projects")
+	}
+	close(releaseProjects)
+	if queryErr := <-done; queryErr != nil {
+		t.Fatalf("Tasks() error = %v", queryErr)
+	}
+}
+
 type blockingResolverReader struct {
 	started chan<- string
 	release <-chan struct{}
@@ -116,4 +183,31 @@ func (client *blockingTaskClient) Labels(context.Context) ([]vikunja.Label, erro
 	client.started <- "labels"
 	<-client.release
 	return []vikunja.Label{{ID: 4, Title: "job"}}, nil
+}
+
+type overlapResolverReader struct {
+	projectStarted  chan<- struct{}
+	releaseProjects <-chan struct{}
+}
+
+func (*overlapResolverReader) CurrentUser(context.Context) (vikunja.User, error) {
+	return vikunja.User{
+		ID: 1, Username: "user", Settings: vikunja.UserSettings{Timezone: "UTC", WeekStart: 1},
+	}, nil
+}
+
+func (reader *overlapResolverReader) Projects(context.Context) ([]vikunja.Project, error) {
+	reader.projectStarted <- struct{}{}
+	<-reader.releaseProjects
+	return []vikunja.Project{{ID: 7, Title: "Home"}}, nil
+}
+
+type overlapTaskClient struct {
+	taskActionClientStub
+	started chan<- struct{}
+}
+
+func (client *overlapTaskClient) TasksPage(context.Context, vikunja.TaskQuery) (vikunja.TaskPage, error) {
+	client.started <- struct{}{}
+	return vikunja.TaskPage{Page: 1, PerPage: 1000}, nil
 }

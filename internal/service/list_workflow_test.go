@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -175,6 +176,47 @@ func TestListTasksReturnsNoPartialRowsOnUpstreamInterruption(t *testing.T) {
 	}
 }
 
+func TestListTasksLoadsRemainingPagesConcurrently(t *testing.T) {
+	t.Parallel()
+
+	started := make(chan int64, 2)
+	release := make(chan struct{})
+	client := &concurrentPageClient{started: started, release: release}
+	done := make(chan error, 1)
+	go func() {
+		_, err := ListTasks(t.Context(), client, ListRequest{
+			Scope: TaskScopeToday, Page: 1, PageSize: 30,
+			Now: time.Now(), Location: time.UTC, Timezone: "UTC", WeekStart: time.Monday,
+		})
+		done <- err
+	}()
+
+	seen := make(map[int64]bool, 2)
+	timer := time.NewTimer(200 * time.Millisecond)
+	for len(seen) < 2 {
+		select {
+		case page := <-started:
+			seen[page] = true
+		case <-timer.C:
+			close(release)
+			if err := <-done; err != nil {
+				t.Fatalf("ListTasks() error = %v", err)
+			}
+			t.Fatalf("remaining pages did not overlap: started = %v", seen)
+		}
+	}
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+}
+
 func TestListTasksHistoryReadsRequestedPagesInAuthoritativeOrder(t *testing.T) {
 	t.Parallel()
 
@@ -196,6 +238,7 @@ func TestListTasksHistoryReadsRequestedPagesInAuthoritativeOrder(t *testing.T) {
 }
 
 type listClientStub struct {
+	mu      sync.Mutex
 	pages   []vikunja.TaskPage
 	queries []vikunja.TaskQuery
 	errAt   int
@@ -203,9 +246,28 @@ type listClientStub struct {
 }
 
 func (client *listClientStub) TasksPage(_ context.Context, query vikunja.TaskQuery) (vikunja.TaskPage, error) {
+	client.mu.Lock()
+	defer client.mu.Unlock()
 	client.queries = append(client.queries, query)
-	if client.errAt > 0 && len(client.queries) == client.errAt {
+	callNumber := len(client.queries)
+	if client.errAt > 0 && callNumber == client.errAt {
 		return vikunja.TaskPage{}, client.err
 	}
-	return client.pages[len(client.queries)-1], nil
+	return client.pages[callNumber-1], nil
+}
+
+type concurrentPageClient struct {
+	started chan<- int64
+	release <-chan struct{}
+}
+
+func (client *concurrentPageClient) TasksPage(_ context.Context, query vikunja.TaskQuery) (vikunja.TaskPage, error) {
+	if query.Page > 1 {
+		client.started <- query.Page
+		<-client.release
+	}
+	return vikunja.TaskPage{
+		Items: []vikunja.Task{{ID: query.Page, DueDate: time.Now().Add(-time.Hour)}},
+		Total: 3, Page: query.Page, PerPage: 1000, TotalPages: 3,
+	}, nil
 }

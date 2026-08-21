@@ -13,7 +13,9 @@ import (
 	"strings"
 	"time"
 
+	gqlgen "github.com/99designs/gqlgen/graphql"
 	"github.com/RevoTale/vikunja-better-ui/internal/auth"
+	"github.com/RevoTale/vikunja-better-ui/internal/concurrent"
 	"github.com/RevoTale/vikunja-better-ui/internal/graphql/generated"
 	"github.com/RevoTale/vikunja-better-ui/internal/graphql/model"
 	"github.com/RevoTale/vikunja-better-ui/internal/service"
@@ -345,12 +347,17 @@ func (r *queryResolver) Session(ctx context.Context) (*model.Session, error) {
 	if !ok {
 		return &model.Session{Authenticated: false}, nil
 	}
+	result := authenticatedSessionWithoutUser(r.sessions, session)
+	if !gqlgen.FieldRequested(ctx, "vikunjaUser") {
+		return result, nil
+	}
 	user, err := r.users.CurrentUser(ctx)
 	if err != nil {
 		r.logError("read Vikunja user for session", err)
 		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja is unavailable. Try again shortly.")
 	}
-	return authenticatedSession(r.sessions, session, user), nil
+	result.VikunjaUser = vikunjaUserModel(user)
+	return result, nil
 }
 
 // Projects is the resolver for the projects field.
@@ -358,7 +365,7 @@ func (r *queryResolver) Projects(ctx context.Context) (*model.ProjectResult, err
 	if _, err := requireSession(ctx); err != nil {
 		return nil, err
 	}
-	metadata := r.loadQueryMetadata(ctx, false)
+	metadata := r.loadQueryMetadata(ctx)
 	if metadata.userErr != nil {
 		r.logError("read Vikunja user for projects", metadata.userErr)
 		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja is unavailable. Try again shortly.")
@@ -379,27 +386,47 @@ func (r *queryResolver) Projects(ctx context.Context) (*model.ProjectResult, err
 
 // Tasks is the resolver for the tasks field.
 func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*model.TaskPage, error) {
+	if _, err := requireSession(ctx); err != nil {
+		return nil, err
+	}
 	includeLabels := input.Scope == model.TaskScopeJobs
-	user, projects, labels, location, err := r.taskContextMetadata(ctx, includeLabels)
+	userRead := concurrent.Start(func() (vikunja.User, error) { return r.users.CurrentUser(ctx) })
+	projectsRead := concurrent.Start(func() ([]vikunja.Project, error) { return r.projects.Projects(ctx) })
+	var labelsRead *concurrent.Future[[]vikunja.Label]
+	if includeLabels {
+		labelsRead = concurrent.Start(func() ([]vikunja.Label, error) { return r.tasks.Labels(ctx) })
+	}
+
+	user, userErr := userRead.Wait()
+	location, err := r.taskLocation(user, userErr)
 	if err != nil {
 		return nil, err
-	}
-	projectID, err := selectedProject(input.ProjectID, projects)
-	if err != nil {
-		return nil, err
-	}
-	projectTitles := make(map[int64]string, len(projects))
-	projectByID := make(map[int64]vikunja.Project, len(projects))
-	for _, project := range projects {
-		projectTitles[project.ID] = project.Title
-		projectByID[project.ID] = project
 	}
 	var jobLabelIDs []int64
 	if includeLabels {
+		labels, labelsErr := labelsRead.Wait()
+		if labelsErr != nil {
+			r.logError("resolve job marker labels", labelsErr)
+			return nil, upstreamClientError(labelsErr, "Job markers could not be loaded.")
+		}
 		jobLabelIDs = service.ExactLabelIDs(labels, "job")
 	}
+
+	var projects []vikunja.Project
+	needsProjectsBeforeTasks := input.ProjectID != nil || input.Scope == model.TaskScopeUnscheduled
+	if needsProjectsBeforeTasks {
+		projects, err = r.waitForTaskProjects(projectsRead)
+		if err != nil {
+			return nil, err
+		}
+	}
+	selectedProjectID, err := selectedProject(input.ProjectID, projects)
+	if err != nil {
+		return nil, err
+	}
+	projectTitles := projectTitleMap(projects)
 	result, err := service.ListTasks(ctx, r.tasks, service.ListRequest{
-		Scope: service.TaskScope(input.Scope), ProjectID: projectID,
+		Scope: service.TaskScope(input.Scope), ProjectID: selectedProjectID,
 		Page: input.Page, PageSize: input.PageSize, Now: r.now(),
 		Location: location, Timezone: user.Settings.Timezone,
 		WeekStart: time.Weekday(user.Settings.WeekStart), ProjectTitles: projectTitles,
@@ -409,6 +436,13 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 		r.logError("list tasks", err)
 		return nil, upstreamClientError(err, "Tasks could not be loaded.")
 	}
+	if !needsProjectsBeforeTasks {
+		projects, err = r.waitForTaskProjects(projectsRead)
+		if err != nil {
+			return nil, err
+		}
+	}
+	projectByID := projectMap(projects)
 	if result.TotalItems > math.MaxInt32 || result.TotalPages > math.MaxInt32 {
 		return nil, clientError("UPSTREAM_REJECTED", "Vikunja returned more history than this client can represent.")
 	}
@@ -494,11 +528,16 @@ type (
 )
 
 func authenticatedSession(manager *auth.SessionManager, session auth.Session, user vikunja.User) *model.Session {
+	result := authenticatedSessionWithoutUser(manager, session)
+	result.VikunjaUser = vikunjaUserModel(user)
+	return result
+}
+
+func authenticatedSessionWithoutUser(manager *auth.SessionManager, session auth.Session) *model.Session {
 	csrfToken := manager.CSRFToken(session)
 	expiresAt := session.ExpiresAt
 	return &model.Session{
 		Authenticated: true, CsrfToken: &csrfToken, ExpiresAt: &expiresAt,
-		VikunjaUser: vikunjaUserModel(user),
 	}
 }
 
