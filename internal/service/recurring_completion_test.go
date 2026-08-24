@@ -34,10 +34,10 @@ func TestCompleteRecurringRenewsSameTaskAndCreatesSnapshot(t *testing.T) {
 	confirmed.Done = true
 	confirmed.DoneAt = completedAt
 	client := &recurringClientStub{
-		completionClientStub: completionClientStub{reads: []taskRead{
+		reads: []taskRead{
 			{task: before, etag: `"v1"`}, {task: renewed, etag: `"v2"`}, {task: renewed, etag: `"v2"`},
 			{task: created, etag: `"snapshot-v1"`}, {task: confirmed, etag: `"snapshot-v2"`},
-		}},
+		},
 		searchPage: vikunja.TaskPage{Items: []vikunja.Task{}, Total: 0, Page: 1, PerPage: 1000, TotalPages: 0},
 		created:    vikunja.Task{ID: 12, ProjectID: 7, Title: "Water"},
 		labels:     []vikunja.Label{{ID: 6, Title: recurrenceHistoryLabel}},
@@ -92,10 +92,10 @@ func TestSkipRecurringCreatesSkippedSnapshotWithoutMarkingLiveTask(t *testing.T)
 		{ID: 8, Title: skippedLabel},
 	}
 	client := &recurringClientStub{
-		completionClientStub: completionClientStub{reads: []taskRead{
+		reads: []taskRead{
 			{task: before, etag: `"v1"`}, {task: renewed, etag: `"v2"`}, {task: renewed, etag: `"v2"`},
 			{task: created, etag: `"snapshot-v1"`}, {task: confirmed, etag: `"snapshot-v2"`},
-		}},
+		},
 		searchPage: vikunja.TaskPage{Items: []vikunja.Task{}, Page: 1, PerPage: 1000},
 		created:    created,
 		labels: []vikunja.Label{
@@ -151,14 +151,14 @@ func TestCompleteRecurringKeepsDueTimeOnCompletionRelativeDate(t *testing.T) {
 	confirmed.DoneAt = actionAt
 	confirmed.Labels = []vikunja.Label{{ID: 6, Title: recurrenceHistoryLabel}}
 	client := &recurringClientStub{
-		completionClientStub: completionClientStub{reads: []taskRead{
+		reads: []taskRead{
 			{task: before, etag: `"v1"`},
 			{task: native, etag: `"v2"`},
 			{task: normalized, etag: `"v3"`},
 			{task: normalized, etag: `"v3"`},
 			{task: created, etag: `"snapshot-v1"`},
 			{task: confirmed, etag: `"snapshot-v2"`},
-		}},
+		},
 		searchPage: vikunja.TaskPage{Items: []vikunja.Task{}, Page: 1, PerPage: 1000},
 		created:    created,
 		labels:     []vikunja.Label{{ID: 6, Title: recurrenceHistoryLabel}},
@@ -194,7 +194,7 @@ func TestCompleteRecurringRejectsInvalidFixedDueTimeTargetBeforeWrite(t *testing
 		Labels: []vikunja.Label{{ID: 10, Title: fixedDueTimeLabel}},
 	}
 	client := &recurringClientStub{
-		completionClientStub: completionClientStub{reads: []taskRead{{task: before, etag: `"v1"`}}},
+		reads: []taskRead{{task: before, etag: `"v1"`}},
 	}
 	capabilities := NewCapabilityManager(
 		[]byte("01234567890123456789012345678901"),
@@ -223,10 +223,8 @@ func TestCompleteRecurringReturnsRepairAfterFixedDueTimePatchFailure(t *testing.
 	native.DoneAt = actionAt
 	wantErr := errors.New("normalization unavailable")
 	client := &recurringClientStub{
-		completionClientStub: completionClientStub{
-			reads:     []taskRead{{task: before, etag: `"v1"`}, {task: native, etag: `"v2"`}},
-			patchErrs: []error{nil, wantErr},
-		},
+		reads:     []taskRead{{task: before, etag: `"v1"`}, {task: native, etag: `"v2"`}},
+		patchErrs: []error{nil, wantErr},
 	}
 	capabilities := NewCapabilityManager(
 		[]byte("01234567890123456789012345678901"),
@@ -261,9 +259,9 @@ func TestCompleteRecurringReconcilesExistingSnapshotWithoutCreating(t *testing.T
 		Description: completionMetadata(key), Labels: []vikunja.Label{{ID: 6, Title: recurrenceHistoryLabel}},
 	}
 	client := &recurringClientStub{
-		completionClientStub: completionClientStub{reads: []taskRead{
+		reads: []taskRead{
 			{task: before, etag: `"v1"`}, {task: renewed, etag: `"v2"`}, {task: renewed, etag: `"v2"`},
-		}},
+		},
 		searchPage: vikunja.TaskPage{Items: []vikunja.Task{snapshot}, Total: 1, Page: 1, PerPage: 1000, TotalPages: 1},
 	}
 	result, err := CompleteRecurring(context.Background(), client, capabilities, 9, before.DueDate, time.UTC)
@@ -281,7 +279,7 @@ func TestCompleteRecurringRejectsStaleOccurrenceBeforeWrite(t *testing.T) {
 		RepeatAfter: 86400, RepeatMode: 2,
 	}
 	client := &recurringClientStub{
-		completionClientStub: completionClientStub{reads: []taskRead{{task: before, etag: `"v1"`}}},
+		reads: []taskRead{{task: before, etag: `"v1"`}},
 	}
 	capabilities := NewCapabilityManager(
 		[]byte("01234567890123456789012345678901"),
@@ -343,9 +341,9 @@ func TestRepairRecurringSnapshotFinishesExistingPartialSnapshot(t *testing.T) {
 	confirmed := partial
 	confirmed.Labels = []vikunja.Label{{ID: 4, Title: "garden"}, {ID: 6, Title: recurrenceHistoryLabel}}
 	client := &recurringClientStub{
-		completionClientStub: completionClientStub{reads: []taskRead{
+		reads: []taskRead{
 			{task: live, etag: `"v2"`}, {task: confirmed, etag: `"snapshot-v2"`},
-		}},
+		},
 		searchPage: vikunja.TaskPage{Items: []vikunja.Task{partial}, Total: 1, Page: 1, PerPage: 1000, TotalPages: 1},
 		labels:     []vikunja.Label{{ID: 6, Title: recurrenceHistoryLabel}},
 	}
@@ -385,9 +383,9 @@ func TestRepairSkippedSnapshotAttachesBothOutcomeMarkers(t *testing.T) {
 		{ID: 8, Title: skippedLabel},
 	}
 	client := &recurringClientStub{
-		completionClientStub: completionClientStub{reads: []taskRead{
+		reads: []taskRead{
 			{task: live, etag: `"v2"`}, {task: confirmed, etag: `"snapshot-v2"`},
-		}},
+		},
 		searchPage: vikunja.TaskPage{Items: []vikunja.Task{partial}, Total: 1, Page: 1, PerPage: 1000, TotalPages: 1},
 		labels: []vikunja.Label{
 			{ID: 6, Title: recurrenceHistoryLabel},
@@ -432,11 +430,11 @@ func TestRepairRecurringSnapshotFinishesFixedDueTimeNormalization(t *testing.T) 
 		Labels:      []vikunja.Label{{ID: 6, Title: recurrenceHistoryLabel}},
 	}
 	client := &recurringClientStub{
-		completionClientStub: completionClientStub{reads: []taskRead{
+		reads: []taskRead{
 			{task: live, etag: `"v2"`},
 			{task: normalized, etag: `"v3"`},
 			{task: snapshot, etag: `"snapshot-v2"`},
-		}},
+		},
 		searchPage: vikunja.TaskPage{
 			Items: []vikunja.Task{snapshot}, Total: 1, Page: 1, PerPage: 1000, TotalPages: 1,
 		},
@@ -475,8 +473,8 @@ func TestRepairNormalCompletionRejectsSkippedSnapshot(t *testing.T) {
 		},
 	}
 	client := &recurringClientStub{
-		completionClientStub: completionClientStub{reads: []taskRead{{task: live, etag: `"v2"`}}},
-		searchPage:           vikunja.TaskPage{Items: []vikunja.Task{candidate}, Total: 1, Page: 1, PerPage: 1000, TotalPages: 1},
+		reads:      []taskRead{{task: live, etag: `"v2"`}},
+		searchPage: vikunja.TaskPage{Items: []vikunja.Task{candidate}, Total: 1, Page: 1, PerPage: 1000, TotalPages: 1},
 	}
 
 	_, err := RepairRecurringSnapshot(context.Background(), client, RecurringRepairGrant{

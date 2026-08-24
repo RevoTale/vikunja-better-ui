@@ -212,7 +212,7 @@ and unavailable or invalid Vikunja responses return `502`.
 
 Open the repository in its Dev Container first. The container installs pinned
 Go, Node.js, pnpm, Task, Playwright, and Docker access. Rebuild the Dev Container
-after changing `.devcontainer/devcontainer.json`.
+after changing files under `.devcontainer/`.
 
 Run all project commands inside that container:
 
@@ -226,6 +226,32 @@ task e2e        # real browser tests against isolated Vikunja 2.5.0
 task demo       # run the complete isolated demo at http://localhost:4180
 task dev        # run the application
 ```
+
+### Automated dependency updates
+
+Renovate extends the RevoTale organization preset, which follows the official
+`config:best-practices` preset. In particular, npm releases must be at least
+three days old before Renovate creates a branch; pnpm independently rejects
+packages newer than one day during every frozen install. The Dependency
+Dashboard shows updates waiting for either policy. This repository uses only
+Renovate's built-in Dockerfile, Dev Container, npm, and Go module managers.
+
+Renovate groups runtime updates so Go, Node.js, and pnpm pins change together.
+Go module updates run `go mod tidy`, npm updates deduplicate the pnpm lockfile,
+and major upgrades stay in separate PRs labeled `breaking`. Renovate-hosted
+does not run arbitrary repository generation commands, so CI still
+intentionally requires generated GraphQL, route, and embedded asset output to
+remain unchanged; a tool upgrade that changes generated output needs a
+reviewed follow-up commit rather than bypassing `task gen:check`.
+
+The production and development images copy pnpm from the official,
+digest-pinned pnpm image. The frontend build runs on the separately pinned
+Node.js image, while CI reads the exact Node.js version from
+`frontend/package.json`. Task and golangci-lint are isolated as standard Go
+tool dependencies in `tools/go.mod`; CI and the Dev Container install those
+exact versions with `go install tool`. Gqlgen remains a tool of the application
+module. No global npm, Corepack, custom Renovate manager, or version-check
+script is required.
 
 ### Frontend components
 

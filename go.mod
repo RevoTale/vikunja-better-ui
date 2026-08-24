@@ -1,6 +1,6 @@
 module github.com/RevoTale/vikunja-better-ui
 
-go 1.26.6
+go 1.27.0
 
 tool github.com/99designs/gqlgen
 
@@ -20,6 +20,7 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/sosodev/duration v1.4.0 // indirect
+	github.com/stretchr/testify v1.12.1 // indirect
 	github.com/urfave/cli/v3 v3.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/mod v0.40.0 // indirect

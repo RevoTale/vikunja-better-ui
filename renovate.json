@@ -1,6 +1,36 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "local>RevoTale/.github:renovate-config"
+  "extends": ["local>RevoTale/.github:renovate-config"],
+  "packageRules": [
+    {
+      "description": "Keep every Go runtime declaration on one version",
+      "matchPackageNames": ["go", "golang"],
+      "groupName": "Go runtime"
+    },
+    {
+      "description": "Keep every Node.js runtime declaration on one version",
+      "matchPackageNames": ["node"],
+      "groupName": "Node.js runtime"
+    },
+    {
+      "description": "Keep every pnpm declaration on one version",
+      "matchPackageNames": ["pnpm", "ghcr.io/pnpm/pnpm"],
+      "groupName": "pnpm"
+    },
+    {
+      "description": "Tidy Go module artifacts after Go dependency updates",
+      "matchManagers": ["gomod"],
+      "postUpdateOptions": ["gomodTidy"]
+    },
+    {
+      "description": "Deduplicate the pnpm lockfile after npm dependency updates",
+      "matchManagers": ["npm"],
+      "postUpdateOptions": ["pnpmDedupe"]
+    },
+    {
+      "description": "Make breaking upgrade PRs explicit",
+      "matchUpdateTypes": ["major"],
+      "addLabels": ["breaking"]
+    }
   ]
 }

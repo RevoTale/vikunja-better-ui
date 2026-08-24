@@ -34,7 +34,10 @@ tasks:
       - golangci-lint run ./...
       - pnpm --dir frontend run lint
       - pnpm --dir frontend run typecheck
-      - go build -o /tmp/vikunja-better-ui-server ./cmd/server
+      - |
+        output="$(mktemp)"
+        trap 'rm -f "$output"' EXIT
+        go build -o "$output" ./cmd/server
       - pnpm --dir frontend run build
 
   test:
