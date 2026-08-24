@@ -8,6 +8,64 @@ query Projects {
   }
 }
 
+query Week($input: WeekInput!) {
+  week(input: $input) {
+    startsOn
+    endsOn
+    days {
+      date
+      tasks {
+        ...WeekTask
+      }
+      projections {
+        dueAt
+        hasDueTime
+        sourceTask {
+          ...WeekTask
+        }
+      }
+    }
+    isComplete
+    issues {
+      code
+      message
+      projectId
+    }
+  }
+}
+
+fragment WeekTask on Task {
+  id
+  title
+  description
+  kind
+  isDone
+  doneAt
+  completionOutcome
+  project {
+    id
+    title
+    isDefault
+  }
+  priority
+  dueAt
+  hasDueTime
+  startAt
+  endAt
+  recurrenceRule {
+    interval
+    unit
+    mode
+    keepDueTime
+  }
+  labels {
+    id
+    title
+  }
+  isOverdue
+  timezone
+}
+
 query TaskList($input: TaskListInput!) {
   tasks(input: $input) {
     items {

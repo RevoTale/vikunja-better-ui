@@ -444,6 +444,57 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 	return r.taskPageModel(result, projects, user)
 }
 
+// Week is the resolver for the week field.
+func (r *queryResolver) Week(ctx context.Context, input model.WeekInput) (*model.WeekView, error) {
+	if _, err := requireSession(ctx); err != nil {
+		return nil, err
+	}
+	userRead := concurrent.Start(func() (vikunja.User, error) { return r.users.CurrentUser(ctx) })
+	projectsRead := concurrent.Start(func() ([]vikunja.Project, error) { return r.projects.Projects(ctx) })
+	user, userErr := userRead.Wait()
+	location, err := r.taskLocation(user, userErr)
+	if err != nil {
+		return nil, err
+	}
+	now := r.now()
+	var containing time.Time
+	if input.Containing != nil {
+		containing, err = time.ParseInLocation("2006-01-02", string(*input.Containing), location)
+		if err != nil {
+			return nil, clientError("VALIDATION_FAILED", "Week date is invalid.")
+		}
+		if containing.Before(now.AddDate(-10, 0, 0)) || containing.After(now.AddDate(10, 0, 0)) {
+			return nil, clientError("VALIDATION_FAILED", "Week date must be within ten years of today.")
+		}
+	}
+	var projects []vikunja.Project
+	if input.ProjectID != nil {
+		projects, err = r.waitForTaskProjects(projectsRead)
+		if err != nil {
+			return nil, err
+		}
+	}
+	projectID, err := selectedProject(input.ProjectID, projects)
+	if err != nil {
+		return nil, err
+	}
+	result, err := service.ListWeek(ctx, r.tasks, service.WeekRequest{
+		Containing: containing, Now: now, Location: location, Timezone: user.Settings.Timezone,
+		WeekStart: time.Weekday(user.Settings.WeekStart), ProjectID: projectID,
+	})
+	if err != nil {
+		r.logError("list week", err)
+		return nil, upstreamClientError(err, "Week tasks could not be loaded.")
+	}
+	if projects == nil {
+		projects, err = r.waitForTaskProjects(projectsRead)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return r.weekViewModel(result, projects, user)
+}
+
 // Task is the resolver for the task field.
 func (r *queryResolver) Task(ctx context.Context, id string) (*model.Task, error) {
 	user, projects, _, err := r.taskContext(ctx)

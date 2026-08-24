@@ -10,6 +10,7 @@ import (
 )
 
 var benchmarkListResult ListResult
+var benchmarkWeekResult WeekResult
 
 type benchmarkListClient struct {
 	pages []vikunja.TaskPage
@@ -39,6 +40,24 @@ func BenchmarkListActiveTasks(b *testing.B) {
 			b.Fatal(err)
 		}
 		benchmarkListResult = result
+	}
+}
+
+func BenchmarkListWeek(b *testing.B) {
+	const taskCount = 5000
+	now := time.Date(2026, time.August, 15, 12, 0, 0, 0, time.UTC)
+	client := benchmarkListClient{pages: benchmarkTaskPages(taskCount, 1000, now)}
+	request := WeekRequest{
+		Now: now, Location: time.UTC, Timezone: "UTC", WeekStart: time.Monday,
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		result, err := ListWeek(context.Background(), client, request)
+		if err != nil {
+			b.Fatal(err)
+		}
+		benchmarkWeekResult = result
 	}
 }
 

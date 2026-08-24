@@ -91,6 +91,30 @@ const schedule = [
     active: { due_date: scheduledAt(7, 30), repeat_after: 86400, repeat_mode: 0 },
   },
   {
+    title: "Take daily vitamins",
+    description: "A fixed daily recurring task for previewing the weekly schedule.",
+    priority: 1,
+    labels: [focusLabel],
+    history: { hour: 8, minute: 0 },
+    active: { due_date: scheduledAt(8, 0), repeat_after: 86400, repeat_mode: 0 },
+  },
+  {
+    title: "Scheduled-cycle task (every 2 days)",
+    description: "Repeats on its fixed two-day schedule, independently of completion time.",
+    priority: 2,
+    labels: [workLabel],
+    history: { hour: 11, minute: 0 },
+    active: { due_date: scheduledAt(11, 0), repeat_after: 2 * 86400, repeat_mode: 0 },
+  },
+  {
+    title: "From-completion task (after 2 days)",
+    description: "Repeats two days after the current occurrence is completed.",
+    priority: 1,
+    labels: [readingLabel],
+    history: { hour: 12, minute: 0 },
+    active: { due_date: scheduledAt(12, 0), repeat_after: 2 * 86400, repeat_mode: 2 },
+  },
+  {
     title: "Strength training",
     priority: 3,
     labels: [sportLabel],
@@ -119,6 +143,71 @@ const schedule = [
     active: { due_date: scheduledAt(22, 0) },
   },
 ];
+const currentWeekPreview = [
+  {
+    title: "Plan the current week",
+    description: "Set priorities and reserve focused work blocks for the week.",
+    priority: 4,
+    labels: [jobLabel, focusLabel],
+    task: {
+      start_date: scheduledThisWeek(0, 9, 0),
+      end_date: scheduledThisWeek(0, 10, 0),
+      due_date: scheduledThisWeek(0, 10, 30),
+    },
+  },
+  {
+    title: "Review open commitments",
+    priority: 2,
+    labels: [workLabel],
+    task: { due_date: scheduledThisWeek(1, 17, 30) },
+  },
+  {
+    title: "Fixed-cycle reading session",
+    priority: 1,
+    labels: [readingLabel],
+    task: {
+      due_date: scheduledThisWeek(2, 20, 0),
+      repeat_after: 2 * 86400,
+      repeat_mode: 0,
+    },
+  },
+  {
+    title: "Strength session after completion",
+    priority: 3,
+    labels: [sportLabel],
+    task: {
+      due_date: scheduledThisWeek(3, 18, 30),
+      repeat_after: 2 * 86400,
+      repeat_mode: 2,
+    },
+  },
+  {
+    title: "Weekly administration block",
+    priority: 2,
+    labels: [jobLabel, workLabel],
+    task: {
+      start_date: scheduledThisWeek(4, 14, 0),
+      end_date: scheduledThisWeek(4, 15, 0),
+      due_date: scheduledThisWeek(4, 15, 30),
+    },
+  },
+  {
+    title: "Daily practice session",
+    priority: 1,
+    labels: [practiceLabel],
+    task: {
+      due_date: scheduledThisWeek(5, 11, 0),
+      repeat_after: 86400,
+      repeat_mode: 0,
+    },
+  },
+  {
+    title: "Prepare the next week",
+    priority: 2,
+    labels: [focusLabel],
+    task: { due_date: scheduledThisWeek(6, 19, 0) },
+  },
+];
 for (let index = 0; index < 125; index += 1) {
   const scheduled = schedule[index % schedule.length];
   const dayOffset = -Math.floor(index / schedule.length) - 1;
@@ -137,12 +226,23 @@ for (const scheduled of schedule) {
     scheduled.labels,
   );
 }
+for (const preview of currentWeekPreview) {
+  await createTask(
+    {
+      title: preview.title,
+      description: preview.description,
+      priority: preview.priority,
+      ...preview.task,
+    },
+    preview.labels,
+  );
+}
 
 const labeledTitle = "Labeled task fixture";
 const labeledTask = await request(`/projects/${project.id}/tasks`, {
   method: "POST",
   token: jwt,
-  body: JSON.stringify({ title: labeledTitle, due_date: new Date().toISOString() }),
+  body: JSON.stringify({ title: labeledTitle, due_date: new Date().toISOString(), priority: 3 }),
 });
 await request(`/tasks/${labeledTask.id}/labels`, {
   method: "POST",
@@ -300,6 +400,13 @@ function scheduledAt(hour, minute, dayOffset = 0) {
     instant = new Date(instant.getTime() + localTimestamp - representedTimestamp);
   }
   return instant.toISOString();
+}
+
+function scheduledThisWeek(dayIndex, hour, minute) {
+  const today = zonedParts(new Date());
+  const weekday = new Date(Date.UTC(today.year, today.month - 1, today.day)).getUTCDay();
+  const todayIndex = weekday === 0 ? 6 : weekday - 1;
+  return scheduledAt(hour, minute, dayIndex - todayIndex);
 }
 
 function scheduledAfter(minutes) {

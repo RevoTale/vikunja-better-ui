@@ -151,6 +151,26 @@ type TaskPage {
   issues: [TaskPageIssue!]!
 }
 
+type WeekProjection {
+  sourceTask: Task!
+  dueAt: DateTime!
+  hasDueTime: Boolean!
+}
+
+type WeekDay {
+  date: LocalDate!
+  tasks: [Task!]!
+  projections: [WeekProjection!]!
+}
+
+type WeekView {
+  startsOn: LocalDate!
+  endsOn: LocalDate!
+  days: [WeekDay!]!
+  isComplete: Boolean!
+  issues: [TaskPageIssue!]!
+}
+
 type TaskMutationPayload {
   task: Task!
   status: TaskMutationStatus!
@@ -208,6 +228,11 @@ input TaskListInput {
   projectId: ID
   page: Int! = 1
   pageSize: Int! = 30
+}
+
+input WeekInput {
+  containing: LocalDate
+  projectId: ID
 }
 
 input LoginInput {
@@ -292,6 +317,7 @@ type Query {
   session: Session!
   projects: ProjectResult!
   tasks(input: TaskListInput!): TaskPage!
+  week(input: WeekInput!): WeekView!
   task(id: ID!): Task
   taskDiagnostics(id: ID!): TaskDiagnostics
 }

@@ -1,6 +1,6 @@
 import { useQuery } from "@apollo/client/react";
 import { useLocation } from "@tanstack/react-router";
-import { AlertTriangle, ChevronDown, ChevronRight, RotateCcw } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppSelect } from "@/components/app-select";
@@ -19,9 +19,10 @@ import {
   type TaskScope,
 } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
-import { cn } from "@/lib/utils";
 import type { ListSearch } from "./list-search";
+import { IssueList, ListMessage } from "./list-state";
 import { paginationRange } from "./pagination-range";
+import { TaskActionFeedback } from "./task-action-feedback";
 import { type TaskItem, TaskRow } from "./task-row";
 import { useTaskListActions } from "./use-task-list-actions";
 import { useTaskRefreshFeedback } from "./use-task-refresh-feedback";
@@ -113,38 +114,7 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
           onPageChange={(page) => setSearch({ ...search, page })}
         />
       ) : null}
-      <div className="sr-only" aria-live="polite">
-        {actions.notice}
-      </div>
-      {actions.notice ? (
-        <p className="mt-4 rounded-md border bg-muted p-3 text-sm" role="status">
-          {actions.notice}
-        </p>
-      ) : null}
-      {actions.undo ? (
-        <div className="fixed bottom-20 left-4 right-4 z-30 flex items-center justify-between gap-3 rounded-md border bg-card p-3 shadow-lg sm:left-auto sm:right-6 sm:w-96 lg:bottom-6">
-          <span className="min-w-0 truncate text-sm">{actions.undo.title} completed</span>
-          <Button size="sm" variant="outline" onClick={actions.restore} disabled={actions.undoing}>
-            <RotateCcw /> Undo
-          </Button>
-        </div>
-      ) : null}
-      {actions.repairInfo ? (
-        <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-4">
-          <p className="text-sm">
-            Renewal is complete. Repair the due-time adjustment or missing Vikunja History entry.
-          </p>
-          <Button
-            className="mt-3"
-            size="sm"
-            variant="outline"
-            onClick={actions.repairHistory}
-            disabled={actions.repairing}
-          >
-            {actions.repairing ? "Repairing…" : "Repair history"}
-          </Button>
-        </div>
-      ) : null}
+      <TaskActionFeedback actions={actions} />
     </section>
   );
 }
@@ -307,34 +277,6 @@ function GroupedTasks(props: {
           </section>
         );
       })}
-    </div>
-  );
-}
-
-function ListMessage({ children, tone }: { children: string; tone?: "error" }) {
-  return (
-    <div
-      className={cn(
-        "rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground",
-        tone === "error" && "border-destructive/50 text-destructive",
-      )}
-      role={tone === "error" ? "alert" : undefined}
-    >
-      {children}
-    </div>
-  );
-}
-function IssueList({ issues }: { issues: { code: string; message: string }[] }) {
-  return (
-    <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4" role="alert">
-      <p className="flex items-center gap-2 font-medium">
-        <AlertTriangle /> This list is incomplete
-      </p>
-      {issues.map((issue) => (
-        <p className="mt-2 text-sm" key={`${issue.code}:${issue.message}`}>
-          {issue.message}
-        </p>
-      ))}
     </div>
   );
 }

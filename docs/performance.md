@@ -16,6 +16,7 @@ suite:
 ```sh
 go test ./internal/vikunja -run=^$ -bench=BenchmarkClientTaskPage -benchmem -benchtime=10x -count=5
 go test ./internal/service -run=^$ -bench=BenchmarkListActiveTasks -benchmem -benchtime=20x -count=5
+go test ./internal/service -run=^$ -bench=BenchmarkListWeek -benchmem -count=5
 go test ./internal/auth -run=^$ -bench=BenchmarkSessionParse -benchmem -benchtime=10000x -count=5
 ```
 
@@ -25,6 +26,7 @@ Median results from the optimization baseline and the current implementation:
 | --- | --- | --- | --- |
 | Decode a 1000-task Vikunja page | 7.70 ms, 4,890,864 B/op, 6,112 allocs/op | 6.38 ms, 3,432,698 B/op, 6,087 allocs/op | 29.8% fewer allocated bytes; timing remains workload-sensitive |
 | Build and page a 5000-task active list | 6.12 ms, 7,717,132 B/op, 13 allocs/op | 1.63 ms, 341,627 B/op, 22 allocs/op | 95.6% fewer allocated bytes; bounded parallel page scheduling costs about 1.4 KiB per list |
+| Group a 5000-task current Week response | — | 4.42 ms, 6,024,202 B/op, 49 allocs/op | Baseline includes the 5000 task copies retained in the returned seven-day view |
 | Verify a session cookie | 2.15 us, 1,912 B/op, 21 allocs/op | 1.96 us, 1,848 B/op, 20 allocs/op | one allocation and 64 bytes removed per authenticated request; timing is within normal variance |
 
 Real RSS depends on concurrent requests and Vikunja response sizes. The client
@@ -87,6 +89,8 @@ diagnostic listener only as an explicitly reviewed change.
 | Materialize active-list candidates page by page | Avoided holding a second full copy of all Vikunja tasks | Kept |
 | Sort compact candidates and copy only the requested page | Reduced the active-list benchmark to 340 KiB/op and 1.49 ms | Kept |
 | Load active-task pages 2 through N with bounded concurrency | Adds about 1.4 KiB and 13 small allocations to a 5000-task list, but removes sequential network waits while preserving ordered, all-or-nothing results | Kept |
+| Filter Week candidates in Vikunja before pagination | Current and past weeks fetch only their due range; future weeks add earlier recurring sources through `repeat_after > 0` | Kept; verified against Vikunja 2.5 REST API v2 |
+| Group Week pages directly instead of copying all tasks into an aggregate slice | Keeps bounded concurrent page loading while removing a second full task array and intermediate candidate list | Kept |
 | Coalesce identical metadata reads only while in flight | Concurrent GraphQL/session work shares an upstream call without retaining data after completion | Kept; zero TTL |
 | Add a server-side TTL task cache | Would reduce repeat traffic but could show completed or newly scheduled tasks as current | Rejected; Apollo performs a mandatory background refresh instead |
 | Use `bytes.Reader` for decoded session and capability payloads | Removed one session allocation without changing token formats | Kept |

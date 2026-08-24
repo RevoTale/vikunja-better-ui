@@ -101,6 +101,7 @@ type ComplexityRoot struct {
 		Task            func(childComplexity int, id string) int
 		TaskDiagnostics func(childComplexity int, id string) int
 		Tasks           func(childComplexity int, input model.TaskListInput) int
+		Week            func(childComplexity int, input model.WeekInput) int
 	}
 
 	RecurrenceRule struct {
@@ -188,6 +189,26 @@ type ComplexityRoot struct {
 		Username         func(childComplexity int) int
 		WeekStart        func(childComplexity int) int
 	}
+
+	WeekDay struct {
+		Date        func(childComplexity int) int
+		Projections func(childComplexity int) int
+		Tasks       func(childComplexity int) int
+	}
+
+	WeekProjection struct {
+		DueAt      func(childComplexity int) int
+		HasDueTime func(childComplexity int) int
+		SourceTask func(childComplexity int) int
+	}
+
+	WeekView struct {
+		Days       func(childComplexity int) int
+		EndsOn     func(childComplexity int) int
+		IsComplete func(childComplexity int) int
+		Issues     func(childComplexity int) int
+		StartsOn   func(childComplexity int) int
+	}
 }
 
 // endregion ***************************** api!.gotpl *****************************
@@ -211,6 +232,7 @@ type QueryResolver interface {
 	Session(ctx context.Context) (*model.Session, error)
 	Projects(ctx context.Context) (*model.ProjectResult, error)
 	Tasks(ctx context.Context, input model.TaskListInput) (*model.TaskPage, error)
+	Week(ctx context.Context, input model.WeekInput) (*model.WeekView, error)
 	Task(ctx context.Context, id string) (*model.Task, error)
 	TaskDiagnostics(ctx context.Context, id string) (*model.TaskDiagnostics, error)
 }
@@ -528,6 +550,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.Tasks(childComplexity, args["input"].(model.TaskListInput)), true
+	case "Query.week":
+		if e.ComplexityRoot.Query.Week == nil {
+			break
+		}
+
+		args, err := ec.field_Query_week_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.Week(childComplexity, args["input"].(model.WeekInput)), true
 
 	case "RecurrenceRule.interval":
 		if e.ComplexityRoot.RecurrenceRule.Interval == nil {
@@ -909,6 +942,75 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.VikunjaUser.WeekStart(childComplexity), true
 
+	case "WeekDay.date":
+		if e.ComplexityRoot.WeekDay.Date == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekDay.Date(childComplexity), true
+	case "WeekDay.projections":
+		if e.ComplexityRoot.WeekDay.Projections == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekDay.Projections(childComplexity), true
+	case "WeekDay.tasks":
+		if e.ComplexityRoot.WeekDay.Tasks == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekDay.Tasks(childComplexity), true
+
+	case "WeekProjection.dueAt":
+		if e.ComplexityRoot.WeekProjection.DueAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekProjection.DueAt(childComplexity), true
+	case "WeekProjection.hasDueTime":
+		if e.ComplexityRoot.WeekProjection.HasDueTime == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekProjection.HasDueTime(childComplexity), true
+	case "WeekProjection.sourceTask":
+		if e.ComplexityRoot.WeekProjection.SourceTask == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekProjection.SourceTask(childComplexity), true
+
+	case "WeekView.days":
+		if e.ComplexityRoot.WeekView.Days == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekView.Days(childComplexity), true
+	case "WeekView.endsOn":
+		if e.ComplexityRoot.WeekView.EndsOn == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekView.EndsOn(childComplexity), true
+	case "WeekView.isComplete":
+		if e.ComplexityRoot.WeekView.IsComplete == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekView.IsComplete(childComplexity), true
+	case "WeekView.issues":
+		if e.ComplexityRoot.WeekView.Issues == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekView.Issues(childComplexity), true
+	case "WeekView.startsOn":
+		if e.ComplexityRoot.WeekView.StartsOn == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekView.StartsOn(childComplexity), true
+
 	}
 	return 0, false
 }
@@ -928,6 +1030,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputSkipRecurringTaskInput,
 		ec.unmarshalInputTaskListInput,
 		ec.unmarshalInputUndoTaskCompletionInput,
+		ec.unmarshalInputWeekInput,
 	)
 	first := true
 
@@ -1156,6 +1259,26 @@ type TaskPage {
   issues: [TaskPageIssue!]!
 }
 
+type WeekProjection {
+  sourceTask: Task!
+  dueAt: DateTime!
+  hasDueTime: Boolean!
+}
+
+type WeekDay {
+  date: LocalDate!
+  tasks: [Task!]!
+  projections: [WeekProjection!]!
+}
+
+type WeekView {
+  startsOn: LocalDate!
+  endsOn: LocalDate!
+  days: [WeekDay!]!
+  isComplete: Boolean!
+  issues: [TaskPageIssue!]!
+}
+
 type TaskMutationPayload {
   task: Task!
   status: TaskMutationStatus!
@@ -1213,6 +1336,11 @@ input TaskListInput {
   projectId: ID
   page: Int! = 1
   pageSize: Int! = 30
+}
+
+input WeekInput {
+  containing: LocalDate
+  projectId: ID
 }
 
 input LoginInput {
@@ -1297,6 +1425,7 @@ type Query {
   session: Session!
   projects: ProjectResult!
   tasks(input: TaskListInput!): TaskPage!
+  week(input: WeekInput!): WeekView!
   task(id: ID!): Task
   taskDiagnostics(id: ID!): TaskDiagnostics
 }
@@ -1580,6 +1709,46 @@ func (ec *executionContext) childFields_VikunjaUser(ctx context.Context, field g
 		return ec.fieldContext_VikunjaUser_defaultProjectId(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type VikunjaUser", field.Name)
+}
+
+func (ec *executionContext) childFields_WeekDay(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "date":
+		return ec.fieldContext_WeekDay_date(ctx, field)
+	case "tasks":
+		return ec.fieldContext_WeekDay_tasks(ctx, field)
+	case "projections":
+		return ec.fieldContext_WeekDay_projections(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type WeekDay", field.Name)
+}
+
+func (ec *executionContext) childFields_WeekProjection(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "sourceTask":
+		return ec.fieldContext_WeekProjection_sourceTask(ctx, field)
+	case "dueAt":
+		return ec.fieldContext_WeekProjection_dueAt(ctx, field)
+	case "hasDueTime":
+		return ec.fieldContext_WeekProjection_hasDueTime(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type WeekProjection", field.Name)
+}
+
+func (ec *executionContext) childFields_WeekView(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "startsOn":
+		return ec.fieldContext_WeekView_startsOn(ctx, field)
+	case "endsOn":
+		return ec.fieldContext_WeekView_endsOn(ctx, field)
+	case "days":
+		return ec.fieldContext_WeekView_days(ctx, field)
+	case "isComplete":
+		return ec.fieldContext_WeekView_isComplete(ctx, field)
+	case "issues":
+		return ec.fieldContext_WeekView_issues(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type WeekView", field.Name)
 }
 
 func (ec *executionContext) childFields___Directive(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -1900,6 +2069,20 @@ func (ec *executionContext) field_Query_tasks_args(ctx context.Context, rawArgs 
 	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
 		func(ctx context.Context, v any) (model.TaskListInput, error) {
 			return ec.unmarshalNTaskListInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskListInput(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_week_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "input",
+		func(ctx context.Context, v any) (model.WeekInput, error) {
+			return ec.unmarshalNWeekInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekInput(ctx, v)
 		})
 	if err != nil {
 		return nil, err
@@ -3050,6 +3233,50 @@ func (ec *executionContext) fieldContext_Query_tasks(ctx context.Context, field 
 	}()
 	ctx = graphql.WithFieldContext(ctx, fc)
 	if fc.Args, err = ec.field_Query_tasks_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_week(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_week(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().Week(ctx, fc.Args["input"].(model.WeekInput))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.WeekView) graphql.Marshaler {
+			return ec.marshalNWeekView2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekView(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_week(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_WeekView(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_week_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
 		ec.Error(ctx, err)
 		return fc, err
 	}
@@ -4736,6 +4963,304 @@ func (ec *executionContext) fieldContext_VikunjaUser_defaultProjectId(_ context.
 	return graphql.NewScalarFieldContext("VikunjaUser", field, false, false, errors.New("field of type ID does not have child fields"))
 }
 
+func (ec *executionContext) _WeekDay_date(ctx context.Context, field graphql.CollectedField, obj *model.WeekDay) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekDay_date(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Date, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.LocalDate) graphql.Marshaler {
+			return ec.marshalNLocalDate2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLocalDate(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WeekDay_date(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WeekDay", field, false, false, errors.New("field of type LocalDate does not have child fields"))
+}
+
+func (ec *executionContext) _WeekDay_tasks(ctx context.Context, field graphql.CollectedField, obj *model.WeekDay) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekDay_tasks(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Tasks, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.Task) graphql.Marshaler {
+			return ec.marshalNTask2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WeekDay_tasks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WeekDay",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Task(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WeekDay_projections(ctx context.Context, field graphql.CollectedField, obj *model.WeekDay) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekDay_projections(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Projections, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.WeekProjection) graphql.Marshaler {
+			return ec.marshalNWeekProjection2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekProjectionᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WeekDay_projections(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WeekDay",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_WeekProjection(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WeekProjection_sourceTask(ctx context.Context, field graphql.CollectedField, obj *model.WeekProjection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekProjection_sourceTask(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.SourceTask, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Task) graphql.Marshaler {
+			return ec.marshalNTask2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTask(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WeekProjection_sourceTask(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WeekProjection",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Task(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WeekProjection_dueAt(ctx context.Context, field graphql.CollectedField, obj *model.WeekProjection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekProjection_dueAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DueAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNDateTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WeekProjection_dueAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WeekProjection", field, false, false, errors.New("field of type DateTime does not have child fields"))
+}
+
+func (ec *executionContext) _WeekProjection_hasDueTime(ctx context.Context, field graphql.CollectedField, obj *model.WeekProjection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekProjection_hasDueTime(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.HasDueTime, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WeekProjection_hasDueTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WeekProjection", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _WeekView_startsOn(ctx context.Context, field graphql.CollectedField, obj *model.WeekView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekView_startsOn(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StartsOn, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.LocalDate) graphql.Marshaler {
+			return ec.marshalNLocalDate2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLocalDate(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WeekView_startsOn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WeekView", field, false, false, errors.New("field of type LocalDate does not have child fields"))
+}
+
+func (ec *executionContext) _WeekView_endsOn(ctx context.Context, field graphql.CollectedField, obj *model.WeekView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekView_endsOn(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.EndsOn, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.LocalDate) graphql.Marshaler {
+			return ec.marshalNLocalDate2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLocalDate(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WeekView_endsOn(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WeekView", field, false, false, errors.New("field of type LocalDate does not have child fields"))
+}
+
+func (ec *executionContext) _WeekView_days(ctx context.Context, field graphql.CollectedField, obj *model.WeekView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekView_days(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Days, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.WeekDay) graphql.Marshaler {
+			return ec.marshalNWeekDay2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekDayᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WeekView_days(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WeekView",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_WeekDay(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _WeekView_isComplete(ctx context.Context, field graphql.CollectedField, obj *model.WeekView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekView_isComplete(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.IsComplete, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WeekView_isComplete(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WeekView", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _WeekView_issues(ctx context.Context, field graphql.CollectedField, obj *model.WeekView) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekView_issues(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Issues, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.TaskPageIssue) graphql.Marshaler {
+			return ec.marshalNTaskPageIssue2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPageIssueᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_WeekView_issues(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "WeekView",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_TaskPageIssue(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
 func (ec *executionContext) ___Directive_name(ctx context.Context, field graphql.CollectedField, obj *introspection.Directive) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6402,6 +6927,43 @@ func (ec *executionContext) unmarshalInputUndoTaskCompletionInput(ctx context.Co
 	return it, nil
 }
 
+func (ec *executionContext) unmarshalInputWeekInput(ctx context.Context, obj any) (model.WeekInput, error) {
+	var it model.WeekInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	fieldsInOrder := [...]string{"containing", "projectId"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "containing":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("containing"))
+			data, err := ec.unmarshalOLocalDate2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLocalDate(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Containing = data
+		case "projectId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("projectId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ProjectID = data
+		}
+	}
+	return it, nil
+}
+
 // endregion **************************** input.gotpl *****************************
 
 // region    ************************** interface.gotpl ***************************
@@ -6966,6 +7528,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_tasks(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "week":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_week(ctx, field)
 				if res == graphql.Null {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -7608,6 +8192,160 @@ func (ec *executionContext) _VikunjaUser(ctx context.Context, sel ast.SelectionS
 		case "defaultProjectId":
 			out.Values[i] = ec._VikunjaUser_defaultProjectId(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var weekDayImplementors = []string{"WeekDay"}
+
+func (ec *executionContext) _WeekDay(ctx context.Context, sel ast.SelectionSet, obj *model.WeekDay) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, weekDayImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WeekDay")
+		case "date":
+			out.Values[i] = ec._WeekDay_date(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "tasks":
+			out.Values[i] = ec._WeekDay_tasks(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "projections":
+			out.Values[i] = ec._WeekDay_projections(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var weekProjectionImplementors = []string{"WeekProjection"}
+
+func (ec *executionContext) _WeekProjection(ctx context.Context, sel ast.SelectionSet, obj *model.WeekProjection) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, weekProjectionImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WeekProjection")
+		case "sourceTask":
+			out.Values[i] = ec._WeekProjection_sourceTask(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "dueAt":
+			out.Values[i] = ec._WeekProjection_dueAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "hasDueTime":
+			out.Values[i] = ec._WeekProjection_hasDueTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var weekViewImplementors = []string{"WeekView"}
+
+func (ec *executionContext) _WeekView(ctx context.Context, sel ast.SelectionSet, obj *model.WeekView) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, weekViewImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("WeekView")
+		case "startsOn":
+			out.Values[i] = ec._WeekView_startsOn(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "endsOn":
+			out.Values[i] = ec._WeekView_endsOn(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "days":
+			out.Values[i] = ec._WeekView_days(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "isComplete":
+			out.Values[i] = ec._WeekView_isComplete(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "issues":
+			out.Values[i] = ec._WeekView_issues(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
 		default:
@@ -8552,6 +9290,77 @@ func (ec *executionContext) marshalNTaskScope2githubᚗcomᚋRevoTaleᚋvikunja�
 func (ec *executionContext) unmarshalNUndoTaskCompletionInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐUndoTaskCompletionInput(ctx context.Context, v any) (model.UndoTaskCompletionInput, error) {
 	res, err := ec.unmarshalInputUndoTaskCompletionInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNWeekDay2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekDayᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.WeekDay) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNWeekDay2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekDay(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNWeekDay2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekDay(ctx context.Context, sel ast.SelectionSet, v *model.WeekDay) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._WeekDay(ctx, sel, v)
+}
+
+func (ec *executionContext) unmarshalNWeekInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekInput(ctx context.Context, v any) (model.WeekInput, error) {
+	res, err := ec.unmarshalInputWeekInput(ctx, v)
+	return res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalNWeekProjection2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekProjectionᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.WeekProjection) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNWeekProjection2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekProjection(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNWeekProjection2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekProjection(ctx context.Context, sel ast.SelectionSet, v *model.WeekProjection) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._WeekProjection(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNWeekView2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekView(ctx context.Context, sel ast.SelectionSet, v model.WeekView) graphql.Marshaler {
+	return ec._WeekView(ctx, sel, &v)
+}
+
+func (ec *executionContext) marshalNWeekView2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekView(ctx context.Context, sel ast.SelectionSet, v *model.WeekView) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._WeekView(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalN__Directive2githubᚗcomᚋ99designsᚋgqlgenᚋgraphqlᚋintrospectionᚐDirective(ctx context.Context, sel ast.SelectionSet, v introspection.Directive) graphql.Marshaler {

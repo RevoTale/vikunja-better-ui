@@ -7,7 +7,7 @@ export function parseListSearch(search: Record<string, unknown>): ListSearch {
   };
 }
 
-function parseProject(value: unknown): string {
+export function parseProject(value: unknown): string {
   if (value === undefined || value === "all") return "all";
   if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return String(value);
   if (typeof value !== "string" || !/^[1-9]\d*$/.test(value)) return "all";

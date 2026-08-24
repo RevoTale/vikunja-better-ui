@@ -227,6 +227,31 @@ type VikunjaUser struct {
 	DefaultProjectID *string `json:"defaultProjectId,omitempty"`
 }
 
+type WeekDay struct {
+	Date        LocalDate         `json:"date"`
+	Tasks       []*Task           `json:"tasks"`
+	Projections []*WeekProjection `json:"projections"`
+}
+
+type WeekInput struct {
+	Containing *LocalDate `json:"containing,omitempty"`
+	ProjectID  *string    `json:"projectId,omitempty"`
+}
+
+type WeekProjection struct {
+	SourceTask *Task     `json:"sourceTask"`
+	DueAt      time.Time `json:"dueAt"`
+	HasDueTime bool      `json:"hasDueTime"`
+}
+
+type WeekView struct {
+	StartsOn   LocalDate        `json:"startsOn"`
+	EndsOn     LocalDate        `json:"endsOn"`
+	Days       []*WeekDay       `json:"days"`
+	IsComplete bool             `json:"isComplete"`
+	Issues     []*TaskPageIssue `json:"issues"`
+}
+
 type CompletionOutcome string
 
 const (

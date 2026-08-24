@@ -17,6 +17,7 @@ test("login restores the requested route and core navigation is accessible", asy
   await login(page);
   await expect(page).toHaveURL(/\/jobs/);
   await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible();
+  await expect(page.getByText("Prepare weekly status update", { exact: true })).toBeVisible();
   await expectBrandTimezone(page);
   await page.getByRole("link", { name: "New job" }).click();
   await expect(page).toHaveURL(/\/tasks\/new\?type=job/);
@@ -66,6 +67,13 @@ test("login restores the requested route and core navigation is accessible", asy
   await expect(page).toHaveURL(/\/today/);
   await page.reload();
   await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
+  await expect(page.getByText("Take daily vitamins", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Scheduled-cycle task (every 2 days)", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("From-completion task (after 2 days)", { exact: true }),
+  ).toBeVisible();
   await expectTaskRowLayout(page, labeledTitle, "focus");
   await expectBaseUICSP(page);
 });
@@ -225,7 +233,40 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await chooseSelectOption(page, "Project", "E2E Daily Tasks");
   await expect(page).toHaveURL(new RegExp(`project=${projectID}`));
   await page.goto("/week");
-  await expect(page.getByRole("heading", { name: "This week" })).toBeVisible();
+  const weekHeading = page.getByRole("heading", { name: "This week", exact: true });
+  await expect(weekHeading).toBeVisible();
+  const bodyFontFamily = await page
+    .locator("body")
+    .evaluate((element) => getComputedStyle(element).fontFamily);
+  expect(await weekHeading.evaluate((element) => getComputedStyle(element).fontFamily)).toBe(
+    bodyFontFamily,
+  );
+  await expect(page.locator('[data-slot="week-day"]')).toHaveCount(7);
+  await expect(page.locator('[data-slot="week-day"]').first()).toHaveAttribute(
+    "data-date",
+    mondayOfWeek(localDate()),
+  );
+  await expect(page.locator('[data-slot="week-day"]').first()).toContainText(
+    "Plan the current week",
+  );
+  for (const day of await page.locator('[data-slot="week-day"]').all()) {
+    await expect(day.locator('[data-slot="card"]')).not.toHaveCount(0);
+  }
+  const todayDay = page.locator(`[data-slot="week-day"][data-date="${localDate()}"]`);
+  await expect(todayDay.locator("time")).toContainText("Today");
+  await expect(todayDay.getByText("Today", { exact: true })).toHaveAttribute("data-slot", "badge");
+  await expect(todayDay).toHaveAttribute("data-today", "");
+  await expect(todayDay).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(todayDay).toHaveCSS("box-shadow", "none");
+  expect(
+    await todayDay.getByRole("heading").evaluate((element) => getComputedStyle(element).fontFamily),
+  ).toBe(bodyFontFamily);
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page).toHaveURL(/week=\d{4}-\d{2}-\d{2}/);
+  await expect(page.getByRole("heading", { name: "Week", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Today", exact: true }).click();
+  await expect(page).toHaveURL(/\/week\?project=all$/);
+  await expect(todayDay).toBeInViewport();
   await page.goto("/month");
   await expect(page.getByRole("heading", { name: "This month" })).toBeVisible();
   await page.goto("/today");
@@ -240,6 +281,11 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   const recurringBefore = await vikunjaTask(recurringId);
   expect(recurringBefore.repeat_mode).toBe(2);
   await expectDateOnlyTask(recurringId);
+  await page.goto("/week");
+  await expect(page.getByRole("heading", { name: "Overdue" })).toHaveCount(0);
+  await expect(
+    page.locator('[data-slot="card"]:not([data-projection])').filter({ hasText: recurring }),
+  ).toContainText("Next: 1 day after completion.");
   await page.goto("/today");
   await page.getByRole("button", { name: `Complete ${recurring}` }).click();
   await expectStatusMessage(page, "Recurring task completed and renewed.");
@@ -259,6 +305,13 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   });
   const scheduledBefore = await vikunjaTask(scheduledId);
   expect(scheduledBefore.repeat_mode).toBe(0);
+  await page.goto("/week");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  const computedScheduled = page.locator('[data-projection="true"]').filter({ hasText: scheduled });
+  await expect(computedScheduled.first()).toContainText("Computed");
+  await expect(
+    computedScheduled.getByRole("button", { name: `Complete ${scheduled}` }),
+  ).toHaveCount(0);
   await page.goto("/today");
   await page.getByRole("button", { name: `Complete ${scheduled}` }).click();
   await expectStatusMessage(page, "Recurring task completed and renewed.");
@@ -373,7 +426,7 @@ test("task lists expose loading, empty, error, and project-filter states", async
 
   await page.unroute("**/graphql");
   await page.route("**/graphql", async (route) => {
-    if (graphQLOperation(route.request().postData()) === "TaskList") {
+    if (["TaskList", "Week"].includes(graphQLOperation(route.request().postData()) ?? "")) {
       await route.abort("failed");
       return;
     }
@@ -385,9 +438,9 @@ test("task lists expose loading, empty, error, and project-filter states", async
   ).toBeVisible();
   await expect(page.getByText(labeledTitle, { exact: true })).toBeVisible();
 
-  await page.goto(`/week?project=${emptyProjectID}&page=1`);
+  await page.goto(`/week?project=${emptyProjectID}`);
   await expect(page.getByRole("alert")).toHaveText(
-    "Tasks could not be loaded. Try refreshing this page.",
+    "Week tasks could not be loaded. Try refreshing this page.",
   );
 });
 
@@ -634,6 +687,12 @@ function addCalendarDays(value: string, days: number) {
   return date.toISOString().slice(0, 10);
 }
 
+function mondayOfWeek(value: string) {
+  const date = new Date(`${value}T12:00:00Z`);
+  const day = date.getUTCDay();
+  return addCalendarDays(value, -(day === 0 ? 6 : day - 1));
+}
+
 function hasLabelTitle(task: { labels?: Array<{ title?: string }> }, title: string) {
   return task.labels?.some((label) => label.title === title) ?? false;
 }
@@ -712,6 +771,7 @@ async function expectTaskRowLayout(page: Page, title: string, label: string) {
   await expect(projectBadge).toHaveClass(/bg-secondary/);
   await expect(metadata).toHaveCSS("flex-wrap", "wrap");
   await expect(metadata).toHaveCSS("justify-content", "flex-end");
+  await expect(metadata.locator("li").first()).toHaveText("High");
   expect(Math.abs(kindBox.x + kindBox.width - (metadataBox.x + metadataBox.width))).toBeLessThan(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => document.documentElement.clientWidth),
@@ -759,8 +819,8 @@ async function expectTaskPriorityLayout(page: Page, title: string, priority: str
   }
   expect(Math.abs(priorityBox.y - projectBox.y)).toBeLessThanOrEqual(2);
   expect(Math.abs(priorityBox.y - kindBox.y)).toBeLessThanOrEqual(2);
-  expect(projectBox.x + projectBox.width).toBeLessThan(priorityBox.x);
-  expect(priorityBox.x + priorityBox.width).toBeLessThan(kindBox.x);
+  expect(priorityBox.x + priorityBox.width).toBeLessThan(projectBox.x);
+  expect(projectBox.x + projectBox.width).toBeLessThan(kindBox.x);
 }
 async function chooseSelectOption(page: Page, label: string, option: string) {
   const trigger = page.getByLabel(label, { exact: true });

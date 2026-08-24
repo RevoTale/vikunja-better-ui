@@ -17,8 +17,10 @@ the whole repository.
 
 ## What it does
 
-- Shows overdue and due-today tasks first, with optional week, month, and
-  project filters.
+- Shows overdue and due-today tasks first, with week, month, and project
+  filters.
+- Presents Week as a responsive day-row ledger with read-only scheduled-cycle
+  projections and honest completion-based recurrence explanations.
 - Keeps jobs in both Today and their own view.
 - Groups tasks without deadlines by collapsible project.
 - Creates one-time tasks, recurring tasks, and duration-based jobs with small
@@ -57,6 +59,11 @@ option.
 
 See the [Keep due time specification](docs/specs/keep-due-time.md) for marker,
 timezone, daylight-saving, validation, repair, and History behavior.
+
+The Week view combines real tasks with clearly marked, non-actionable computed
+scheduled cycles. It never assigns an estimated day to From completion
+recurrence. See the [weekly ledger specification](docs/specs/weekly-ledger.md)
+for navigation, projection, responsive-layout, and GraphQL behavior.
 
 ## Architecture and security boundaries
 

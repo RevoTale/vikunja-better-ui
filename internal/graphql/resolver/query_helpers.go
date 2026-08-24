@@ -164,6 +164,65 @@ func (resolver *Resolver) taskPageModel(
 	}, nil
 }
 
+func (resolver *Resolver) weekViewModel(
+	result service.WeekResult,
+	projects []vikunja.Project,
+	user vikunja.User,
+) (*model.WeekView, error) {
+	projectByID := projectMap(projects)
+	mapItem := func(item service.TaskListItem) (*model.Task, error) {
+		return taskModel(
+			item.Task, projectByID, user.Settings.Timezone, resolver.now(), user.Settings.DefaultProjectID,
+		)
+	}
+	mapItems := func(items []service.TaskListItem) ([]*model.Task, error) {
+		mapped := make([]*model.Task, 0, len(items))
+		for _, item := range items {
+			task, err := mapItem(item)
+			if err != nil {
+				return nil, err
+			}
+			mapped = append(mapped, task)
+		}
+		return mapped, nil
+	}
+
+	days := make([]*model.WeekDay, 0, len(result.Days))
+	for _, day := range result.Days {
+		tasks, mapErr := mapItems(day.Items)
+		if mapErr != nil {
+			return nil, weekMappingError(resolver, mapErr)
+		}
+		projections := make([]*model.WeekProjection, 0, len(day.Projections))
+		for _, projection := range day.Projections {
+			source, mapErr := mapItem(projection.Source)
+			if mapErr != nil {
+				return nil, weekMappingError(resolver, mapErr)
+			}
+			projections = append(projections, &model.WeekProjection{
+				SourceTask: source, DueAt: projection.DueAt, HasDueTime: projection.HasDueTime,
+			})
+		}
+		days = append(days, &model.WeekDay{
+			Date: model.LocalDate(day.Date.Format("2006-01-02")), Tasks: tasks, Projections: projections,
+		})
+	}
+	issues := make([]*model.TaskPageIssue, 0, 1)
+	if result.Issue != nil {
+		issues = append(issues, taskPageIssueModel(result.Issue))
+	}
+	return &model.WeekView{
+		StartsOn: model.LocalDate(result.Start.Format("2006-01-02")),
+		EndsOn:   model.LocalDate(result.End.AddDate(0, 0, -1).Format("2006-01-02")),
+		Days:     days, IsComplete: result.IsComplete, Issues: issues,
+	}, nil
+}
+
+func weekMappingError(resolver *Resolver, err error) error {
+	resolver.logError("map Vikunja week task", err)
+	return clientError("UPSTREAM_REJECTED", "A Vikunja task uses fields this client cannot represent.")
+}
+
 func diagnosticsModel(task vikunja.Task, timezone string) (*model.TaskDiagnostics, error) {
 	priority, err := priorityModel(task.Priority)
 	if err != nil {

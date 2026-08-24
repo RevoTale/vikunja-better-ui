@@ -72,6 +72,24 @@ wants a smaller, purpose-built task workflow.
   falls within that scope. It also appears in Jobs. These are two views of the
   same Vikunja task, not duplicated data.
 
+### Confirmed weekly-ledger behavior
+
+- Render Week as seven responsive day rows, not seven narrow calendar columns.
+- Keep every week chronological from its configured start through all seven
+  days. Highlight Today in place and provide explicit Today navigation instead
+  of reordering or automatically scrolling the list.
+- Keep overdue work under its original due-date day; do not create a separate
+  Week section for it.
+- Support URL-backed previous, current, and next week navigation using an
+  absolute local date.
+- Show deterministic scheduled-cycle projections as visibly computed,
+  non-actionable entries. Never persist them as tasks.
+- Do not assign From completion recurrence to an estimated future day. Explain
+  its next interval on the active task instead.
+- Keep active and computed work in one due-time order within each day.
+- Follow the complete contract in
+  [the weekly ledger specification](../specs/weekly-ledger.md).
+
 ### Confirmed task-row visual hierarchy
 
 - Center list content and limit it to `max-w-5xl` (1024px) on larger screens.
@@ -83,7 +101,8 @@ wants a smaller, purpose-built task workflow.
   - due within two hours uses the warning state;
   - due later today uses the normal foreground;
   - date-only work uses muted text and never shows the synthetic `23:59:59`;
-  - week and month rows show day/month with the exact time below when present.
+  - grouped Week rows show the exact time or `Anytime`; Month rows show
+    day/month with the exact time below when present.
 - For jobs, show the work interval, such as `10:15-11:00`, in a slightly wider
   schedule column. Show the separate completion deadline as `Complete by
   12:00` in the task metadata.
