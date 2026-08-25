@@ -232,6 +232,10 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await expect(page.getByRole("button", { name: `Complete ${invalidTitle}` })).toHaveCount(0);
   await chooseSelectOption(page, "Project", "E2E Daily Tasks");
   await expect(page).toHaveURL(new RegExp(`project=${projectID}`));
+  expect(await elementPadding(page.locator('[data-slot="card-content"]').first())).toEqual({
+    top: "16px",
+    left: "16px",
+  });
   await page.goto("/week");
   const weekHeading = page.getByRole("heading", { name: "This week", exact: true });
   await expect(weekHeading).toBeVisible();
@@ -244,17 +248,21 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await expect(page.locator('[data-slot="week-day"]')).toHaveCount(7);
   await expect(page.locator('[data-slot="week-day"]').first()).toHaveAttribute(
     "data-date",
-    mondayOfWeek(localDate()),
+    localDate(),
   );
-  await expect(page.locator('[data-slot="week-day"]').first()).toContainText(
-    "Plan the current week",
-  );
+  const firstTaskContent = page
+    .locator('[data-slot="week-day"]')
+    .first()
+    .locator('[data-slot="card-content"]')
+    .first();
+  expect(await elementPadding(firstTaskContent)).toEqual({ top: "12px", left: "16px" });
   for (const day of await page.locator('[data-slot="week-day"]').all()) {
     await expect(day.locator('[data-slot="card"]')).not.toHaveCount(0);
   }
   const todayDay = page.locator(`[data-slot="week-day"][data-date="${localDate()}"]`);
   await expect(todayDay.locator("time")).toContainText("Today");
   await expect(todayDay.getByText("Today", { exact: true })).toHaveAttribute("data-slot", "badge");
+  await expect(todayDay.locator("time")).toHaveAttribute("aria-current", "date");
   await expect(todayDay).toHaveAttribute("data-today", "");
   await expect(todayDay).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await expect(todayDay).toHaveCSS("box-shadow", "none");
@@ -264,6 +272,10 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page).toHaveURL(/week=\d{4}-\d{2}-\d{2}/);
   await expect(page.getByRole("heading", { name: "Week", exact: true })).toBeVisible();
+  await expect(page.locator('[data-slot="week-day"]').first()).toHaveAttribute(
+    "data-date",
+    addCalendarDays(mondayOfWeek(localDate()), 7),
+  );
   await page.getByRole("button", { name: "Today", exact: true }).click();
   await expect(page).toHaveURL(/\/week\?project=all$/);
   await expect(todayDay).toBeInViewport();
@@ -679,6 +691,13 @@ function localDate() {
     day: "2-digit",
   }).formatToParts(new Date());
   return `${datePart(parts, "year")}-${datePart(parts, "month")}-${datePart(parts, "day")}`;
+}
+
+function elementPadding(locator: Locator) {
+  return locator.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return { top: style.paddingTop, left: style.paddingLeft };
+  });
 }
 
 function addCalendarDays(value: string, days: number) {

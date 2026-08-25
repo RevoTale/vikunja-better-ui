@@ -24,11 +24,15 @@ completion controls remain readable on phone, tablet, and desktop.
 - Every real task appears only under the day on which it is due, including when
   that task is overdue. Tasks due outside the selected week are not shown.
 - All seven days remain visible. Empty days use a compact empty state.
-- Every week remains chronological from the configured week start, normally
-  Monday, through all seven days. A compact Today badge marks its calendar
-  position instead of moving it to the beginning or highlighting the full row.
+- The current week starts with Today, followed by the future dates under
+  Upcoming and the past dates under Earlier this week. Dates remain
+  chronological inside each group, and a group is omitted when it is empty at
+  a week boundary.
+- Past and future weeks remain chronological from the configured week start,
+  normally Monday, through all seven days.
 - The Today navigation control returns from another week to the current week and
-  scrolls to today's row. In the current week it scrolls directly to that row.
+  scrolls to today's first row. In the current week it scrolls directly to that
+  row.
   Changing weeks never auto-scrolls without this explicit action.
 
 ## Active and computed work
@@ -102,4 +106,7 @@ fresh Vikunja task pages. To limit upstream work and Go memory:
   background or outline of the full day row. The date also uses
   `aria-current="date"`; Computed remains visible text in addition to its border
   treatment, and overdue real tasks retain their explicit overdue schedule text.
+- The current week keeps a document heading hierarchy of page title, current-day
+  and group headings, then the day headings inside Upcoming and Earlier this
+  week.
 - Week navigation and every task action remain keyboard accessible.

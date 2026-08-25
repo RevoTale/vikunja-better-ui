@@ -43,7 +43,12 @@ export function TaskRow({
       )}
       data-projection={projection || undefined}
     >
-      <CardContent className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-x-3 p-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:p-4">
+      <CardContent
+        className={cn(
+          "grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-x-3 px-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:px-4",
+          dayGrouped ? "py-2 sm:py-3" : "py-3 sm:py-4",
+        )}
+      >
         <Schedule schedule={schedule} dayGrouped={dayGrouped} projection={projection} />
         <div
           className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2"
