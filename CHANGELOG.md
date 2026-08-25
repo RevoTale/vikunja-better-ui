@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.4.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.3.0...v1.4.0) (2026-08-25)
+
+
+### Features
+
+* **integrations:** query completed jobs by completion time ([0e66429](https://github.com/RevoTale/vikunja-better-ui/commit/0e6642999f0cc3f503651016775fa2d97dea4d48))
+* **tasks:** prioritize current weekly work ([3f5a8e7](https://github.com/RevoTale/vikunja-better-ui/commit/3f5a8e78132e532fa8f27bf0db41e95f36c6c3c0))
+
 ## [1.3.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.2.2...v1.3.0) (2026-08-24)
 
 
