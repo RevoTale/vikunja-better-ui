@@ -95,8 +95,8 @@ Dashboard -> read-only Go integration API -> Vikunja REST API v2
 - The endpoint is `GET /integrations/v1/jobs` and returns JSON.
 - `Authorization: Bearer <Vikunja API token>` is required. Cookie sessions and
   `APP_VIKUNJA_API_TOKEN` do not authenticate this endpoint.
-- `status` accepts `active` and `completed`; omission defaults to `active` and
-  preserves the browser Jobs classification and ordering.
+- `status` accepts `active`, `completed`, and `all`; omission defaults to
+  `active` and preserves the browser Jobs classification and ordering.
 - Completed requests require absolute RFC 3339 `completedFrom` and
   `completedBefore` values. The interval is half-open:
   `completedFrom <= doneAt < completedBefore`. Equal or reversed bounds are
@@ -104,6 +104,14 @@ Dashboard -> read-only Go integration API -> Vikunja REST API v2
 - Completed results retain the exact `JOB` classification, sort by `doneAt`
   descending and then ID descending, and do not calculate week or timezone
   boundaries.
+- `status=all` requires the same completion boundaries. They constrain only
+  completed Jobs; active Jobs remain eligible. Active and completed task reads
+  run concurrently, share the request's metadata reads, and are merged before
+  pagination under one 10,000-candidate ceiling.
+- Unified results accept `sortBy=startAt|finishAt` and
+  `sortOrder=asc|desc`, defaulting to `startAt` and `asc`. Sort parameters are
+  invalid for legacy status modes. Null timestamps remain last in either
+  direction, followed by a task-ID tie-breaker in the requested direction.
 - `label` optionally requires an additional exact, case-sensitive Vikunja
   label title. Matching is resolved to numeric label IDs before filtering;
   caller text is never inserted into Vikunja filter syntax.
@@ -114,6 +122,8 @@ Dashboard -> read-only Go integration API -> Vikunja REST API v2
   description, normalized priority, schedule and completion timestamps,
   labels, timezone, overdue state, pagination metadata, and an absolute app
   task URL. `doneAt` is present on every item and is `null` for active Jobs.
+  `finishAt` is also always present: it is `dueAt` for active Jobs, `doneAt`
+  for completed Jobs, and `null` when the corresponding source is absent.
 - Responses are marked `private, no-store` and vary on `Authorization`.
 - The minimum caller-token permissions are `other:user`,
   `projects:read_all`, `tasks:read_all`, and `labels:read_all`.

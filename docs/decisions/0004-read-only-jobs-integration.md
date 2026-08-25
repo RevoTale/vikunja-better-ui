@@ -35,7 +35,17 @@ supplied absolute RFC 3339 lower and upper completion boundaries and applies a
 half-open interval to Vikunja's authoritative `done_at`. Better UI does not
 infer the caller's week, timezone, or daylight-saving boundaries. Completed
 results sort by completion time descending and then ID descending. Every item
-uses the same response shape with nullable `doneAt`.
+uses the same response shape with nullable `doneAt` and derived `finishAt`.
+
+`status=all` provides one server-sorted projection for consumers that cannot
+merge JSON arrays. It requires the same bounded completion interval, applies
+that interval only to completed Jobs, and loads active and completed task sets
+concurrently. Better UI merges them before pagination and retains one combined
+candidate ceiling. Unified callers may sort ascending or descending by
+scheduled `startAt` or by `finishAt`, where active Jobs use planned `dueAt` and
+completed Jobs use actual `doneAt`. Raw timestamps remain available so this
+derived presentation field does not erase the distinction between plan and
+fact.
 
 The endpoint accepts only bounded pagination values and one optional exact,
 case-sensitive label title. It resolves label titles to numeric Vikunja IDs
@@ -71,6 +81,8 @@ token.
   widget.
 - Existing requests remain active by default; completed reporting is opt-in and
   uses the same read-only token permissions.
+- Dashboard templates can request one deterministic active/completed roster
+  without duplicating merge and sort logic.
 - Results are limited by the projects and permissions of the caller's Vikunja
   token.
 - The Go server temporarily handles another secret but never stores it.

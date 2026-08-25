@@ -16,6 +16,7 @@ const (
 	TaskScopeMonth         TaskScope = "MONTH"
 	TaskScopeJobs          TaskScope = "JOBS"
 	TaskScopeCompletedJobs TaskScope = "COMPLETED_JOBS"
+	TaskScopeAllJobs       TaskScope = "ALL_JOBS"
 	TaskScopeUnscheduled   TaskScope = "UNSCHEDULED"
 	TaskScopeHistory       TaskScope = "HISTORY"
 )
@@ -99,6 +100,8 @@ func taskMatchesScope(
 		return !task.Done && classification.Kind == TaskKindJob
 	case TaskScopeCompletedJobs:
 		return task.Done && classification.Kind == TaskKindJob
+	case TaskScopeAllJobs:
+		return classification.Kind == TaskKindJob
 	case TaskScopeUnscheduled:
 		return !task.Done && task.DueDate.IsZero()
 	case TaskScopeToday:
@@ -143,6 +146,33 @@ func sortTaskList(items []taskListCandidate, scope TaskScope, now time.Time) {
 	slices.SortFunc(items, comparison)
 }
 
+func sortAllJobs(items []taskListCandidate, sortBy JobSort, order SortOrder) {
+	slices.SortFunc(items, func(left taskListCandidate, right taskListCandidate) int {
+		leftTime := left.Task.StartDate
+		rightTime := right.Task.StartDate
+		if sortBy == JobSortFinishAt {
+			leftTime = JobFinishAt(*left.Task)
+			rightTime = JobFinishAt(*right.Task)
+		}
+		if result := compareTimeZeroLastOrdered(leftTime, rightTime, order); result != 0 {
+			return result
+		}
+		result := cmp.Compare(left.Task.ID, right.Task.ID)
+		if order == SortDescending {
+			return -result
+		}
+		return result
+	})
+}
+
+// JobFinishAt returns an active Job's planned finish or a completed Job's actual finish.
+func JobFinishAt(task vikunja.Task) time.Time {
+	if task.Done {
+		return task.DoneAt
+	}
+	return task.DueDate
+}
+
 func compareScopedTask(scope TaskScope, now time.Time) func(taskListCandidate, taskListCandidate) int {
 	switch scope {
 	case TaskScopeToday:
@@ -163,11 +193,15 @@ func compareScopedTask(scope TaskScope, now time.Time) func(taskListCandidate, t
 		return compareUnscheduled
 	case TaskScopeHistory:
 		return compareHistory
+	case TaskScopeAllJobs:
+		return compareTaskID
 	default:
-		return func(left taskListCandidate, right taskListCandidate) int {
-			return cmp.Compare(left.Task.ID, right.Task.ID)
-		}
+		return compareTaskID
 	}
+}
+
+func compareTaskID(left taskListCandidate, right taskListCandidate) int {
+	return cmp.Compare(left.Task.ID, right.Task.ID)
 }
 
 func compareToday(left taskListCandidate, right taskListCandidate, now time.Time) int {
@@ -283,4 +317,18 @@ func compareTimeZeroLast(left time.Time, right time.Time) int {
 		return -1
 	}
 	return left.Compare(right)
+}
+
+func compareTimeZeroLastOrdered(left time.Time, right time.Time, order SortOrder) int {
+	if left.IsZero() != right.IsZero() {
+		if left.IsZero() {
+			return 1
+		}
+		return -1
+	}
+	result := left.Compare(right)
+	if order == SortDescending {
+		return -result
+	}
+	return result
 }

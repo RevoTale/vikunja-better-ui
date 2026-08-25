@@ -44,7 +44,23 @@ type ListRequest struct {
 	FilterLabelIDs  []int64
 	CompletedFrom   time.Time
 	CompletedBefore time.Time
+	JobSort         JobSort
+	SortOrder       SortOrder
 }
+
+type JobSort string
+
+const (
+	JobSortStartAt  JobSort = "startAt"
+	JobSortFinishAt JobSort = "finishAt"
+)
+
+type SortOrder string
+
+const (
+	SortAscending  SortOrder = "asc"
+	SortDescending SortOrder = "desc"
+)
 
 type ListResult struct {
 	Items      []TaskListItem
@@ -61,6 +77,12 @@ type taskListClient interface {
 	TasksPage(context.Context, vikunja.TaskQuery) (vikunja.TaskPage, error)
 }
 
+type candidatePageSet struct {
+	query vikunja.TaskQuery
+	first vikunja.TaskPage
+	pages []vikunja.TaskPage
+}
+
 func ListTasks(ctx context.Context, client taskListClient, request ListRequest) (ListResult, error) {
 	if err := validateListRequest(request); err != nil {
 		return ListResult{}, err
@@ -72,8 +94,12 @@ func ListTasks(ctx context.Context, client taskListClient, request ListRequest) 
 }
 
 func listCandidates(ctx context.Context, client taskListClient, request ListRequest) (ListResult, error) {
-	if (request.Scope == TaskScopeJobs || request.Scope == TaskScopeCompletedJobs) && len(request.JobLabelIDs) == 0 {
+	if (request.Scope == TaskScopeJobs || request.Scope == TaskScopeCompletedJobs || request.Scope == TaskScopeAllJobs) &&
+		len(request.JobLabelIDs) == 0 {
 		return completeCandidateList(request, nil), nil
+	}
+	if request.Scope == TaskScopeAllJobs {
+		return listAllJobCandidates(ctx, client, request)
 	}
 	query := candidateTaskQuery(request)
 	firstPage, err := client.TasksPage(ctx, query)
@@ -114,35 +140,99 @@ func listCandidates(ctx context.Context, client taskListClient, request ListRequ
 	return completeCandidateList(request, candidates), nil
 }
 
+func listAllJobCandidates(ctx context.Context, client taskListClient, request ListRequest) (ListResult, error) {
+	activeRequest := request
+	activeRequest.Scope = TaskScopeJobs
+	completedRequest := request
+	completedRequest.Scope = TaskScopeCompletedJobs
+	sets := []candidatePageSet{
+		{query: candidateTaskQuery(activeRequest)},
+		{query: candidateTaskQuery(completedRequest)},
+	}
+
+	group, groupCtx := errgroup.WithContext(ctx)
+	for index := range sets {
+		group.Go(func() error {
+			page, err := client.TasksPage(groupCtx, sets[index].query)
+			sets[index].first = page
+			return err
+		})
+	}
+	if err := group.Wait(); err != nil {
+		return incompleteList(request, ListIssueUpstreamPartial, err), nil
+	}
+	if sets[0].first.Total+sets[1].first.Total > maxCandidateTasks {
+		return incompleteList(request, ListIssueTooLarge, nil), nil
+	}
+
+	if err := loadRemainingCandidatePages(ctx, client, sets); err != nil {
+		return incompleteList(request, ListIssueUpstreamPartial, err), nil
+	}
+
+	candidates := make([]taskListCandidate, 0, int(sets[0].first.Total+sets[1].first.Total))
+	for _, set := range sets {
+		loadedTasks := int64(len(set.first.Items))
+		candidates = appendTaskListCandidates(
+			candidates, set.first.Items, request.ProjectTitles, TaskScopeAllJobs,
+			request.Now, request.Location, request.WeekStart,
+		)
+		for _, page := range set.pages {
+			if page.Total != set.first.Total || page.TotalPages != set.first.TotalPages {
+				return incompleteList(request, ListIssueUpstreamPartial, vikunja.ErrRejectedResponse), nil
+			}
+			loadedTasks += int64(len(page.Items))
+			candidates = appendTaskListCandidates(
+				candidates, page.Items, request.ProjectTitles, TaskScopeAllJobs,
+				request.Now, request.Location, request.WeekStart,
+			)
+		}
+		if loadedTasks != set.first.Total {
+			return incompleteList(request, ListIssueUpstreamPartial, vikunja.ErrRejectedResponse), nil
+		}
+	}
+
+	candidates = filterAllJobsByCompletionRange(candidates, request.CompletedFrom, request.CompletedBefore)
+	candidates = filterCandidatesByAnyLabelID(candidates, request.FilterLabelIDs)
+	sortAllJobs(candidates, request.JobSort, request.SortOrder)
+	return completeCandidateList(request, candidates), nil
+}
+
+func loadRemainingCandidatePages(
+	ctx context.Context,
+	client taskListClient,
+	sets []candidatePageSet,
+) error {
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.SetLimit(maxPageConcurrency)
+	for setIndex := range sets {
+		sets[setIndex].pages = make([]vikunja.TaskPage, max(sets[setIndex].first.TotalPages-1, 0))
+		for pageNumber := int64(2); pageNumber <= sets[setIndex].first.TotalPages; pageNumber++ {
+			pageIndex := pageNumber - 2
+			group.Go(func() error {
+				query := sets[setIndex].query
+				query.Page = pageNumber
+				page, err := client.TasksPage(groupCtx, query)
+				if err == nil {
+					sets[setIndex].pages[pageIndex] = page
+				}
+				return err
+			})
+		}
+	}
+	return group.Wait()
+}
+
 func loadRemainingTaskPages(
 	ctx context.Context,
 	client taskListClient,
 	query vikunja.TaskQuery,
 	totalPages int64,
 ) ([]vikunja.TaskPage, error) {
-	if totalPages <= 1 {
-		return nil, nil
-	}
-
-	pages := make([]vikunja.TaskPage, totalPages-1)
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.SetLimit(maxPageConcurrency)
-	for pageNumber := int64(2); pageNumber <= totalPages; pageNumber++ {
-		index := pageNumber - 2
-		group.Go(func() error {
-			pageQuery := query
-			pageQuery.Page = pageNumber
-			page, err := client.TasksPage(groupCtx, pageQuery)
-			if err == nil {
-				pages[index] = page
-			}
-			return err
-		})
-	}
-	if err := group.Wait(); err != nil {
+	sets := []candidatePageSet{{query: query, first: vikunja.TaskPage{TotalPages: totalPages}}}
+	if err := loadRemainingCandidatePages(ctx, client, sets); err != nil {
 		return nil, err
 	}
-	return pages, nil
+	return sets[0].pages, nil
 }
 
 func filterCandidatesByAnyLabelID(candidates []taskListCandidate, labelIDs []int64) []taskListCandidate {
@@ -174,6 +264,22 @@ func filterCandidatesByCompletionRange(
 	for _, candidate := range candidates {
 		doneAt := candidate.Task.DoneAt
 		if !doneAt.IsZero() && !doneAt.Before(completedFrom) && doneAt.Before(completedBefore) {
+			filtered = append(filtered, candidate)
+		}
+	}
+	return filtered
+}
+
+func filterAllJobsByCompletionRange(
+	candidates []taskListCandidate,
+	completedFrom time.Time,
+	completedBefore time.Time,
+) []taskListCandidate {
+	filtered := candidates[:0]
+	for _, candidate := range candidates {
+		doneAt := candidate.Task.DoneAt
+		if !candidate.Task.Done ||
+			(!doneAt.IsZero() && !doneAt.Before(completedFrom) && doneAt.Before(completedBefore)) {
 			filtered = append(filtered, candidate)
 		}
 	}
@@ -217,7 +323,7 @@ func candidateTaskQuery(request ListRequest) vikunja.TaskQuery {
 	case TaskScopeUnscheduled:
 		filterParts = append(filterParts, "due_date < 0001-01-01")
 		includeNulls = true
-	case TaskScopeJobs, TaskScopeCompletedJobs:
+	case TaskScopeJobs, TaskScopeCompletedJobs, TaskScopeAllJobs:
 		filterParts = append(filterParts, "labels in "+joinIDs(request.JobLabelIDs))
 		filterParts = append(filterParts, "repeat_after = 0")
 	case TaskScopeHistory:
@@ -305,10 +411,18 @@ func validateListRequest(request ListRequest) error {
 		}
 	}
 	switch request.Scope {
-	case TaskScopeCompletedJobs:
+	case TaskScopeCompletedJobs, TaskScopeAllJobs:
 		if request.CompletedFrom.IsZero() || request.CompletedBefore.IsZero() ||
 			!request.CompletedFrom.Before(request.CompletedBefore) {
 			return errors.New("completion range is invalid")
+		}
+		if request.Scope == TaskScopeAllJobs &&
+			(request.JobSort != JobSortStartAt && request.JobSort != JobSortFinishAt) {
+			return errors.New("job sort is invalid")
+		}
+		if request.Scope == TaskScopeAllJobs &&
+			(request.SortOrder != SortAscending && request.SortOrder != SortDescending) {
+			return errors.New("sort order is invalid")
 		}
 		return nil
 	case TaskScopeToday, TaskScopeWeek, TaskScopeMonth, TaskScopeJobs, TaskScopeUnscheduled, TaskScopeHistory:

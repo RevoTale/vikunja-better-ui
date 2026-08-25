@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -222,6 +223,149 @@ func TestListTasksPreservesFractionalCompletedJobBoundaries(t *testing.T) {
 	}
 }
 
+func TestListTasksMergesAllJobsBeforeSortingAndPagination(t *testing.T) {
+	t.Parallel()
+
+	completedFrom := time.Date(2026, time.August, 24, 0, 0, 0, 0, time.UTC)
+	completedBefore := completedFrom.AddDate(0, 0, 7)
+	jobLabel := vikunja.Label{ID: 4, Title: "job"}
+	client := &unifiedJobsClient{active: vikunja.TaskPage{
+		Items: []vikunja.Task{
+			{ID: 20, StartDate: completedFrom.Add(36 * time.Hour), DueDate: completedFrom.Add(38 * time.Hour), Labels: []vikunja.Label{jobLabel}},
+			{ID: 40, Labels: []vikunja.Label{jobLabel}},
+		},
+		Total: 2, Page: 1, PerPage: 1000, TotalPages: 1,
+	}, completed: vikunja.TaskPage{
+		Items: []vikunja.Task{
+			{ID: 10, Done: true, StartDate: completedFrom.Add(12 * time.Hour), DoneAt: completedFrom.Add(14 * time.Hour), Labels: []vikunja.Label{jobLabel}},
+			{ID: 30, Done: true, StartDate: completedFrom.Add(48 * time.Hour), DoneAt: completedFrom.Add(50 * time.Hour), Labels: []vikunja.Label{jobLabel}},
+		},
+		Total: 2, Page: 1, PerPage: 1000, TotalPages: 1,
+	}}
+
+	result, err := ListTasks(context.Background(), client, ListRequest{
+		Scope: TaskScopeAllJobs, Page: 1, PageSize: 2, Now: completedFrom,
+		Location: time.UTC, Timezone: "UTC", JobLabelIDs: []int64{4},
+		CompletedFrom: completedFrom, CompletedBefore: completedBefore,
+		JobSort: JobSortStartAt, SortOrder: SortAscending,
+	})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+	assertTaskIDs(t, result.Items, 10, 20)
+	if result.TotalItems != 4 || !result.HasMore || result.TotalPages != 2 {
+		t.Fatalf("ListTasks() = %#v", result)
+	}
+	client.assertReadBothStatuses(t)
+}
+
+func TestListTasksSortsAllJobsByDerivedFinishTime(t *testing.T) {
+	t.Parallel()
+
+	completedFrom := time.Date(2026, time.August, 24, 0, 0, 0, 0, time.UTC)
+	completedBefore := completedFrom.AddDate(0, 0, 7)
+	jobLabel := vikunja.Label{ID: 4, Title: "job"}
+	client := &unifiedJobsClient{active: vikunja.TaskPage{
+		Items: []vikunja.Task{
+			{ID: 20, DueDate: completedFrom.Add(72 * time.Hour), Labels: []vikunja.Label{jobLabel}},
+			{ID: 40, Labels: []vikunja.Label{jobLabel}},
+		},
+		Total: 2, Page: 1, PerPage: 1000, TotalPages: 1,
+	}, completed: vikunja.TaskPage{
+		Items: []vikunja.Task{
+			{ID: 10, Done: true, DueDate: completedFrom.Add(96 * time.Hour), DoneAt: completedFrom.Add(48 * time.Hour), Labels: []vikunja.Label{jobLabel}},
+			{ID: 30, Done: true, DoneAt: completedFrom.Add(72 * time.Hour), Labels: []vikunja.Label{jobLabel}},
+		},
+		Total: 2, Page: 1, PerPage: 1000, TotalPages: 1,
+	}}
+
+	result, err := ListTasks(context.Background(), client, ListRequest{
+		Scope: TaskScopeAllJobs, Page: 1, PageSize: 10, Now: completedFrom,
+		Location: time.UTC, Timezone: "UTC", JobLabelIDs: []int64{4},
+		CompletedFrom: completedFrom, CompletedBefore: completedBefore,
+		JobSort: JobSortFinishAt, SortOrder: SortDescending,
+	})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+	assertTaskIDs(t, result.Items, 30, 20, 10, 40)
+}
+
+func TestListTasksLoadsActiveAndCompletedJobsConcurrently(t *testing.T) {
+	t.Parallel()
+
+	completedFrom := time.Date(2026, time.August, 24, 0, 0, 0, 0, time.UTC)
+	started := make(chan string, 2)
+	release := make(chan struct{})
+	client := &unifiedJobsClient{
+		active:    vikunja.TaskPage{Page: 1, PerPage: 1000},
+		completed: vikunja.TaskPage{Page: 1, PerPage: 1000},
+		started:   started, release: release,
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, err := ListTasks(t.Context(), client, ListRequest{
+			Scope: TaskScopeAllJobs, Page: 1, PageSize: 30, Now: completedFrom,
+			Location: time.UTC, Timezone: "UTC", JobLabelIDs: []int64{4},
+			CompletedFrom: completedFrom, CompletedBefore: completedFrom.AddDate(0, 0, 7),
+			JobSort: JobSortStartAt, SortOrder: SortAscending,
+		})
+		done <- err
+	}()
+
+	seen := make(map[string]bool, 2)
+	timer := time.NewTimer(200 * time.Millisecond)
+	for len(seen) < 2 {
+		select {
+		case status := <-started:
+			seen[status] = true
+		case <-timer.C:
+			close(release)
+			if err := <-done; err != nil {
+				t.Fatalf("ListTasks() error = %v", err)
+			}
+			t.Fatalf("task reads did not overlap: started = %v", seen)
+		}
+	}
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+}
+
+func TestListTasksRejectsOversizedCombinedJobSetBeforeLoadingMorePages(t *testing.T) {
+	t.Parallel()
+
+	completedFrom := time.Date(2026, time.August, 24, 0, 0, 0, 0, time.UTC)
+	client := &unifiedJobsClient{
+		active: vikunja.TaskPage{
+			Items: []vikunja.Task{{ID: 1}}, Total: 5001, Page: 1, PerPage: 1000, TotalPages: 6,
+		},
+		completed: vikunja.TaskPage{
+			Items: []vikunja.Task{{ID: 2}}, Total: 5000, Page: 1, PerPage: 1000, TotalPages: 5,
+		},
+	}
+	result, err := ListTasks(context.Background(), client, ListRequest{
+		Scope: TaskScopeAllJobs, Page: 1, PageSize: 30, Now: completedFrom,
+		Location: time.UTC, Timezone: "UTC", JobLabelIDs: []int64{4},
+		CompletedFrom: completedFrom, CompletedBefore: completedFrom.AddDate(0, 0, 7),
+		JobSort: JobSortStartAt, SortOrder: SortAscending,
+	})
+	if err != nil {
+		t.Fatalf("ListTasks() error = %v", err)
+	}
+	if result.IsComplete || result.Issue == nil || result.Issue.Code != ListIssueTooLarge {
+		t.Fatalf("ListTasks() = %#v", result)
+	}
+	client.assertReadBothStatuses(t)
+}
+
 func TestListTasksReturnsNoPartialRowsOnUpstreamInterruption(t *testing.T) {
 	t.Parallel()
 
@@ -326,6 +470,47 @@ func (client *listClientStub) TasksPage(_ context.Context, query vikunja.TaskQue
 type concurrentPageClient struct {
 	started chan<- int64
 	release <-chan struct{}
+}
+
+type unifiedJobsClient struct {
+	mu        sync.Mutex
+	active    vikunja.TaskPage
+	completed vikunja.TaskPage
+	queries   []vikunja.TaskQuery
+	started   chan<- string
+	release   <-chan struct{}
+}
+
+func (client *unifiedJobsClient) TasksPage(_ context.Context, query vikunja.TaskQuery) (vikunja.TaskPage, error) {
+	client.mu.Lock()
+	client.queries = append(client.queries, query)
+	client.mu.Unlock()
+	completed := strings.HasPrefix(query.Filter, "done = true")
+	if client.started != nil {
+		status := "active"
+		if completed {
+			status = "completed"
+		}
+		client.started <- status
+		<-client.release
+	}
+	if completed {
+		return client.completed, nil
+	}
+	return client.active, nil
+}
+
+func (client *unifiedJobsClient) assertReadBothStatuses(t *testing.T) {
+	t.Helper()
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	if len(client.queries) != 2 {
+		t.Fatalf("queries = %#v", client.queries)
+	}
+	if strings.HasPrefix(client.queries[0].Filter, "done = true") ==
+		strings.HasPrefix(client.queries[1].Filter, "done = true") {
+		t.Fatalf("queries = %#v", client.queries)
+	}
 }
 
 func (client *concurrentPageClient) TasksPage(_ context.Context, query vikunja.TaskQuery) (vikunja.TaskPage, error) {

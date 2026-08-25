@@ -40,6 +40,8 @@ type jobsRequest struct {
 	completedBefore time.Time
 	page            int
 	pageSize        int
+	sortBy          service.JobSort
+	sortOrder       service.SortOrder
 }
 
 type jobsStatus string
@@ -47,6 +49,12 @@ type jobsStatus string
 const (
 	jobsStatusActive    jobsStatus = "active"
 	jobsStatusCompleted jobsStatus = "completed"
+	jobsStatusAll       jobsStatus = "all"
+
+	jobsSortStartAt    = service.JobSortStartAt
+	jobsSortFinishAt   = service.JobSortFinishAt
+	jobsSortAscending  = service.SortAscending
+	jobsSortDescending = service.SortDescending
 )
 
 type errorResponse struct {
@@ -81,6 +89,7 @@ type jobResponse struct {
 	EndAt       *time.Time      `json:"endAt"`
 	Labels      []labelResponse `json:"labels"`
 	DoneAt      *time.Time      `json:"doneAt"`
+	FinishAt    *time.Time      `json:"finishAt"`
 	IsOverdue   bool            `json:"isOverdue"`
 	Timezone    string          `json:"timezone"`
 	URL         string          `json:"url"`
@@ -169,16 +178,13 @@ func (handler *jobsHandler) jobs(
 		}
 	}
 	now := handler.now()
-	scope := service.TaskScopeJobs
-	if input.status == jobsStatusCompleted {
-		scope = service.TaskScopeCompletedJobs
-	}
 	result, err := service.ListTasks(ctx, client, service.ListRequest{
-		Scope: scope, Page: input.page, PageSize: input.pageSize,
+		Scope: jobsTaskScope(input.status), Page: input.page, PageSize: input.pageSize,
 		Now: now, Location: location, Timezone: user.Settings.Timezone,
 		WeekStart:   time.Weekday(user.Settings.WeekStart),
 		JobLabelIDs: jobLabelIDs, FilterLabelIDs: filterLabelIDs,
 		CompletedFrom: input.completedFrom, CompletedBefore: input.completedBefore,
+		JobSort: input.sortBy, SortOrder: input.sortOrder,
 	})
 	if err != nil {
 		return jobsResponse{}, err
@@ -194,6 +200,18 @@ func (handler *jobsHandler) jobs(
 		return jobsResponse{}, projectsErr
 	}
 	return handler.mapJobsResponse(result, projects, user, now)
+}
+
+func jobsTaskScope(status jobsStatus) service.TaskScope {
+	switch status {
+	case jobsStatusActive:
+		return service.TaskScopeJobs
+	case jobsStatusCompleted:
+		return service.TaskScopeCompletedJobs
+	case jobsStatusAll:
+		return service.TaskScopeAllJobs
+	}
+	return ""
 }
 
 func (handler *jobsHandler) mapJobsResponse(
@@ -247,6 +265,7 @@ func (handler *jobsHandler) mapJob(
 	if item.Task.Done {
 		doneAt = optionalTime(item.Task.DoneAt)
 	}
+	finishAt := optionalTime(service.JobFinishAt(item.Task))
 	return jobResponse{
 		ID: strconv.FormatInt(item.Task.ID, 10), Title: item.Task.Title, Description: item.Task.Description,
 		Project: projectResponse{
@@ -256,7 +275,7 @@ func (handler *jobsHandler) mapJob(
 		Priority: priority, DueAt: optionalTime(item.Task.DueDate),
 		HasDueTime: !item.Task.DueDate.IsZero() && !item.Classification.DateOnly,
 		StartAt:    optionalTime(item.Task.StartDate), EndAt: optionalTime(item.Task.EndDate), Labels: labels,
-		DoneAt:    doneAt,
+		DoneAt: doneAt, FinishAt: finishAt,
 		IsOverdue: !item.Task.Done && !item.Task.DueDate.IsZero() && item.Task.DueDate.Before(now),
 		Timezone:  user.Settings.Timezone,
 		URL:       taskURL,
@@ -330,11 +349,16 @@ func parseJobsRequest(request *http.Request) (jobsRequest, error) {
 	}
 	for key := range query {
 		if key != "label" && key != "status" && key != "completedFrom" && key != "completedBefore" &&
+			key != "sortBy" && key != "sortOrder" &&
 			key != "page" && key != "pageSize" {
 			return jobsRequest{}, errInvalidRequest
 		}
 	}
 	status, completedFrom, completedBefore, err := parseJobsStatus(query)
+	if err != nil {
+		return jobsRequest{}, err
+	}
+	sortBy, sortOrder, err := parseJobsSort(query, status)
 	if err != nil {
 		return jobsRequest{}, err
 	}
@@ -356,6 +380,7 @@ func parseJobsRequest(request *http.Request) (jobsRequest, error) {
 	return jobsRequest{
 		token: token, label: label, status: status, completedFrom: completedFrom,
 		completedBefore: completedBefore, page: page, pageSize: pageSize,
+		sortBy: sortBy, sortOrder: sortOrder,
 	}, nil
 }
 
@@ -367,7 +392,7 @@ func parseJobsStatus(query url.Values) (jobsStatus, time.Time, time.Time, error)
 		}
 		status = jobsStatus(values[0])
 	}
-	if status != jobsStatusActive && status != jobsStatusCompleted {
+	if status != jobsStatusActive && status != jobsStatusCompleted && status != jobsStatusAll {
 		return "", time.Time{}, time.Time{}, errInvalidRequest
 	}
 	fromValues, hasFrom := query["completedFrom"]
@@ -387,6 +412,40 @@ func parseJobsStatus(query url.Values) (jobsStatus, time.Time, time.Time, error)
 		return "", time.Time{}, time.Time{}, errInvalidRequest
 	}
 	return status, completedFrom, completedBefore, nil
+}
+
+func parseJobsSort(query url.Values, status jobsStatus) (service.JobSort, service.SortOrder, error) {
+	sortValues, hasSort := query["sortBy"]
+	orderValues, hasOrder := query["sortOrder"]
+	if status != jobsStatusAll {
+		if hasSort || hasOrder {
+			return "", "", errInvalidRequest
+		}
+		return "", "", nil
+	}
+
+	sortBy := jobsSortStartAt
+	if hasSort {
+		if len(sortValues) != 1 {
+			return "", "", errInvalidRequest
+		}
+		sortBy = service.JobSort(sortValues[0])
+	}
+	if sortBy != jobsSortStartAt && sortBy != jobsSortFinishAt {
+		return "", "", errInvalidRequest
+	}
+
+	sortOrder := jobsSortAscending
+	if hasOrder {
+		if len(orderValues) != 1 {
+			return "", "", errInvalidRequest
+		}
+		sortOrder = service.SortOrder(orderValues[0])
+	}
+	if sortOrder != jobsSortAscending && sortOrder != jobsSortDescending {
+		return "", "", errInvalidRequest
+	}
+	return sortBy, sortOrder, nil
 }
 
 func bearerToken(values []string) (string, error) {

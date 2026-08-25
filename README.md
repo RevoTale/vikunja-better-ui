@@ -161,6 +161,23 @@ it owns week-start, timezone, and daylight-saving calculations. Completed Jobs
 are ordered by `doneAt` newest first, then by task ID newest first. Supplying a
 completion boundary for active status is invalid.
 
+To build one chronological roster without merging JSON arrays in Glance, use
+`status=all`. The completion range limits only the completed part; all active
+Jobs remain eligible:
+
+```http
+GET /integrations/v1/jobs?status=all&completedFrom=2026-08-24T00%3A00%3A00%2B03%3A00&completedBefore=2026-08-31T00%3A00%3A00%2B03%3A00&sortBy=startAt&sortOrder=asc&label=dashboard&pageSize=100
+Authorization: Bearer <Vikunja API token>
+```
+
+Both completion boundaries are required. `sortBy` accepts `startAt` and
+`finishAt`; `sortOrder` accepts `asc` and `desc`. They default to `startAt` and
+`asc` and are valid only with `status=all`. A Job's `finishAt` is its actual
+`doneAt` after completion and its planned `dueAt` while active. Missing sort
+timestamps always appear last, and task ID provides a stable tie-breaker. The
+server loads active and completed Jobs concurrently, merges and sorts the full
+bounded candidate set, and only then applies pagination.
+
 The optional `label` parameter is an exact, case-sensitive label-title match.
 When present, returned tasks must have both the `job` marker and the requested
 label. An unknown label returns an empty page. `page` defaults to `1`, and
@@ -184,9 +201,11 @@ visible to the caller token.
 Successful responses contain `items`, `page`, `pageSize`, `totalItems`,
 `totalPages`, `hasMore`, `isComplete`, and `issues`. Each item contains its ID,
 title, description, project, normalized priority, due/start/end timestamps,
-`doneAt`, labels, timezone, overdue state, and absolute Better UI task URL.
-Timestamps are RFC 3339 values or `null`; `doneAt` is always `null` for active
-Jobs. Priorities are `UNSET`, `LOW`, `MEDIUM`, `HIGH`, `URGENT`, or `DO_NOW`.
+`doneAt`, `finishAt`, labels, timezone, overdue state, and absolute Better UI
+task URL. Timestamps are RFC 3339 values or `null`; `doneAt` is always `null`
+for active Jobs. `finishAt` preserves `dueAt` as the active plan and switches
+to `doneAt` as the completed fact. Priorities are `UNSET`, `LOW`, `MEDIUM`,
+`HIGH`, `URGENT`, or `DO_NOW`.
 
 ### Glance custom API widget
 
@@ -257,6 +276,11 @@ same timezone used by the dashboard and provide them to Glance, for example as
 
 Generate or refresh those values at the local week boundary. Better UI does
 not infer a timezone from the dashboard request.
+
+Use the same boundary variables with `status: all`, `sortBy: startAt`, and
+`sortOrder: asc` when one Glance template should render active and completed
+Jobs together. Change `sortBy` to `finishAt` when the roster should follow
+planned or actual finish rather than scheduled start.
 
 ## Development
 
