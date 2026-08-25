@@ -136,15 +136,30 @@ Do not use the app username or password to authenticate with Vikunja.
 
 ## Read-only Jobs integration
 
-`GET /integrations/v1/jobs` exposes the existing Jobs classification, sorting,
-timezone, and pagination behavior as JSON for Glance and similar
-server-to-server dashboards. It accepts a dedicated Vikunja API token from the
-caller and uses it only against the configured `APP_VIKUNJA_URL`:
+`GET /integrations/v1/jobs` exposes the existing Jobs classification and
+pagination behavior as JSON for Glance and similar server-to-server
+dashboards. It accepts a dedicated Vikunja API token from the caller and uses
+it only against the configured `APP_VIKUNJA_URL`. Requests return active Jobs
+by default:
 
 ```http
 GET /integrations/v1/jobs?label=dashboard&page=1&pageSize=30
 Authorization: Bearer <Vikunja API token>
 ```
+
+To request Jobs completed during a caller-defined interval, use a half-open
+RFC 3339 range:
+
+```http
+GET /integrations/v1/jobs?status=completed&completedFrom=2026-08-24T00%3A00%3A00%2B03%3A00&completedBefore=2026-08-31T00%3A00%3A00%2B03%3A00&label=dashboard&pageSize=100
+Authorization: Bearer <Vikunja API token>
+```
+
+`completedFrom` is inclusive and `completedBefore` is exclusive. Both are
+required with `status=completed`. The caller supplies absolute timestamps, so
+it owns week-start, timezone, and daylight-saving calculations. Completed Jobs
+are ordered by `doneAt` newest first, then by task ID newest first. Supplying a
+completion boundary for active status is invalid.
 
 The optional `label` parameter is an exact, case-sensitive label-title match.
 When present, returned tasks must have both the `job` marker and the requested
@@ -169,9 +184,9 @@ visible to the caller token.
 Successful responses contain `items`, `page`, `pageSize`, `totalItems`,
 `totalPages`, `hasMore`, `isComplete`, and `issues`. Each item contains its ID,
 title, description, project, normalized priority, due/start/end timestamps,
-labels, timezone, overdue state, and absolute Better UI task URL. Timestamps
-are RFC 3339 values or `null`; priorities are `UNSET`, `LOW`, `MEDIUM`, `HIGH`,
-`URGENT`, or `DO_NOW`.
+`doneAt`, labels, timezone, overdue state, and absolute Better UI task URL.
+Timestamps are RFC 3339 values or `null`; `doneAt` is always `null` for active
+Jobs. Priorities are `UNSET`, `LOW`, `MEDIUM`, `HIGH`, `URGENT`, or `DO_NOW`.
 
 ### Glance custom API widget
 
@@ -207,6 +222,41 @@ Glance performs this request from its server, not from the dashboard browser.
 Invalid or missing tokens return `401`; insufficient token permissions return
 `403`; invalid parameters return `400`; oversized result sets return `422`;
 and unavailable or invalid Vikunja responses return `502`.
+
+For a completed-this-week widget, calculate absolute week boundaries in the
+same timezone used by the dashboard and provide them to Glance, for example as
+`VIKUNJA_JOBS_COMPLETED_FROM` and `VIKUNJA_JOBS_COMPLETED_BEFORE`:
+
+```yaml
+- type: custom-api
+  title: Jobs completed this week
+  cache: 5m
+  url: ${VBU_URL}/integrations/v1/jobs
+  headers:
+    Authorization: Bearer ${VIKUNJA_JOBS_TOKEN}
+    Accept: application/json
+  parameters:
+    status: completed
+    completedFrom: ${VIKUNJA_JOBS_COMPLETED_FROM}
+    completedBefore: ${VIKUNJA_JOBS_COMPLETED_BEFORE}
+    label: dashboard
+    pageSize: 100
+  template: |
+    <ul class="list list-gap-10">
+      {{ range .JSON.Array "items" }}
+        <li>
+          <a href="{{ .String "url" }}">{{ .String "title" }}</a>
+          <div class="size-h6 color-paragraph"
+            {{ .String "doneAt" | parseTime "rfc3339" | toRelativeTime }}></div>
+        </li>
+      {{ else }}
+        <li>No Jobs completed in this interval.</li>
+      {{ end }}
+    </ul>
+```
+
+Generate or refresh those values at the local week boundary. Better UI does
+not infer a timezone from the dashboard request.
 
 ## Development
 

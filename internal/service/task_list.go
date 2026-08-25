@@ -11,12 +11,13 @@ import (
 type TaskScope string
 
 const (
-	TaskScopeToday       TaskScope = "TODAY"
-	TaskScopeWeek        TaskScope = "WEEK"
-	TaskScopeMonth       TaskScope = "MONTH"
-	TaskScopeJobs        TaskScope = "JOBS"
-	TaskScopeUnscheduled TaskScope = "UNSCHEDULED"
-	TaskScopeHistory     TaskScope = "HISTORY"
+	TaskScopeToday         TaskScope = "TODAY"
+	TaskScopeWeek          TaskScope = "WEEK"
+	TaskScopeMonth         TaskScope = "MONTH"
+	TaskScopeJobs          TaskScope = "JOBS"
+	TaskScopeCompletedJobs TaskScope = "COMPLETED_JOBS"
+	TaskScopeUnscheduled   TaskScope = "UNSCHEDULED"
+	TaskScopeHistory       TaskScope = "HISTORY"
 )
 
 type TaskListItem struct {
@@ -96,6 +97,8 @@ func taskMatchesScope(
 		return task.Done
 	case TaskScopeJobs:
 		return !task.Done && classification.Kind == TaskKindJob
+	case TaskScopeCompletedJobs:
+		return task.Done && classification.Kind == TaskKindJob
 	case TaskScopeUnscheduled:
 		return !task.Done && task.DueDate.IsZero()
 	case TaskScopeToday:
@@ -154,6 +157,8 @@ func compareScopedTask(scope TaskScope, now time.Time) func(taskListCandidate, t
 		return func(left taskListCandidate, right taskListCandidate) int {
 			return compareJobs(left, right, now)
 		}
+	case TaskScopeCompletedJobs:
+		return compareHistory
 	case TaskScopeUnscheduled:
 		return compareUnscheduled
 	case TaskScopeHistory:

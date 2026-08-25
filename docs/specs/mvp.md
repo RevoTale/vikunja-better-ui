@@ -95,8 +95,15 @@ Dashboard -> read-only Go integration API -> Vikunja REST API v2
 - The endpoint is `GET /integrations/v1/jobs` and returns JSON.
 - `Authorization: Bearer <Vikunja API token>` is required. Cookie sessions and
   `APP_VIKUNJA_API_TOKEN` do not authenticate this endpoint.
-- Results use the same active `JOB` classification and ordering as the browser
-  Jobs view.
+- `status` accepts `active` and `completed`; omission defaults to `active` and
+  preserves the browser Jobs classification and ordering.
+- Completed requests require absolute RFC 3339 `completedFrom` and
+  `completedBefore` values. The interval is half-open:
+  `completedFrom <= doneAt < completedBefore`. Equal or reversed bounds are
+  invalid, and completion bounds are invalid with active status.
+- Completed results retain the exact `JOB` classification, sort by `doneAt`
+  descending and then ID descending, and do not calculate week or timezone
+  boundaries.
 - `label` optionally requires an additional exact, case-sensitive Vikunja
   label title. Matching is resolved to numeric label IDs before filtering;
   caller text is never inserted into Vikunja filter syntax.
@@ -104,8 +111,9 @@ Dashboard -> read-only Go integration API -> Vikunja REST API v2
   a complete empty page.
 - `page` defaults to 1. `pageSize` defaults to 30 and is limited to 100.
 - The response exposes only display fields: task and project IDs, title,
-  description, normalized priority, schedule timestamps, labels, timezone,
-  overdue state, pagination metadata, and an absolute app task URL.
+  description, normalized priority, schedule and completion timestamps,
+  labels, timezone, overdue state, pagination metadata, and an absolute app
+  task URL. `doneAt` is present on every item and is `null` for active Jobs.
 - Responses are marked `private, no-store` and vary on `Authorization`.
 - The minimum caller-token permissions are `other:user`,
   `projects:read_all`, `tasks:read_all`, and `labels:read_all`.

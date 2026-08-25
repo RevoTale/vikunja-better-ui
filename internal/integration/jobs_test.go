@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -37,6 +38,14 @@ func TestJobsHandlerRejectsUnsafeRequests(t *testing.T) {
 		{name: "empty label", method: http.MethodGet, target: "/integrations/v1/jobs?label=", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
 		{name: "malformed query", method: http.MethodGet, target: "/integrations/v1/jobs?page=1;pageSize=2", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
 		{name: "unknown parameter", method: http.MethodGet, target: "/integrations/v1/jobs?scope=week", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
+		{name: "invalid status", method: http.MethodGet, target: "/integrations/v1/jobs?status=done", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
+		{name: "duplicate status", method: http.MethodGet, target: "/integrations/v1/jobs?status=active&status=completed", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
+		{name: "active completion boundary", method: http.MethodGet, target: "/integrations/v1/jobs?completedFrom=2026-08-24T00%3A00%3A00Z", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
+		{name: "completed without boundaries", method: http.MethodGet, target: "/integrations/v1/jobs?status=completed", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
+		{name: "completed without upper boundary", method: http.MethodGet, target: "/integrations/v1/jobs?status=completed&completedFrom=2026-08-24T00%3A00%3A00Z", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
+		{name: "malformed completion boundary", method: http.MethodGet, target: "/integrations/v1/jobs?status=completed&completedFrom=yesterday&completedBefore=2026-08-31T00%3A00%3A00Z", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
+		{name: "equal completion boundaries", method: http.MethodGet, target: "/integrations/v1/jobs?status=completed&completedFrom=2026-08-24T00%3A00%3A00Z&completedBefore=2026-08-24T00%3A00%3A00Z", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
+		{name: "reversed completion boundaries", method: http.MethodGet, target: "/integrations/v1/jobs?status=completed&completedFrom=2026-08-31T00%3A00%3A00Z&completedBefore=2026-08-24T00%3A00%3A00Z", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -92,7 +101,7 @@ func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 				},
 				{
 					"id": 2, "title": "Visible job", "description": "Shown in Glance", "project_id": 7,
-					"priority": 3, "due_date": dueAt, "start_date": now.Add(time.Hour),
+					"priority": 3, "due_date": dueAt, "start_date": now.Add(time.Hour), "done_at": now,
 					"labels": []map[string]any{{"id": 4, "title": "job"}, {"id": 8, "title": "dashboard"}},
 				},
 			})
@@ -135,8 +144,12 @@ func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 		IsComplete bool  `json:"isComplete"`
 		Issues     []any `json:"issues"`
 	}
-	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+	body := recorder.Body.Bytes()
+	if err := json.Unmarshal(body, &response); err != nil {
 		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "\"doneAt\":null") {
+		t.Fatalf("active response does not contain nullable doneAt: %q", body)
 	}
 	if len(response.Items) != 1 {
 		t.Fatalf("items = %#v", response.Items)
@@ -156,6 +169,91 @@ func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 	}
 	if cacheControl := recorder.Header().Get("Cache-Control"); cacheControl != "private, no-store" {
 		t.Fatalf("cache control = %q", cacheControl)
+	}
+}
+
+func TestParseJobsRequestAcceptsExplicitActiveStatus(t *testing.T) {
+	t.Parallel()
+
+	request := httptest.NewRequestWithContext(
+		t.Context(), http.MethodGet, "/integrations/v1/jobs?status=active", nil,
+	)
+	request.Header.Set("Authorization", "Bearer tk_glance")
+	input, err := parseJobsRequest(request)
+	if err != nil {
+		t.Fatalf("parseJobsRequest() error = %v", err)
+	}
+	if input.status != jobsStatusActive || !input.completedFrom.IsZero() || !input.completedBefore.IsZero() {
+		t.Fatalf("input = %#v", input)
+	}
+}
+
+func TestJobsHandlerReturnsCompletedJobsByCompletionTime(t *testing.T) {
+	t.Parallel()
+
+	completedAt := time.Date(2026, time.August, 28, 18, 30, 0, 0, time.FixedZone("EEST", 3*60*60))
+	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		switch request.URL.Path {
+		case "/api/v2/user":
+			writeTestJSON(t, writer, map[string]any{
+				"id": 1, "username": "dashboard", "settings": map[string]any{
+					"timezone": "Europe/Kyiv", "week_start": 1, "default_project_id": 7,
+				},
+			})
+		case "/api/v2/projects":
+			writeTestPage(t, writer, []map[string]any{{"id": 7, "title": "Home"}})
+		case "/api/v2/labels":
+			writeTestPage(t, writer, []map[string]any{
+				{"id": 4, "title": "job"},
+				{"id": 8, "title": "dashboard"},
+			})
+		case "/api/v2/tasks":
+			wantFilter := "done = true && done_at >= '2026-08-24T00:00:00+03:00' && done_at < '2026-08-31T00:00:00+03:00' && labels in 4 && repeat_after = 0"
+			if filter := request.URL.Query().Get("filter"); filter != wantFilter {
+				t.Errorf("filter = %q", filter)
+			}
+			if got := request.URL.Query()["sort_by"]; !slices.Equal(got, []string{"done_at", "id"}) {
+				t.Errorf("sort_by = %v", got)
+			}
+			if got := request.URL.Query()["order_by"]; !slices.Equal(got, []string{"desc", "desc"}) {
+				t.Errorf("order_by = %v", got)
+			}
+			writeTestPage(t, writer, []map[string]any{{
+				"id": 12, "title": "Finished job", "project_id": 7, "done": true, "done_at": completedAt,
+				"labels": []map[string]any{{"id": 4, "title": "job"}, {"id": 8, "title": "dashboard"}},
+			}})
+		default:
+			t.Errorf("unexpected upstream path %q", request.URL.Path)
+			http.NotFound(writer, request)
+		}
+	}))
+	defer upstream.Close()
+
+	handler := newTestJobsHandler(t, upstream.URL, time.Now)
+	request := httptest.NewRequestWithContext(
+		t.Context(), http.MethodGet,
+		"/integrations/v1/jobs?status=completed&completedFrom=2026-08-24T00%3A00%3A00%2B03%3A00&completedBefore=2026-08-31T00%3A00%3A00%2B03%3A00&label=dashboard",
+		nil,
+	)
+	request.Header.Set("Authorization", "Bearer tk_glance")
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d; body = %q", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Items []struct {
+			ID     string     `json:"id"`
+			DoneAt *time.Time `json:"doneAt"`
+		} `json:"items"`
+	}
+	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if len(response.Items) != 1 || response.Items[0].ID != "12" || response.Items[0].DoneAt == nil ||
+		!response.Items[0].DoneAt.Equal(completedAt) {
+		t.Fatalf("items = %#v", response.Items)
 	}
 }
 

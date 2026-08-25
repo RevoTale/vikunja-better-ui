@@ -33,11 +33,21 @@ type jobsHandler struct {
 }
 
 type jobsRequest struct {
-	token    string
-	label    string
-	page     int
-	pageSize int
+	token           string
+	label           string
+	status          jobsStatus
+	completedFrom   time.Time
+	completedBefore time.Time
+	page            int
+	pageSize        int
 }
+
+type jobsStatus string
+
+const (
+	jobsStatusActive    jobsStatus = "active"
+	jobsStatusCompleted jobsStatus = "completed"
+)
 
 type errorResponse struct {
 	Error apiError `json:"error"`
@@ -70,6 +80,7 @@ type jobResponse struct {
 	StartAt     *time.Time      `json:"startAt"`
 	EndAt       *time.Time      `json:"endAt"`
 	Labels      []labelResponse `json:"labels"`
+	DoneAt      *time.Time      `json:"doneAt"`
 	IsOverdue   bool            `json:"isOverdue"`
 	Timezone    string          `json:"timezone"`
 	URL         string          `json:"url"`
@@ -158,11 +169,16 @@ func (handler *jobsHandler) jobs(
 		}
 	}
 	now := handler.now()
+	scope := service.TaskScopeJobs
+	if input.status == jobsStatusCompleted {
+		scope = service.TaskScopeCompletedJobs
+	}
 	result, err := service.ListTasks(ctx, client, service.ListRequest{
-		Scope: service.TaskScopeJobs, Page: input.page, PageSize: input.pageSize,
+		Scope: scope, Page: input.page, PageSize: input.pageSize,
 		Now: now, Location: location, Timezone: user.Settings.Timezone,
 		WeekStart:   time.Weekday(user.Settings.WeekStart),
 		JobLabelIDs: jobLabelIDs, FilterLabelIDs: filterLabelIDs,
+		CompletedFrom: input.completedFrom, CompletedBefore: input.completedBefore,
 	})
 	if err != nil {
 		return jobsResponse{}, err
@@ -227,6 +243,10 @@ func (handler *jobsHandler) mapJob(
 	for _, label := range item.Task.Labels {
 		labels = append(labels, labelResponse{ID: strconv.FormatInt(label.ID, 10), Title: label.Title})
 	}
+	var doneAt *time.Time
+	if item.Task.Done {
+		doneAt = optionalTime(item.Task.DoneAt)
+	}
 	return jobResponse{
 		ID: strconv.FormatInt(item.Task.ID, 10), Title: item.Task.Title, Description: item.Task.Description,
 		Project: projectResponse{
@@ -236,8 +256,10 @@ func (handler *jobsHandler) mapJob(
 		Priority: priority, DueAt: optionalTime(item.Task.DueDate),
 		HasDueTime: !item.Task.DueDate.IsZero() && !item.Classification.DateOnly,
 		StartAt:    optionalTime(item.Task.StartDate), EndAt: optionalTime(item.Task.EndDate), Labels: labels,
-		IsOverdue: !item.Task.DueDate.IsZero() && item.Task.DueDate.Before(now), Timezone: user.Settings.Timezone,
-		URL: taskURL,
+		DoneAt:    doneAt,
+		IsOverdue: !item.Task.Done && !item.Task.DueDate.IsZero() && item.Task.DueDate.Before(now),
+		Timezone:  user.Settings.Timezone,
+		URL:       taskURL,
 	}, nil
 }
 
@@ -307,9 +329,14 @@ func parseJobsRequest(request *http.Request) (jobsRequest, error) {
 		return jobsRequest{}, errInvalidRequest
 	}
 	for key := range query {
-		if key != "label" && key != "page" && key != "pageSize" {
+		if key != "label" && key != "status" && key != "completedFrom" && key != "completedBefore" &&
+			key != "page" && key != "pageSize" {
 			return jobsRequest{}, errInvalidRequest
 		}
+	}
+	status, completedFrom, completedBefore, err := parseJobsStatus(query)
+	if err != nil {
+		return jobsRequest{}, err
 	}
 	page, err := positiveQueryInt(query, "page", 1, 1<<31-1)
 	if err != nil {
@@ -326,7 +353,40 @@ func parseJobsRequest(request *http.Request) (jobsRequest, error) {
 		}
 		label = values[0]
 	}
-	return jobsRequest{token: token, label: label, page: page, pageSize: pageSize}, nil
+	return jobsRequest{
+		token: token, label: label, status: status, completedFrom: completedFrom,
+		completedBefore: completedBefore, page: page, pageSize: pageSize,
+	}, nil
+}
+
+func parseJobsStatus(query url.Values) (jobsStatus, time.Time, time.Time, error) {
+	status := jobsStatusActive
+	if values, present := query["status"]; present {
+		if len(values) != 1 {
+			return "", time.Time{}, time.Time{}, errInvalidRequest
+		}
+		status = jobsStatus(values[0])
+	}
+	if status != jobsStatusActive && status != jobsStatusCompleted {
+		return "", time.Time{}, time.Time{}, errInvalidRequest
+	}
+	fromValues, hasFrom := query["completedFrom"]
+	beforeValues, hasBefore := query["completedBefore"]
+	if status == jobsStatusActive {
+		if hasFrom || hasBefore {
+			return "", time.Time{}, time.Time{}, errInvalidRequest
+		}
+		return status, time.Time{}, time.Time{}, nil
+	}
+	if !hasFrom || len(fromValues) != 1 || !hasBefore || len(beforeValues) != 1 {
+		return "", time.Time{}, time.Time{}, errInvalidRequest
+	}
+	completedFrom, fromErr := time.Parse(time.RFC3339, fromValues[0])
+	completedBefore, beforeErr := time.Parse(time.RFC3339, beforeValues[0])
+	if fromErr != nil || beforeErr != nil || !completedFrom.Before(completedBefore) {
+		return "", time.Time{}, time.Time{}, errInvalidRequest
+	}
+	return status, completedFrom, completedBefore, nil
 }
 
 func bearerToken(values []string) (string, error) {

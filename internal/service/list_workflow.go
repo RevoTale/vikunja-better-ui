@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	maxActiveCandidateTasks int64 = 10000
-	maxPageConcurrency      int   = 4
+	maxCandidateTasks  int64 = 10000
+	maxPageConcurrency int   = 4
 )
 
 type ListIssueCode string
@@ -31,17 +31,19 @@ type ListIssue struct {
 }
 
 type ListRequest struct {
-	Scope          TaskScope
-	ProjectID      *int64
-	Page           int
-	PageSize       int
-	Now            time.Time
-	Location       *time.Location
-	Timezone       string
-	WeekStart      time.Weekday
-	ProjectTitles  map[int64]string
-	JobLabelIDs    []int64
-	FilterLabelIDs []int64
+	Scope           TaskScope
+	ProjectID       *int64
+	Page            int
+	PageSize        int
+	Now             time.Time
+	Location        *time.Location
+	Timezone        string
+	WeekStart       time.Weekday
+	ProjectTitles   map[int64]string
+	JobLabelIDs     []int64
+	FilterLabelIDs  []int64
+	CompletedFrom   time.Time
+	CompletedBefore time.Time
 }
 
 type ListResult struct {
@@ -66,19 +68,19 @@ func ListTasks(ctx context.Context, client taskListClient, request ListRequest) 
 	if request.Scope == TaskScopeHistory {
 		return listHistory(ctx, client, request)
 	}
-	return listActive(ctx, client, request)
+	return listCandidates(ctx, client, request)
 }
 
-func listActive(ctx context.Context, client taskListClient, request ListRequest) (ListResult, error) {
-	if request.Scope == TaskScopeJobs && len(request.JobLabelIDs) == 0 {
+func listCandidates(ctx context.Context, client taskListClient, request ListRequest) (ListResult, error) {
+	if (request.Scope == TaskScopeJobs || request.Scope == TaskScopeCompletedJobs) && len(request.JobLabelIDs) == 0 {
 		return completeCandidateList(request, nil), nil
 	}
-	query := activeTaskQuery(request)
+	query := candidateTaskQuery(request)
 	firstPage, err := client.TasksPage(ctx, query)
 	if err != nil {
 		return incompleteList(request, ListIssueUpstreamPartial, err), nil
 	}
-	if firstPage.Total > maxActiveCandidateTasks {
+	if firstPage.Total > maxCandidateTasks {
 		return incompleteList(request, ListIssueTooLarge, nil), nil
 	}
 
@@ -104,6 +106,9 @@ func listActive(ctx context.Context, client taskListClient, request ListRequest)
 		return incompleteList(request, ListIssueUpstreamPartial, vikunja.ErrRejectedResponse), nil
 	}
 
+	if request.Scope == TaskScopeCompletedJobs {
+		candidates = filterCandidatesByCompletionRange(candidates, request.CompletedFrom, request.CompletedBefore)
+	}
 	candidates = filterCandidatesByAnyLabelID(candidates, request.FilterLabelIDs)
 	sortTaskList(candidates, request.Scope, request.Now)
 	return completeCandidateList(request, candidates), nil
@@ -160,6 +165,21 @@ func filterCandidatesByAnyLabelID(candidates []taskListCandidate, labelIDs []int
 	return filtered
 }
 
+func filterCandidatesByCompletionRange(
+	candidates []taskListCandidate,
+	completedFrom time.Time,
+	completedBefore time.Time,
+) []taskListCandidate {
+	filtered := candidates[:0]
+	for _, candidate := range candidates {
+		doneAt := candidate.Task.DoneAt
+		if !doneAt.IsZero() && !doneAt.Before(completedFrom) && doneAt.Before(completedBefore) {
+			filtered = append(filtered, candidate)
+		}
+	}
+	return filtered
+}
+
 func listHistory(ctx context.Context, client taskListClient, request ListRequest) (ListResult, error) {
 	query := historyTaskQuery(request)
 	query.Page = int64(request.Page)
@@ -177,9 +197,16 @@ func listHistory(ctx context.Context, client taskListClient, request ListRequest
 	}, nil
 }
 
-func activeTaskQuery(request ListRequest) vikunja.TaskQuery {
+func candidateTaskQuery(request ListRequest) vikunja.TaskQuery {
 	filterParts := []string{"done = false"}
 	includeNulls := false
+	if request.Scope == TaskScopeCompletedJobs {
+		filterParts = []string{
+			"done = true",
+			"done_at >= '" + request.CompletedFrom.Format(time.RFC3339Nano) + "'",
+			"done_at < '" + request.CompletedBefore.Format(time.RFC3339Nano) + "'",
+		}
+	}
 	switch request.Scope {
 	case TaskScopeToday:
 		filterParts = appendDueBoundary(filterParts, nextLocalDay(request.Now, request.Location))
@@ -190,16 +217,21 @@ func activeTaskQuery(request ListRequest) vikunja.TaskQuery {
 	case TaskScopeUnscheduled:
 		filterParts = append(filterParts, "due_date < 0001-01-01")
 		includeNulls = true
-	case TaskScopeJobs:
+	case TaskScopeJobs, TaskScopeCompletedJobs:
 		filterParts = append(filterParts, "labels in "+joinIDs(request.JobLabelIDs))
 		filterParts = append(filterParts, "repeat_after = 0")
 	case TaskScopeHistory:
 	}
 	filterParts = appendProjectFilter(filterParts, request.ProjectID)
-	return vikunja.TaskQuery{
+	query := vikunja.TaskQuery{
 		Page: 1, PerPage: 1000, Filter: strings.Join(filterParts, " && "),
 		FilterTimezone: request.Timezone, FilterIncludeNulls: &includeNulls,
 	}
+	if request.Scope == TaskScopeCompletedJobs {
+		query.SortBy = []string{"done_at", "id"}
+		query.OrderBy = []string{"desc", "desc"}
+	}
+	return query
 }
 
 func joinIDs(values []int64) string {
@@ -273,7 +305,16 @@ func validateListRequest(request ListRequest) error {
 		}
 	}
 	switch request.Scope {
+	case TaskScopeCompletedJobs:
+		if request.CompletedFrom.IsZero() || request.CompletedBefore.IsZero() ||
+			!request.CompletedFrom.Before(request.CompletedBefore) {
+			return errors.New("completion range is invalid")
+		}
+		return nil
 	case TaskScopeToday, TaskScopeWeek, TaskScopeMonth, TaskScopeJobs, TaskScopeUnscheduled, TaskScopeHistory:
+		if !request.CompletedFrom.IsZero() || !request.CompletedBefore.IsZero() {
+			return errors.New("completion range is only valid for completed jobs")
+		}
 		return nil
 	default:
 		return errors.New("task scope is invalid")

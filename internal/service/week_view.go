@@ -51,7 +51,7 @@ func ListWeek(ctx context.Context, client taskListClient, request WeekRequest) (
 	if err != nil {
 		return incompleteWeek(start, end, request.ProjectID, ListIssueUpstreamPartial, err), nil
 	}
-	if firstPage.Total > maxActiveCandidateTasks {
+	if firstPage.Total > maxCandidateTasks {
 		return incompleteWeek(start, end, request.ProjectID, ListIssueTooLarge, nil), nil
 	}
 	pages, err := loadRemainingTaskPages(ctx, client, query, firstPage.TotalPages)

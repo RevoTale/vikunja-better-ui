@@ -11,8 +11,9 @@ Accepted.
 ## Context
 
 Server-side dashboards such as Glance need the same active Jobs projection as
-the browser client. Calling Vikunja directly would duplicate Better UI's exact
-`job` marker, classification, sorting, timezone, pagination, and optional label
+the browser client and may also need Jobs completed within a reporting
+interval. Calling Vikunja directly would duplicate Better UI's exact `job`
+marker, classification, sorting, timezone, pagination, and optional label
 filter behavior. Reusing the browser GraphQL endpoint would require dashboard
 clients to manage an expiring cookie session and would place read and mutation
 operations behind the same machine credential.
@@ -29,12 +30,20 @@ server creates a request-scoped Vikunja client for the configured
 `APP_VIKUNJA_URL`, reuses the existing Jobs workflow, returns display-only
 fields, and releases the client's idle connections after the request.
 
+The endpoint defaults to active Jobs. `status=completed` requires caller-
+supplied absolute RFC 3339 lower and upper completion boundaries and applies a
+half-open interval to Vikunja's authoritative `done_at`. Better UI does not
+infer the caller's week, timezone, or daylight-saving boundaries. Completed
+results sort by completion time descending and then ID descending. Every item
+uses the same response shape with nullable `doneAt`.
+
 The endpoint accepts only bounded pagination values and one optional exact,
 case-sensitive label title. It resolves label titles to numeric Vikunja IDs
-before applying the filter. It exposes no mutation, caller-selected upstream
-URL, browser cookie authentication, or CORS exception. Tokens are never
-persisted, returned, or logged, and responses are not cacheable by shared or
-private HTTP caches.
+before applying the filter. Both active and completed requests keep Job-marker,
+non-recurring-task, permission, optional-label, and pre-pagination filtering
+semantics. It exposes no mutation, caller-selected upstream URL, browser cookie
+authentication, or CORS exception. Tokens are never persisted, returned, or
+logged, and responses are not cacheable by shared or private HTTP caches.
 
 ## Alternatives considered
 
@@ -60,6 +69,8 @@ token.
 
 - Glance can consume the canonical Jobs projection with a standard custom API
   widget.
+- Existing requests remain active by default; completed reporting is opt-in and
+  uses the same read-only token permissions.
 - Results are limited by the projects and permissions of the caller's Vikunja
   token.
 - The Go server temporarily handles another secret but never stores it.
