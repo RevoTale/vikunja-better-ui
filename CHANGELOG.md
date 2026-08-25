@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.4.0...v1.5.0) (2026-08-25)
+
+
+### Features
+
+* **integrations:** merge active and completed jobs ([5d720dd](https://github.com/RevoTale/vikunja-better-ui/commit/5d720dd160fc36cd717fb4094aa63c967201c50d))
+
 ## [1.4.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.3.0...v1.4.0) (2026-08-25)
 
 
