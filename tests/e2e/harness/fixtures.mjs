@@ -21,6 +21,13 @@ const emptyProject = await request("/projects", {
   token: jwt,
   body: JSON.stringify({ title: "E2E Empty Project" }),
 });
+const longProject = await request("/projects", {
+  method: "POST",
+  token: jwt,
+  body: JSON.stringify({
+    title: "E2E Project With A Deliberately Long Dashboard Name That Wraps Across Several Lines",
+  }),
+});
 await request("/user/settings/general", {
   method: "PUT",
   token: jwt,
@@ -281,6 +288,14 @@ await request(`/tasks/${labeledTask.id}/labels`, {
   method: "POST",
   token: jwt,
   body: JSON.stringify({ label_id: focusLabel.id }),
+});
+await request(`/projects/${longProject.id}/tasks`, {
+  method: "POST",
+  token: jwt,
+  body: JSON.stringify({
+    title: "Long project badge fixture",
+    due_date: new Date().toISOString(),
+  }),
 });
 const invalidTitle = "Invalid recurring history fixture";
 const invalidTask = await request(`/projects/${project.id}/tasks`, {

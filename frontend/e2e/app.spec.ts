@@ -75,6 +75,13 @@ test("login restores the requested route and core navigation is accessible", asy
   await expect(
     page.getByText("From-completion task (after 2 days)", { exact: true }),
   ).toBeVisible();
+  if (test.info().project.name === "phone-320") {
+    const longProjectBadge = page
+      .locator('[data-slot="card"]')
+      .filter({ hasText: "Long project badge fixture" })
+      .locator('[data-slot="task-project"] [data-slot="badge"]');
+    await expectUnclippedLines(longProjectBadge, 3);
+  }
   await expectTaskRowLayout(page, labeledTitle, "focus");
   await expectBaseUICSP(page);
 });
@@ -260,7 +267,8 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await chooseSelectOption(page, "Project", "E2E Daily Tasks");
   await expect(page).toHaveURL(new RegExp(`project=${projectID}`));
   expect(await elementPadding(page.locator('[data-slot="card-content"]').first())).toEqual({
-    top: "16px",
+    top: "12px",
+    bottom: "12px",
     left: "16px",
   });
   await page.goto("/week");
@@ -288,7 +296,11 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
     .first()
     .locator('[data-slot="card-content"]')
     .first();
-  expect(await elementPadding(firstTaskContent)).toEqual({ top: "12px", left: "16px" });
+  expect(await elementPadding(firstTaskContent)).toEqual({
+    top: "12px",
+    bottom: "12px",
+    left: "16px",
+  });
   for (const day of await page.locator('[data-slot="week-day"]').all()) {
     await expect(day.locator('[data-slot="card"]')).not.toHaveCount(0);
   }
@@ -991,7 +1003,7 @@ function localDate() {
 function elementPadding(locator: Locator) {
   return locator.evaluate((element) => {
     const style = getComputedStyle(element);
-    return { top: style.paddingTop, left: style.paddingLeft };
+    return { top: style.paddingTop, bottom: style.paddingBottom, left: style.paddingLeft };
   });
 }
 
@@ -1139,6 +1151,7 @@ async function expectTaskRowLayout(page: Page, title: string, label: string) {
     expect(headingBox.y - (headerBox.y + headerBox.height)).toBeLessThanOrEqual(20);
     expect(firstCardBox.y - (filterBox.y + filterBox.height)).toBeLessThanOrEqual(20);
     expect(await renderedLineCount(invalidKind)).toBeLessThanOrEqual(2);
+    await expectUnclippedLines(invalidKind, 1);
     expect(invalidKindBox.x + invalidKindBox.width).toBeLessThanOrEqual(
       invalidCardBox.x + invalidCardBox.width,
     );
@@ -1173,6 +1186,18 @@ async function renderedLineCount(locator: Locator) {
     const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight);
     return Math.round(element.getBoundingClientRect().height / lineHeight);
   });
+}
+async function expectUnclippedLines(locator: Locator, minimumLines: number) {
+  const metrics = await locator.evaluate((element) => {
+    const lineHeight = Number.parseFloat(getComputedStyle(element).lineHeight);
+    return {
+      clientHeight: element.clientHeight,
+      scrollHeight: element.scrollHeight,
+      contentLines: Math.round(element.scrollHeight / lineHeight),
+    };
+  });
+  expect(metrics.contentLines).toBeGreaterThanOrEqual(minimumLines);
+  expect(metrics.clientHeight).toBeGreaterThanOrEqual(metrics.scrollHeight);
 }
 async function expectBrandTimezone(page: Page) {
   const brand = page.getByRole("link", { name: /Better Vikunja/ }).filter({ visible: true });

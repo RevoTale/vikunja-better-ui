@@ -14,6 +14,9 @@ import { visibleTaskLabels } from "./visible-task-labels";
 
 export type TaskItem = TaskListQuery["tasks"]["items"][number];
 
+const wrappingMetadataBadgeClassName =
+  "h-auto min-h-5 max-w-full whitespace-normal wrap-anywhere text-left leading-tight";
+
 export function TaskRow({
   task,
   returnTo,
@@ -43,12 +46,7 @@ export function TaskRow({
       )}
       data-projection={projection || undefined}
     >
-      <CardContent
-        className={cn(
-          "grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-x-3 px-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:px-4",
-          dayGrouped ? "py-2 sm:py-3" : "py-3 sm:py-4",
-        )}
-      >
+      <CardContent className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-x-3 px-3 py-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:px-4 sm:py-3">
         <Schedule schedule={schedule} dayGrouped={dayGrouped} projection={projection} />
         <div
           className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2"
@@ -163,7 +161,7 @@ function TaskMetadata({
       {labels.map((label) => (
         <li className="min-w-0 max-w-full" key={label.id}>
           <Badge
-            className="max-w-full whitespace-normal wrap-anywhere text-left leading-tight text-muted-foreground"
+            className={cn(wrappingMetadataBadgeClassName, "text-muted-foreground")}
             variant="outline"
           >
             {label.title}
@@ -171,19 +169,13 @@ function TaskMetadata({
         </li>
       ))}
       <li className="min-w-0 max-w-full" data-slot="task-project" title={task.project.title}>
-        <Badge
-          className="max-w-full whitespace-normal wrap-anywhere text-left leading-tight"
-          variant="secondary"
-        >
+        <Badge className={wrappingMetadataBadgeClassName} variant="secondary">
           Project: {task.project.title}
         </Badge>
       </li>
       {taskKindLabels(task).map((label) => (
         <li className="min-w-0 max-w-full" key={label}>
-          <Badge
-            className="max-w-full whitespace-normal wrap-anywhere text-left leading-tight"
-            variant="outline"
-          >
+          <Badge className={wrappingMetadataBadgeClassName} variant="outline">
             {label}
           </Badge>
         </li>
