@@ -21,7 +21,8 @@ test("login restores the requested route and core navigation is accessible", asy
   await expectBrandTimezone(page);
   await page.getByRole("link", { name: "New job" }).click();
   await expect(page).toHaveURL(/\/tasks\/new\?type=job/);
-  await expect(page.getByRole("heading", { name: "New job" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "New one-time task" })).toBeVisible();
+  await expect(page.getByLabel("Job", { exact: true })).toBeChecked();
   await expect(page.getByLabel("Title (optional)")).toBeFocused();
   await expect(datePickerButton(page, "Start date")).toBeVisible();
   const startTime = page.getByLabel("Start time", { exact: true });
@@ -38,7 +39,7 @@ test("login restores the requested route and core navigation is accessible", asy
   );
   expect(controlHeights).toEqual([44, 44, 44, 44]);
   const taskTypeButtons = page.getByRole("group", { name: "Task type" }).getByRole("button");
-  await expect(taskTypeButtons).toHaveCount(3);
+  await expect(taskTypeButtons).toHaveCount(2);
   for (const button of await taskTypeButtons.all()) {
     expect(
       await button.evaluate(
@@ -129,7 +130,7 @@ test("week add rows preserve their day and selected project across task types", 
 
   await page.getByRole("button", { name: "recurring task" }).click();
   await expect(page.locator('input[name="firstDueDate"]')).toHaveValue(date);
-  await page.getByRole("button", { name: "job" }).click();
+  await page.getByLabel("Job", { exact: true }).check();
   await expect(page.locator('input[name="startDate"]')).toHaveValue(date);
 });
 
@@ -252,7 +253,9 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
 
   await page.goto("/today");
   await expect(page.getByText(invalidTitle, { exact: true })).toBeVisible();
-  await expect(page.getByText("Invalid: both recurring and job", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Invalid: history snapshot still repeats", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: `Complete ${invalidTitle}` })).toHaveCount(0);
   await chooseSelectOption(page, "Project", "E2E Daily Tasks");
   await expect(page).toHaveURL(new RegExp(`project=${projectID}`));
@@ -276,6 +279,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   );
   const todayDay = page.locator(`[data-slot="week-day"][data-date="${localDate()}"]`);
   await expect(todayDay).toBeInViewport();
+  await expect(page.getByText("Earlier this week", { exact: true })).toHaveCount(0);
   if (localDate() !== mondayOfWeek(localDate())) {
     await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
   }
@@ -293,14 +297,18 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   if (test.info().project.name.startsWith("phone-")) {
     await expect(addTodayTask).toHaveCSS("min-height", "44px");
   }
-  await expect(todayDay.locator("time")).toContainText("Today");
-  await expect(todayDay.getByText("Today", { exact: true })).toHaveAttribute("data-slot", "badge");
+  const todayBoundary = todayDay.getByRole("heading", { name: "Today", exact: true });
+  await expect(todayBoundary).toHaveAttribute("data-slot", "week-boundary");
+  await expect(todayDay.locator("time")).not.toContainText("Today");
   await expect(todayDay.locator("time")).toHaveAttribute("aria-current", "date");
   await expect(todayDay).toHaveAttribute("data-today", "");
   await expect(todayDay).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await expect(todayDay).toHaveCSS("box-shadow", "none");
   expect(
-    await todayDay.getByRole("heading").evaluate((element) => getComputedStyle(element).fontFamily),
+    await todayDay
+      .locator("header")
+      .getByRole("heading")
+      .evaluate((element) => getComputedStyle(element).fontFamily),
   ).toBe(bodyFontFamily);
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page).toHaveURL(/week=\d{4}-\d{2}-\d{2}/);
@@ -316,7 +324,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
     .poll(() => todayDay.evaluate((element) => element.getBoundingClientRect().top))
     .toBeLessThanOrEqual(80);
   const appHeaderBox = await page.locator("header.sticky").boundingBox();
-  const todayHeadingBox = await todayDay.getByRole("heading").boundingBox();
+  const todayHeadingBox = await todayBoundary.boundingBox();
   if (!appHeaderBox || !todayHeadingBox) {
     throw new Error("Today heading scroll position is not measurable");
   }
@@ -373,6 +381,46 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   expect(String(scheduledAfter.id)).toBe(scheduledId);
   expect(scheduledAfter.done).toBe(false);
   await expectRenewedDate(page, scheduledId, scheduledAfter.due_date);
+
+  const recurringJob = `Recurring Job E2E ${suffix}`;
+  await page.goto("/tasks/new?type=recurring&returnTo=%2Ftoday");
+  await page.getByLabel("Title", { exact: true }).fill(recurringJob);
+  await page.getByLabel("Job", { exact: true }).check();
+  await page.getByLabel("Start time", { exact: true }).fill("20:00");
+  await page.getByLabel("Every").fill("2");
+  await expect(page.getByText("Keep start time of day", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Keep start time of day")).toBeChecked();
+  await page.getByRole("button", { name: "Create recurring Job", exact: true }).click();
+  await expect(page.getByRole("heading", { name: recurringJob })).toBeVisible();
+  const recurringJobID = page.url().match(/\/tasks\/(\d+)/)?.[1];
+  if (!recurringJobID) throw new Error("created recurring Job ID is missing from the URL");
+  const recurringJobBefore = await vikunjaTask(recurringJobID);
+  expect(recurringJobBefore.repeat_mode).toBe(2);
+  expect(hasLabelTitle(recurringJobBefore, "job")).toBe(true);
+  expect(hasLabelTitle(recurringJobBefore, "vbu:fixed-due-time")).toBe(true);
+  await page.goto("/today");
+  const recurringJobCard = page.locator('[data-slot="card"]').filter({ hasText: recurringJob });
+  await expect(recurringJobCard.getByText("Job", { exact: true })).toBeVisible();
+  await expect(recurringJobCard.getByText("Recurring", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: `Complete ${recurringJob}` }).click();
+  await expectStatusMessage(page, "Recurring task completed and renewed.");
+  const recurringJobAfter = await vikunjaTask(recurringJobID);
+  const nextRecurringJobDate = addCalendarDays(localDate(), 2);
+  expect(recurringJobAfter.done).toBe(false);
+  expect(localDateTime(recurringJobAfter.start_date)).toBe(`${nextRecurringJobDate}T20:00`);
+  expect(localDateTime(recurringJobAfter.end_date)).toBe(`${nextRecurringJobDate}T21:00`);
+  expect(localDateTime(recurringJobAfter.due_date)).toBe(`${nextRecurringJobDate}T22:00`);
+  const recurringJobHistory = await searchTasks(recurringJob);
+  expect(
+    recurringJobHistory.some(
+      (task) =>
+        task.done &&
+        task.repeat_after === 0 &&
+        hasLabelTitle(task, "job") &&
+        hasLabelTitle(task, "vbu:recurrence-history") &&
+        !hasLabelTitle(task, "vbu:fixed-due-time"),
+    ),
+  ).toBe(true);
 
   await page.goto("/tasks/new?type=job&returnTo=%2Fjobs");
   const jobDate = localDate();
@@ -609,6 +657,180 @@ test("completion-based recurrence keeps or releases the configured due time", as
   }
 });
 
+test("skipping a recurring Job renews its schedule and preserves skipped Job history", async ({
+  page,
+}) => {
+  await blockBrowserVikunjaCalls(page);
+  await page.goto("/today");
+  await login(page);
+
+  const title = `Skip recurring Job E2E ${Date.now()}`;
+  const taskID = await createRecurringJob(page, title, {
+    startDate: localDate(),
+    startTime: "18:00",
+  });
+
+  await page.getByRole("button", { name: "Skip", exact: true }).click();
+  await expectStatusMessage(page, "This occurrence was skipped and the next one is ready.");
+
+  const renewed = await vikunjaTask(taskID);
+  expect(renewed.done).toBe(false);
+  expect(localDateTime(renewed.start_date)).toBe(`${addCalendarDays(localDate(), 2)}T18:00`);
+  expect(localDateTime(renewed.end_date)).toBe(`${addCalendarDays(localDate(), 2)}T19:00`);
+  expect(localDateTime(renewed.due_date)).toBe(`${addCalendarDays(localDate(), 2)}T20:00`);
+  expect(hasLabelTitle(renewed, "job")).toBe(true);
+  expect(hasLabelTitle(renewed, "vbu:fixed-due-time")).toBe(true);
+  expect(hasLabelTitle(renewed, "vbu:skipped")).toBe(false);
+
+  const snapshots = (await searchTasks(title)).filter(
+    (task) => String(task.id) !== taskID && task.title === title,
+  );
+  expect(snapshots).toHaveLength(1);
+  expect(snapshots[0]?.done).toBe(true);
+  expect(snapshots[0]?.repeat_after).toBe(0);
+  expect(snapshots[0]?.labels.map((label: { title: string }) => label.title)).toEqual(
+    expect.arrayContaining(["job", "vbu:recurrence-history", "vbu:skipped"]),
+  );
+  expect(hasLabelTitle(snapshots[0] ?? {}, "vbu:fixed-due-time")).toBe(false);
+});
+
+test("completing a scheduled recurring Job advances from its configured schedule", async ({
+  page,
+}) => {
+  await blockBrowserVikunjaCalls(page);
+  await page.goto("/today");
+  await login(page);
+
+  const title = `Scheduled recurring Job E2E ${Date.now()}`;
+  const firstDate = addCalendarDays(localDate(), 1);
+  const taskID = await createRecurringJob(page, title, {
+    startDate: firstDate,
+    startTime: "13:15",
+    renewal: "Scheduled cycle",
+  });
+  const before = await vikunjaTask(taskID);
+  expect(before.repeat_mode).toBe(0);
+
+  await page.goto("/jobs");
+  await page.getByRole("button", { name: `Complete ${title}` }).click();
+  await expectStatusMessage(page, "Recurring task completed and renewed.");
+
+  const renewed = await vikunjaTask(taskID);
+  const nextDate = addCalendarDays(firstDate, 2);
+  expect(renewed.done).toBe(false);
+  expect(localDateTime(renewed.start_date)).toBe(`${nextDate}T13:15`);
+  expect(localDateTime(renewed.end_date)).toBe(`${nextDate}T14:15`);
+  expect(localDateTime(renewed.due_date)).toBe(`${nextDate}T15:15`);
+});
+
+test("completion-relative recurring Job uses an exact interval when fixed time is disabled", async ({
+  page,
+}) => {
+  await blockBrowserVikunjaCalls(page);
+  await page.goto("/today");
+  await login(page);
+
+  const title = `Exact interval recurring Job E2E ${Date.now()}`;
+  const taskID = await createRecurringJob(page, title, {
+    startDate: localDate(),
+    startTime: "10:30",
+    keepStartTime: false,
+  });
+
+  await page.goto("/jobs");
+  await page.getByRole("button", { name: `Complete ${title}` }).click();
+  await expectStatusMessage(page, "Recurring task completed and renewed.");
+
+  const renewed = await vikunjaTask(taskID);
+  expect(new Date(renewed.start_date).getTime() - new Date(renewed.done_at).getTime()).toBe(
+    48 * 60 * 60 * 1000,
+  );
+  expect(new Date(renewed.end_date).getTime() - new Date(renewed.start_date).getTime()).toBe(
+    60 * 60 * 1000,
+  );
+  expect(new Date(renewed.due_date).getTime() - new Date(renewed.end_date).getTime()).toBe(
+    60 * 60 * 1000,
+  );
+  expect(hasLabelTitle(renewed, "vbu:fixed-due-time")).toBe(false);
+});
+
+test("recurring Job completion offers an idempotent repair continuation", async ({ page }) => {
+  await blockBrowserVikunjaCalls(page);
+  await page.goto("/today");
+  await login(page);
+
+  const title = `Repair recurring Job E2E ${Date.now()}`;
+  const taskID = await createRecurringJob(page, title, {
+    startDate: localDate(),
+    startTime: "16:00",
+  });
+  let repairRequests = 0;
+
+  await page.route("**/graphql", async (route) => {
+    const operation = graphQLOperation(route.request().postData());
+    if (operation === "CompleteTask") {
+      const response = await route.fetch();
+      const body = (await response.json()) as {
+        data?: { completeTask?: Record<string, unknown> };
+      };
+      const payload = body.data?.completeTask;
+      if (!payload) throw new Error("real recurring Job completion response is missing");
+      await route.fulfill({
+        response,
+        json: {
+          ...body,
+          data: {
+            ...body.data,
+            completeTask: {
+              ...payload,
+              status: "CONFIRMED_REPAIR_REQUIRED",
+              repairCapability: "e2e-recurring-job-repair",
+              remainingRepairSteps: ["CREATE_HISTORY_SNAPSHOT"],
+            },
+          },
+        },
+      });
+      return;
+    }
+    if (operation === "RepairTaskMetadata") {
+      repairRequests += 1;
+      const renewed = await vikunjaTask(taskID);
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            repairTaskMetadata: {
+              status: "CONFIRMED",
+              task: graphQLTask(renewed),
+              repairCapability: null,
+              missingMarkers: [],
+              remainingRepairSteps: [],
+            },
+          },
+        }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto("/jobs");
+  await page.getByRole("button", { name: `Complete ${title}` }).click();
+  await expectStatusMessage(
+    page,
+    "The recurring task renewed, but its due time or History still needs repair.",
+  );
+  const renewedBeforeRepair = await vikunjaTask(taskID);
+  await page.getByRole("button", { name: "Repair history", exact: true }).click();
+  await expectStatusMessage(page, `${title} history repaired.`);
+  expect(repairRequests).toBe(1);
+  const renewedAfterRepair = await vikunjaTask(taskID);
+  expect(renewedAfterRepair.start_date).toBe(renewedBeforeRepair.start_date);
+  expect(renewedAfterRepair.end_date).toBe(renewedBeforeRepair.end_date);
+  expect(renewedAfterRepair.due_date).toBe(renewedBeforeRepair.due_date);
+});
+
 async function login(page: Page) {
   await expect(page).toHaveURL(/\/login/);
   await page.getByLabel("Username").fill("app-user");
@@ -623,15 +845,46 @@ async function createTask(
   fill?: () => Promise<void>,
 ) {
   await page.goto("/tasks/new?type=one-time&returnTo=%2Ftoday");
-  const typeButton = page.getByRole("button", { name: type, exact: true });
+  const baseType = type === "job" ? "one-time task" : type;
+  const typeButton = page.getByRole("button", { name: baseType, exact: true });
   await typeButton.click();
   await expect(typeButton).toHaveAttribute("aria-pressed", "true");
-  await page.getByLabel("Title").fill(title);
+  if (type === "job") await page.getByLabel("Job", { exact: true }).check();
+  await page.getByLabel(type === "job" ? "Title (optional)" : "Title").fill(title);
   if (fill) await fill();
-  await page.getByRole("button", { name: `Create ${type}`, exact: true }).click();
+  await page
+    .getByRole("button", { name: type === "job" ? "Create job" : `Create ${type}`, exact: true })
+    .click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const match = page.url().match(/\/tasks\/(\d+)/);
   if (!match?.[1]) throw new Error("created task ID is missing from the URL");
+  return match[1];
+}
+
+async function createRecurringJob(
+  page: Page,
+  title: string,
+  options: {
+    startDate: string;
+    startTime: string;
+    renewal?: "Scheduled cycle";
+    keepStartTime?: boolean;
+  },
+) {
+  await page.goto("/tasks/new?type=recurring&returnTo=%2Fjobs");
+  await page.getByLabel("Title", { exact: true }).fill(title);
+  await page.getByLabel("Job", { exact: true }).check();
+  await selectDate(page, "Start date", options.startDate);
+  await page.getByLabel("Start time", { exact: true }).fill(options.startTime);
+  await page.getByLabel("Every").fill("2");
+  if (options.renewal) await chooseSelectOption(page, "Renewal", options.renewal);
+  if (options.keepStartTime === false) {
+    await page.getByLabel("Keep start time of day").uncheck();
+  }
+  await page.getByRole("button", { name: "Create recurring Job", exact: true }).click();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  const match = page.url().match(/\/tasks\/(\d+)/);
+  if (!match?.[1]) throw new Error("created recurring Job ID is missing from the URL");
   return match[1];
 }
 
@@ -757,6 +1010,29 @@ function mondayOfWeek(value: string) {
 function hasLabelTitle(task: { labels?: Array<{ title?: string }> }, title: string) {
   return task.labels?.some((label) => label.title === title) ?? false;
 }
+function graphQLTask(task: {
+  id: number;
+  title: string;
+  done: boolean;
+  priority: number;
+  due_date: string;
+  labels?: Array<{ id: number; title: string }>;
+}) {
+  const priorities = ["UNSET", "LOW", "MEDIUM", "HIGH", "URGENT", "DO_NOW"] as const;
+  return {
+    id: String(task.id),
+    title: task.title,
+    kind: "JOB",
+    isDone: task.done,
+    project: { id: projectID, title: "E2E Daily Tasks", isDefault: true },
+    priority: priorities[task.priority] ?? "UNSET",
+    dueAt: task.due_date,
+    hasDueTime: true,
+    isOverdue: false,
+    timezone: vikunjaTimezone,
+    labels: (task.labels ?? []).map((label) => ({ id: String(label.id), title: label.title })),
+  };
+}
 function localDateTime(value: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: vikunjaTimezone,
@@ -842,7 +1118,9 @@ async function expectTaskRowLayout(page: Page, title: string, label: string) {
     const headingBox = await page.getByRole("heading", { name: "Today" }).boundingBox();
     const filterBox = await page.getByLabel("Project", { exact: true }).boundingBox();
     const firstCardBox = await page.locator('[data-slot="card"]').first().boundingBox();
-    const invalidKind = page.getByText("Invalid: both recurring and job", { exact: true });
+    const invalidKind = page.getByText("Invalid: history snapshot still repeats", {
+      exact: true,
+    });
     const invalidCardBox = await page
       .locator('[data-slot="card"]')
       .filter({ hasText: invalidTitle })
@@ -888,6 +1166,7 @@ async function chooseSelectOption(page: Page, label: string, option: string) {
   await trigger.click();
   await page.getByRole("option", { name: option, exact: true }).click();
   await expect(trigger).toContainText(option);
+  await expect(page.getByRole("listbox")).toHaveCount(0);
 }
 async function renderedLineCount(locator: Locator) {
   return locator.evaluate((element) => {

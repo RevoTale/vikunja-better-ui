@@ -38,9 +38,9 @@ type UndoGrant struct {
 }
 
 type MarkerRepairGrant struct {
-	TaskID      int64
-	MarkerTitle string
-	ETag        string
+	TaskID       int64
+	MarkerTitles []string
+	ETag         string
 }
 
 type RecurringRepairGrant struct {
@@ -53,7 +53,11 @@ type RecurringRepairGrant struct {
 	StartAt       time.Time
 	EndAt         time.Time
 	RenewedDoneAt time.Time
+	NativeStartAt time.Time
+	NativeEndAt   time.Time
 	NativeDueAt   time.Time
+	TargetStartAt time.Time
+	TargetEndAt   time.Time
 	TargetDueAt   time.Time
 	RepeatAfter   int64
 	RepeatMode    int
@@ -123,7 +127,7 @@ func (manager *CapabilityManager) IssueMarkerRepair(sessionID string, grant Mark
 	}
 	payload := markerRepairCapabilityPayload{
 		Version: capabilityVersion, Purpose: markerRepairPurpose, SessionID: sessionID,
-		TaskID: grant.TaskID, MarkerTitle: grant.MarkerTitle, ETag: grant.ETag,
+		TaskID: grant.TaskID, MarkerTitles: grant.MarkerTitles, ETag: grant.ETag,
 		ExpiresAt: manager.now().UTC().Truncate(time.Second).Add(repairLifetime).Unix(),
 	}
 	return manager.signPayload(payload)
@@ -134,7 +138,7 @@ func (manager *CapabilityManager) ParseMarkerRepair(sessionID string, token stri
 	if err := manager.parsePayload(token, &payload); err != nil {
 		return MarkerRepairGrant{}, err
 	}
-	grant := MarkerRepairGrant{TaskID: payload.TaskID, MarkerTitle: payload.MarkerTitle, ETag: payload.ETag}
+	grant := MarkerRepairGrant{TaskID: payload.TaskID, MarkerTitles: payload.MarkerTitles, ETag: payload.ETag}
 	if payload.Version != capabilityVersion || payload.Purpose != markerRepairPurpose || payload.SessionID != sessionID ||
 		!validMarkerRepairGrant(sessionID, grant) {
 		return MarkerRepairGrant{}, ErrInvalidCapability
@@ -155,7 +159,9 @@ func (manager *CapabilityManager) IssueRecurringRepair(sessionID string, grant R
 		CompletionKey: grant.CompletionKey, Outcome: grant.Outcome,
 		DueAt: formatOptionalInstant(grant.DueAt), StartAt: formatOptionalInstant(grant.StartAt),
 		EndAt: formatOptionalInstant(grant.EndAt), RenewedDoneAt: formatOptionalInstant(grant.RenewedDoneAt),
-		NativeDueAt: formatOptionalInstant(grant.NativeDueAt), TargetDueAt: formatOptionalInstant(grant.TargetDueAt),
+		NativeStartAt: formatOptionalInstant(grant.NativeStartAt), NativeEndAt: formatOptionalInstant(grant.NativeEndAt),
+		NativeDueAt: formatOptionalInstant(grant.NativeDueAt), TargetStartAt: formatOptionalInstant(grant.TargetStartAt),
+		TargetEndAt: formatOptionalInstant(grant.TargetEndAt), TargetDueAt: formatOptionalInstant(grant.TargetDueAt),
 		RepeatAfter: grant.RepeatAfter, RepeatMode: grant.RepeatMode,
 		ExpiresAt: manager.now().UTC().Truncate(time.Second).Add(repairLifetime).Unix(),
 	}
@@ -167,36 +173,24 @@ func (manager *CapabilityManager) ParseRecurringRepair(sessionID string, token s
 	if err := manager.openPayload(token, &payload); err != nil {
 		return RecurringRepairGrant{}, err
 	}
-	dueAt, err := parseOptionalInstant(payload.DueAt)
-	if err != nil {
-		return RecurringRepairGrant{}, ErrInvalidCapability
-	}
-	startAt, err := parseOptionalInstant(payload.StartAt)
-	if err != nil {
-		return RecurringRepairGrant{}, ErrInvalidCapability
-	}
-	endAt, err := parseOptionalInstant(payload.EndAt)
-	if err != nil {
-		return RecurringRepairGrant{}, ErrInvalidCapability
-	}
-	renewedDoneAt, err := parseOptionalInstant(payload.RenewedDoneAt)
-	if err != nil {
-		return RecurringRepairGrant{}, ErrInvalidCapability
-	}
-	nativeDueAt, err := parseOptionalInstant(payload.NativeDueAt)
-	if err != nil {
-		return RecurringRepairGrant{}, ErrInvalidCapability
-	}
-	targetDueAt, err := parseOptionalInstant(payload.TargetDueAt)
-	if err != nil {
-		return RecurringRepairGrant{}, ErrInvalidCapability
-	}
 	grant := RecurringRepairGrant{
 		TaskID: payload.TaskID, ProjectID: payload.ProjectID, LiveETag: payload.LiveETag,
 		CompletionKey: payload.CompletionKey, Outcome: payload.Outcome,
-		DueAt: dueAt, StartAt: startAt, EndAt: endAt,
-		RenewedDoneAt: renewedDoneAt, NativeDueAt: nativeDueAt, TargetDueAt: targetDueAt,
 		RepeatAfter: payload.RepeatAfter, RepeatMode: payload.RepeatMode,
+	}
+	if err := parseOptionalInstantFields(
+		instantField{payload.DueAt, &grant.DueAt},
+		instantField{payload.StartAt, &grant.StartAt},
+		instantField{payload.EndAt, &grant.EndAt},
+		instantField{payload.RenewedDoneAt, &grant.RenewedDoneAt},
+		instantField{payload.NativeStartAt, &grant.NativeStartAt},
+		instantField{payload.NativeEndAt, &grant.NativeEndAt},
+		instantField{payload.NativeDueAt, &grant.NativeDueAt},
+		instantField{payload.TargetStartAt, &grant.TargetStartAt},
+		instantField{payload.TargetEndAt, &grant.TargetEndAt},
+		instantField{payload.TargetDueAt, &grant.TargetDueAt},
+	); err != nil {
+		return RecurringRepairGrant{}, ErrInvalidCapability
 	}
 	if payload.Version != capabilityVersion || payload.Purpose != recurringRepairPurpose || payload.SessionID != sessionID ||
 		!validRecurringRepairGrant(sessionID, grant) {
@@ -206,6 +200,22 @@ func (manager *CapabilityManager) ParseRecurringRepair(sessionID string, token s
 		return RecurringRepairGrant{}, ErrExpiredCapability
 	}
 	return grant, nil
+}
+
+type instantField struct {
+	encoded string
+	target  *time.Time
+}
+
+func parseOptionalInstantFields(fields ...instantField) error {
+	for _, field := range fields {
+		value, err := parseOptionalInstant(field.encoded)
+		if err != nil {
+			return err
+		}
+		*field.target = value
+	}
+	return nil
 }
 
 func (manager *CapabilityManager) signPayload(payload any) (string, error) {
@@ -306,12 +316,27 @@ func validUndoGrant(sessionID string, grant UndoGrant) bool {
 }
 
 func validMarkerRepairGrant(sessionID string, grant MarkerRepairGrant) bool {
-	return sessionID != "" && grant.TaskID > 0 && isMarkerTitle(grant.MarkerTitle) && grant.ETag != ""
+	if sessionID == "" || grant.TaskID <= 0 || len(grant.MarkerTitles) == 0 || grant.ETag == "" {
+		return false
+	}
+	seen := make(map[string]struct{}, len(grant.MarkerTitles))
+	for _, title := range grant.MarkerTitles {
+		if !isMarkerTitle(title) {
+			return false
+		}
+		if _, exists := seen[title]; exists {
+			return false
+		}
+		seen[title] = struct{}{}
+	}
+	return true
 }
 
 func validRecurringRepairGrant(sessionID string, grant RecurringRepairGrant) bool {
 	validOutcome := grant.Outcome == CompletionOutcomeCompleted || grant.Outcome == CompletionOutcomeSkipped
 	legacy := grant.RenewedDoneAt.IsZero() && grant.NativeDueAt.IsZero() && grant.TargetDueAt.IsZero() &&
+		grant.NativeStartAt.IsZero() && grant.NativeEndAt.IsZero() &&
+		grant.TargetStartAt.IsZero() && grant.TargetEndAt.IsZero() &&
 		grant.RepeatAfter == 0 && grant.RepeatMode == 0
 	boundRenewal := !grant.RenewedDoneAt.IsZero() && !grant.NativeDueAt.IsZero() && grant.RepeatAfter > 0 &&
 		(grant.RepeatMode == 0 || grant.RepeatMode == 1 || grant.RepeatMode == 2)
@@ -345,13 +370,13 @@ type undoCapabilityPayload struct {
 }
 
 type markerRepairCapabilityPayload struct {
-	Version     int    `json:"v"`
-	Purpose     string `json:"purpose"`
-	SessionID   string `json:"sid"`
-	TaskID      int64  `json:"task_id"`
-	MarkerTitle string `json:"marker"`
-	ETag        string `json:"etag"`
-	ExpiresAt   int64  `json:"exp"`
+	Version      int      `json:"v"`
+	Purpose      string   `json:"purpose"`
+	SessionID    string   `json:"sid"`
+	TaskID       int64    `json:"task_id"`
+	MarkerTitles []string `json:"markers"`
+	ETag         string   `json:"etag"`
+	ExpiresAt    int64    `json:"exp"`
 }
 
 type recurringRepairCapabilityPayload struct {
@@ -367,7 +392,11 @@ type recurringRepairCapabilityPayload struct {
 	StartAt       string            `json:"start_at"`
 	EndAt         string            `json:"end_at"`
 	RenewedDoneAt string            `json:"renewed_done_at,omitempty"`
+	NativeStartAt string            `json:"native_start_at,omitempty"`
+	NativeEndAt   string            `json:"native_end_at,omitempty"`
 	NativeDueAt   string            `json:"native_due_at,omitempty"`
+	TargetStartAt string            `json:"target_start_at,omitempty"`
+	TargetEndAt   string            `json:"target_end_at,omitempty"`
 	TargetDueAt   string            `json:"target_due_at,omitempty"`
 	RepeatAfter   int64             `json:"repeat_after,omitempty"`
 	RepeatMode    int               `json:"repeat_mode,omitempty"`

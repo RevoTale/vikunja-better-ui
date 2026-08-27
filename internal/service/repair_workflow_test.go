@@ -15,7 +15,7 @@ func TestRepairMarkerAttachesAndProvesMarker(t *testing.T) {
 	now := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
 	capabilities := NewCapabilityManager([]byte("01234567890123456789012345678901"), func() time.Time { return now })
 	token, err := capabilities.IssueMarkerRepair("session-1", MarkerRepairGrant{
-		TaskID: 11, MarkerTitle: dateOnlyLabel, ETag: `"v1"`,
+		TaskID: 11, MarkerTitles: []string{dateOnlyLabel}, ETag: `"v1"`,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -45,7 +45,7 @@ func TestRepairMarkerSkipsAlreadySatisfiedStep(t *testing.T) {
 	now := time.Now()
 	capabilities := NewCapabilityManager([]byte("01234567890123456789012345678901"), func() time.Time { return now })
 	token, err := capabilities.IssueMarkerRepair("session-1", MarkerRepairGrant{
-		TaskID: 11, MarkerTitle: jobLabel, ETag: `"v1"`,
+		TaskID: 11, MarkerTitles: []string{jobLabel}, ETag: `"v1"`,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -65,7 +65,7 @@ func TestRepairMarkerRejectsConcurrentChange(t *testing.T) {
 	now := time.Now()
 	capabilities := NewCapabilityManager([]byte("01234567890123456789012345678901"), func() time.Time { return now })
 	token, err := capabilities.IssueMarkerRepair("session-1", MarkerRepairGrant{
-		TaskID: 11, MarkerTitle: jobLabel, ETag: `"v1"`,
+		TaskID: 11, MarkerTitles: []string{jobLabel}, ETag: `"v1"`,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -77,12 +77,48 @@ func TestRepairMarkerRejectsConcurrentChange(t *testing.T) {
 	}
 }
 
+func TestRepairMarkerAttachesEveryMissingMarker(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
+	capabilities := NewCapabilityManager(
+		[]byte("01234567890123456789012345678901"),
+		func() time.Time { return now },
+	)
+	token, err := capabilities.IssueMarkerRepair("session-1", MarkerRepairGrant{
+		TaskID: 11, MarkerTitles: []string{jobLabel, fixedDueTimeLabel}, ETag: `"v1"`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := &repairClientStub{
+		labels: []vikunja.Label{
+			{ID: 3, Title: jobLabel},
+			{ID: 4, Title: fixedDueTimeLabel},
+		},
+		reads: []taskRead{
+			{task: vikunja.Task{ID: 11}, etag: `"v1"`},
+			{task: vikunja.Task{ID: 11, Labels: []vikunja.Label{
+				{ID: 3, Title: jobLabel},
+				{ID: 4, Title: fixedDueTimeLabel},
+			}}, etag: `"v3"`},
+		},
+	}
+
+	result, err := RepairMarker(context.Background(), client, capabilities, "session-1", token)
+	if err != nil || !result.Complete || len(client.attachedLabels) != 2 ||
+		client.attachedLabels[0] != 3 || client.attachedLabels[1] != 4 {
+		t.Fatalf("RepairMarker() = %#v, %v; attachments = %#v", result, err, client.attachedLabels)
+	}
+}
+
 type repairClientStub struct {
-	labels        []vikunja.Label
-	reads         []taskRead
-	readCalls     int
-	attachedTask  int64
-	attachedLabel int64
+	labels         []vikunja.Label
+	reads          []taskRead
+	readCalls      int
+	attachedTask   int64
+	attachedLabel  int64
+	attachedLabels []int64
 }
 
 func (client *repairClientStub) Labels(context.Context) ([]vikunja.Label, error) {
@@ -104,5 +140,6 @@ func (client *repairClientStub) Task(context.Context, int64) (vikunja.Task, viku
 func (client *repairClientStub) AttachLabel(_ context.Context, taskID int64, labelID int64) error {
 	client.attachedTask = taskID
 	client.attachedLabel = labelID
+	client.attachedLabels = append(client.attachedLabels, labelID)
 	return nil
 }

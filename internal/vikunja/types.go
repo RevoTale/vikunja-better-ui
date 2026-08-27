@@ -72,6 +72,8 @@ type TaskWrite struct {
 type TaskPatch struct {
 	Done        *bool      `json:"done,omitempty"`
 	DueDate     *time.Time `json:"due_date,omitempty"`
+	StartDate   *time.Time `json:"start_date,omitempty"`
+	EndDate     *time.Time `json:"end_date,omitempty"`
 	RepeatAfter *int64     `json:"repeat_after,omitempty"`
 	RepeatMode  *int       `json:"repeat_mode,omitempty"`
 }
@@ -80,6 +82,8 @@ type TaskCheck struct {
 	Done        *bool
 	DoneAt      *time.Time
 	DueDate     *time.Time
+	StartDate   *time.Time
+	EndDate     *time.Time
 	RepeatAfter *int64
 	RepeatMode  *int
 }

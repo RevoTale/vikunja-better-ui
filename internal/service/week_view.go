@@ -23,6 +23,8 @@ type WeekRequest struct {
 
 type WeekProjection struct {
 	Source     TaskListItem
+	StartAt    time.Time
+	EndAt      time.Time
 	DueAt      time.Time
 	HasDueTime bool
 }
@@ -202,7 +204,7 @@ func appendWeekProjections(
 	location *time.Location,
 ) {
 	task := source.Task
-	if source.Classification.Kind != TaskKindRecurring ||
+	if !source.Classification.Recurring ||
 		(task.RepeatMode != 0 && task.RepeatMode != 1) {
 		return
 	}
@@ -215,12 +217,17 @@ func appendWeekProjections(
 		if index < 0 {
 			continue
 		}
-		result.Days[index].Projections = append(result.Days[index].Projections, WeekProjection{
+		projection := WeekProjection{
 			Source: TaskListItem{
 				Task: *task, Classification: source.Classification, ProjectTitle: source.ProjectTitle,
 			},
 			DueAt: due, HasDueTime: !source.Classification.DateOnly,
-		})
+		}
+		if source.Classification.Kind == TaskKindJob {
+			projection.StartAt = due.Add(task.StartDate.Sub(task.DueDate))
+			projection.EndAt = due.Add(task.EndDate.Sub(task.DueDate))
+		}
+		result.Days[index].Projections = append(result.Days[index].Projections, projection)
 	}
 }
 

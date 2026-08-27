@@ -152,11 +152,17 @@ func (r *mutationResolver) CreateJob(ctx context.Context, input model.CreateJobI
 		Title: optionalString(input.Title), Description: optionalString(input.Description), Priority: priority,
 		StartLocal: string(input.StartAt), DurationMinutes: input.DurationMinutes,
 		CompletionWindowMinutes: input.CompletionWindowMinutes,
+		Interval:                recurrenceInterval(input.Recurrence), Unit: recurrenceUnit(input.Recurrence),
+		Mode: recurrenceMode(input.Recurrence), KeepDueTime: recurrenceKeepDueTime(input.Recurrence),
 	}, location)
 	if err != nil {
 		return nil, validationClientError(err)
 	}
-	return r.createTaskPayload(ctx, session, user, projects, projectID, write, "job")
+	markers := []string{"job"}
+	if input.Recurrence != nil && input.Recurrence.KeepDueTime {
+		markers = append(markers, "vbu:fixed-due-time")
+	}
+	return r.createTaskPayloadWithMarkers(ctx, session, user, projects, projectID, write, markers)
 }
 
 // CompleteTask is the resolver for the completeTask field.
@@ -165,7 +171,10 @@ func (r *mutationResolver) CompleteTask(ctx context.Context, input model.Complet
 	if err != nil {
 		return nil, err
 	}
-	if input.ExpectedKind == model.TaskKindRecurring {
+	if input.ExpectedKind == model.TaskKindRecurring || input.ExpectedRecurring {
+		if input.ExpectedKind != model.TaskKindRecurring && input.ExpectedKind != model.TaskKindJob {
+			return nil, clientError("INVALID_TASK_KIND", "This task cannot be completed as recurring.")
+		}
 		return r.completeRecurringTask(ctx, session, input)
 	}
 	if input.ExpectedKind != model.TaskKindOneTime && input.ExpectedKind != model.TaskKindJob {
@@ -331,10 +340,8 @@ func (r *mutationResolver) RepairTaskMetadata(ctx context.Context, input model.R
 		if parseErr != nil {
 			return nil, clientError("INTERNAL", "Task repair could not be continued.")
 		}
-		marker, step := markerModels(grant.MarkerTitle)
 		payload.Status = model.TaskMutationStatusRepairRequired
-		payload.MissingMarkers = []model.MarkerKind{marker}
-		payload.RemainingRepairSteps = []model.RepairStep{step}
+		payload.MissingMarkers, payload.RemainingRepairSteps = markerModelLists(grant.MarkerTitles)
 		payload.RepairCapability = &result.Capability
 	}
 	return payload, nil

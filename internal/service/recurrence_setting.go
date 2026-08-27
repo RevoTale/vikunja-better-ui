@@ -84,7 +84,7 @@ func confirmFixedDueTime(
 	if hasLabel(confirmed.Labels, fixedDueTimeLabel) != enabled {
 		return vikunja.Task{}, vikunja.ErrRejectedResponse
 	}
-	if enabled && ClassifyTask(confirmed).Kind != TaskKindRecurring {
+	if enabled && !ClassifyTask(confirmed).Recurring {
 		return vikunja.Task{}, errors.New("fixed due time marker produced an invalid task")
 	}
 	return confirmed, nil

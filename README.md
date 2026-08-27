@@ -23,13 +23,13 @@ the whole repository.
   projections and honest completion-based recurrence explanations.
 - Keeps jobs in both Today and their own view.
 - Groups tasks without deadlines by collapsible project.
-- Creates one-time tasks, recurring tasks, and duration-based jobs with small
-  forms.
+- Creates one-time and recurring tasks, with an optional Job schedule for
+  either type.
 - Defaults recurring tasks to renew from completion, while also supporting a
   scheduled cycle.
 - Completes recurring tasks in one click and keeps a Vikunja-backed history
   snapshot.
-- Gives one-time tasks and jobs a short Undo window.
+- Gives one-time tasks and one-time Jobs a short Undo window.
 - Shows the latest 30 completed tasks initially, with URL-backed paging.
 - Exposes a read-only Extended page for useful raw Vikunja fields.
 - Works across phone, tablet, and desktop and follows the system light or dark
@@ -59,6 +59,32 @@ option.
 
 See the [Keep due time specification](docs/specs/keep-due-time.md) for marker,
 timezone, daylight-saving, validation, repair, and History behavior.
+
+### Recurring Jobs
+
+Enable **Job** on either creation form to add a start time, duration, and
+completion window. A recurring Job keeps one live Vikunja task ID, uses the
+same Completion and Skip behavior as every recurring task, and writes a
+non-recurring Job snapshot to History for each occurrence.
+
+The next Job interval is always coherent:
+
+```text
+endAt = startAt + duration
+dueAt = endAt + completion window
+```
+
+- **Scheduled cycle** advances from the previous `startAt`, skipping elapsed
+  intervals when overdue.
+- **From completion** normally starts after the exact elapsed interval.
+- **Keep start time of day** instead advances the completion date by calendar
+  days or weeks and restores the selected local start time, including across
+  daylight-saving changes.
+
+Live recurring Jobs display separate **Job** and **Recurring** badges. They do
+not offer Undo. See the [Recurring Jobs specification](docs/specs/recurring-jobs.md)
+and [ADR-006](docs/decisions/0006-recurring-jobs-use-native-renewal.md) for the
+full creation, renewal, repair, projection, and History contracts.
 
 The Week view combines real tasks with clearly marked, non-actionable computed
 scheduled cycles. It never assigns an estimated day to From completion

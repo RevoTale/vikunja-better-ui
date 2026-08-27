@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { ProjectsQuery } from "@/graphql/graphql";
@@ -9,7 +9,7 @@ import { taskTypeLabel } from "./creation-type";
 import { jobTitlePlaceholder } from "./job-title";
 import type { LocalDateTimeParts } from "./local-date-time";
 import {
-  type CreationType,
+  type CreationBaseType,
   hasTaskFormErrors,
   type TaskFormErrors,
   validateTaskForm,
@@ -17,6 +17,7 @@ import {
 
 export function CreateTaskForm({
   type,
+  initialJob,
   projects,
   defaultProject,
   timezone,
@@ -31,7 +32,8 @@ export function CreateTaskForm({
   onFieldErrorsChange,
   onJobStartChange,
 }: {
-  type: CreationType;
+  type: CreationBaseType;
+  initialJob: boolean;
   projects: ProjectsQuery["projects"]["items"];
   defaultProject: string;
   timezone: string | null | undefined;
@@ -46,6 +48,7 @@ export function CreateTaskForm({
   onFieldErrorsChange: (errors: TaskFormErrors) => void;
   onJobStartChange: (value: LocalDateTimeParts) => void;
 }) {
+  const [isJob, setIsJob] = useState(initialJob);
   if (settingsLoading) return <p className="mt-6">Loading task settings…</p>;
   if (settingsError) {
     return (
@@ -87,10 +90,32 @@ export function CreateTaskForm({
         defaultProject={defaultProject}
         errors={fieldErrors}
         type={type}
+        isJob={isJob}
         titlePlaceholder={jobTitlePlaceholder(selectedJobStart)}
       />
+      <div className="rounded-md border bg-muted/30 p-4">
+        <label className="flex cursor-pointer items-start gap-3" htmlFor="job">
+          <input
+            id="job"
+            name="job"
+            type="checkbox"
+            checked={isJob}
+            onChange={(event) => setIsJob(event.currentTarget.checked)}
+            className="mt-1 size-4 accent-primary"
+            aria-label="Job"
+            aria-describedby="job-description"
+          />
+          <span>
+            <span className="block text-sm font-medium">Job</span>
+            <span id="job-description" className="mt-1 block text-sm text-muted-foreground">
+              Add a start, duration, and completion window.
+            </span>
+          </span>
+        </label>
+      </div>
       <TaskTypeFields
         type={type}
+        isJob={isJob}
         errors={fieldErrors}
         defaultDate={defaultDate}
         initialDate={initialDate}
@@ -98,8 +123,13 @@ export function CreateTaskForm({
         onJobStartChange={onJobStartChange}
       />
       <Button type="submit" disabled={loading}>
-        {loading ? "Creating…" : `Create ${taskTypeLabel(type)}`}
+        {loading ? "Creating…" : creationButtonLabel(type, isJob)}
       </Button>
     </form>
   );
+}
+
+function creationButtonLabel(type: CreationBaseType, isJob: boolean): string {
+  if (!isJob) return `Create ${taskTypeLabel(type)}`;
+  return type === "recurring" ? "Create recurring Job" : "Create job";
 }

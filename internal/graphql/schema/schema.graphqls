@@ -59,6 +59,7 @@ enum RepairStep {
   ATTACH_RECURRENCE_HISTORY
   ATTACH_SKIPPED
   NORMALIZE_DUE
+  NORMALIZE_JOB_SCHEDULE
   ATTACH_FIXED_DUE_TIME
 }
 
@@ -153,6 +154,8 @@ type TaskPage {
 
 type WeekProjection {
   sourceTask: Task!
+	startAt: DateTime
+	endAt: DateTime
   dueAt: DateTime!
   hasDueTime: Boolean!
 }
@@ -273,12 +276,21 @@ input CreateJobInput {
   startAt: LocalDateTime!
   durationMinutes: Int!
   completionWindowMinutes: Int! = 60
+	recurrence: RecurrenceInput
+}
+
+input RecurrenceInput {
+	interval: Int!
+	unit: RecurrenceUnit!
+	mode: RecurrenceMode! = FROM_COMPLETION
+	keepDueTime: Boolean! = true
 }
 
 input CompleteTaskInput {
   csrfToken: String!
   taskId: ID!
   expectedKind: TaskKind!
+	expectedRecurring: Boolean! = false
   expectedDueAt: DateTime
 }
 

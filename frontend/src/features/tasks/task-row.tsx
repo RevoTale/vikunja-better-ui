@@ -8,7 +8,7 @@ import type { TaskListQuery } from "@/graphql/graphql";
 import { cn } from "@/lib/utils";
 import { PriorityBadge } from "./priority-badge";
 import { recurrenceHint } from "./recurrence-hint";
-import { taskKindLabel } from "./task-kind-label";
+import { taskKindLabels } from "./task-kind-label";
 import { type TaskUrgency, taskSchedule } from "./task-schedule";
 import { visibleTaskLabels } from "./visible-task-labels";
 
@@ -178,14 +178,16 @@ function TaskMetadata({
           Project: {task.project.title}
         </Badge>
       </li>
-      <li className="min-w-0 max-w-full">
-        <Badge
-          className="max-w-full whitespace-normal wrap-anywhere text-left leading-tight"
-          variant="outline"
-        >
-          {taskKindLabel(task)}
-        </Badge>
-      </li>
+      {taskKindLabels(task).map((label) => (
+        <li className="min-w-0 max-w-full" key={label}>
+          <Badge
+            className="max-w-full whitespace-normal wrap-anywhere text-left leading-tight"
+            variant="outline"
+          >
+            {label}
+          </Badge>
+        </li>
+      ))}
     </ul>
   );
 }

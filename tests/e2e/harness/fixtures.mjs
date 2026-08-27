@@ -53,6 +53,8 @@ const focusLabel = await request("/labels", {
   token: jwt,
   body: JSON.stringify({ title: "focus" }),
 });
+const recurrenceHistoryLabel = await createLabel("vbu:recurrence-history");
+const fixedDueTimeLabel = await createLabel("vbu:fixed-due-time");
 const workLabel = await createLabel("work");
 const sportLabel = await createLabel("sport");
 const readingLabel = await createLabel("reading");
@@ -81,6 +83,21 @@ const schedule = [
       start_date: scheduledAfter(180),
       end_date: scheduledAfter(240),
       due_date: scheduledAfter(300),
+    },
+  },
+  {
+    title: "Recurring editorial Job",
+    description: "A completion-relative Job that retains its local start time.",
+    priority: 3,
+    labels: [jobLabel, workLabel, fixedDueTimeLabel],
+    historyLabels: [jobLabel, workLabel],
+    history: { hour: 16, minute: 0, duration: 60 },
+    active: {
+      start_date: scheduledAfter(360),
+      end_date: scheduledAfter(420),
+      due_date: scheduledAfter(480),
+      repeat_after: 2 * 86400,
+      repeat_mode: 2,
     },
   },
   {
@@ -192,6 +209,19 @@ const currentWeekPreview = [
     },
   },
   {
+    title: "Scheduled recurring Job",
+    description: "Projects complete Job intervals on a fixed two-day cycle.",
+    priority: 3,
+    labels: [jobLabel, workLabel],
+    task: {
+      start_date: scheduledThisWeek(1, 13, 0),
+      end_date: scheduledThisWeek(1, 14, 0),
+      due_date: scheduledThisWeek(1, 14, 30),
+      repeat_after: 2 * 86400,
+      repeat_mode: 0,
+    },
+  },
+  {
     title: "Daily practice session",
     priority: 1,
     labels: [practiceLabel],
@@ -211,7 +241,10 @@ const currentWeekPreview = [
 for (let index = 0; index < 125; index += 1) {
   const scheduled = schedule[index % schedule.length];
   const dayOffset = -Math.floor(index / schedule.length) - 1;
-  const task = await createTask(historyTask(scheduled, dayOffset), scheduled.labels);
+  const task = await createTask(
+    historyTask(scheduled, dayOffset),
+    scheduled.historyLabels ?? scheduled.labels,
+  );
   await completeTask(task.id);
 }
 
@@ -249,7 +282,7 @@ await request(`/tasks/${labeledTask.id}/labels`, {
   token: jwt,
   body: JSON.stringify({ label_id: focusLabel.id }),
 });
-const invalidTitle = "Invalid mixed task fixture";
+const invalidTitle = "Invalid recurring history fixture";
 const invalidTask = await request(`/projects/${project.id}/tasks`, {
   method: "POST",
   token: jwt,
@@ -263,7 +296,7 @@ const invalidTask = await request(`/projects/${project.id}/tasks`, {
 await request(`/tasks/${invalidTask.id}/labels`, {
   method: "POST",
   token: jwt,
-  body: JSON.stringify({ label_id: jobLabel.id }),
+  body: JSON.stringify({ label_id: recurrenceHistoryLabel.id }),
 });
 
 const routes = await request("/routes", { token: jwt });

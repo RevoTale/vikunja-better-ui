@@ -99,9 +99,9 @@ func taskMatchesScope(
 	case TaskScopeJobs:
 		return !task.Done && classification.Kind == TaskKindJob
 	case TaskScopeCompletedJobs:
-		return task.Done && classification.Kind == TaskKindJob
+		return task.Done && classification.Kind == TaskKindJob && !classification.Recurring
 	case TaskScopeAllJobs:
-		return classification.Kind == TaskKindJob
+		return classification.Kind == TaskKindJob && (!task.Done || !classification.Recurring)
 	case TaskScopeUnscheduled:
 		return !task.Done && task.DueDate.IsZero()
 	case TaskScopeToday:

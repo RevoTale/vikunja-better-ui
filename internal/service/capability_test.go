@@ -60,7 +60,7 @@ func TestMarkerRepairCapabilityRoundTrip(t *testing.T) {
 	now := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
 	manager := NewCapabilityManager([]byte("01234567890123456789012345678901"), func() time.Time { return now })
 	token, err := manager.IssueMarkerRepair("session-1", MarkerRepairGrant{
-		TaskID: 11, MarkerTitle: dateOnlyLabel, ETag: `"v1"`,
+		TaskID: 11, MarkerTitles: []string{jobLabel, fixedDueTimeLabel}, ETag: `"v1"`,
 	})
 	if err != nil {
 		t.Fatalf("IssueMarkerRepair() error = %v", err)
@@ -69,7 +69,8 @@ func TestMarkerRepairCapabilityRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseMarkerRepair() error = %v", err)
 	}
-	if grant.TaskID != 11 || grant.MarkerTitle != dateOnlyLabel || grant.ETag != `"v1"` {
+	if grant.TaskID != 11 || len(grant.MarkerTitles) != 2 || grant.MarkerTitles[0] != jobLabel ||
+		grant.MarkerTitles[1] != fixedDueTimeLabel || grant.ETag != `"v1"` {
 		t.Fatalf("ParseMarkerRepair() = %#v", grant)
 	}
 }
@@ -98,7 +99,10 @@ func TestRecurringRepairCapabilityIsOpaqueAndRoundTrips(t *testing.T) {
 		TaskID: 9, ProjectID: 7, LiveETag: `"v2"`, CompletionKey: "completion-key",
 		DueAt: now.Add(-time.Hour), StartAt: now.Add(-2 * time.Hour), EndAt: now.Add(-90 * time.Minute),
 		Outcome: CompletionOutcomeSkipped, RenewedDoneAt: now,
-		NativeDueAt: now.Add(48 * time.Hour), TargetDueAt: now.Add(58 * time.Hour),
+		NativeStartAt: now.Add(46 * time.Hour), NativeEndAt: now.Add(47 * time.Hour),
+		NativeDueAt:   now.Add(48 * time.Hour),
+		TargetStartAt: now.Add(56 * time.Hour), TargetEndAt: now.Add(57 * time.Hour),
+		TargetDueAt: now.Add(58 * time.Hour),
 		RepeatAfter: 2 * 86400, RepeatMode: 2,
 	}
 	token, err := manager.IssueRecurringRepair("session-1", want)

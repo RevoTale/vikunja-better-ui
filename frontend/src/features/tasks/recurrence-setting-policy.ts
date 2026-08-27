@@ -16,7 +16,7 @@ export function recurrenceSettingPolicy(task: RecurrenceSettingTask): {
   const rule = task.recurrenceRule;
   if (!rule || task.isDone) return { visible: false, canEnable: false };
   const canEnable =
-    task.kind === "RECURRING" &&
+    (task.kind === "RECURRING" || task.kind === "JOB") &&
     task.hasDueTime &&
     rule.mode === "FROM_COMPLETION" &&
     (rule.unit === "DAY" || rule.unit === "WEEK");

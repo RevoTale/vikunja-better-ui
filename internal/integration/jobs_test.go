@@ -96,7 +96,7 @@ func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 				{"id": 8, "title": "dashboard"},
 			})
 		case "/api/v2/tasks":
-			if filter := request.URL.Query().Get("filter"); filter != "done = false && labels in 4 && repeat_after = 0" {
+			if filter := request.URL.Query().Get("filter"); filter != "done = false && labels in 4" {
 				t.Errorf("filter = %q", filter)
 			}
 			writeTestPage(t, writer, []map[string]any{
@@ -107,6 +107,7 @@ func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 				{
 					"id": 2, "title": "Visible job", "description": "Shown in Glance", "project_id": 7,
 					"priority": 3, "due_date": dueAt, "start_date": now.Add(time.Hour), "done_at": now,
+					"repeat_after": 172800, "repeat_mode": 2,
 					"labels": []map[string]any{{"id": 4, "title": "job"}, {"id": 8, "title": "dashboard"}},
 				},
 			})

@@ -497,6 +497,40 @@ func TestClientPatchTaskCheckedUsesJSONPatchTests(t *testing.T) {
 	}
 }
 
+func TestTaskPatchOperationsReplacesWholeJobScheduleAfterTests(t *testing.T) {
+	t.Parallel()
+
+	nativeStart := time.Date(2026, time.August, 14, 9, 0, 0, 0, time.UTC)
+	nativeEnd := nativeStart.Add(time.Hour)
+	nativeDue := nativeEnd.Add(time.Hour)
+	targetStart := nativeStart.Add(48 * time.Hour)
+	targetEnd := targetStart.Add(time.Hour)
+	targetDue := targetEnd.Add(time.Hour)
+	operations := append(
+		taskCheckOperations(TaskCheck{
+			StartDate: &nativeStart, EndDate: &nativeEnd, DueDate: &nativeDue,
+		}),
+		taskPatchOperations(TaskPatch{
+			StartDate: &targetStart, EndDate: &targetEnd, DueDate: &targetDue,
+		})...,
+	)
+	want := []struct {
+		operation string
+		path      string
+	}{
+		{"test", "/due_date"}, {"test", "/start_date"}, {"test", "/end_date"},
+		{"replace", "/due_date"}, {"replace", "/start_date"}, {"replace", "/end_date"},
+	}
+	if len(operations) != len(want) {
+		t.Fatalf("operations = %#v", operations)
+	}
+	for index, expected := range want {
+		if operations[index].Operation != expected.operation || operations[index].Path != expected.path {
+			t.Fatalf("operations[%d] = %#v, want %#v", index, operations[index], expected)
+		}
+	}
+}
+
 func TestClientTasksRejectsInvalidQuery(t *testing.T) {
 	t.Parallel()
 

@@ -1,1 +1,0 @@
-import{f as e,h as t}from"./useStore-CIUsBLqJ.js";import{En as n,Ft as r,bn as i,yn as a}from"./button-oz570PXS.js";var o=t(e(),1);function s(e){let t=o.useContext(a()),n=e||t.client;return i(!!n,28),n}var c=typeof n(()=>window.document.createElement)==`function`;function l(e,t){return r.is(e)?e.errors.find(e=>e.message.trim())?.message.trim()??t:t}export{c as n,s as r,l as t};

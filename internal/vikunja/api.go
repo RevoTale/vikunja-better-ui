@@ -305,19 +305,23 @@ func (client *Client) PatchTaskChecked(ctx context.Context, taskID int64, patch 
 }
 
 func taskCheckOperations(check TaskCheck) []jsonPatchOperation {
-	operations := make([]jsonPatchOperation, 0, 5)
+	operations := make([]jsonPatchOperation, 0, 7)
 	operations = appendJSONPatchValue(operations, "test", "/done", check.Done)
 	operations = appendJSONPatchValue(operations, "test", "/done_at", check.DoneAt)
 	operations = appendJSONPatchValue(operations, "test", "/due_date", check.DueDate)
+	operations = appendJSONPatchValue(operations, "test", "/start_date", check.StartDate)
+	operations = appendJSONPatchValue(operations, "test", "/end_date", check.EndDate)
 	operations = appendJSONPatchValue(operations, "test", "/repeat_after", check.RepeatAfter)
 	operations = appendJSONPatchValue(operations, "test", "/repeat_mode", check.RepeatMode)
 	return operations
 }
 
 func taskPatchOperations(patch TaskPatch) []jsonPatchOperation {
-	operations := make([]jsonPatchOperation, 0, 4)
+	operations := make([]jsonPatchOperation, 0, 6)
 	operations = appendJSONPatchValue(operations, "replace", "/done", patch.Done)
 	operations = appendJSONPatchValue(operations, "replace", "/due_date", patch.DueDate)
+	operations = appendJSONPatchValue(operations, "replace", "/start_date", patch.StartDate)
+	operations = appendJSONPatchValue(operations, "replace", "/end_date", patch.EndDate)
 	operations = appendJSONPatchValue(operations, "replace", "/repeat_after", patch.RepeatAfter)
 	operations = appendJSONPatchValue(operations, "replace", "/repeat_mode", patch.RepeatMode)
 	return operations

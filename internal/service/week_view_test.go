@@ -192,3 +192,28 @@ func TestBuildWeekViewProjectsOnlyDeterministicFutureScheduledCycles(t *testing.
 		}
 	}
 }
+
+func TestBuildWeekViewProjectsWholeRecurringJobSchedule(t *testing.T) {
+	t.Parallel()
+
+	location := mustLocation(t, "Europe/Kyiv")
+	now := localTime(location, 2026, time.August, 12, 10, 0)
+	start := localTime(location, 2026, time.August, 12, 18, 0)
+	task := recurringJobAt(start, 2*recurrenceDaySeconds, 0)
+	task.ID = 5
+
+	view := BuildWeekView([]vikunja.Task{task}, WeekRequest{
+		Now: now, Location: location, Timezone: "Europe/Kyiv", WeekStart: time.Monday,
+	})
+
+	projections := view.Days[4].Projections
+	if len(projections) != 1 {
+		t.Fatalf("Friday projections = %#v", projections)
+	}
+	projection := projections[0]
+	if !projection.StartAt.Equal(localTime(location, 2026, time.August, 14, 18, 0)) ||
+		!projection.EndAt.Equal(localTime(location, 2026, time.August, 14, 19, 0)) ||
+		!projection.DueAt.Equal(localTime(location, 2026, time.August, 14, 20, 0)) {
+		t.Fatalf("projection = %#v", projection)
+	}
+}

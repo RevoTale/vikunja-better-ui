@@ -33,6 +33,58 @@ func TestBuildJobTaskComputesDates(t *testing.T) {
 	}
 }
 
+func TestBuildJobTaskAddsRecurringRule(t *testing.T) {
+	t.Parallel()
+
+	result, err := BuildJobTask(JobInput{
+		Title: "Read a book", StartLocal: "2026-08-12T20:00",
+		DurationMinutes: 60, CompletionWindowMinutes: 60,
+		Interval: 2, Unit: RecurrenceUnitDay, Mode: RecurrenceModeFromCompletion,
+		KeepDueTime: true,
+	}, time.UTC)
+	if err != nil {
+		t.Fatalf("BuildJobTask() error = %v", err)
+	}
+	if result.RepeatAfter != 2*24*60*60 || result.RepeatMode != 2 {
+		t.Fatalf("recurrence = %d/%d", result.RepeatAfter, result.RepeatMode)
+	}
+}
+
+func TestBuildJobTaskRequiresStableTitleForRecurrence(t *testing.T) {
+	t.Parallel()
+
+	_, err := BuildJobTask(JobInput{
+		StartLocal: "2026-08-12T20:00", DurationMinutes: 60, CompletionWindowMinutes: 60,
+		Interval: 2, Unit: RecurrenceUnitDay, Mode: RecurrenceModeFromCompletion,
+	}, time.UTC)
+	if err == nil {
+		t.Fatal("BuildJobTask() error = nil")
+	}
+}
+
+func TestBuildJobTaskValidatesKeepTimeOfDay(t *testing.T) {
+	t.Parallel()
+
+	for _, input := range []JobInput{
+		{
+			Title: "Scheduled", StartLocal: "2026-08-12T20:00",
+			DurationMinutes: 60, CompletionWindowMinutes: 60,
+			Interval: 2, Unit: RecurrenceUnitDay, Mode: RecurrenceModeScheduled,
+			KeepDueTime: true,
+		},
+		{
+			Title: "Monthly", StartLocal: "2026-08-12T20:00",
+			DurationMinutes: 60, CompletionWindowMinutes: 60,
+			Interval: 1, Unit: RecurrenceUnitMonth, Mode: RecurrenceModeScheduled,
+			KeepDueTime: true,
+		},
+	} {
+		if _, err := BuildJobTask(input, time.UTC); err == nil {
+			t.Fatalf("BuildJobTask(%#v) error = nil", input)
+		}
+	}
+}
+
 func TestBuildJobTaskDerivesMissingTitleFromLocalStart(t *testing.T) {
 	t.Parallel()
 

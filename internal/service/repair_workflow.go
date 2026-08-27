@@ -34,22 +34,27 @@ func RepairMarker(
 	if err != nil {
 		return MarkerRepairResult{}, err
 	}
-	if hasLabel(task.Labels, grant.MarkerTitle) {
+	missing := missingMarkerTitles(task.Labels, grant.MarkerTitles)
+	if len(missing) == 0 {
 		return MarkerRepairResult{Task: task, Complete: true}, nil
 	}
 	if metadata.ETag == "" || metadata.ETag != grant.ETag {
 		return MarkerRepairResult{}, ErrTaskStateChanged
 	}
 
-	marker, err := ResolveMarker(ctx, client, grant.MarkerTitle)
-	if err != nil {
-		return MarkerRepairResult{Task: task, Capability: capability, Cause: err}, nil
+	for _, title := range missing {
+		marker, resolveErr := ResolveMarker(ctx, client, title)
+		if resolveErr != nil {
+			return reconcileMarkers(ctx, client, capabilities, sessionID, capability, grant, task, resolveErr)
+		}
+		if attachErr := client.AttachLabel(ctx, task.ID, marker.ID); attachErr != nil {
+			return reconcileMarkers(ctx, client, capabilities, sessionID, capability, grant, task, attachErr)
+		}
 	}
-	attachErr := client.AttachLabel(ctx, task.ID, marker.ID)
-	return reconcileMarker(ctx, client, capabilities, sessionID, capability, grant, task, attachErr)
+	return reconcileMarkers(ctx, client, capabilities, sessionID, capability, grant, task, nil)
 }
 
-func reconcileMarker(
+func reconcileMarkers(
 	ctx context.Context,
 	client markerRepairClient,
 	capabilities *CapabilityManager,
@@ -66,14 +71,15 @@ func reconcileMarker(
 		}
 		return MarkerRepairResult{Task: previous, Capability: capability, Cause: cause}, nil
 	}
-	if hasLabel(current.Labels, grant.MarkerTitle) {
+	missing := missingMarkerTitles(current.Labels, grant.MarkerTitles)
+	if len(missing) == 0 {
 		return MarkerRepairResult{Task: current, Complete: true}, nil
 	}
-	if metadata.ETag == "" || metadata.ETag != grant.ETag {
-		return MarkerRepairResult{}, ErrTaskStateChanged
+	if metadata.ETag == "" {
+		return MarkerRepairResult{}, vikunja.ErrRejectedResponse
 	}
 	refreshedCapability, err := capabilities.IssueMarkerRepair(sessionID, MarkerRepairGrant{
-		TaskID: current.ID, MarkerTitle: grant.MarkerTitle, ETag: metadata.ETag,
+		TaskID: current.ID, MarkerTitles: missing, ETag: metadata.ETag,
 	})
 	if err != nil {
 		return MarkerRepairResult{}, err

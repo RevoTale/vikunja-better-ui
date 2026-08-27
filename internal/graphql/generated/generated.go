@@ -198,8 +198,10 @@ type ComplexityRoot struct {
 
 	WeekProjection struct {
 		DueAt      func(childComplexity int) int
+		EndAt      func(childComplexity int) int
 		HasDueTime func(childComplexity int) int
 		SourceTask func(childComplexity int) int
+		StartAt    func(childComplexity int) int
 	}
 
 	WeekView struct {
@@ -967,6 +969,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.WeekProjection.DueAt(childComplexity), true
+	case "WeekProjection.endAt":
+		if e.ComplexityRoot.WeekProjection.EndAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekProjection.EndAt(childComplexity), true
 	case "WeekProjection.hasDueTime":
 		if e.ComplexityRoot.WeekProjection.HasDueTime == nil {
 			break
@@ -979,6 +987,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.WeekProjection.SourceTask(childComplexity), true
+	case "WeekProjection.startAt":
+		if e.ComplexityRoot.WeekProjection.StartAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.WeekProjection.StartAt(childComplexity), true
 
 	case "WeekView.days":
 		if e.ComplexityRoot.WeekView.Days == nil {
@@ -1025,6 +1039,7 @@ func (e *executableSchema) Exec(ctx context.Context) graphql.ResponseHandler {
 		ec.unmarshalInputCreateRecurringTaskInput,
 		ec.unmarshalInputDeleteTaskInput,
 		ec.unmarshalInputLoginInput,
+		ec.unmarshalInputRecurrenceInput,
 		ec.unmarshalInputRepairTaskMetadataInput,
 		ec.unmarshalInputSetRecurringKeepDueTimeInput,
 		ec.unmarshalInputSkipRecurringTaskInput,
@@ -1167,6 +1182,7 @@ enum RepairStep {
   ATTACH_RECURRENCE_HISTORY
   ATTACH_SKIPPED
   NORMALIZE_DUE
+  NORMALIZE_JOB_SCHEDULE
   ATTACH_FIXED_DUE_TIME
 }
 
@@ -1261,6 +1277,8 @@ type TaskPage {
 
 type WeekProjection {
   sourceTask: Task!
+	startAt: DateTime
+	endAt: DateTime
   dueAt: DateTime!
   hasDueTime: Boolean!
 }
@@ -1381,12 +1399,21 @@ input CreateJobInput {
   startAt: LocalDateTime!
   durationMinutes: Int!
   completionWindowMinutes: Int! = 60
+	recurrence: RecurrenceInput
+}
+
+input RecurrenceInput {
+	interval: Int!
+	unit: RecurrenceUnit!
+	mode: RecurrenceMode! = FROM_COMPLETION
+	keepDueTime: Boolean! = true
 }
 
 input CompleteTaskInput {
   csrfToken: String!
   taskId: ID!
   expectedKind: TaskKind!
+	expectedRecurring: Boolean! = false
   expectedDueAt: DateTime
 }
 
@@ -1727,6 +1754,10 @@ func (ec *executionContext) childFields_WeekProjection(ctx context.Context, fiel
 	switch field.Name {
 	case "sourceTask":
 		return ec.fieldContext_WeekProjection_sourceTask(ctx, field)
+	case "startAt":
+		return ec.fieldContext_WeekProjection_startAt(ctx, field)
+	case "endAt":
+		return ec.fieldContext_WeekProjection_endAt(ctx, field)
 	case "dueAt":
 		return ec.fieldContext_WeekProjection_dueAt(ctx, field)
 	case "hasDueTime":
@@ -5082,6 +5113,52 @@ func (ec *executionContext) fieldContext_WeekProjection_sourceTask(_ context.Con
 	return fc, nil
 }
 
+func (ec *executionContext) _WeekProjection_startAt(ctx context.Context, field graphql.CollectedField, obj *model.WeekProjection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekProjection_startAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StartAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalODateTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_WeekProjection_startAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WeekProjection", field, false, false, errors.New("field of type DateTime does not have child fields"))
+}
+
+func (ec *executionContext) _WeekProjection_endAt(ctx context.Context, field graphql.CollectedField, obj *model.WeekProjection) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_WeekProjection_endAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.EndAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *time.Time) graphql.Marshaler {
+			return ec.marshalODateTime2ᚖtimeᚐTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_WeekProjection_endAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("WeekProjection", field, false, false, errors.New("field of type DateTime does not have child fields"))
+}
+
 func (ec *executionContext) _WeekProjection_dueAt(ctx context.Context, field graphql.CollectedField, obj *model.WeekProjection) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6331,7 +6408,11 @@ func (ec *executionContext) unmarshalInputCompleteTaskInput(ctx context.Context,
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"csrfToken", "taskId", "expectedKind", "expectedDueAt"}
+	if _, present := asMap["expectedRecurring"]; !present {
+		asMap["expectedRecurring"] = false
+	}
+
+	fieldsInOrder := [...]string{"csrfToken", "taskId", "expectedKind", "expectedRecurring", "expectedDueAt"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6359,6 +6440,13 @@ func (ec *executionContext) unmarshalInputCompleteTaskInput(ctx context.Context,
 				return it, err
 			}
 			it.ExpectedKind = data
+		case "expectedRecurring":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedRecurring"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.ExpectedRecurring = data
 		case "expectedDueAt":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("expectedDueAt"))
 			data, err := ec.unmarshalODateTime2ᚖtimeᚐTime(ctx, v)
@@ -6386,7 +6474,7 @@ func (ec *executionContext) unmarshalInputCreateJobInput(ctx context.Context, ob
 		asMap["completionWindowMinutes"] = 60
 	}
 
-	fieldsInOrder := [...]string{"csrfToken", "title", "description", "projectId", "priority", "startAt", "durationMinutes", "completionWindowMinutes"}
+	fieldsInOrder := [...]string{"csrfToken", "title", "description", "projectId", "priority", "startAt", "durationMinutes", "completionWindowMinutes", "recurrence"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
@@ -6449,6 +6537,13 @@ func (ec *executionContext) unmarshalInputCreateJobInput(ctx context.Context, ob
 				return it, err
 			}
 			it.CompletionWindowMinutes = data
+		case "recurrence":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("recurrence"))
+			data, err := ec.unmarshalORecurrenceInput2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐRecurrenceInput(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Recurrence = data
 		}
 	}
 	return it, nil
@@ -6702,6 +6797,64 @@ func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj an
 				return it, err
 			}
 			it.Password = data
+		}
+	}
+	return it, nil
+}
+
+func (ec *executionContext) unmarshalInputRecurrenceInput(ctx context.Context, obj any) (model.RecurrenceInput, error) {
+	var it model.RecurrenceInput
+	if obj == nil {
+		return it, nil
+	}
+
+	asMap := map[string]any{}
+	for k, v := range obj.(map[string]any) {
+		asMap[k] = v
+	}
+
+	if _, present := asMap["mode"]; !present {
+		asMap["mode"] = "FROM_COMPLETION"
+	}
+	if _, present := asMap["keepDueTime"]; !present {
+		asMap["keepDueTime"] = true
+	}
+
+	fieldsInOrder := [...]string{"interval", "unit", "mode", "keepDueTime"}
+	for _, k := range fieldsInOrder {
+		v, ok := asMap[k]
+		if !ok {
+			continue
+		}
+		switch k {
+		case "interval":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("interval"))
+			data, err := ec.unmarshalNInt2int(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Interval = data
+		case "unit":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("unit"))
+			data, err := ec.unmarshalNRecurrenceUnit2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐRecurrenceUnit(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Unit = data
+		case "mode":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("mode"))
+			data, err := ec.unmarshalNRecurrenceMode2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐRecurrenceMode(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Mode = data
+		case "keepDueTime":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("keepDueTime"))
+			data, err := ec.unmarshalNBoolean2bool(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.KeepDueTime = data
 		}
 	}
 	return it, nil
@@ -8280,6 +8433,16 @@ func (ec *executionContext) _WeekProjection(ctx context.Context, sel ast.Selecti
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "startAt":
+			out.Values[i] = ec._WeekProjection_startAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "endAt":
+			out.Values[i] = ec._WeekProjection_endAt(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "dueAt":
 			out.Values[i] = ec._WeekProjection_dueAt(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -9622,6 +9785,14 @@ func (ec *executionContext) marshalOLocalTime2ᚖgithubᚗcomᚋRevoTaleᚋvikun
 		return graphql.Null
 	}
 	return v
+}
+
+func (ec *executionContext) unmarshalORecurrenceInput2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐRecurrenceInput(ctx context.Context, v any) (*model.RecurrenceInput, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := ec.unmarshalInputRecurrenceInput(ctx, v)
+	return &res, graphql.ErrorOnPath(ctx, err)
 }
 
 func (ec *executionContext) marshalORecurrenceRule2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐRecurrenceRule(ctx context.Context, sel ast.SelectionSet, v *model.RecurrenceRule) graphql.Marshaler {

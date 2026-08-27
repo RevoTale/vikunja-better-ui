@@ -11,10 +11,11 @@ import (
 )
 
 type CompleteTaskInput struct {
-	CsrfToken     string     `json:"csrfToken"`
-	TaskID        string     `json:"taskId"`
-	ExpectedKind  TaskKind   `json:"expectedKind"`
-	ExpectedDueAt *time.Time `json:"expectedDueAt,omitempty"`
+	CsrfToken         string     `json:"csrfToken"`
+	TaskID            string     `json:"taskId"`
+	ExpectedKind      TaskKind   `json:"expectedKind"`
+	ExpectedRecurring bool       `json:"expectedRecurring"`
+	ExpectedDueAt     *time.Time `json:"expectedDueAt,omitempty"`
 }
 
 type CompletionPayload struct {
@@ -29,14 +30,15 @@ type CompletionPayload struct {
 }
 
 type CreateJobInput struct {
-	CsrfToken               string        `json:"csrfToken"`
-	Title                   *string       `json:"title,omitempty"`
-	Description             *string       `json:"description,omitempty"`
-	ProjectID               string        `json:"projectId"`
-	Priority                TaskPriority  `json:"priority"`
-	StartAt                 LocalDateTime `json:"startAt"`
-	DurationMinutes         int           `json:"durationMinutes"`
-	CompletionWindowMinutes int           `json:"completionWindowMinutes"`
+	CsrfToken               string           `json:"csrfToken"`
+	Title                   *string          `json:"title,omitempty"`
+	Description             *string          `json:"description,omitempty"`
+	ProjectID               string           `json:"projectId"`
+	Priority                TaskPriority     `json:"priority"`
+	StartAt                 LocalDateTime    `json:"startAt"`
+	DurationMinutes         int              `json:"durationMinutes"`
+	CompletionWindowMinutes int              `json:"completionWindowMinutes"`
+	Recurrence              *RecurrenceInput `json:"recurrence,omitempty"`
 }
 
 type CreateOneTimeTaskInput struct {
@@ -110,6 +112,13 @@ type ProjectResult struct {
 }
 
 type Query struct {
+}
+
+type RecurrenceInput struct {
+	Interval    int            `json:"interval"`
+	Unit        RecurrenceUnit `json:"unit"`
+	Mode        RecurrenceMode `json:"mode"`
+	KeepDueTime bool           `json:"keepDueTime"`
 }
 
 type RecurrenceRule struct {
@@ -239,9 +248,11 @@ type WeekInput struct {
 }
 
 type WeekProjection struct {
-	SourceTask *Task     `json:"sourceTask"`
-	DueAt      time.Time `json:"dueAt"`
-	HasDueTime bool      `json:"hasDueTime"`
+	SourceTask *Task      `json:"sourceTask"`
+	StartAt    *time.Time `json:"startAt,omitempty"`
+	EndAt      *time.Time `json:"endAt,omitempty"`
+	DueAt      time.Time  `json:"dueAt"`
+	HasDueTime bool       `json:"hasDueTime"`
 }
 
 type WeekView struct {
@@ -599,6 +610,7 @@ const (
 	RepairStepAttachRecurrenceHistory RepairStep = "ATTACH_RECURRENCE_HISTORY"
 	RepairStepAttachSkipped           RepairStep = "ATTACH_SKIPPED"
 	RepairStepNormalizeDue            RepairStep = "NORMALIZE_DUE"
+	RepairStepNormalizeJobSchedule    RepairStep = "NORMALIZE_JOB_SCHEDULE"
 	RepairStepAttachFixedDueTime      RepairStep = "ATTACH_FIXED_DUE_TIME"
 )
 
@@ -609,12 +621,13 @@ var AllRepairStep = []RepairStep{
 	RepairStepAttachRecurrenceHistory,
 	RepairStepAttachSkipped,
 	RepairStepNormalizeDue,
+	RepairStepNormalizeJobSchedule,
 	RepairStepAttachFixedDueTime,
 }
 
 func (e RepairStep) IsValid() bool {
 	switch e {
-	case RepairStepCreateHistorySnapshot, RepairStepAttachJob, RepairStepAttachDateOnly, RepairStepAttachRecurrenceHistory, RepairStepAttachSkipped, RepairStepNormalizeDue, RepairStepAttachFixedDueTime:
+	case RepairStepCreateHistorySnapshot, RepairStepAttachJob, RepairStepAttachDateOnly, RepairStepAttachRecurrenceHistory, RepairStepAttachSkipped, RepairStepNormalizeDue, RepairStepNormalizeJobSchedule, RepairStepAttachFixedDueTime:
 		return true
 	}
 	return false

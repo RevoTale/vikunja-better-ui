@@ -2,6 +2,7 @@ import { composeLocalDateTime, isValidLocalDate, isValidLocalTime } from "./loca
 import { isTaskPriority } from "./task-priority";
 
 export type CreationType = "one-time" | "recurring" | "job";
+export type CreationBaseType = Exclude<CreationType, "job">;
 
 export type TaskFormField =
   | "title"
@@ -14,6 +15,7 @@ export type TaskFormField =
   | "unit"
   | "mode"
   | "keepDueTime"
+  | "job"
   | "startDate"
   | "startTime"
   | "durationMinutes"
@@ -25,11 +27,15 @@ const maxInterval = { DAY: 106_751, WEEK: 15_250 } as const;
 const maxDurationMinutes = 153_722_867;
 
 export function validateTaskForm(type: CreationType, form: FormData): TaskFormErrors {
-  const errors = validateSharedFields(type, form);
+  const isJob = type === "job" || value(form, "job") === "on";
+  const isRecurring = type === "recurring";
+  const errors = validateSharedFields(isJob, isRecurring, form);
 
-  if (type === "one-time") validateOneTimeFields(form, errors);
-  if (type === "recurring") validateRecurringFields(form, errors);
-  if (type === "job") validateJobFields(form, errors);
+  if (isJob) validateJobFields(form, errors);
+  else if (isRecurring) validateRecurringDateFields(form, errors);
+  else validateOneTimeFields(form, errors);
+
+  if (isRecurring) validateRecurrenceFields(form, errors, isJob);
 
   return errors;
 }
@@ -78,10 +84,14 @@ export function serverTaskFormErrors(
   return {};
 }
 
-function validateSharedFields(type: CreationType, form: FormData): TaskFormErrors {
+function validateSharedFields(
+  isJob: boolean,
+  isRecurring: boolean,
+  form: FormData,
+): TaskFormErrors {
   const errors: TaskFormErrors = {};
   const title = value(form, "title").trim();
-  if (!title && type !== "job") errors.title = "Enter a title.";
+  if (!title && (!isJob || isRecurring)) errors.title = "Enter a title.";
   else if (title.length > 250) errors.title = "Use 250 characters or fewer.";
 
   if (!/^[1-9]\d*$/.test(value(form, "projectId"))) {
@@ -101,24 +111,21 @@ function validateOneTimeFields(form: FormData, errors: TaskFormErrors): void {
   else if (dueTime && !isValidLocalTime(dueTime)) errors.dueTime = "Enter a valid time.";
 }
 
-function validateRecurringFields(form: FormData, errors: TaskFormErrors): void {
-  const firstDueDate = value(form, "firstDueDate");
+function validateRecurrenceFields(form: FormData, errors: TaskFormErrors, isJob: boolean): void {
   const dueTime = value(form, "dueTime");
+  const startTime = value(form, "startTime");
   const unit = value(form, "unit");
   const mode = value(form, "mode");
   const keepDueTime = value(form, "keepDueTime") === "on";
   const interval = wholeNumber(value(form, "interval"), 1);
 
-  validateRecurringDate(firstDueDate, dueTime, errors);
   validateRecurrenceRule(interval, unit, mode, errors);
-  validateFixedDueTime(keepDueTime, dueTime, unit, mode, errors);
+  validateFixedDueTime(keepDueTime, isJob ? startTime : dueTime, unit, mode, errors, isJob);
 }
 
-function validateRecurringDate(
-  firstDueDate: string,
-  dueTime: string,
-  errors: TaskFormErrors,
-): void {
+function validateRecurringDateFields(form: FormData, errors: TaskFormErrors): void {
+  const firstDueDate = value(form, "firstDueDate");
+  const dueTime = value(form, "dueTime");
   if (!firstDueDate) errors.firstDueDate = "Choose the first due date.";
   else if (!isValidLocalDate(firstDueDate)) errors.firstDueDate = "Enter a valid date.";
   if (dueTime && !isValidLocalTime(dueTime)) errors.dueTime = "Enter a valid time.";
@@ -154,12 +161,16 @@ function validateRecurrenceRule(
 
 function validateFixedDueTime(
   keepDueTime: boolean,
-  dueTime: string,
+  time: string,
   unit: string,
   mode: string,
   errors: TaskFormErrors,
+  isJob: boolean,
 ): void {
-  if (keepDueTime && !dueTime) errors.dueTime = "Choose a due time to keep.";
+  if (keepDueTime && !time) {
+    if (isJob) errors.startTime = "Choose a start time to keep.";
+    else errors.dueTime = "Choose a due time to keep.";
+  }
   if (keepDueTime && mode !== "FROM_COMPLETION") {
     errors.mode = "Keep due time requires From completion.";
   }
@@ -206,7 +217,7 @@ function value(form: FormData, name: TaskFormField): string {
 }
 
 function timezoneField(type: CreationType, form: FormData): TaskFormField {
-  if (type === "job") return "startTime";
+  if (type === "job" || value(form, "job") === "on") return "startTime";
   if (value(form, "dueTime")) return "dueTime";
   return type === "recurring" ? "firstDueDate" : "dueDate";
 }

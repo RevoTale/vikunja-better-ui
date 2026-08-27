@@ -23,6 +23,7 @@ type TaskClassification struct {
 	Kind         TaskKind
 	DateOnly     bool
 	FixedDueTime bool
+	Recurring    bool
 	Outcome      CompletionOutcome
 }
 
@@ -40,7 +41,7 @@ func ClassifyTask(task vikunja.Task) TaskClassification {
 	hasSkipped := hasLabel(task.Labels, skippedLabel)
 	hasFixedDueTime := hasLabel(task.Labels, fixedDueTimeLabel)
 	hasRecurrence := task.RepeatAfter > 0 || task.RepeatMode != 0
-	validHistory := hasHistory && task.Done && !hasRecurrence && !hasJob
+	validHistory := hasHistory && task.Done && !hasRecurrence
 	validSkipped := hasSkipped && validHistory
 	validFixedDueTime := hasFixedDueTime && fixedDueTimeEligible(task)
 
@@ -48,11 +49,11 @@ func ClassifyTask(task vikunja.Task) TaskClassification {
 	switch {
 	case hasSkipped && !validSkipped:
 		kind = TaskKindInvalid
-	case hasHistory && (hasRecurrence || hasJob || !task.Done):
+	case hasHistory && (hasRecurrence || !task.Done):
 		kind = TaskKindInvalid
-	case hasRecurrence && hasJob:
-		kind = TaskKindInvalid
-	case hasHistory || hasRecurrence:
+	case hasHistory && hasJob:
+		kind = TaskKindJob
+	case hasHistory || (hasRecurrence && !hasJob):
 		kind = TaskKindRecurring
 	case hasJob:
 		kind = TaskKindJob
@@ -70,7 +71,8 @@ func ClassifyTask(task vikunja.Task) TaskClassification {
 	}
 
 	return TaskClassification{
-		Kind: kind, DateOnly: hasDateOnly, FixedDueTime: hasFixedDueTime, Outcome: outcome,
+		Kind: kind, DateOnly: hasDateOnly, FixedDueTime: hasFixedDueTime,
+		Recurring: hasRecurrence && kind != TaskKindInvalid, Outcome: outcome,
 	}
 }
 
@@ -78,7 +80,15 @@ func fixedDueTimeEligible(task vikunja.Task) bool {
 	return !task.Done && !task.DueDate.IsZero() && task.RepeatAfter > 0 &&
 		task.RepeatAfter%recurrenceDaySeconds == 0 && task.RepeatMode == 2 &&
 		!hasLabel(task.Labels, dateOnlyLabel) && !hasLabel(task.Labels, recurrenceHistoryLabel) &&
-		!hasLabel(task.Labels, skippedLabel) && !hasLabel(task.Labels, jobLabel)
+		!hasLabel(task.Labels, skippedLabel) && validFixedTimeSchedule(task)
+}
+
+func validFixedTimeSchedule(task vikunja.Task) bool {
+	if !hasLabel(task.Labels, jobLabel) {
+		return true
+	}
+	return !task.StartDate.IsZero() && !task.EndDate.IsZero() &&
+		task.EndDate.After(task.StartDate) && task.DueDate.After(task.EndDate)
 }
 
 func hasLabel(labels []vikunja.Label, title string) bool {

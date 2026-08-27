@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import type { WeekQuery } from "@/graphql/graphql";
 import { cn } from "@/lib/utils";
@@ -32,11 +31,22 @@ export function WeekDaySection({
   return (
     <section
       id={isToday ? "week-today" : undefined}
-      className="grid scroll-mt-20 border-t md:grid-cols-[8rem_minmax(0,1fr)]"
+      className={cn(
+        "grid scroll-mt-20 border-t md:grid-cols-[8rem_minmax(0,1fr)]",
+        isToday && "border-t-2 border-t-primary/40",
+      )}
       data-slot="week-day"
       data-date={day.date}
       data-today={isToday ? "" : undefined}
     >
+      {isToday ? (
+        <h2
+          data-slot="week-boundary"
+          className="col-span-full border-b bg-muted/50 px-3 py-2 text-sm font-semibold tracking-tight md:px-4"
+        >
+          Today
+        </h2>
+      ) : null}
       <header className="px-3 py-3 md:border-r md:px-4 md:py-4">
         <Heading className="text-lg font-semibold tracking-tight">
           {formatDayName(day.date)}
@@ -47,7 +57,6 @@ export function WeekDaySection({
           className="flex items-center gap-2 text-sm text-muted-foreground"
         >
           {formatDayDate(day.date)}
-          {isToday ? <Badge variant="secondary">Today</Badge> : null}
         </time>
         <p className="mt-1 text-xs text-muted-foreground">
           {entries.length === 0
@@ -72,6 +81,8 @@ export function WeekDaySection({
               key={`${entry.projection.sourceTask.id}:${entry.projection.dueAt}`}
               task={{
                 ...entry.projection.sourceTask,
+                startAt: entry.projection.startAt,
+                endAt: entry.projection.endAt,
                 dueAt: entry.projection.dueAt,
                 hasDueTime: entry.projection.hasDueTime,
                 isOverdue: false,

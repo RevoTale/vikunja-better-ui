@@ -33,6 +33,21 @@ describe("recurrenceSettingPolicy", () => {
     ).toEqual({ visible: true, canEnable: false });
   });
 
+  it("allows keeping the start time for an active recurring Job", () => {
+    expect(
+      recurrenceSettingPolicy({
+        isDone: false,
+        kind: "JOB",
+        hasDueTime: true,
+        recurrenceRule: {
+          mode: "FROM_COMPLETION",
+          unit: "DAY",
+          keepDueTime: false,
+        },
+      }),
+    ).toEqual({ visible: true, canEnable: true });
+  });
+
   it.each([
     { isDone: true, kind: "RECURRING" as const, hasDueTime: true },
     { isDone: false, kind: "RECURRING" as const, hasDueTime: false },

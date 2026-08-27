@@ -43,22 +43,25 @@ export function WeekContent({
     <div className="overflow-hidden rounded-lg border">
       {currentWeek ? (
         <>
-          <WeekDayGroup
-            id="week-earlier"
-            title="Earlier this week"
-            days={currentWeek.earlier}
-            returnTo={returnTo}
-            completingTaskID={completingTaskID}
-            onComplete={onComplete}
-            createProjectID={createProjectID}
-          />
+          {currentWeek.earlier.map((day) => (
+            <WeekDaySection
+              key={day.date}
+              day={day}
+              returnTo={returnTo}
+              completingTaskID={completingTaskID}
+              onComplete={onComplete}
+              isToday={false}
+              headingLevel={2}
+              createProjectID={createProjectID}
+            />
+          ))}
           <WeekDaySection
             day={currentWeek.today}
             returnTo={returnTo}
             completingTaskID={completingTaskID}
             onComplete={onComplete}
             isToday
-            headingLevel={2}
+            headingLevel={3}
             createProjectID={createProjectID}
           />
           <WeekDayGroup

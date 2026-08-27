@@ -44,7 +44,8 @@ func CompleteNonRecurring(
 	if task.Done || metadata.ETag == "" {
 		return NonRecurringCompletion{}, ErrTaskNotActionable
 	}
-	if ClassifyTask(task).Kind != expectedKind {
+	classification := ClassifyTask(task)
+	if classification.Kind != expectedKind || classification.Recurring {
 		return NonRecurringCompletion{}, ErrTaskKindMismatch
 	}
 

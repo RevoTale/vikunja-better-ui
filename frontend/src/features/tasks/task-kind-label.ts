@@ -14,14 +14,19 @@ const labels: Record<Exclude<TaskKind, "INVALID">, string> = {
 };
 
 export function taskKindLabel(task: TaskKindSource): string {
-  if (task.kind !== "INVALID") return labels[task.kind];
+  return taskKindLabels(task).join(" · ");
+}
 
-  const hasJob = task.labels.some((label) => label.title === "job");
+export function taskKindLabels(task: TaskKindSource): string[] {
+  if (task.kind !== "INVALID") {
+    return task.kind === "JOB" && task.recurrenceRule
+      ? [labels.JOB, labels.RECURRING]
+      : [labels[task.kind]];
+  }
+
   const hasHistory = task.labels.some((label) => label.title === "vbu:recurrence-history");
 
-  if (task.recurrenceRule && hasJob) return "Invalid: both recurring and job";
-  if (hasHistory && task.recurrenceRule) return "Invalid: history snapshot still repeats";
-  if (hasHistory && hasJob) return "Invalid: history snapshot marked as job";
-  if (hasHistory && !task.isDone) return "Invalid: history snapshot is incomplete";
-  return "Invalid task configuration";
+  if (hasHistory && task.recurrenceRule) return ["Invalid: history snapshot still repeats"];
+  if (hasHistory && !task.isDone) return ["Invalid: history snapshot is incomplete"];
+  return ["Invalid task configuration"];
 }

@@ -28,6 +28,33 @@ func TestSetFixedDueTimeEnablesEligibleSeries(t *testing.T) {
 	}
 }
 
+func TestSetFixedDueTimeEnablesEligibleRecurringJob(t *testing.T) {
+	t.Parallel()
+
+	before := recurringJobAt(
+		time.Date(2026, time.August, 16, 20, 0, 0, 0, time.UTC),
+		2*recurrenceDaySeconds,
+		2,
+	)
+	before.ID = 9
+	after := before
+	after.Labels = append(after.Labels, vikunja.Label{ID: 10, Title: fixedDueTimeLabel})
+	client := &recurrenceSettingClientStub{
+		reads:  []taskRead{{task: before, etag: `"v1"`}, {task: after, etag: `"v2"`}},
+		labels: []vikunja.Label{{ID: 10, Title: fixedDueTimeLabel}},
+	}
+
+	result, err := SetFixedDueTime(context.Background(), client, before.ID, true)
+	if err != nil {
+		t.Fatalf("SetFixedDueTime() error = %v", err)
+	}
+	classification := ClassifyTask(result)
+	if classification.Kind != TaskKindJob || !classification.Recurring ||
+		!classification.FixedDueTime {
+		t.Fatalf("SetFixedDueTime() classification = %#v", classification)
+	}
+}
+
 func TestSetFixedDueTimeDisablesEveryExactMarker(t *testing.T) {
 	t.Parallel()
 

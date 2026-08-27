@@ -325,7 +325,9 @@ func candidateTaskQuery(request ListRequest) vikunja.TaskQuery {
 		includeNulls = true
 	case TaskScopeJobs, TaskScopeCompletedJobs, TaskScopeAllJobs:
 		filterParts = append(filterParts, "labels in "+joinIDs(request.JobLabelIDs))
-		filterParts = append(filterParts, "repeat_after = 0")
+		if request.Scope == TaskScopeCompletedJobs {
+			filterParts = append(filterParts, "repeat_after = 0")
+		}
 	case TaskScopeHistory:
 	}
 	filterParts = appendProjectFilter(filterParts, request.ProjectID)

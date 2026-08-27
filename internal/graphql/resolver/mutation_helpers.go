@@ -63,6 +63,9 @@ func (resolver *Resolver) recurringCompletionPayload(
 				result.RepairGrant.Outcome,
 				!result.RepairGrant.TargetDueAt.IsZero() &&
 					!result.LiveTask.DueDate.Equal(result.RepairGrant.TargetDueAt),
+				!result.RepairGrant.TargetStartAt.IsZero() &&
+					(!result.LiveTask.StartDate.Equal(result.RepairGrant.TargetStartAt) ||
+						!result.LiveTask.EndDate.Equal(result.RepairGrant.TargetEndAt)),
 			),
 		}, nil
 	}
@@ -86,9 +89,15 @@ func recurringMissingMarkers(outcome service.CompletionOutcome) []model.MarkerKi
 	return markers
 }
 
-func recurringRepairSteps(outcome service.CompletionOutcome, normalizeDue bool) []model.RepairStep {
+func recurringRepairSteps(
+	outcome service.CompletionOutcome,
+	normalizeDue bool,
+	normalizeJobSchedule bool,
+) []model.RepairStep {
 	steps := make([]model.RepairStep, 0, 4)
-	if normalizeDue {
+	if normalizeJobSchedule {
+		steps = append(steps, model.RepairStepNormalizeJobSchedule)
+	} else if normalizeDue {
 		steps = append(steps, model.RepairStepNormalizeDue)
 	}
 	steps = append(steps,
@@ -101,6 +110,31 @@ func recurringRepairSteps(outcome service.CompletionOutcome, normalizeDue bool) 
 	return steps
 }
 
+func recurrenceInterval(input *model.RecurrenceInput) int {
+	if input == nil {
+		return 0
+	}
+	return input.Interval
+}
+
+func recurrenceUnit(input *model.RecurrenceInput) service.RecurrenceUnit {
+	if input == nil {
+		return ""
+	}
+	return service.RecurrenceUnit(input.Unit)
+}
+
+func recurrenceMode(input *model.RecurrenceInput) service.RecurrenceMode {
+	if input == nil {
+		return ""
+	}
+	return service.RecurrenceMode(input.Mode)
+}
+
+func recurrenceKeepDueTime(input *model.RecurrenceInput) bool {
+	return input != nil && input.KeepDueTime
+}
+
 func (resolver *Resolver) createTaskPayload(
 	ctx context.Context,
 	session auth.Session,
@@ -110,7 +144,23 @@ func (resolver *Resolver) createTaskPayload(
 	write vikunja.TaskWrite,
 	marker string,
 ) (*model.TaskMutationPayload, error) {
-	result, err := service.CreateTaskWithMarker(ctx, resolver.tasks, projectID, write, marker)
+	markers := []string{}
+	if marker != "" {
+		markers = append(markers, marker)
+	}
+	return resolver.createTaskPayloadWithMarkers(ctx, session, user, projects, projectID, write, markers)
+}
+
+func (resolver *Resolver) createTaskPayloadWithMarkers(
+	ctx context.Context,
+	session auth.Session,
+	user vikunja.User,
+	projects []vikunja.Project,
+	projectID int64,
+	write vikunja.TaskWrite,
+	markers []string,
+) (*model.TaskMutationPayload, error) {
+	result, err := service.CreateTaskWithMarkers(ctx, resolver.tasks, projectID, write, markers)
 	if err != nil {
 		resolver.logError("create Vikunja task", err)
 		return nil, upstreamClientError(err, "The task could not be created. Refresh the list before retrying.")
@@ -138,16 +188,14 @@ func (resolver *Resolver) createTaskPayload(
 		return nil, clientError("REPAIR_REQUIRED", "The task was created, but its marker could not be attached. Open it in Vikunja to repair it.")
 	}
 	capability, capabilityErr := resolver.capabilities.IssueMarkerRepair(session.ID, service.MarkerRepairGrant{
-		TaskID: result.Task.ID, MarkerTitle: result.MissingMarker, ETag: metadata.ETag,
+		TaskID: result.Task.ID, MarkerTitles: result.MissingMarkers, ETag: metadata.ETag,
 	})
 	if capabilityErr != nil {
 		resolver.logError("issue task repair capability", capabilityErr)
 		return nil, clientError("INTERNAL", "Task metadata repair could not be authorized.")
 	}
-	markerKind, repairStep := markerModels(result.MissingMarker)
 	payload.Status = model.TaskMutationStatusRepairRequired
-	payload.MissingMarkers = []model.MarkerKind{markerKind}
-	payload.RemainingRepairSteps = []model.RepairStep{repairStep}
+	payload.MissingMarkers, payload.RemainingRepairSteps = markerModelLists(result.MissingMarkers)
 	payload.RepairCapability = &capability
 	return payload, nil
 }
@@ -206,6 +254,17 @@ func markerModels(title string) (model.MarkerKind, model.RepairStep) {
 	default:
 		return model.MarkerKindDateOnly, model.RepairStepAttachDateOnly
 	}
+}
+
+func markerModelLists(titles []string) ([]model.MarkerKind, []model.RepairStep) {
+	markers := make([]model.MarkerKind, 0, len(titles))
+	steps := make([]model.RepairStep, 0, len(titles))
+	for _, title := range titles {
+		marker, step := markerModels(title)
+		markers = append(markers, marker)
+		steps = append(steps, step)
+	}
+	return markers, steps
 }
 
 func deletionClientError(resolver *Resolver, err error) error {

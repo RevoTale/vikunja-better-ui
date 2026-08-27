@@ -5,37 +5,46 @@ import { AppSelect } from "@/components/app-select";
 import { DatePickerField } from "./date-picker-field";
 import { JobStartFields } from "./job-start-fields";
 import type { LocalDateTimeParts } from "./local-date-time";
-import type { CreationType, TaskFormErrors } from "./task-form-validation";
+import type { CreationBaseType, TaskFormErrors } from "./task-form-validation";
 import { TimeInput24 } from "./time-input-24";
 import { ValidatedField } from "./validated-field";
 
 export function TaskTypeFields({
   type,
+  isJob,
   errors,
   defaultDate,
   initialDate,
   jobStart,
   onJobStartChange,
 }: {
-  type: CreationType;
+  type: CreationBaseType;
+  isJob: boolean;
   errors: TaskFormErrors;
   defaultDate: string;
   initialDate: string | undefined;
   jobStart: LocalDateTimeParts;
   onJobStartChange: (value: LocalDateTimeParts) => void;
 }) {
+  if (isJob)
+    return (
+      <>
+        <JobFields
+          errors={errors}
+          defaultDate={defaultDate}
+          start={jobStart}
+          onStartChange={onJobStartChange}
+        />
+        {type === "recurring" ? (
+          <RecurrenceFields errors={errors} timeOfDay={jobStart.time} isJob />
+        ) : null}
+      </>
+    );
   if (type === "one-time")
     return <OneTimeFields errors={errors} defaultDate={defaultDate} initialDate={initialDate} />;
   if (type === "recurring")
     return <RecurringFields errors={errors} defaultDate={initialDate ?? defaultDate} />;
-  return (
-    <JobFields
-      errors={errors}
-      defaultDate={defaultDate}
-      start={jobStart}
-      onStartChange={onJobStartChange}
-    />
-  );
+  return null;
 }
 
 function OneTimeFields({
@@ -83,10 +92,6 @@ function OneTimeFields({
 function RecurringFields({ errors, defaultDate }: { errors: TaskFormErrors; defaultDate: string }) {
   const [firstDueDate, setFirstDueDate] = useState(defaultDate);
   const [dueTime, setDueTime] = useState("");
-  const [unit, setUnit] = useState("DAY");
-  const [mode, setMode] = useState("FROM_COMPLETION");
-  const [keepDueTime, setKeepDueTime] = useState(true);
-  const canKeepDueTime = Boolean(dueTime) && mode === "FROM_COMPLETION" && unit !== "MONTH";
   return (
     <>
       <div className="grid gap-5 sm:grid-cols-2">
@@ -116,6 +121,26 @@ function RecurringFields({ errors, defaultDate }: { errors: TaskFormErrors; defa
           )}
         </ValidatedField>
       </div>
+      <RecurrenceFields errors={errors} timeOfDay={dueTime} isJob={false} />
+    </>
+  );
+}
+
+function RecurrenceFields({
+  errors,
+  timeOfDay,
+  isJob,
+}: {
+  errors: TaskFormErrors;
+  timeOfDay: string;
+  isJob: boolean;
+}) {
+  const [unit, setUnit] = useState("DAY");
+  const [mode, setMode] = useState("FROM_COMPLETION");
+  const [keepDueTime, setKeepDueTime] = useState(true);
+  const canKeepDueTime = Boolean(timeOfDay) && mode === "FROM_COMPLETION" && unit !== "MONTH";
+  return (
+    <>
       <div className="grid gap-5 sm:grid-cols-3">
         <ValidatedField name="interval" label="Every" error={errors.interval}>
           {(attributes) => (
@@ -172,10 +197,13 @@ function RecurringFields({ errors, defaultDate }: { errors: TaskFormErrors; defa
               checked={keepDueTime}
               onChange={(event) => setKeepDueTime(event.currentTarget.checked)}
               className="mt-1 size-4 accent-primary"
+              aria-label={isJob ? "Keep start time of day" : "Keep due time"}
               aria-describedby="keepDueTime-description"
             />
             <span>
-              <span className="block text-sm font-medium">Keep due time</span>
+              <span className="block text-sm font-medium">
+                {isJob ? "Keep start time of day" : "Keep due time"}
+              </span>
               <span
                 id="keepDueTime-description"
                 className="mt-1 block text-sm text-muted-foreground"

@@ -18,6 +18,8 @@ query Week($input: WeekInput!) {
         ...WeekTask
       }
       projections {
+        startAt
+        endAt
         dueAt
         hasDueTime
         sourceTask {

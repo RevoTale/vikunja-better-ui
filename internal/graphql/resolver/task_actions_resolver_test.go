@@ -92,7 +92,7 @@ func TestSetRecurringKeepDueTimeEnablesEligibleSeries(t *testing.T) {
 func TestRecurringRepairStepsIncludeDueNormalizationFirst(t *testing.T) {
 	t.Parallel()
 
-	steps := recurringRepairSteps("SKIPPED", true)
+	steps := recurringRepairSteps("SKIPPED", true, false)
 	want := []model.RepairStep{
 		model.RepairStepNormalizeDue,
 		model.RepairStepCreateHistorySnapshot,

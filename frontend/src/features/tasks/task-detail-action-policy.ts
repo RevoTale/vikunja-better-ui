@@ -1,6 +1,7 @@
 type ActionableTask = {
   isDone: boolean;
   kind: "ONE_TIME" | "RECURRING" | "JOB" | "INVALID";
+  recurrenceRule: unknown | null;
 };
 
 export function taskDetailActionPolicy(task: ActionableTask): {
@@ -10,6 +11,6 @@ export function taskDetailActionPolicy(task: ActionableTask): {
   const isActive = !task.isDone;
   return {
     canDelete: isActive,
-    canSkip: isActive && task.kind === "RECURRING",
+    canSkip: isActive && task.recurrenceRule !== null,
   };
 }

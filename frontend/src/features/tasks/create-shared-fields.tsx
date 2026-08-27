@@ -5,7 +5,7 @@ import { AppSelect } from "@/components/app-select";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import type { TaskPriority } from "@/graphql/graphql";
-import type { CreationType, TaskFormErrors } from "./task-form-validation";
+import type { CreationBaseType, TaskFormErrors } from "./task-form-validation";
 import { isTaskPriority, taskPriorityOption, taskPriorityOptions } from "./task-priority";
 import { ValidatedField } from "./validated-field";
 
@@ -14,12 +14,14 @@ export function SharedFields({
   defaultProject,
   errors,
   type,
+  isJob,
   titlePlaceholder,
 }: {
   projects: readonly { id: string; title: string }[];
   defaultProject: string;
   errors: TaskFormErrors;
-  type: CreationType;
+  type: CreationBaseType;
+  isJob: boolean;
   titlePlaceholder: string;
 }) {
   const [priority, setPriority] = useState<TaskPriority>("UNSET");
@@ -28,7 +30,7 @@ export function SharedFields({
     <>
       <ValidatedField
         name="title"
-        label={type === "job" ? "Title (optional)" : "Title"}
+        label={isJob && type !== "recurring" ? "Title (optional)" : "Title"}
         error={errors.title}
       >
         {(attributes) => (
@@ -36,8 +38,8 @@ export function SharedFields({
             id="title"
             name="title"
             autoFocus
-            required={type !== "job"}
-            placeholder={type === "job" ? titlePlaceholder : undefined}
+            required={!isJob || type === "recurring"}
+            placeholder={isJob && type !== "recurring" ? titlePlaceholder : undefined}
             maxLength={250}
             {...attributes}
           />

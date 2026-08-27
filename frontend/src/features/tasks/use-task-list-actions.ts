@@ -49,7 +49,8 @@ export function useTaskListActions(csrfToken: string | undefined, refetch: () =>
             csrfToken,
             taskId: task.id,
             expectedKind: task.kind,
-            expectedDueAt: task.kind === "RECURRING" ? task.dueAt : null,
+            expectedRecurring: task.recurrenceRule !== null,
+            expectedDueAt: task.recurrenceRule ? task.dueAt : null,
           },
         },
       });
@@ -67,7 +68,7 @@ export function useTaskListActions(csrfToken: string | undefined, refetch: () =>
         if (payload.repairCapability) {
           setRepairInfo({ capability: payload.repairCapability, title: task.title });
         }
-      } else if (task.kind === "RECURRING") {
+      } else if (task.recurrenceRule) {
         completionNotice = "Recurring task completed and renewed.";
       } else {
         completionNotice = `${task.title} completed.`;

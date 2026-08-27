@@ -118,6 +118,22 @@ describe("validateTaskForm", () => {
     expect(validateTaskForm("job", values({ title: "   " }))).toEqual({});
   });
 
+  it("requires a stable title and Job schedule for a recurring Job", () => {
+    expect(
+      validateTaskForm(
+        "recurring",
+        values({
+          job: "on",
+          title: "   ",
+          firstDueDate: "",
+          startDate: "2026-08-14",
+          startTime: "20:00",
+          keepDueTime: "on",
+        }),
+      ),
+    ).toEqual({ title: "Enter a title." });
+  });
+
   it("places rare timezone validation failures beside the responsible field", () => {
     expect(
       serverTaskFormErrors(

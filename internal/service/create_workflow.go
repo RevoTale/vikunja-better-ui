@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
 
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
@@ -17,7 +18,7 @@ type taskCreateClient interface {
 type CreationResult struct {
 	Task           vikunja.Task
 	RepairRequired bool
-	MissingMarker  string
+	MissingMarkers []string
 	RepairCause    error
 }
 
@@ -28,16 +29,32 @@ func CreateTaskWithMarker(
 	input vikunja.TaskWrite,
 	markerTitle string,
 ) (CreationResult, error) {
+	markers := []string{}
+	if markerTitle != "" {
+		markers = append(markers, markerTitle)
+	}
+	return CreateTaskWithMarkers(ctx, client, projectID, input, markers)
+}
+
+func CreateTaskWithMarkers(
+	ctx context.Context,
+	client taskCreateClient,
+	projectID int64,
+	input vikunja.TaskWrite,
+	markerTitles []string,
+) (CreationResult, error) {
 	if projectID <= 0 {
 		return CreationResult{}, errors.New("project ID must be positive")
 	}
 
-	var marker vikunja.Label
-	if markerTitle != "" {
-		var err error
-		marker, err = ResolveMarker(ctx, client, markerTitle)
+	markers := make([]vikunja.Label, 0, len(markerTitles))
+	for _, title := range markerTitles {
+		marker, err := ResolveMarker(ctx, client, title)
 		if err != nil {
 			return CreationResult{}, err
+		}
+		if !hasLabelID(markers, marker.ID) {
+			markers = append(markers, marker)
 		}
 	}
 
@@ -45,22 +62,41 @@ func CreateTaskWithMarker(
 	if err != nil {
 		return CreationResult{}, err
 	}
-	if markerTitle == "" {
+	if len(markers) == 0 {
 		return CreationResult{Task: created}, nil
 	}
-	if err := client.AttachLabel(ctx, created.ID, marker.ID); err != nil {
-		created, _, readErr := client.Task(ctx, created.ID)
-		if readErr != nil {
-			created = vikunja.Task{ID: created.ID, ProjectID: projectID, Title: input.Title}
+	var attachErr error
+	for _, marker := range markers {
+		if err := client.AttachLabel(ctx, created.ID, marker.ID); err != nil {
+			attachErr = err
+			break
 		}
-		return CreationResult{
-			Task: created, RepairRequired: true, MissingMarker: markerTitle, RepairCause: err,
-		}, nil
 	}
-	created.Labels = append(created.Labels, marker)
 	confirmed, _, err := client.Task(ctx, created.ID)
 	if err != nil {
-		return CreationResult{}, err
+		if attachErr == nil {
+			return CreationResult{}, err
+		}
+		confirmed = vikunja.Task{ID: created.ID, ProjectID: projectID, Title: input.Title}
+	}
+	missing := missingMarkerTitles(confirmed.Labels, markerTitles)
+	if len(missing) > 0 {
+		if attachErr == nil {
+			attachErr = vikunja.ErrRejectedResponse
+		}
+		return CreationResult{
+			Task: confirmed, RepairRequired: true, MissingMarkers: missing, RepairCause: attachErr,
+		}, nil
 	}
 	return CreationResult{Task: confirmed}, nil
+}
+
+func missingMarkerTitles(labels []vikunja.Label, titles []string) []string {
+	missing := make([]string, 0, len(titles))
+	for _, title := range titles {
+		if !hasLabel(labels, title) && !slices.Contains(missing, title) {
+			missing = append(missing, title)
+		}
+	}
+	return missing
 }

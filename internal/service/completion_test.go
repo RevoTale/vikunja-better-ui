@@ -47,6 +47,23 @@ func TestCompleteNonRecurringRejectsKindMismatchBeforeWrite(t *testing.T) {
 	}
 }
 
+func TestCompleteNonRecurringRejectsRecurringJobBeforeWrite(t *testing.T) {
+	t.Parallel()
+
+	client := &completionClientStub{reads: []taskRead{{
+		task: vikunja.Task{
+			ID: 9, Title: "Read", DueDate: time.Now().Add(time.Hour), RepeatAfter: recurrenceDaySeconds,
+			Labels: []vikunja.Label{{ID: 2, Title: jobLabel}},
+		},
+		etag: `"v1"`,
+	}}}
+	capabilities := NewCapabilityManager([]byte("01234567890123456789012345678901"), time.Now)
+	_, err := CompleteNonRecurring(context.Background(), client, capabilities, "session-1", 9, TaskKindJob)
+	if !errors.Is(err, ErrTaskKindMismatch) || client.patchCalls != 0 {
+		t.Fatalf("CompleteNonRecurring() error = %v, patches = %d", err, client.patchCalls)
+	}
+}
+
 func TestUndoNonRecurringVerifiesCapabilityState(t *testing.T) {
 	t.Parallel()
 
@@ -97,13 +114,14 @@ type taskRead struct {
 }
 
 type completionClientStub struct {
-	reads      []taskRead
-	readCalls  int
-	patchCalls int
-	patchDone  *bool
-	patchDues  []time.Time
-	patchCheck vikunja.TaskCheck
-	patchErrs  []error
+	reads          []taskRead
+	readCalls      int
+	patchCalls     int
+	patchDone      *bool
+	patchDues      []time.Time
+	patchSchedules []jobSchedule
+	patchCheck     vikunja.TaskCheck
+	patchErrs      []error
 }
 
 func (client *completionClientStub) Task(_ context.Context, _ int64) (vikunja.Task, vikunja.ResponseMetadata, error) {
@@ -117,6 +135,11 @@ func (client *completionClientStub) PatchTaskChecked(_ context.Context, _ int64,
 	client.patchDone = patch.Done
 	if patch.DueDate != nil {
 		client.patchDues = append(client.patchDues, *patch.DueDate)
+	}
+	if patch.StartDate != nil && patch.EndDate != nil && patch.DueDate != nil {
+		client.patchSchedules = append(client.patchSchedules, jobSchedule{
+			StartAt: *patch.StartDate, EndAt: *patch.EndDate, DueAt: *patch.DueDate,
+		})
 	}
 	client.patchCheck = check
 	if index := client.patchCalls - 1; index < len(client.patchErrs) {

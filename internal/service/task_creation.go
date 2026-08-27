@@ -34,6 +34,10 @@ type JobInput struct {
 	StartLocal              string
 	DurationMinutes         int
 	CompletionWindowMinutes int
+	Interval                int
+	Unit                    RecurrenceUnit
+	Mode                    RecurrenceMode
+	KeepDueTime             bool
 }
 
 type OneTimeInput struct {
@@ -110,6 +114,9 @@ func BuildJobTask(input JobInput, location *time.Location) (vikunja.TaskWrite, e
 		return vikunja.TaskWrite{}, err
 	}
 	title := strings.TrimSpace(input.Title)
+	if title == "" && input.Interval > 0 {
+		return vikunja.TaskWrite{}, errors.New("title is required for a recurring job")
+	}
 	if title == "" {
 		title = "Job " + start.In(location).Format("02-01-2006 - 15:04")
 	}
@@ -129,6 +136,22 @@ func BuildJobTask(input JobInput, location *time.Location) (vikunja.TaskWrite, e
 	base.StartDate = &start
 	base.EndDate = &end
 	base.DueDate = &due
+	if input.Interval == 0 {
+		if input.KeepDueTime {
+			return vikunja.TaskWrite{}, errors.New("keep time of day requires a recurring job")
+		}
+		return base, nil
+	}
+	rule, err := BuildIntervalRecurrence(input.Interval, input.Unit, input.Mode)
+	if err != nil {
+		return vikunja.TaskWrite{}, err
+	}
+	if input.KeepDueTime && (input.Mode != RecurrenceModeFromCompletion ||
+		(input.Unit != RecurrenceUnitDay && input.Unit != RecurrenceUnitWeek)) {
+		return vikunja.TaskWrite{}, errors.New("keep time of day requires a day or week recurrence from completion")
+	}
+	base.RepeatAfter = rule.RepeatAfter
+	base.RepeatMode = rule.RepeatMode
 	return base, nil
 }
 

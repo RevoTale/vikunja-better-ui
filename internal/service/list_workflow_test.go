@@ -113,7 +113,7 @@ func TestListTasksRejectsOversizedActiveCandidateSet(t *testing.T) {
 	if len(client.queries) != 1 {
 		t.Fatalf("queries = %d", len(client.queries))
 	}
-	if client.queries[0].Filter != "done = false && labels in 4 && repeat_after = 0" {
+	if client.queries[0].Filter != "done = false && labels in 4" {
 		t.Fatalf("job filter = %q", client.queries[0].Filter)
 	}
 }

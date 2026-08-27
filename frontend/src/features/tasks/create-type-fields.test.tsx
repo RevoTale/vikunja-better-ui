@@ -9,6 +9,7 @@ const sharedProps = {
   initialDate: undefined,
   jobStart: { date: "2026-08-27", time: "09:00" },
   onJobStartChange: () => undefined,
+  isJob: false,
 } as const;
 
 describe("TaskTypeFields", () => {
@@ -26,5 +27,16 @@ describe("TaskTypeFields", () => {
 
     expect(markup).toContain('name="dueDate" value=""');
     expect(markup).toContain('id="dueTime" disabled=""');
+  });
+
+  it("composes recurring and Job fields with a time-of-day option", () => {
+    const markup = renderToStaticMarkup(<TaskTypeFields {...sharedProps} type="recurring" isJob />);
+
+    expect(markup).toContain('name="startDate"');
+    expect(markup).toContain('name="durationMinutes"');
+    expect(markup).toContain('name="interval"');
+    expect(markup).toContain('name="keepDueTime"');
+    expect(markup).toContain("Keep start time of day");
+    expect(markup).not.toContain('name="firstDueDate"');
   });
 });

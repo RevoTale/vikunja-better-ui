@@ -200,7 +200,8 @@ func (resolver *Resolver) weekViewModel(
 				return nil, weekMappingError(resolver, mapErr)
 			}
 			projections = append(projections, &model.WeekProjection{
-				SourceTask: source, DueAt: projection.DueAt, HasDueTime: projection.HasDueTime,
+				SourceTask: source, StartAt: optionalTime(projection.StartAt), EndAt: optionalTime(projection.EndAt),
+				DueAt: projection.DueAt, HasDueTime: projection.HasDueTime,
 			})
 		}
 		days = append(days, &model.WeekDay{

@@ -78,7 +78,19 @@ func completeRecurring(
 	if err != nil {
 		return RecurringCompletion{}, err
 	}
-	if !fixedTarget.IsZero() {
+	if ClassifyTask(before).Kind == TaskKindJob {
+		normalized, updatedGrant, normalizeErr := normalizeRecurringJob(
+			ctx, client, before, renewed, renewedMetadata.ETag, location, repairGrant,
+		)
+		repairGrant = updatedGrant
+		if normalizeErr != nil {
+			return RecurringCompletion{
+				LiveTask: renewed, CompletionKey: key, RepairRequired: true,
+				RepairCause: normalizeErr, RepairGrant: repairGrant,
+			}, nil
+		}
+		renewed = normalized
+	} else if !fixedTarget.IsZero() {
 		normalized, normalizeErr := normalizeRenewedDue(ctx, client, renewed, renewedMetadata.ETag, fixedTarget)
 		err = normalizeErr
 		if err != nil {
@@ -102,6 +114,26 @@ func completeRecurring(
 	return completeRecurringSnapshot(ctx, client, before, renewed, key, repairGrant, outcome)
 }
 
+func normalizeRecurringJob(
+	ctx context.Context,
+	client recurringCompletionClient,
+	before vikunja.Task,
+	renewed vikunja.Task,
+	etag string,
+	location *time.Location,
+	grant RecurringRepairGrant,
+) (vikunja.Task, RecurringRepairGrant, error) {
+	target, err := targetRecurringJobSchedule(before, renewed.DoneAt, location)
+	if err != nil {
+		return renewed, grant, err
+	}
+	grant.TargetStartAt = target.StartAt
+	grant.TargetEndAt = target.EndAt
+	grant.TargetDueAt = target.DueAt
+	normalized, err := normalizeRenewedJobSchedule(ctx, client, renewed, etag, target)
+	return normalized, grant, err
+}
+
 func prepareRecurringCompletion(
 	ctx context.Context,
 	client recurringCompletionClient,
@@ -115,7 +147,7 @@ func prepareRecurringCompletion(
 		return vikunja.Task{}, time.Time{}, err
 	}
 	classification := ClassifyTask(task)
-	if task.Done || metadata.ETag == "" || classification.Kind != TaskKindRecurring {
+	if task.Done || metadata.ETag == "" || !classification.Recurring {
 		return vikunja.Task{}, time.Time{}, ErrTaskKindMismatch
 	}
 	if expectedDueAt.IsZero() || !task.DueDate.Equal(expectedDueAt) {
@@ -123,6 +155,10 @@ func prepareRecurringCompletion(
 	}
 	if !classification.FixedDueTime {
 		return task, time.Time{}, nil
+	}
+	if classification.Kind == TaskKindJob {
+		_, err := targetRecurringJobSchedule(task, capabilities.now(), location)
+		return task, time.Time{}, err
 	}
 	fixedTarget, err := resolveCompletionDateDueTime(
 		capabilities.now(), task.DueDate, task.RepeatAfter, location,
@@ -156,7 +192,9 @@ func renewRecurringTask(
 	grant := RecurringRepairGrant{
 		TaskID: before.ID, ProjectID: before.ProjectID, LiveETag: metadata.ETag, CompletionKey: key,
 		Outcome: outcome, DueAt: before.DueDate, StartAt: before.StartDate, EndAt: before.EndDate,
-		RenewedDoneAt: renewed.DoneAt, NativeDueAt: renewed.DueDate, TargetDueAt: fixedTarget,
+		RenewedDoneAt: renewed.DoneAt,
+		NativeStartAt: renewed.StartDate, NativeEndAt: renewed.EndDate,
+		NativeDueAt: renewed.DueDate, TargetDueAt: fixedTarget,
 		RepeatAfter: renewed.RepeatAfter, RepeatMode: renewed.RepeatMode,
 	}
 	return renewed, metadata, key, grant, nil
@@ -221,9 +259,47 @@ func normalizeRenewedDue(
 	return confirmed, nil
 }
 
+func normalizeRenewedJobSchedule(
+	ctx context.Context,
+	client recurringCompletionClient,
+	task vikunja.Task,
+	etag string,
+	target jobSchedule,
+) (vikunja.Task, error) {
+	if jobScheduleMatches(task, target) {
+		return task, nil
+	}
+	if etag == "" {
+		return vikunja.Task{}, errors.New("renewed task has no ETag")
+	}
+	if _, err := client.PatchTaskChecked(ctx, task.ID, vikunja.TaskPatch{
+		StartDate: &target.StartAt, EndDate: &target.EndAt, DueDate: &target.DueAt,
+	}, vikunja.TaskCheck{
+		Done: new(false), StartDate: &task.StartDate, EndDate: &task.EndDate, DueDate: &task.DueDate,
+		RepeatAfter: &task.RepeatAfter, RepeatMode: &task.RepeatMode,
+	}); err != nil {
+		return vikunja.Task{}, taskPatchError(err)
+	}
+	confirmed, _, err := client.Task(ctx, task.ID)
+	if err != nil {
+		return vikunja.Task{}, err
+	}
+	classification := ClassifyTask(confirmed)
+	if !jobScheduleMatches(confirmed, target) ||
+		classification.Kind != TaskKindJob || !classification.Recurring {
+		return vikunja.Task{}, errors.New("recurring job schedule normalization was not confirmed")
+	}
+	return confirmed, nil
+}
+
+func jobScheduleMatches(task vikunja.Task, target jobSchedule) bool {
+	return task.StartDate.Equal(target.StartAt) && task.EndDate.Equal(target.EndAt) &&
+		task.DueDate.Equal(target.DueAt)
+}
+
 func verifyRenewal(before vikunja.Task, renewed vikunja.Task) error {
 	if renewed.ID != before.ID || renewed.Done || renewed.DoneAt.IsZero() || renewed.DueDate.IsZero() ||
-		ClassifyTask(renewed).Kind != TaskKindRecurring {
+		!ClassifyTask(renewed).Recurring {
 		return errors.New("recurring renewal could not be confirmed")
 	}
 	switch before.RepeatMode {
@@ -235,9 +311,9 @@ func verifyRenewal(before vikunja.Task, renewed vikunja.Task) error {
 		if step <= 0 {
 			return errors.New("scheduled recurrence interval is invalid")
 		}
-		expected := before.DueDate.Add(step)
-		for !expected.After(renewed.DoneAt) {
-			expected = expected.Add(step)
+		expected, err := advanceAfter(before.DueDate.Add(step), renewed.DoneAt, step)
+		if err != nil {
+			return err
 		}
 		if !renewed.DueDate.Equal(expected) {
 			return errors.New("scheduled recurrence advanced unexpectedly")
@@ -353,7 +429,14 @@ func RepairRecurringSnapshot(
 	if !repairLiveStateMatches(live, metadata.ETag, grant) {
 		return RecurringCompletion{}, ErrTaskStateChanged
 	}
-	if !grant.TargetDueAt.IsZero() && live.DueDate.Equal(grant.NativeDueAt) {
+	if !grant.TargetStartAt.IsZero() && repairScheduleMatches(live, grant, false) {
+		live, err = normalizeRenewedJobSchedule(ctx, client, live, metadata.ETag, jobSchedule{
+			StartAt: grant.TargetStartAt, EndAt: grant.TargetEndAt, DueAt: grant.TargetDueAt,
+		})
+		if err != nil {
+			return RecurringCompletion{}, err
+		}
+	} else if grant.TargetStartAt.IsZero() && !grant.TargetDueAt.IsZero() && live.DueDate.Equal(grant.NativeDueAt) {
 		live, err = normalizeRenewedDue(ctx, client, live, metadata.ETag, grant.TargetDueAt)
 		if err != nil {
 			return RecurringCompletion{}, err
@@ -395,16 +478,26 @@ func RepairRecurringSnapshot(
 }
 
 func repairLiveStateMatches(live vikunja.Task, etag string, grant RecurringRepairGrant) bool {
-	if live.Done || ClassifyTask(live).Kind != TaskKindRecurring {
+	if live.Done || !ClassifyTask(live).Recurring {
 		return false
 	}
 	if grant.RenewedDoneAt.IsZero() {
 		return etag == grant.LiveETag
 	}
-	allowedDue := live.DueDate.Equal(grant.NativeDueAt) ||
-		(!grant.TargetDueAt.IsZero() && live.DueDate.Equal(grant.TargetDueAt))
+	allowedSchedule := repairScheduleMatches(live, grant, false) || repairScheduleMatches(live, grant, true)
 	return live.DoneAt.Equal(grant.RenewedDoneAt) && live.RepeatAfter == grant.RepeatAfter &&
-		live.RepeatMode == grant.RepeatMode && allowedDue
+		live.RepeatMode == grant.RepeatMode && allowedSchedule
+}
+
+func repairScheduleMatches(task vikunja.Task, grant RecurringRepairGrant, target bool) bool {
+	start, end, due := grant.NativeStartAt, grant.NativeEndAt, grant.NativeDueAt
+	if target {
+		start, end, due = grant.TargetStartAt, grant.TargetEndAt, grant.TargetDueAt
+	}
+	if start.IsZero() && end.IsZero() {
+		return task.DueDate.Equal(due)
+	}
+	return jobScheduleMatches(task, jobSchedule{StartAt: start, EndAt: end, DueAt: due})
 }
 
 func attachMissingSnapshotLabels(

@@ -1,17 +1,17 @@
 import { describe, expect, it } from "vitest";
 
-import { taskKindLabel } from "./task-kind-label";
+import { taskKindLabel, taskKindLabels } from "./task-kind-label";
 
 describe("taskKindLabel", () => {
-  it("explains when a task is both recurring and a job", () => {
+  it("renders Job and Recurring as separate badges", () => {
     expect(
-      taskKindLabel({
-        kind: "INVALID",
+      taskKindLabels({
+        kind: "JOB",
         isDone: false,
         recurrenceRule: { interval: 1, unit: "DAY", mode: "FROM_COMPLETION" },
         labels: [{ title: "job" }],
       }),
-    ).toBe("Invalid: both recurring and job");
+    ).toEqual(["Job", "Recurring"]);
   });
 
   it("keeps ordinary task-kind labels concise", () => {

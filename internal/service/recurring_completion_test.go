@@ -179,6 +179,88 @@ func TestCompleteRecurringKeepsDueTimeOnCompletionRelativeDate(t *testing.T) {
 	}
 }
 
+func TestCompleteRecurringJobKeepsStartTimeOfDayAndJobHistory(t *testing.T) {
+	t.Parallel()
+
+	completedAt := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
+	before := recurringJobAt(
+		time.Date(2026, time.August, 10, 9, 0, 0, 0, time.UTC),
+		2*recurrenceDaySeconds,
+		2,
+	)
+	before.ID = 9
+	before.ProjectID = 7
+	before.Title = "Read a book"
+	before.Labels = append(before.Labels, vikunja.Label{ID: 10, Title: fixedDueTimeLabel})
+	native := before
+	native.StartDate = time.Date(2026, time.August, 14, 10, 0, 0, 0, time.UTC)
+	native.EndDate = native.StartDate.Add(time.Hour)
+	native.DueDate = completedAt.Add(48 * time.Hour)
+	native.DoneAt = completedAt
+	targetStart := time.Date(2026, time.August, 14, 9, 0, 0, 0, time.UTC)
+	normalized := native
+	normalized.StartDate = targetStart
+	normalized.EndDate = targetStart.Add(time.Hour)
+	normalized.DueDate = targetStart.Add(2 * time.Hour)
+
+	capabilities := NewCapabilityManager(
+		[]byte("01234567890123456789012345678901"),
+		func() time.Time { return completedAt },
+	)
+	key := capabilities.CompletionKey(before.ID, completedAt, before.DueDate)
+	created := vikunja.Task{
+		ID: 12, ProjectID: 7, Title: before.Title, Description: completionMetadata(key),
+	}
+	confirmed := created
+	confirmed.Done = true
+	confirmed.DoneAt = completedAt
+	confirmed.StartDate = before.StartDate
+	confirmed.EndDate = before.EndDate
+	confirmed.DueDate = before.DueDate
+	confirmed.Labels = []vikunja.Label{
+		{ID: 1, Title: jobLabel},
+		{ID: 6, Title: recurrenceHistoryLabel},
+	}
+	client := &recurringClientStub{
+		searchPage: vikunja.TaskPage{Items: []vikunja.Task{}, Page: 1, PerPage: 1000},
+		created:    created,
+		labels:     []vikunja.Label{{ID: 6, Title: recurrenceHistoryLabel}},
+	}
+	client.reads = []taskRead{
+		{task: before, etag: `"v1"`},
+		{task: native, etag: `"v2"`},
+		{task: normalized, etag: `"v3"`},
+		{task: normalized, etag: `"v3"`},
+		{task: created, etag: `"snapshot-v1"`},
+		{task: confirmed, etag: `"snapshot-v2"`},
+	}
+
+	result, err := CompleteRecurring(context.Background(), client, capabilities, before.ID, before.DueDate, time.UTC)
+	if err != nil {
+		t.Fatalf("CompleteRecurring() error = %v", err)
+	}
+	if !result.LiveTask.StartDate.Equal(normalized.StartDate) ||
+		!result.LiveTask.EndDate.Equal(normalized.EndDate) ||
+		!result.LiveTask.DueDate.Equal(normalized.DueDate) {
+		t.Fatalf("live task = %#v", result.LiveTask)
+	}
+	if ClassifyTask(result.LiveTask).Kind != TaskKindJob || !ClassifyTask(result.LiveTask).Recurring {
+		t.Fatalf("live classification = %#v", ClassifyTask(result.LiveTask))
+	}
+	if ClassifyTask(result.Snapshot).Kind != TaskKindJob ||
+		ClassifyTask(result.Snapshot).Outcome != CompletionOutcomeCompleted {
+		t.Fatalf("snapshot classification = %#v", ClassifyTask(result.Snapshot))
+	}
+	if len(client.patchSchedules) != 1 || client.patchSchedules[0] != (jobSchedule{
+		StartAt: normalized.StartDate, EndAt: normalized.EndDate, DueAt: normalized.DueDate,
+	}) {
+		t.Fatalf("schedule patches = %#v", client.patchSchedules)
+	}
+	if client.attachedLabels[10] {
+		t.Fatalf("fixed-time marker was copied to History: %#v", client.attachedLabels)
+	}
+}
+
 func TestCompleteRecurringRejectsInvalidFixedDueTimeTargetBeforeWrite(t *testing.T) {
 	t.Parallel()
 
@@ -453,6 +535,62 @@ func TestRepairRecurringSnapshotFinishesFixedDueTimeNormalization(t *testing.T) 
 	}
 	if len(client.patchDues) != 1 || !client.patchDues[0].Equal(targetDue) || client.patchDone != nil {
 		t.Fatalf("repair patches: due=%#v done=%v", client.patchDues, client.patchDone)
+	}
+}
+
+func TestRepairRecurringSnapshotFinishesWholeJobScheduleNormalization(t *testing.T) {
+	t.Parallel()
+
+	completedAt := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
+	native := recurringJobAt(
+		time.Date(2026, time.August, 14, 12, 0, 0, 0, time.UTC),
+		2*recurrenceDaySeconds,
+		2,
+	)
+	native.ID = 9
+	native.ProjectID = 7
+	native.DoneAt = completedAt
+	target := jobSchedule{
+		StartAt: time.Date(2026, time.August, 14, 9, 0, 0, 0, time.UTC),
+		EndAt:   time.Date(2026, time.August, 14, 10, 0, 0, 0, time.UTC),
+		DueAt:   time.Date(2026, time.August, 14, 11, 0, 0, 0, time.UTC),
+	}
+	normalized := native
+	normalized.StartDate = target.StartAt
+	normalized.EndDate = target.EndAt
+	normalized.DueDate = target.DueAt
+	snapshot := vikunja.Task{
+		ID: 12, ProjectID: 7, Title: "Read a book", Done: true, DoneAt: completedAt,
+		Description: completionMetadata("job-schedule-repair"),
+		Labels: []vikunja.Label{
+			{ID: 1, Title: jobLabel},
+			{ID: 6, Title: recurrenceHistoryLabel},
+		},
+	}
+	client := &recurringClientStub{
+		searchPage: vikunja.TaskPage{
+			Items: []vikunja.Task{snapshot}, Total: 1, Page: 1, PerPage: 1000, TotalPages: 1,
+		},
+	}
+	client.reads = []taskRead{
+		{task: native, etag: `"v2"`},
+		{task: normalized, etag: `"v3"`},
+		{task: snapshot, etag: `"snapshot-v2"`},
+	}
+
+	result, err := RepairRecurringSnapshot(context.Background(), client, RecurringRepairGrant{
+		TaskID: 9, ProjectID: 7, LiveETag: `"v2"`, CompletionKey: "job-schedule-repair",
+		Outcome: CompletionOutcomeCompleted, RenewedDoneAt: completedAt,
+		NativeStartAt: native.StartDate, NativeEndAt: native.EndDate, NativeDueAt: native.DueDate,
+		TargetStartAt: target.StartAt, TargetEndAt: target.EndAt, TargetDueAt: target.DueAt,
+		RepeatAfter: native.RepeatAfter, RepeatMode: native.RepeatMode,
+	})
+	if err != nil {
+		t.Fatalf("RepairRecurringSnapshot() error = %v", err)
+	}
+	if !jobScheduleMatches(result.LiveTask, target) || result.Snapshot.ID != snapshot.ID ||
+		len(client.patchSchedules) != 1 || client.patchSchedules[0] != target {
+		t.Fatalf("RepairRecurringSnapshot() = %#v, patches = %#v", result, client.patchSchedules)
 	}
 }
 

@@ -27,6 +27,7 @@ export function TaskRecurrenceSetting({
   const [error, setError] = useState("");
   const policy = recurrenceSettingPolicy(task);
   const checked = task.recurrenceRule?.keepDueTime ?? false;
+  const isJob = task.kind === "JOB";
 
   if (!policy.visible) return null;
 
@@ -54,7 +55,7 @@ export function TaskRecurrenceSetting({
       }
       setNotice(
         enabled
-          ? "Future occurrences will keep this local due time."
+          ? `Future occurrences will keep this local ${isJob ? "start" : "due"} time.`
           : "Future occurrences will use the exact elapsed interval.",
       );
       await onChanged();
@@ -81,11 +82,16 @@ export function TaskRecurrenceSetting({
           disabled={pending || (!checked && !policy.canEnable)}
           onChange={(event) => void changeSetting(event.currentTarget.checked)}
           className="mt-1 size-4 accent-primary"
+          aria-label={isJob ? "Keep start time of day" : "Keep due time"}
           aria-describedby="task-keep-due-time-description"
         />
         <span>
           <span className="block text-sm font-medium">
-            {pending ? "Saving due-time behavior…" : "Keep due time"}
+            {pending
+              ? "Saving recurrence behavior…"
+              : isJob
+                ? "Keep start time of day"
+                : "Keep due time"}
           </span>
           <span
             id="task-keep-due-time-description"

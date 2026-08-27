@@ -31,6 +31,7 @@ import {
   type LocalDateTimeParts,
 } from "./local-date-time";
 import {
+  type CreationBaseType,
   type CreationType,
   hasTaskFormErrors,
   serverTaskFormErrors,
@@ -77,6 +78,7 @@ export function CreateTaskPage({
     taskId: string;
     steps: readonly string[];
   }>();
+  const baseType: CreationBaseType = type === "job" ? "one-time" : type;
   const projects = projectData?.projects.items ?? [];
   const timezone = sessionData?.session.vikunjaUser?.timezone;
   const defaultDate = timezone ? currentDateInTimeZone(timezone) : undefined;
@@ -88,12 +90,81 @@ export function CreateTaskPage({
     "";
   const loading = oneTimeState.loading || recurringState.loading || jobState.loading;
 
+  async function createValidatedTask(form: FormData, csrfToken: string) {
+    const title = text(form, "title").trim();
+    const projectId = text(form, "projectId");
+    const priority = text(form, "priority") as TaskPriority;
+    if (text(form, "job") === "on") {
+      return (
+        await createJob({
+          variables: {
+            input: {
+              csrfToken,
+              title: title || null,
+              description: optional(form, "description"),
+              projectId,
+              priority,
+              startAt: requiredJobStart(form),
+              durationMinutes: Number(text(form, "durationMinutes")),
+              completionWindowMinutes: Number(text(form, "completionWindowMinutes")),
+              recurrence:
+                baseType === "recurring"
+                  ? {
+                      interval: Number(text(form, "interval")),
+                      unit: text(form, "unit") as RecurrenceUnit,
+                      mode: text(form, "mode") as RecurrenceMode,
+                      keepDueTime: text(form, "keepDueTime") === "on",
+                    }
+                  : null,
+            },
+          },
+        })
+      ).data?.createJob;
+    }
+    if (baseType === "one-time") {
+      return (
+        await createOneTime({
+          variables: {
+            input: {
+              csrfToken,
+              title,
+              description: optional(form, "description"),
+              projectId,
+              priority,
+              dueDate: optional(form, "dueDate"),
+              dueTime: optional(form, "dueTime"),
+            },
+          },
+        })
+      ).data?.createOneTimeTask;
+    }
+    return (
+      await createRecurring({
+        variables: {
+          input: {
+            csrfToken,
+            title,
+            description: optional(form, "description"),
+            projectId,
+            priority,
+            firstDueDate: text(form, "firstDueDate"),
+            dueTime: optional(form, "dueTime"),
+            interval: Number(text(form, "interval")),
+            unit: text(form, "unit") as RecurrenceUnit,
+            mode: text(form, "mode") as RecurrenceMode,
+            keepDueTime: text(form, "keepDueTime") === "on",
+          },
+        },
+      })
+    ).data?.createRecurringTask;
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     const formElement = event.currentTarget;
     const form = new FormData(formElement);
-    const validationErrors = validateTaskForm(type, form);
+    const validationErrors = validateTaskForm(baseType, form);
     if (hasTaskFormErrors(validationErrors)) {
       setFieldErrors(validationErrors);
       focusFirstInvalid(formElement, validationErrors);
@@ -101,70 +172,12 @@ export function CreateTaskPage({
     }
     setFieldErrors({});
     const csrfToken = sessionData?.session.csrfToken;
-    const title = text(form, "title").trim();
-    const projectId = text(form, "projectId");
-    const priority = text(form, "priority") as TaskPriority;
     if (!csrfToken) {
       setError("Your session is unavailable. Refresh the page and sign in again.");
       return;
     }
     try {
-      const createByType: Record<CreationType, () => Promise<CreatePayload | undefined>> = {
-        "one-time": async () =>
-          (
-            await createOneTime({
-              variables: {
-                input: {
-                  csrfToken,
-                  title,
-                  description: optional(form, "description"),
-                  projectId,
-                  priority,
-                  dueDate: optional(form, "dueDate"),
-                  dueTime: optional(form, "dueTime"),
-                },
-              },
-            })
-          ).data?.createOneTimeTask,
-        recurring: async () =>
-          (
-            await createRecurring({
-              variables: {
-                input: {
-                  csrfToken,
-                  title,
-                  description: optional(form, "description"),
-                  projectId,
-                  priority,
-                  firstDueDate: text(form, "firstDueDate"),
-                  dueTime: optional(form, "dueTime"),
-                  interval: Number(text(form, "interval")),
-                  unit: text(form, "unit") as RecurrenceUnit,
-                  mode: text(form, "mode") as RecurrenceMode,
-                  keepDueTime: text(form, "keepDueTime") === "on",
-                },
-              },
-            })
-          ).data?.createRecurringTask,
-        job: async () =>
-          (
-            await createJob({
-              variables: {
-                input: {
-                  csrfToken,
-                  title: title || null,
-                  description: optional(form, "description"),
-                  projectId,
-                  priority,
-                  startAt: requiredJobStart(form),
-                  durationMinutes: Number(text(form, "durationMinutes")),
-                  completionWindowMinutes: Number(text(form, "completionWindowMinutes")),
-                },
-              },
-            })
-          ).data?.createJob,
-      };
-      const payload = await createByType[type]();
+      const payload: CreatePayload | undefined = await createValidatedTask(form, csrfToken);
       if (!payload) throw new Error("empty result");
       if (payload.status === "REPAIR_REQUIRED" && payload.repairCapability) {
         setRepairInfo({
@@ -188,7 +201,7 @@ export function CreateTaskPage({
     } catch (caught) {
       const validationMessage = graphQLValidationMessage(caught);
       const serverErrors = validationMessage
-        ? serverTaskFormErrors(type, form, validationMessage)
+        ? serverTaskFormErrors(baseType, form, validationMessage)
         : {};
       if (hasTaskFormErrors(serverErrors)) {
         setFieldErrors(serverErrors);
@@ -269,18 +282,18 @@ export function CreateTaskPage({
       >
         <ArrowLeft /> Back
       </a>
-      <h1 className="font-serif text-3xl font-semibold">New {taskTypeLabel(type)}</h1>
-      <fieldset className="mt-4 grid grid-cols-3 gap-2">
+      <h1 className="font-serif text-3xl font-semibold">New {taskTypeLabel(baseType)}</h1>
+      <fieldset className="mt-4 grid grid-cols-2 gap-2">
         <legend className="sr-only">Task type</legend>
-        {(["one-time", "recurring", "job"] as const).map((value) => (
+        {(["one-time", "recurring"] as const).map((value) => (
           <Button
             key={value}
             aria-label={taskTypeLabel(value)}
-            aria-pressed={value === type}
-            variant={value === type ? "default" : "outline"}
+            aria-pressed={value === baseType}
+            variant={value === baseType ? "default" : "outline"}
             className="min-w-0 whitespace-nowrap px-2"
             onClick={() => {
-              if (value === type) return;
+              if (value === baseType) return;
               setError("");
               setFieldErrors({});
               return navigate({
@@ -316,7 +329,9 @@ export function CreateTaskPage({
         </div>
       ) : null}
       <CreateTaskForm
-        type={type}
+        key={baseType}
+        type={baseType}
+        initialJob={type === "job"}
         projects={projects}
         defaultProject={defaultProject}
         timezone={timezone}

@@ -16,6 +16,7 @@ func TestClassifyTask(t *testing.T) {
 		wantKind         TaskKind
 		wantDateOnly     bool
 		wantFixedDueTime bool
+		wantRecurring    bool
 		wantOutcome      CompletionOutcome
 	}{
 		{name: "one time", task: vikunja.Task{}, wantKind: TaskKindOneTime},
@@ -26,7 +27,32 @@ func TestClassifyTask(t *testing.T) {
 			wantOutcome: CompletionOutcomeCompleted,
 		},
 		{name: "job", task: taskWithLabels(jobLabel), wantKind: TaskKindJob},
-		{name: "recurring", task: vikunja.Task{RepeatAfter: 86400}, wantKind: TaskKindRecurring},
+		{
+			name: "recurring", task: vikunja.Task{RepeatAfter: 86400},
+			wantKind: TaskKindRecurring, wantRecurring: true,
+		},
+		{
+			name: "recurring job",
+			task: vikunja.Task{
+				StartDate:   time.Date(2026, time.August, 15, 9, 0, 0, 0, time.UTC),
+				EndDate:     time.Date(2026, time.August, 15, 10, 0, 0, 0, time.UTC),
+				DueDate:     time.Date(2026, time.August, 15, 11, 0, 0, 0, time.UTC),
+				RepeatAfter: 2 * 86400,
+				Labels:      []vikunja.Label{{ID: 1, Title: jobLabel}},
+			},
+			wantKind: TaskKindJob, wantRecurring: true,
+		},
+		{
+			name: "fixed start time recurring job",
+			task: vikunja.Task{
+				StartDate:   time.Date(2026, time.August, 15, 9, 0, 0, 0, time.UTC),
+				EndDate:     time.Date(2026, time.August, 15, 10, 0, 0, 0, time.UTC),
+				DueDate:     time.Date(2026, time.August, 15, 11, 0, 0, 0, time.UTC),
+				RepeatAfter: 2 * 86400, RepeatMode: 2,
+				Labels: []vikunja.Label{{ID: 1, Title: jobLabel}, {ID: 2, Title: fixedDueTimeLabel}},
+			},
+			wantKind: TaskKindJob, wantRecurring: true, wantFixedDueTime: true,
+		},
 		{
 			name: "fixed due time recurrence",
 			task: vikunja.Task{
@@ -34,7 +60,7 @@ func TestClassifyTask(t *testing.T) {
 				RepeatAfter: 86400, RepeatMode: 2,
 				Labels: []vikunja.Label{{ID: 1, Title: fixedDueTimeLabel}},
 			},
-			wantKind: TaskKindRecurring, wantFixedDueTime: true,
+			wantKind: TaskKindRecurring, wantFixedDueTime: true, wantRecurring: true,
 		},
 		{
 			name: "fixed due time scheduled recurrence is invalid",
@@ -84,11 +110,6 @@ func TestClassifyTask(t *testing.T) {
 			wantDateOnly: true,
 		},
 		{
-			name:     "recurring job is invalid",
-			task:     recurringTaskWithLabels(jobLabel),
-			wantKind: TaskKindInvalid,
-		},
-		{
 			name:     "incomplete history snapshot is invalid",
 			task:     taskWithLabels(recurrenceHistoryLabel),
 			wantKind: TaskKindInvalid,
@@ -99,9 +120,10 @@ func TestClassifyTask(t *testing.T) {
 			wantKind: TaskKindInvalid,
 		},
 		{
-			name:     "history snapshot job is invalid",
-			task:     taskWithDoneAndLabels(true, recurrenceHistoryLabel, jobLabel),
-			wantKind: TaskKindInvalid,
+			name:        "history snapshot job",
+			task:        taskWithDoneAndLabels(true, recurrenceHistoryLabel, jobLabel),
+			wantKind:    TaskKindJob,
+			wantOutcome: CompletionOutcomeCompleted,
 		},
 		{
 			name:     "active skipped marker is invalid",
@@ -137,13 +159,15 @@ func TestClassifyTask(t *testing.T) {
 			classification := ClassifyTask(test.task)
 			if classification.Kind != test.wantKind || classification.DateOnly != test.wantDateOnly ||
 				classification.FixedDueTime != test.wantFixedDueTime ||
+				classification.Recurring != test.wantRecurring ||
 				classification.Outcome != test.wantOutcome {
 				t.Fatalf(
-					"ClassifyTask() = %#v, want kind %q dateOnly %v fixedDueTime %v outcome %q",
+					"ClassifyTask() = %#v, want kind %q dateOnly %v fixedDueTime %v recurring %v outcome %q",
 					classification,
 					test.wantKind,
 					test.wantDateOnly,
 					test.wantFixedDueTime,
+					test.wantRecurring,
 					test.wantOutcome,
 				)
 			}
@@ -161,10 +185,6 @@ func taskWithDoneAndLabels(done bool, titles ...string) vikunja.Task {
 		labels = append(labels, vikunja.Label{ID: int64(index + 1), Title: title})
 	}
 	return vikunja.Task{Done: done, Labels: labels}
-}
-
-func recurringTaskWithLabels(titles ...string) vikunja.Task {
-	return recurringTaskWithDoneAndLabels(false, titles...)
 }
 
 func recurringTaskWithDoneAndLabels(done bool, titles ...string) vikunja.Task {
