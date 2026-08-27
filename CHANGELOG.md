@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1](https://github.com/RevoTale/vikunja-better-ui/compare/v1.6.0...v1.6.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **deps:** update tanstack-router monorepo ([d2e19cb](https://github.com/RevoTale/vikunja-better-ui/commit/d2e19cb676b7401c4e00feb7bbd5febc6eb45126))
+* **deps:** update tanstack-router monorepo ([b24f663](https://github.com/RevoTale/vikunja-better-ui/commit/b24f66365c5f8030ab052b49e258c68da48c30ce))
+
 ## [1.6.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.5.0...v1.6.0) (2026-08-27)
 
 
