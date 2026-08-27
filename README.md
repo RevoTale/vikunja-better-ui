@@ -86,6 +86,18 @@ not offer Undo. See the [Recurring Jobs specification](docs/specs/recurring-jobs
 and [ADR-006](docs/decisions/0006-recurring-jobs-use-native-renewal.md) for the
 full creation, renewal, repair, projection, and History contracts.
 
+### Task creation autofill
+
+New task remembers selected values only after a successful
+task creation and only in the current browser. Explicit URL context and current
+user input always take precedence. Each populated field is marked
+**From last task**, and storage failures leave the normal form unchanged.
+
+Storage and collision handling stay in a dedicated feature module instead of
+individual form components. See the
+[task creation autofill specification](docs/specs/task-creation-autofill.md) and
+[ADR-007](docs/decisions/0007-local-task-creation-autofill.md).
+
 The Week view combines real tasks with clearly marked, non-actionable computed
 scheduled cycles. It never assigns an estimated day to From completion
 recurrence. See the [weekly ledger specification](docs/specs/weekly-ledger.md)

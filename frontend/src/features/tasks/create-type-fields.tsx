@@ -2,6 +2,11 @@ import { useState } from "react";
 
 import { AppInput } from "@/components/app-input";
 import { AppSelect } from "@/components/app-select";
+import type {
+  ChangeTaskCreationAutofillField,
+  TaskCreationAutofillField,
+  TaskCreationValues,
+} from "./autofill/task-creation-autofill";
 import { DatePickerField } from "./date-picker-field";
 import { JobStartFields } from "./job-start-fields";
 import type { LocalDateTimeParts } from "./local-date-time";
@@ -11,76 +16,104 @@ import { ValidatedField } from "./validated-field";
 
 export function TaskTypeFields({
   type,
-  isJob,
   errors,
   defaultDate,
-  initialDate,
-  jobStart,
-  onJobStartChange,
+  values,
+  autofilled,
+  onFieldChange,
 }: {
   type: CreationBaseType;
-  isJob: boolean;
   errors: TaskFormErrors;
   defaultDate: string;
-  initialDate: string | undefined;
-  jobStart: LocalDateTimeParts;
-  onJobStartChange: (value: LocalDateTimeParts) => void;
+  values: TaskCreationValues;
+  autofilled: ReadonlySet<TaskCreationAutofillField>;
+  onFieldChange: ChangeTaskCreationAutofillField;
 }) {
-  if (isJob)
+  if (values.job)
     return (
       <>
         <JobFields
           errors={errors}
           defaultDate={defaultDate}
-          start={jobStart}
-          onStartChange={onJobStartChange}
+          start={{ date: values.startDate, time: values.startTime }}
+          values={values}
+          autofilled={autofilled}
+          onFieldChange={onFieldChange}
         />
         {type === "recurring" ? (
-          <RecurrenceFields errors={errors} timeOfDay={jobStart.time} isJob />
+          <RecurrenceFields errors={errors} timeOfDay={values.startTime} isJob />
         ) : null}
       </>
     );
   if (type === "one-time")
-    return <OneTimeFields errors={errors} defaultDate={defaultDate} initialDate={initialDate} />;
+    return (
+      <OneTimeFields
+        errors={errors}
+        defaultDate={defaultDate}
+        values={values}
+        autofilled={autofilled}
+        onFieldChange={onFieldChange}
+      />
+    );
   if (type === "recurring")
-    return <RecurringFields errors={errors} defaultDate={initialDate ?? defaultDate} />;
+    return (
+      <RecurringFields
+        errors={errors}
+        defaultDate={defaultDate}
+        values={values}
+        autofilled={autofilled}
+        onFieldChange={onFieldChange}
+      />
+    );
   return null;
 }
 
 function OneTimeFields({
   errors,
   defaultDate,
-  initialDate,
+  values,
+  autofilled,
+  onFieldChange,
 }: {
   errors: TaskFormErrors;
   defaultDate: string;
-  initialDate: string | undefined;
+  values: TaskCreationValues;
+  autofilled: ReadonlySet<TaskCreationAutofillField>;
+  onFieldChange: ChangeTaskCreationAutofillField;
 }) {
-  const [dueDate, setDueDate] = useState(initialDate ?? "");
-  const [dueTime, setDueTime] = useState("");
   return (
     <div className="grid gap-5 sm:grid-cols-2">
-      <ValidatedField name="dueDate" label="Due date" error={errors.dueDate}>
+      <ValidatedField
+        name="dueDate"
+        label="Due date"
+        error={errors.dueDate}
+        autofilled={autofilled.has("dueDate")}
+      >
         {(attributes) => (
           <DatePickerField
             id="dueDate"
             name="dueDate"
             label="Due date"
-            value={dueDate}
+            value={values.dueDate}
             defaultDate={defaultDate}
-            onChange={setDueDate}
+            onChange={(dueDate) => onFieldChange("dueDate", dueDate)}
             {...attributes}
           />
         )}
       </ValidatedField>
-      <ValidatedField name="dueTime" label="Due time" error={errors.dueTime}>
+      <ValidatedField
+        name="dueTime"
+        label="Due time"
+        error={errors.dueTime}
+        autofilled={autofilled.has("dueTime")}
+      >
         {(attributes) => (
           <TimeInput24
             id="dueTime"
             name="dueTime"
-            value={dueTime}
-            onChange={setDueTime}
-            disabled={!dueDate}
+            value={values.dueTime}
+            onChange={(dueTime) => onFieldChange("dueTime", dueTime)}
+            disabled={!values.dueDate}
             {...attributes}
           />
         )}
@@ -89,39 +122,59 @@ function OneTimeFields({
   );
 }
 
-function RecurringFields({ errors, defaultDate }: { errors: TaskFormErrors; defaultDate: string }) {
-  const [firstDueDate, setFirstDueDate] = useState(defaultDate);
-  const [dueTime, setDueTime] = useState("");
+function RecurringFields({
+  errors,
+  defaultDate,
+  values,
+  autofilled,
+  onFieldChange,
+}: {
+  errors: TaskFormErrors;
+  defaultDate: string;
+  values: TaskCreationValues;
+  autofilled: ReadonlySet<TaskCreationAutofillField>;
+  onFieldChange: ChangeTaskCreationAutofillField;
+}) {
   return (
     <>
       <div className="grid gap-5 sm:grid-cols-2">
-        <ValidatedField name="firstDueDate" label="First due date" error={errors.firstDueDate}>
+        <ValidatedField
+          name="firstDueDate"
+          label="First due date"
+          error={errors.firstDueDate}
+          autofilled={autofilled.has("firstDueDate")}
+        >
           {(attributes) => (
             <DatePickerField
               id="firstDueDate"
               name="firstDueDate"
               label="First due date"
-              value={firstDueDate}
+              value={values.firstDueDate}
               defaultDate={defaultDate}
-              onChange={setFirstDueDate}
+              onChange={(firstDueDate) => onFieldChange("firstDueDate", firstDueDate)}
               required
               {...attributes}
             />
           )}
         </ValidatedField>
-        <ValidatedField name="dueTime" label="Due time" error={errors.dueTime}>
+        <ValidatedField
+          name="dueTime"
+          label="Due time"
+          error={errors.dueTime}
+          autofilled={autofilled.has("dueTime")}
+        >
           {(attributes) => (
             <TimeInput24
               id="dueTime"
               name="dueTime"
-              value={dueTime}
-              onChange={setDueTime}
+              value={values.dueTime}
+              onChange={(dueTime) => onFieldChange("dueTime", dueTime)}
               {...attributes}
             />
           )}
         </ValidatedField>
       </div>
-      <RecurrenceFields errors={errors} timeOfDay={dueTime} isJob={false} />
+      <RecurrenceFields errors={errors} timeOfDay={values.dueTime} isJob={false} />
     </>
   );
 }
@@ -223,12 +276,16 @@ function JobFields({
   errors,
   defaultDate,
   start,
-  onStartChange,
+  values,
+  autofilled,
+  onFieldChange,
 }: {
   errors: TaskFormErrors;
   defaultDate: string;
   start: LocalDateTimeParts;
-  onStartChange: (value: LocalDateTimeParts) => void;
+  values: TaskCreationValues;
+  autofilled: ReadonlySet<TaskCreationAutofillField>;
+  onFieldChange: ChangeTaskCreationAutofillField;
 }) {
   return (
     <>
@@ -236,13 +293,18 @@ function JobFields({
         value={start}
         defaultDate={defaultDate}
         errors={errors}
-        onChange={onStartChange}
+        autofilled={autofilled}
+        onChange={(next) => {
+          if (next.date !== start.date) onFieldChange("startDate", next.date);
+          if (next.time !== start.time) onFieldChange("startTime", next.time);
+        }}
       />
       <div className="grid gap-5 sm:grid-cols-2">
         <ValidatedField
           name="durationMinutes"
           label="Duration in minutes"
           error={errors.durationMinutes}
+          autofilled={autofilled.has("durationMinutes")}
         >
           {(attributes) => (
             <AppInput
@@ -250,7 +312,8 @@ function JobFields({
               name="durationMinutes"
               type="number"
               min="1"
-              defaultValue="60"
+              value={values.durationMinutes}
+              onChange={(event) => onFieldChange("durationMinutes", event.currentTarget.value)}
               required
               {...attributes}
             />
@@ -260,6 +323,7 @@ function JobFields({
           name="completionWindowMinutes"
           label="Time to complete after it ends"
           error={errors.completionWindowMinutes}
+          autofilled={autofilled.has("completionWindowMinutes")}
         >
           {(attributes) => (
             <AppInput
@@ -267,7 +331,10 @@ function JobFields({
               name="completionWindowMinutes"
               type="number"
               min="1"
-              defaultValue="60"
+              value={values.completionWindowMinutes}
+              onChange={(event) =>
+                onFieldChange("completionWindowMinutes", event.currentTarget.value)
+              }
               required
               {...attributes}
             />

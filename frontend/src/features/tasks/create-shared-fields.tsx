@@ -1,46 +1,51 @@
-import { useState } from "react";
-
 import { AppInput } from "@/components/app-input";
 import { AppSelect } from "@/components/app-select";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import type { TaskPriority } from "@/graphql/graphql";
+import type {
+  ChangeTaskCreationAutofillField,
+  TaskCreationAutofillField,
+  TaskCreationValues,
+} from "./autofill/task-creation-autofill";
 import type { CreationBaseType, TaskFormErrors } from "./task-form-validation";
-import { isTaskPriority, taskPriorityOption, taskPriorityOptions } from "./task-priority";
+import { taskPriorityOption, taskPriorityOptions } from "./task-priority";
 import { ValidatedField } from "./validated-field";
 
 export function SharedFields({
   projects,
-  defaultProject,
   errors,
   type,
-  isJob,
   titlePlaceholder,
+  values,
+  autofilled,
+  onFieldChange,
 }: {
   projects: readonly { id: string; title: string }[];
-  defaultProject: string;
   errors: TaskFormErrors;
   type: CreationBaseType;
-  isJob: boolean;
   titlePlaceholder: string;
+  values: TaskCreationValues;
+  autofilled: ReadonlySet<TaskCreationAutofillField>;
+  onFieldChange: ChangeTaskCreationAutofillField;
 }) {
-  const [priority, setPriority] = useState<TaskPriority>("UNSET");
-
   return (
     <>
       <ValidatedField
         name="title"
-        label={isJob && type !== "recurring" ? "Title (optional)" : "Title"}
+        label={values.job && type !== "recurring" ? "Title (optional)" : "Title"}
         error={errors.title}
+        autofilled={autofilled.has("title")}
       >
         {(attributes) => (
           <AppInput
             id="title"
             name="title"
             autoFocus
-            required={!isJob || type === "recurring"}
-            placeholder={isJob && type !== "recurring" ? titlePlaceholder : undefined}
+            required={!values.job || type === "recurring"}
+            placeholder={values.job && type !== "recurring" ? titlePlaceholder : undefined}
             maxLength={250}
+            value={values.title}
+            onChange={(event) => onFieldChange("title", event.currentTarget.value)}
             {...attributes}
           />
         )}
@@ -50,34 +55,45 @@ export function SharedFields({
         <Textarea id="description" name="description" />
       </Field>
       <div className="grid gap-5 sm:grid-cols-2">
-        <ValidatedField name="projectId" label="Project" error={errors.projectId}>
+        <ValidatedField
+          name="projectId"
+          label="Project"
+          error={errors.projectId}
+          autofilled={autofilled.has("projectId")}
+        >
           {(attributes) => (
             <AppSelect
               id="projectId"
               name="projectId"
-              defaultValue={defaultProject}
+              value={values.projectId}
               options={projects.map((project) => ({
-                value: project.id,
+                value: String(project.id),
                 label: project.title,
               }))}
+              onValueChange={(projectId) => onFieldChange("projectId", projectId)}
               required
               {...attributes}
             />
           )}
         </ValidatedField>
-        <ValidatedField name="priority" label="Priority" error={errors.priority}>
+        <ValidatedField
+          name="priority"
+          label="Priority"
+          error={errors.priority}
+          autofilled={autofilled.has("priority")}
+        >
           {(attributes) => (
             <AppSelect
               id="priority"
               name="priority"
-              value={priority}
-              className={taskPriorityOption(priority).selectClassName}
+              value={values.priority}
+              className={taskPriorityOption(values.priority).selectClassName}
               options={taskPriorityOptions.map((option) => ({
                 value: option.value,
                 label: option.label,
               }))}
               onValueChange={(nextPriority) => {
-                if (isTaskPriority(nextPriority)) setPriority(nextPriority);
+                onFieldChange("priority", nextPriority);
               }}
               required
               {...attributes}

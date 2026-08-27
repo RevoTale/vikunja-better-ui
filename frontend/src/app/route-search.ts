@@ -26,7 +26,10 @@ export function creationDate(value: unknown): string | undefined {
 }
 
 export function creationProjectID(value: unknown): string | undefined {
-  return typeof value === "string" && isPositiveID(value) ? value : undefined;
+  if (typeof value === "string") return isPositiveID(value) ? value : undefined;
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+    ? String(value)
+    : undefined;
 }
 
 export function positiveID(value: string): string {

@@ -1,8 +1,10 @@
-import { type FormEvent, useState } from "react";
+import type { FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { ProjectsQuery } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
+import { AutofillIndicator } from "./autofill/autofill-indicator";
+import { useTaskCreationAutofill } from "./autofill/use-task-creation-autofill";
 import { SharedFields } from "./create-shared-fields";
 import { TaskTypeFields } from "./create-type-fields";
 import { taskTypeLabel } from "./creation-type";
@@ -20,6 +22,7 @@ export function CreateTaskForm({
   initialJob,
   projects,
   defaultProject,
+  explicitProjectId,
   timezone,
   defaultDate,
   initialDate,
@@ -30,12 +33,12 @@ export function CreateTaskForm({
   settingsError,
   onSubmit,
   onFieldErrorsChange,
-  onJobStartChange,
 }: {
   type: CreationBaseType;
   initialJob: boolean;
   projects: ProjectsQuery["projects"]["items"];
   defaultProject: string;
+  explicitProjectId: string | undefined;
   timezone: string | null | undefined;
   defaultDate: string | undefined;
   initialDate: string | undefined;
@@ -46,9 +49,7 @@ export function CreateTaskForm({
   settingsError: unknown;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onFieldErrorsChange: (errors: TaskFormErrors) => void;
-  onJobStartChange: (value: LocalDateTimeParts) => void;
 }) {
-  const [isJob, setIsJob] = useState(initialJob);
   if (settingsLoading) return <p className="mt-6">Loading task settings…</p>;
   if (settingsError) {
     return (
@@ -75,6 +76,64 @@ export function CreateTaskForm({
     );
   }
   return (
+    <ReadyCreateTaskForm
+      key={`${type}:${initialJob}:${initialDate ?? ""}:${explicitProjectId ?? ""}`}
+      type={type}
+      initialJob={initialJob}
+      projects={projects}
+      defaultProject={defaultProject}
+      explicitProjectId={explicitProjectId}
+      defaultDate={defaultDate}
+      initialDate={initialDate}
+      selectedJobStart={selectedJobStart}
+      fieldErrors={fieldErrors}
+      loading={loading}
+      onSubmit={onSubmit}
+      onFieldErrorsChange={onFieldErrorsChange}
+    />
+  );
+}
+
+function ReadyCreateTaskForm({
+  type,
+  initialJob,
+  projects,
+  defaultProject,
+  explicitProjectId,
+  defaultDate,
+  initialDate,
+  selectedJobStart,
+  fieldErrors,
+  loading,
+  onSubmit,
+  onFieldErrorsChange,
+}: {
+  type: CreationBaseType;
+  initialJob: boolean;
+  projects: ProjectsQuery["projects"]["items"];
+  defaultProject: string;
+  explicitProjectId: string | undefined;
+  defaultDate: string;
+  initialDate: string | undefined;
+  selectedJobStart: LocalDateTimeParts;
+  fieldErrors: TaskFormErrors;
+  loading: boolean;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onFieldErrorsChange: (errors: TaskFormErrors) => void;
+}) {
+  const { state, changeField, changeVariant } = useTaskCreationAutofill({
+    baseType: type,
+    defaultDate,
+    defaultProjectId: defaultProject,
+    defaultJobStart: selectedJobStart,
+    accessibleProjectIds: projects.map((project) => String(project.id)),
+    ...(initialDate ? { explicitDate: initialDate } : {}),
+    ...(explicitProjectId ? { explicitProjectId } : {}),
+    ...(initialJob ? { explicitJob: true } : {}),
+  });
+  const { values, autofilled } = state;
+
+  return (
     <form
       className="mt-6 grid gap-5"
       onSubmit={onSubmit}
@@ -87,11 +146,15 @@ export function CreateTaskForm({
     >
       <SharedFields
         projects={projects}
-        defaultProject={defaultProject}
         errors={fieldErrors}
         type={type}
-        isJob={isJob}
-        titlePlaceholder={jobTitlePlaceholder(selectedJobStart)}
+        titlePlaceholder={jobTitlePlaceholder({
+          date: values.startDate,
+          time: values.startTime,
+        })}
+        values={values}
+        autofilled={autofilled}
+        onFieldChange={changeField}
       />
       <div className="rounded-md border bg-muted/30 p-4">
         <label className="flex cursor-pointer items-start gap-3" htmlFor="job">
@@ -99,11 +162,13 @@ export function CreateTaskForm({
             id="job"
             name="job"
             type="checkbox"
-            checked={isJob}
-            onChange={(event) => setIsJob(event.currentTarget.checked)}
+            checked={values.job}
+            onChange={(event) => changeVariant(event.currentTarget.checked)}
             className="mt-1 size-4 accent-primary"
             aria-label="Job"
-            aria-describedby="job-description"
+            aria-describedby={
+              autofilled.has("job") ? "job-description job-autofill" : "job-description"
+            }
           />
           <span>
             <span className="block text-sm font-medium">Job</span>
@@ -112,18 +177,22 @@ export function CreateTaskForm({
             </span>
           </span>
         </label>
+        {autofilled.has("job") ? (
+          <div className="mt-1 pl-7">
+            <AutofillIndicator id="job-autofill" />
+          </div>
+        ) : null}
       </div>
       <TaskTypeFields
         type={type}
-        isJob={isJob}
         errors={fieldErrors}
         defaultDate={defaultDate}
-        initialDate={initialDate}
-        jobStart={selectedJobStart}
-        onJobStartChange={onJobStartChange}
+        values={values}
+        autofilled={autofilled}
+        onFieldChange={changeField}
       />
       <Button type="submit" disabled={loading}>
-        {loading ? "Creating…" : creationButtonLabel(type, isJob)}
+        {loading ? "Creating…" : creationButtonLabel(type, values.job)}
       </Button>
     </form>
   );

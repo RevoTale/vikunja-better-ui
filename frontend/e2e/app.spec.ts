@@ -233,6 +233,60 @@ test("task creation and display use the Vikunja timezone", async ({ page }) => {
   );
 });
 
+test("new task autofill remembers only successful creation without overriding context", async ({
+  page,
+}) => {
+  await blockBrowserVikunjaCalls(page);
+  await page.goto("/tasks/new?type=one-time&returnTo=%2Ftoday");
+  await login(page);
+
+  await page.getByLabel("Title").fill("   ");
+  await page.getByRole("button", { name: "Create one-time task", exact: true }).click();
+  await expect(page.getByText("Enter a title.", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("From last task", { exact: true })).toHaveCount(0);
+
+  const title = `Remembered E2E ${Date.now()}`;
+  const dueDate = addCalendarDays(localDate(), 2);
+  await page.getByLabel("Title").fill(title);
+  await chooseSelectOption(page, "Project", "E2E Empty Project");
+  await chooseSelectOption(page, "Priority", "High");
+  await selectDate(page, "Due date", dueDate);
+  await page.getByLabel("Due time", { exact: true }).fill("18:15");
+  await page.getByRole("button", { name: "Create one-time task", exact: true }).click();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+
+  await page.goto("/tasks/new?type=one-time&returnTo=%2Ftoday");
+  await expect(page.getByLabel("Title")).toHaveValue(title);
+  await expect(page.getByLabel("Title")).toHaveAttribute("aria-describedby", "title-autofill");
+  await expect(page.getByLabel("Project", { exact: true })).toContainText("E2E Empty Project");
+  await expect(page.getByLabel("Priority", { exact: true })).toContainText("High");
+  await expect(page.locator('input[name="dueDate"]')).toHaveValue(dueDate);
+  await expect(page.getByLabel("Due time", { exact: true })).toHaveValue("18:15");
+
+  await page.getByLabel("Title").press("ControlOrMeta+a");
+  await page.getByLabel("Title").pressSequentially(title);
+  await expect(page.getByLabel("Title")).not.toHaveAttribute("aria-describedby", /title-autofill/);
+  await expect(page.getByText("From last task", { exact: true })).toHaveCount(4);
+
+  const contextualDate = addCalendarDays(dueDate, 1);
+  await page.goto(
+    `/tasks/new?type=one-time&returnTo=%2Ftoday&date=${contextualDate}&project=${projectID}`,
+  );
+  await expect(page.getByLabel("Title")).toHaveValue(title);
+  await expect(page.locator('input[name="dueDate"]')).toHaveValue(contextualDate);
+  await expect(datePickerButton(page, "Due date")).not.toHaveAttribute(
+    "aria-describedby",
+    /dueDate-autofill/,
+  );
+  await expect(page.getByLabel("Project", { exact: true })).toContainText("E2E Daily Tasks");
+  await expect(page.getByLabel("Project", { exact: true })).not.toHaveAttribute(
+    "aria-describedby",
+    /projectId-autofill/,
+  );
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+});
+
 test("desktop workflows match Vikunja state", async ({ page }) => {
   await blockBrowserVikunjaCalls(page);
   await page.goto("/today");
@@ -473,7 +527,9 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await page.goto("/today");
   await expect(page.getByText(job, { exact: true })).toBeVisible();
 
-  await createTask(page, "one-time task", unscheduled);
+  await createTask(page, "one-time task", unscheduled, async () => {
+    await selectDate(page, "Due date", "");
+  });
   await page.goto("/unscheduled");
   await expect(page.getByText(unscheduled, { exact: true })).toBeVisible();
 
@@ -861,7 +917,9 @@ async function createTask(
   const typeButton = page.getByRole("button", { name: baseType, exact: true });
   await typeButton.click();
   await expect(typeButton).toHaveAttribute("aria-pressed", "true");
-  if (type === "job") await page.getByLabel("Job", { exact: true }).check();
+  const job = page.getByLabel("Job", { exact: true });
+  if (type === "job") await job.check();
+  else await job.uncheck();
   await page.getByLabel(type === "job" ? "Title (optional)" : "Title").fill(title);
   if (fill) await fill();
   await page

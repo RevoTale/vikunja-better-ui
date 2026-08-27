@@ -1,3 +1,4 @@
+import type { TaskCreationAutofillField } from "./autofill/task-creation-autofill";
 import { DatePickerField } from "./date-picker-field";
 import type { LocalDateTimeParts } from "./local-date-time";
 import type { TaskFormErrors } from "./task-form-validation";
@@ -9,15 +10,22 @@ export function JobStartFields({
   defaultDate,
   errors,
   onChange,
+  autofilled,
 }: {
   value: LocalDateTimeParts;
   defaultDate: string;
   errors: TaskFormErrors;
   onChange: (value: LocalDateTimeParts) => void;
+  autofilled: ReadonlySet<TaskCreationAutofillField>;
 }) {
   return (
     <div className="grid gap-5 sm:grid-cols-2">
-      <ValidatedField name="startDate" label="Start date" error={errors.startDate}>
+      <ValidatedField
+        name="startDate"
+        label="Start date"
+        error={errors.startDate}
+        autofilled={autofilled.has("startDate")}
+      >
         {(attributes) => (
           <DatePickerField
             id="startDate"
@@ -31,7 +39,12 @@ export function JobStartFields({
           />
         )}
       </ValidatedField>
-      <ValidatedField name="startTime" label="Start time" error={errors.startTime}>
+      <ValidatedField
+        name="startTime"
+        label="Start time"
+        error={errors.startTime}
+        autofilled={autofilled.has("startTime")}
+      >
         {(attributes) => (
           <TimeInput24
             id="startTime"

@@ -50,11 +50,19 @@ describe("creationDate", () => {
 describe("creationProjectID", () => {
   it("accepts a positive project ID", () => {
     expect(creationProjectID("42")).toBe("42");
+    expect(creationProjectID(42)).toBe("42");
   });
 
   it.each([undefined, "all", "0", "-1"])("ignores invalid project ID %s", (value) => {
     expect(creationProjectID(value)).toBeUndefined();
   });
+
+  it.each([0, -1, 1.5, Number.NaN, Number.MAX_SAFE_INTEGER + 1])(
+    "ignores invalid numeric project ID %s",
+    (value) => {
+      expect(creationProjectID(value)).toBeUndefined();
+    },
+  );
 });
 
 describe("positiveID", () => {

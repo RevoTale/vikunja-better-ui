@@ -22,14 +22,14 @@ import {
 } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import { cn } from "@/lib/utils";
+import {
+  rememberSuccessfulTaskCreation,
+  taskCreationSnapshot,
+} from "./autofill/task-creation-autofill-storage";
 import { CreateTaskForm } from "./create-task-form";
 import { shortTaskTypeLabel, taskTypeLabel } from "./creation-type";
 import { defaultJobStart } from "./job-title";
-import {
-  composeLocalDateTime,
-  currentDateInTimeZone,
-  type LocalDateTimeParts,
-} from "./local-date-time";
+import { composeLocalDateTime, currentDateInTimeZone } from "./local-date-time";
 import {
   type CreationBaseType,
   type CreationType,
@@ -72,7 +72,6 @@ export function CreateTaskPage({
   const [repair, repairState] = useMutation(RepairTaskMetadataDocument);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<TaskFormErrors>({});
-  const [jobStart, setJobStart] = useState<LocalDateTimeParts>();
   const [repairInfo, setRepairInfo] = useState<{
     capability: string;
     taskId: string;
@@ -82,12 +81,13 @@ export function CreateTaskPage({
   const projects = projectData?.projects.items ?? [];
   const timezone = sessionData?.session.vikunjaUser?.timezone;
   const defaultDate = timezone ? currentDateInTimeZone(timezone) : undefined;
-  const selectedJobStart = jobStart ?? defaultJobStart(initialDate ?? defaultDate ?? "");
-  const defaultProject =
-    projects.find((project) => project.id === initialProjectID)?.id ??
-    projects.find((project) => project.isDefault)?.id ??
-    projects[0]?.id ??
-    "";
+  const selectedJobStart = defaultJobStart(initialDate ?? defaultDate ?? "");
+  const defaultProject = String(
+    projects.find((project) => String(project.id) === initialProjectID)?.id ??
+      projects.find((project) => project.isDefault)?.id ??
+      projects[0]?.id ??
+      "",
+  );
   const loading = oneTimeState.loading || recurringState.loading || jobState.loading;
 
   async function createValidatedTask(form: FormData, csrfToken: string) {
@@ -176,9 +176,11 @@ export function CreateTaskPage({
       setError("Your session is unavailable. Refresh the page and sign in again.");
       return;
     }
+    const autofillSnapshot = taskCreationSnapshot(baseType, form);
     try {
       const payload: CreatePayload | undefined = await createValidatedTask(form, csrfToken);
       if (!payload) throw new Error("empty result");
+      rememberSuccessfulTaskCreation(autofillSnapshot);
       if (payload.status === "REPAIR_REQUIRED" && payload.repairCapability) {
         setRepairInfo({
           capability: payload.repairCapability,
@@ -334,6 +336,7 @@ export function CreateTaskPage({
         initialJob={type === "job"}
         projects={projects}
         defaultProject={defaultProject}
+        explicitProjectId={initialProjectID}
         timezone={timezone}
         defaultDate={defaultDate}
         initialDate={initialDate}
@@ -344,7 +347,6 @@ export function CreateTaskPage({
         settingsError={sessionError ?? projectsError}
         onSubmit={submit}
         onFieldErrorsChange={setFieldErrors}
-        onJobStartChange={setJobStart}
       />
     </section>
   );
