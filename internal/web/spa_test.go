@@ -14,7 +14,7 @@ var contentHashPattern = regexp.MustCompile(`-[A-Za-z0-9_-]{8,}\.[^.]+$`)
 func TestEmbeddedAssetsHaveContentHashedNames(t *testing.T) {
 	t.Parallel()
 
-	err := fs.WalkDir(embeddedAssets, "assets/assets", func(assetPath string, entry fs.DirEntry, walkErr error) error {
+	err := fs.WalkDir(embeddedAssets, "assets/dist/assets", func(assetPath string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -36,7 +36,7 @@ func TestSPAHandlerServesIndexForSemanticRoute(t *testing.T) {
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `<div id="root"></div>`) {
 		t.Fatalf("response = %d %q", recorder.Code, recorder.Body.String())
 	}
-	if recorder.Header().Get("Cache-Control") != "no-cache" {
+	if recorder.Header().Get("Cache-Control") != "private, no-cache" {
 		t.Fatalf("Cache-Control = %q", recorder.Header().Get("Cache-Control"))
 	}
 	if strings.Contains(recorder.Body.String(), cspNoncePlaceholder) {
@@ -46,11 +46,11 @@ func TestSPAHandlerServesIndexForSemanticRoute(t *testing.T) {
 
 func TestSPAHandlerServesNestedAsset(t *testing.T) {
 	t.Parallel()
-	matches, err := fs.Glob(embeddedAssets, "assets/assets/_*.js")
+	matches, err := fs.Glob(embeddedAssets, "assets/dist/assets/_*.js")
 	if err != nil || len(matches) == 0 {
 		t.Fatalf("embedded asset matches = %v, %v", matches, err)
 	}
-	requestPath := strings.TrimPrefix(matches[0], "assets/")
+	requestPath := strings.TrimPrefix(matches[0], "assets/dist/")
 
 	recorder := httptest.NewRecorder()
 	SPAHandler().ServeHTTP(
@@ -59,6 +59,52 @@ func TestSPAHandlerServesNestedAsset(t *testing.T) {
 	)
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Header().Get("Content-Type"), "javascript") {
 		t.Fatalf("response = %d, Content-Type = %q, body = %.40q", recorder.Code, recorder.Header().Get("Content-Type"), recorder.Body.String())
+	}
+	if cacheControl := recorder.Header().Get("Cache-Control"); cacheControl != "public, max-age=31536000, immutable" {
+		t.Fatalf("Cache-Control = %q", cacheControl)
+	}
+}
+
+func TestSPAHandlerCachesUnhashedMetadataForTenMinutes(t *testing.T) {
+	t.Parallel()
+
+	for _, requestPath := range []string{"favicon.svg", "site.webmanifest"} {
+		t.Run(requestPath, func(t *testing.T) {
+			t.Parallel()
+			recorder := httptest.NewRecorder()
+			SPAHandler().ServeHTTP(
+				recorder,
+				httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://app.test/"+requestPath, nil),
+			)
+			if recorder.Code != http.StatusOK {
+				t.Fatalf("status = %d", recorder.Code)
+			}
+			if cacheControl := recorder.Header().Get("Cache-Control"); cacheControl != "public, max-age=600" {
+				t.Fatalf("Cache-Control = %q", cacheControl)
+			}
+			if requestPath == "site.webmanifest" && recorder.Header().Get("Content-Type") != "application/manifest+json" {
+				t.Fatalf("Content-Type = %q", recorder.Header().Get("Content-Type"))
+			}
+		})
+	}
+}
+
+func TestStaticCacheControlUsesSafeFallbackForUnhashedRootAssets(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		path string
+		want string
+	}{
+		{path: "assets/app-content-hash.js", want: "public, max-age=31536000, immutable"},
+		{path: "favicon.svg", want: "public, max-age=600"},
+		{path: "site.webmanifest", want: "public, max-age=600"},
+		{path: "robots.txt", want: "private, no-cache"},
+	}
+	for _, testCase := range testCases {
+		if got := staticCacheControl(testCase.path); got != testCase.want {
+			t.Errorf("staticCacheControl(%q) = %q, want %q", testCase.path, got, testCase.want)
+		}
 	}
 }
 

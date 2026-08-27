@@ -7,6 +7,7 @@
 frontend/node_modules
 frontend/playwright-report
 frontend/test-results
+internal/web/assets/dist
 tasks
 tests
 **/.DS_Store

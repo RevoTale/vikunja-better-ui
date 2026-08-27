@@ -109,8 +109,11 @@ for navigation, projection, responsive-layout, and GraphQL behavior.
 React UI -> same-origin Go GraphQL API -> Vikunja REST API v2
 ```
 
-The Go server embeds the static Vite build. The browser talks only to the
-GraphQL endpoint and never receives or calls Vikunja with its API token.
+The Go server embeds the static Vite build. Frontend source, metadata, and the
+lockfile stay in Git; `internal/web/assets/dist` is an ignored build artifact
+created before Go compilation by Task, CI, and the Docker frontend stage. The
+browser talks only to the GraphQL endpoint and never receives or calls Vikunja
+with its API token.
 
 Authentication has two separate boundaries:
 
@@ -138,6 +141,13 @@ loading and initial errors stay in the page because no cached list exists.
 See [ADR-005](docs/decisions/0005-fresh-task-loading.md) and the
 [performance guide](docs/performance.md) for the exact request graph,
 benchmarks, and safe latency logs.
+
+Static responses use URL-safe cache boundaries: content-hashed `/assets/*`
+files are public and immutable for one year; the favicon and web manifest are
+public for ten minutes; HTML routes are private and revalidated. GraphQL,
+integration, health, and readiness responses are not stored. The application
+does not add a service-worker or server-side task cache. Configure Brotli or
+gzip at the production reverse proxy.
 
 ## Configuration
 
@@ -329,8 +339,8 @@ after changing files under `.devcontainer/`.
 Run all project commands inside that container:
 
 ```sh
-task gen        # regenerate gqlgen, GraphQL operations, routes, and web assets
-task gen:check  # prove committed generated output is current
+task gen        # regenerate gqlgen, GraphQL operations, routes, and build web assets
+task gen:check  # prove committed generated source is current
 task fix        # format Go and frontend files
 task validate   # lint, typecheck, vet, and build
 task test       # Go race tests and frontend unit tests
@@ -351,10 +361,12 @@ Renovate's built-in Dockerfile, Dev Container, npm, and Go module managers.
 Renovate groups runtime updates so Go, Node.js, and pnpm pins change together.
 Go module updates run `go mod tidy`, npm updates deduplicate the pnpm lockfile,
 and major upgrades stay in separate PRs labeled `breaking`. Renovate-hosted
-does not run arbitrary repository generation commands, so CI still
-intentionally requires generated GraphQL, route, and embedded asset output to
-remain unchanged; a tool upgrade that changes generated output needs a
-reviewed follow-up commit rather than bypassing `task gen:check`.
+does not run arbitrary repository generation commands, so CI still requires
+committed GraphQL and route output to remain unchanged. The Vite production
+bundle is built during CI and is deliberately not committed; dependency
+updates that only change chunk contents or hashes therefore do not create
+generated-source drift. A tool upgrade that changes committed generated source
+still needs a reviewed follow-up commit rather than bypassing `task gen:check`.
 
 The production and development images copy pnpm from the official,
 digest-pinned pnpm image. The frontend build runs on the separately pinned

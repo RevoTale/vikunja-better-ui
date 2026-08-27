@@ -19,6 +19,9 @@ func TestHealthHandler(t *testing.T) {
 	if recorder.Code != http.StatusOK || recorder.Body.String() != "ok\n" {
 		t.Fatalf("response = %d %q", recorder.Code, recorder.Body.String())
 	}
+	if cacheControl := recorder.Header().Get("Cache-Control"); cacheControl != "no-store" {
+		t.Fatalf("Cache-Control = %q", cacheControl)
+	}
 }
 
 func TestReadinessHandlerReflectsVikunjaAvailability(t *testing.T) {
@@ -40,6 +43,9 @@ func TestReadinessHandlerReflectsVikunjaAvailability(t *testing.T) {
 			handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://app.test/readyz", nil))
 			if recorder.Code != testCase.wantStatus {
 				t.Fatalf("status = %d, want %d", recorder.Code, testCase.wantStatus)
+			}
+			if cacheControl := recorder.Header().Get("Cache-Control"); cacheControl != "no-store" {
+				t.Fatalf("Cache-Control = %q", cacheControl)
 			}
 		})
 	}

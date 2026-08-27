@@ -11,11 +11,17 @@ import (
 
 const cspNoncePlaceholder = "__CSP_NONCE__"
 
+const (
+	hashedAssetCacheControl = "public, max-age=31536000, immutable"
+	metadataCacheControl    = "public, max-age=600"
+	revalidatedCacheControl = "private, no-cache"
+)
+
 //go:embed all:assets
 var embeddedAssets embed.FS
 
 func SPAHandler() http.Handler {
-	assets, err := fs.Sub(embeddedAssets, "assets")
+	assets, err := fs.Sub(embeddedAssets, "assets/dist")
 	if err != nil {
 		panic("embedded frontend assets are unavailable")
 	}
@@ -36,8 +42,9 @@ func SPAHandler() http.Handler {
 		}
 		if file, openErr := assets.Open(requestedPath); openErr == nil {
 			_ = file.Close()
-			if requestedPath != "index.html" {
-				writer.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			writer.Header().Set("Cache-Control", staticCacheControl(requestedPath))
+			if requestedPath == "site.webmanifest" {
+				writer.Header().Set("Content-Type", "application/manifest+json")
 			}
 			fileServer.ServeHTTP(writer, request)
 			return
@@ -46,9 +53,20 @@ func SPAHandler() http.Handler {
 	})
 }
 
+func staticCacheControl(requestedPath string) string {
+	switch {
+	case strings.HasPrefix(requestedPath, "assets/"):
+		return hashedAssetCacheControl
+	case requestedPath == "favicon.svg", requestedPath == "site.webmanifest":
+		return metadataCacheControl
+	default:
+		return revalidatedCacheControl
+	}
+}
+
 func serveIndex(writer http.ResponseWriter, request *http.Request, indexHTML []byte) {
 	body := bytes.Replace(indexHTML, []byte(cspNoncePlaceholder), []byte(cspNonce(request.Context())), 1)
-	writer.Header().Set("Cache-Control", "no-cache")
+	writer.Header().Set("Cache-Control", revalidatedCacheControl)
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.WriteHeader(http.StatusOK)
 	if request.Method == http.MethodHead {

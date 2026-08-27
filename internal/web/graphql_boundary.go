@@ -12,6 +12,7 @@ func GraphQLBoundary(allowedOrigin *url.URL) func(http.Handler) http.Handler {
 	expectedOrigin := allowedOrigin.Scheme + "://" + allowedOrigin.Host
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			writer.Header().Set("Cache-Control", "private, no-store")
 			if request.Method != http.MethodPost {
 				writer.Header().Set("Allow", http.MethodPost)
 				http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)

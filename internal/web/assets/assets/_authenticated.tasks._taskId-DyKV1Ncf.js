@@ -1,1 +1,0 @@
-import{p as e}from"./index-3xbwN_Ss.js";var t=e;export{t as component};

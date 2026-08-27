@@ -15,9 +15,9 @@ tasks:
         before="$(mktemp)"
         after="$(mktemp)"
         trap 'rm -f "$before" "$after"' EXIT
-        find internal/graphql/generated internal/graphql/model internal/graphql/resolver frontend/src/graphql frontend/src/routeTree.gen.ts internal/web/assets -type f -print0 | sort -z | xargs -0 sha256sum > "$before"
+        find internal/graphql/generated internal/graphql/model internal/graphql/resolver frontend/src/graphql frontend/src/routeTree.gen.ts -type f -print0 | sort -z | xargs -0 sha256sum > "$before"
         task gen
-        find internal/graphql/generated internal/graphql/model internal/graphql/resolver frontend/src/graphql frontend/src/routeTree.gen.ts internal/web/assets -type f -print0 | sort -z | xargs -0 sha256sum > "$after"
+        find internal/graphql/generated internal/graphql/model internal/graphql/resolver frontend/src/graphql frontend/src/routeTree.gen.ts -type f -print0 | sort -z | xargs -0 sha256sum > "$after"
         cmp "$before" "$after"
 
   fix:
@@ -34,15 +34,16 @@ tasks:
       - golangci-lint run ./...
       - pnpm --dir frontend run lint
       - pnpm --dir frontend run typecheck
+      - pnpm --dir frontend run build
       - |
         output="$(mktemp)"
         trap 'rm -f "$output"' EXIT
         go build -o "$output" ./cmd/server
-      - pnpm --dir frontend run build
 
   test:
     desc: Run backend and frontend tests
     cmds:
+      - pnpm --dir frontend run build
       - go test ./... -race
       - pnpm --dir frontend run test
 
@@ -71,4 +72,5 @@ tasks:
   dev:
     desc: Run the development application
     cmds:
+      - pnpm --dir frontend run build
       - go run ./cmd/server

@@ -34,6 +34,37 @@ rejects each upstream response body above 4 MiB, and active views reject more
 than 10,000 candidate tasks. These are safety bounds, not a promise that every
 allowed input fits a fixed small memory limit.
 
+## Static frontend delivery
+
+The Vite production bundle is generated under the ignored
+`internal/web/assets/dist` directory and embedded into the Go binary during the
+build. The frontend source, public metadata, and lockfile are the canonical
+inputs; production chunks are not committed generated source.
+
+The measured arm64 bundle is 912,859 bytes across 48 files, or 286,918 bytes
+when each file is gzip-compressed. Embedding it adds about 896 KiB to the
+stripped binary. Go emits embedded files as read-only binary data, so this is
+not a matching permanent Go heap allocation. The 2.7 KiB `index.html` is read
+once at handler construction; other assets are streamed from `embed.FS`.
+
+Moving the same files beside the binary would reduce the binary by roughly the
+bundle size but would not remove them from the container image or Linux page
+cache. A separate static-server process would add a deployment boundary and a
+second runtime for traffic that browsers already cache. Keep the single
+embedded artifact unless measured production scale changes this tradeoff.
+
+Response caching is intentionally explicit:
+
+- content-hashed `/assets/*`: `public, max-age=31536000, immutable`;
+- `favicon.svg` and `site.webmanifest`: `public, max-age=600`;
+- HTML and semantic SPA routes: `private, no-cache`;
+- GraphQL and caller-authenticated Jobs integration: `private, no-store`;
+- health and readiness: `no-store`.
+
+There is no service-worker cache or server-side task-data cache. The Go server
+does not dynamically compress static files; enable Brotli or gzip in the
+production reverse proxy and verify the resulting `Content-Encoding` header.
+
 ## Task-loading request graph
 
 Task data has no server-side TTL cache. Every list query reaches Vikunja, while
@@ -93,6 +124,7 @@ diagnostic listener only as an explicitly reviewed change.
 | Group Week pages directly instead of copying all tasks into an aggregate slice | Keeps bounded concurrent page loading while removing a second full task array and intermediate candidate list | Kept |
 | Coalesce identical metadata reads only while in flight | Concurrent GraphQL/session work shares an upstream call without retaining data after completion | Kept; zero TTL |
 | Add a server-side TTL task cache | Would reduce repeat traffic but could show completed or newly scheduled tasks as current | Rejected; Apollo performs a mandatory background refresh instead |
+| Serve the Vite bundle outside the Go binary | Saves about 896 KiB in the binary but leaves equivalent image and file-cache storage while adding version-skew risk | Rejected; keep one atomic embedded artifact |
 | Use `bytes.Reader` for decoded session and capability payloads | Removed one session allocation without changing token formats | Kept |
 | Replace URL string join and parse with `URL.JoinPath` | Only a few hundred bytes changed on a 3.4 MiB operation; timing stayed inside noise | Reverted |
 | Use `encoding/json/v2` | Go 1.26 still marks it experimental and outside the Go 1 compatibility promise | Rejected |

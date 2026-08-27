@@ -20,7 +20,7 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "../internal/web/assets",
+    outDir: "../internal/web/assets/dist",
     emptyOutDir: true,
   },
 });

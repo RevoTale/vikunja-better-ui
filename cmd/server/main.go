@@ -93,6 +93,7 @@ func run(configuration config.Config, logger *slog.Logger) error {
 }
 
 func healthHandler(writer http.ResponseWriter, request *http.Request) {
+	writer.Header().Set("Cache-Control", "no-store")
 	if request.Method != http.MethodGet {
 		writer.Header().Set("Allow", http.MethodGet)
 		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
@@ -109,6 +110,7 @@ type readinessClient interface {
 
 func readinessHandler(client readinessClient, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Cache-Control", "no-store")
 		if request.Method != http.MethodGet {
 			writer.Header().Set("Allow", http.MethodGet)
 			http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)

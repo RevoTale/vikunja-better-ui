@@ -26,6 +26,9 @@ func TestGraphQLBoundaryAcceptsExactOriginJSONPost(t *testing.T) {
 	if recorder.Code != http.StatusNoContent {
 		t.Fatalf("status = %d", recorder.Code)
 	}
+	if cacheControl := recorder.Header().Get("Cache-Control"); cacheControl != "private, no-store" {
+		t.Fatalf("Cache-Control = %q", cacheControl)
+	}
 }
 
 func TestGraphQLBoundaryRejectsUnsafeRequests(t *testing.T) {

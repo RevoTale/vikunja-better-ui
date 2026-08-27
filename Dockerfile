@@ -17,7 +17,7 @@ WORKDIR /source
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . ./
-COPY --from=frontend /source/internal/web/assets/ /source/internal/web/assets/
+COPY --from=frontend /source/internal/web/assets/dist/ /source/internal/web/assets/dist/
 ARG TARGETOS
 ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS="$TARGETOS" GOARCH="$TARGETARCH" go build -trimpath -ldflags="-s -w" -o /out/vikunja-better-ui ./cmd/server
