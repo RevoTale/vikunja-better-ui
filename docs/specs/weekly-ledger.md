@@ -23,17 +23,18 @@ completion controls remain readable on phone, tablet, and desktop.
 - Project filtering remains URL-backed.
 - Every real task appears only under the day on which it is due, including when
   that task is overdue. Tasks due outside the selected week are not shown.
-- All seven days remain visible. Empty days use a compact empty state.
-- The current week starts with Today, followed by the future dates under
-  Upcoming and the past dates under Earlier this week. Dates remain
-  chronological inside each group, and a group is omitted when it is empty at
-  a week boundary.
+- All seven days remain visible. Every day ends with a low-emphasis `Add task`
+  row, including empty days.
+- The current week remains chronological from its configured start. Past dates
+  stay under Earlier this week, followed by Today and then future dates under
+  Upcoming. A group is omitted when it is empty at a week boundary.
 - Past and future weeks remain chronological from the configured week start,
   normally Monday, through all seven days.
 - The Today navigation control returns from another week to the current week and
   scrolls to today's first row. In the current week it scrolls directly to that
-  row.
-  Changing weeks never auto-scrolls without this explicit action.
+  row. Opening or returning to the current week also scrolls to Today once after
+  the rows load; background refreshes never repeat or take over the user's
+  scroll position.
 
 ## Active and computed work
 
@@ -99,14 +100,22 @@ fresh Vikunja task pages. To limit upstream work and Go memory:
 
 - The Week view is ordinary document structure: sections, headings, lists,
   links, and buttons. It is not an ARIA spreadsheet grid.
-- Desktop day rows use a fixed date column and flexible task column.
-- Narrow screens stack the date heading above full-width task cards and require
-  no horizontal page scrolling.
+- The seven day sections share one bordered weekly-table treatment. Current-week
+  group headings remain visible as divider rows while preserving chronological
+  Earlier this week, Today, and Upcoming ordering.
+- Desktop day rows use a fixed date column separated from the flexible task
+  column. Narrow screens stack the date heading above full-width task cards and
+  require no horizontal page scrolling.
+- `Add task` is the final row in each day's task column. It opens the existing
+  creation flow with that local date and the selected project prefilled. The
+  creation type can change without losing this context.
+- The add row remains visibly labelled and keyboard accessible. Its touch target
+  is at least 44 CSS pixels high on narrow screens; it does not depend on hover.
 - Today uses the standard secondary Badge beside its date without changing the
   background or outline of the full day row. The date also uses
   `aria-current="date"`; Computed remains visible text in addition to its border
   treatment, and overdue real tasks retain their explicit overdue schedule text.
-- The current week keeps a document heading hierarchy of page title, current-day
-  and group headings, then the day headings inside Upcoming and Earlier this
-  week.
+- The current week keeps a document heading hierarchy of page title, group and
+  current-day headings, then the day headings inside Earlier this week and
+  Upcoming.
 - Week navigation and every task action remain keyboard accessible.

@@ -1,3 +1,5 @@
+import { isValidLocalDate } from "@/features/tasks/local-date-time";
+
 export function safeReturnTo(value: unknown): string {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
     return "/today";
@@ -19,11 +21,23 @@ export function creationType(value: unknown): "one-time" | "recurring" | "job" {
   return value === "recurring" || value === "job" ? value : "one-time";
 }
 
+export function creationDate(value: unknown): string | undefined {
+  return typeof value === "string" && isValidLocalDate(value) ? value : undefined;
+}
+
+export function creationProjectID(value: unknown): string | undefined {
+  return typeof value === "string" && isPositiveID(value) ? value : undefined;
+}
+
 export function positiveID(value: string): string {
-  if (!/^[1-9]\d*$/.test(value)) {
+  if (!isPositiveID(value)) {
     throw new Error("Invalid task ID");
   }
   return value;
+}
+
+function isPositiveID(value: string): boolean {
+  return /^[1-9]\d*$/.test(value);
 }
 
 function isApplicationPath(pathname: string): boolean {

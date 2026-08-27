@@ -13,17 +13,21 @@ export function TaskTypeFields({
   type,
   errors,
   defaultDate,
+  initialDate,
   jobStart,
   onJobStartChange,
 }: {
   type: CreationType;
   errors: TaskFormErrors;
   defaultDate: string;
+  initialDate: string | undefined;
   jobStart: LocalDateTimeParts;
   onJobStartChange: (value: LocalDateTimeParts) => void;
 }) {
-  if (type === "one-time") return <OneTimeFields errors={errors} defaultDate={defaultDate} />;
-  if (type === "recurring") return <RecurringFields errors={errors} defaultDate={defaultDate} />;
+  if (type === "one-time")
+    return <OneTimeFields errors={errors} defaultDate={defaultDate} initialDate={initialDate} />;
+  if (type === "recurring")
+    return <RecurringFields errors={errors} defaultDate={initialDate ?? defaultDate} />;
   return (
     <JobFields
       errors={errors}
@@ -34,9 +38,16 @@ export function TaskTypeFields({
   );
 }
 
-function OneTimeFields({ errors, defaultDate }: { errors: TaskFormErrors; defaultDate: string }) {
-  const [hasDueDate, setHasDueDate] = useState(false);
-  const [dueDate, setDueDate] = useState("");
+function OneTimeFields({
+  errors,
+  defaultDate,
+  initialDate,
+}: {
+  errors: TaskFormErrors;
+  defaultDate: string;
+  initialDate: string | undefined;
+}) {
+  const [dueDate, setDueDate] = useState(initialDate ?? "");
   const [dueTime, setDueTime] = useState("");
   return (
     <div className="grid gap-5 sm:grid-cols-2">
@@ -48,10 +59,7 @@ function OneTimeFields({ errors, defaultDate }: { errors: TaskFormErrors; defaul
             label="Due date"
             value={dueDate}
             defaultDate={defaultDate}
-            onChange={(value) => {
-              setDueDate(value);
-              setHasDueDate(Boolean(value));
-            }}
+            onChange={setDueDate}
             {...attributes}
           />
         )}
@@ -63,7 +71,7 @@ function OneTimeFields({ errors, defaultDate }: { errors: TaskFormErrors; defaul
             name="dueTime"
             value={dueTime}
             onChange={setDueTime}
-            disabled={!hasDueDate}
+            disabled={!dueDate}
             {...attributes}
           />
         )}

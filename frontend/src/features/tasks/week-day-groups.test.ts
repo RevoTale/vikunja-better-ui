@@ -13,7 +13,7 @@ const days = [
 ];
 
 describe("groupCurrentWeekDays", () => {
-  it("places today first, followed by upcoming and earlier days", () => {
+  it("separates chronological earlier and upcoming days around today", () => {
     const result = groupCurrentWeekDays(days, "2026-08-26");
 
     expect(result).toEqual({

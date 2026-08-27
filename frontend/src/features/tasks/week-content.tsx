@@ -13,6 +13,7 @@ type WeekContentProps = {
   completingTaskID: string | undefined;
   onComplete: (task: TaskItem) => void;
   today: string | undefined;
+  createProjectID: string | undefined;
 };
 
 export function WeekContent({
@@ -24,6 +25,7 @@ export function WeekContent({
   completingTaskID,
   onComplete,
   today,
+  createProjectID,
 }: WeekContentProps) {
   if (loading && !dataLoaded) return <ListMessage>Loading week…</ListMessage>;
   if (error && !week) {
@@ -38,9 +40,18 @@ export function WeekContent({
   const currentWeek = today ? groupCurrentWeekDays(week.days, today) : undefined;
 
   return (
-    <div className="border-b">
+    <div className="overflow-hidden rounded-lg border">
       {currentWeek ? (
         <>
+          <WeekDayGroup
+            id="week-earlier"
+            title="Earlier this week"
+            days={currentWeek.earlier}
+            returnTo={returnTo}
+            completingTaskID={completingTaskID}
+            onComplete={onComplete}
+            createProjectID={createProjectID}
+          />
           <WeekDaySection
             day={currentWeek.today}
             returnTo={returnTo}
@@ -48,6 +59,7 @@ export function WeekContent({
             onComplete={onComplete}
             isToday
             headingLevel={2}
+            createProjectID={createProjectID}
           />
           <WeekDayGroup
             id="week-upcoming"
@@ -56,14 +68,7 @@ export function WeekContent({
             returnTo={returnTo}
             completingTaskID={completingTaskID}
             onComplete={onComplete}
-          />
-          <WeekDayGroup
-            id="week-earlier"
-            title="Earlier this week"
-            days={currentWeek.earlier}
-            returnTo={returnTo}
-            completingTaskID={completingTaskID}
-            onComplete={onComplete}
+            createProjectID={createProjectID}
           />
         </>
       ) : (
@@ -76,6 +81,7 @@ export function WeekContent({
             onComplete={onComplete}
             isToday={false}
             headingLevel={2}
+            createProjectID={createProjectID}
           />
         ))
       )}
@@ -90,6 +96,7 @@ function WeekDayGroup({
   returnTo,
   completingTaskID,
   onComplete,
+  createProjectID,
 }: {
   id: string;
   title: string;
@@ -97,12 +104,16 @@ function WeekDayGroup({
   returnTo: string;
   completingTaskID: string | undefined;
   onComplete: (task: TaskItem) => void;
+  createProjectID: string | undefined;
 }) {
   if (days.length === 0) return null;
 
   return (
     <section aria-labelledby={id}>
-      <h2 id={id} className="mb-1 mt-6 text-xl font-semibold tracking-tight">
+      <h2
+        id={id}
+        className="border-t bg-muted/30 px-3 py-2 text-sm font-semibold tracking-tight text-muted-foreground md:px-4"
+      >
         {title}
       </h2>
       {days.map((day) => (
@@ -114,6 +125,7 @@ function WeekDayGroup({
           onComplete={onComplete}
           isToday={false}
           headingLevel={3}
+          createProjectID={createProjectID}
         />
       ))}
     </section>

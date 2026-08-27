@@ -109,6 +109,30 @@ test("login displays the GraphQL error returned by the app", async ({ page }) =>
   await expect(page).toHaveURL(/\/login/);
 });
 
+test("week add rows preserve their day and selected project across task types", async ({
+  page,
+}) => {
+  await blockBrowserVikunjaCalls(page);
+  await page.goto(`/week?project=${projectID}`);
+  await login(page);
+
+  const date = localDate();
+  const today = page.locator(`[data-slot="week-day"][data-date="${date}"]`);
+  const addTask = today.getByRole("link", { name: /Add task for/ });
+  await expect(addTask).toBeVisible();
+  await addTask.click();
+
+  await expect(page).toHaveURL(new RegExp(`date=${date}`));
+  await expect(page).toHaveURL(new RegExp(`project=${projectID}`));
+  await expect(page.locator('input[name="dueDate"]')).toHaveValue(date);
+  await expect(page.getByLabel("Project", { exact: true })).toContainText("E2E Daily Tasks");
+
+  await page.getByRole("button", { name: "recurring task" }).click();
+  await expect(page.locator('input[name="firstDueDate"]')).toHaveValue(date);
+  await page.getByRole("button", { name: "job" }).click();
+  await expect(page.locator('input[name="startDate"]')).toHaveValue(date);
+});
+
 test("theme follows system color scheme changes", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/login");
@@ -248,8 +272,13 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await expect(page.locator('[data-slot="week-day"]')).toHaveCount(7);
   await expect(page.locator('[data-slot="week-day"]').first()).toHaveAttribute(
     "data-date",
-    localDate(),
+    mondayOfWeek(localDate()),
   );
+  const todayDay = page.locator(`[data-slot="week-day"][data-date="${localDate()}"]`);
+  await expect(todayDay).toBeInViewport();
+  if (localDate() !== mondayOfWeek(localDate())) {
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+  }
   const firstTaskContent = page
     .locator('[data-slot="week-day"]')
     .first()
@@ -259,7 +288,11 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   for (const day of await page.locator('[data-slot="week-day"]').all()) {
     await expect(day.locator('[data-slot="card"]')).not.toHaveCount(0);
   }
-  const todayDay = page.locator(`[data-slot="week-day"][data-date="${localDate()}"]`);
+  const addTodayTask = todayDay.getByRole("link", { name: /Add task for/ });
+  await expect(addTodayTask).toBeVisible();
+  if (test.info().project.name.startsWith("phone-")) {
+    await expect(addTodayTask).toHaveCSS("min-height", "44px");
+  }
   await expect(todayDay.locator("time")).toContainText("Today");
   await expect(todayDay.getByText("Today", { exact: true })).toHaveAttribute("data-slot", "badge");
   await expect(todayDay.locator("time")).toHaveAttribute("aria-current", "date");
@@ -279,6 +312,15 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await page.getByRole("button", { name: "Today", exact: true }).click();
   await expect(page).toHaveURL(/\/week\?project=all$/);
   await expect(todayDay).toBeInViewport();
+  await expect
+    .poll(() => todayDay.evaluate((element) => element.getBoundingClientRect().top))
+    .toBeLessThanOrEqual(80);
+  const appHeaderBox = await page.locator("header.sticky").boundingBox();
+  const todayHeadingBox = await todayDay.getByRole("heading").boundingBox();
+  if (!appHeaderBox || !todayHeadingBox) {
+    throw new Error("Today heading scroll position is not measurable");
+  }
+  expect(todayHeadingBox.y).toBeGreaterThanOrEqual(appHeaderBox.y + appHeaderBox.height);
   await page.goto("/month");
   await expect(page.getByRole("heading", { name: "This month" })).toBeVisible();
   await page.goto("/today");

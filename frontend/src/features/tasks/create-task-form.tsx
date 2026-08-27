@@ -21,6 +21,7 @@ export function CreateTaskForm({
   defaultProject,
   timezone,
   defaultDate,
+  initialDate,
   selectedJobStart,
   fieldErrors,
   loading,
@@ -35,6 +36,7 @@ export function CreateTaskForm({
   defaultProject: string;
   timezone: string | null | undefined;
   defaultDate: string | undefined;
+  initialDate: string | undefined;
   selectedJobStart: LocalDateTimeParts;
   fieldErrors: TaskFormErrors;
   loading: boolean;
@@ -91,6 +93,7 @@ export function CreateTaskForm({
         type={type}
         errors={fieldErrors}
         defaultDate={defaultDate}
+        initialDate={initialDate}
         jobStart={selectedJobStart}
         onJobStartChange={onJobStartChange}
       />

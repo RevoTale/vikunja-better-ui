@@ -43,7 +43,17 @@ type CreatePayload =
   | CreateRecurringTaskMutation["createRecurringTask"]
   | CreateJobMutation["createJob"];
 
-export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnTo: string }) {
+export function CreateTaskPage({
+  type,
+  returnTo,
+  date: initialDate,
+  project: initialProjectID,
+}: {
+  type: CreationType;
+  returnTo: string;
+  date?: string;
+  project?: string;
+}) {
   const navigate = useNavigate();
   const {
     data: sessionData,
@@ -70,8 +80,12 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
   const projects = projectData?.projects.items ?? [];
   const timezone = sessionData?.session.vikunjaUser?.timezone;
   const defaultDate = timezone ? currentDateInTimeZone(timezone) : undefined;
-  const selectedJobStart = jobStart ?? defaultJobStart(defaultDate ?? "");
-  const defaultProject = projects.find((project) => project.isDefault)?.id ?? projects[0]?.id ?? "";
+  const selectedJobStart = jobStart ?? defaultJobStart(initialDate ?? defaultDate ?? "");
+  const defaultProject =
+    projects.find((project) => project.id === initialProjectID)?.id ??
+    projects.find((project) => project.isDefault)?.id ??
+    projects[0]?.id ??
+    "";
   const loading = oneTimeState.loading || recurringState.loading || jobState.loading;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -271,7 +285,12 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
               setFieldErrors({});
               return navigate({
                 to: "/tasks/new",
-                search: { type: value, returnTo },
+                search: {
+                  type: value,
+                  returnTo,
+                  ...(initialDate ? { date: initialDate } : {}),
+                  ...(initialProjectID ? { project: initialProjectID } : {}),
+                },
                 replace: true,
               });
             }}
@@ -302,6 +321,7 @@ export function CreateTaskPage({ type, returnTo }: { type: CreationType; returnT
         defaultProject={defaultProject}
         timezone={timezone}
         defaultDate={defaultDate}
+        initialDate={initialDate}
         selectedJobStart={selectedJobStart}
         fieldErrors={fieldErrors}
         loading={loading}

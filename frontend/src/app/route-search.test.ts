@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { creationType, positiveID, safeReturnTo } from "./route-search";
+import {
+  creationDate,
+  creationProjectID,
+  creationType,
+  positiveID,
+  safeReturnTo,
+} from "./route-search";
 
 describe("safeReturnTo", () => {
   it.each(["https://example.com", "//example.com", "/login", "not-a-path", "/tasks/%"])(
@@ -25,6 +31,29 @@ describe("creationType", () => {
 
   it("defaults unknown values", () => {
     expect(creationType("other")).toBe("one-time");
+  });
+});
+
+describe("creationDate", () => {
+  it("accepts a real local calendar date", () => {
+    expect(creationDate("2026-08-24")).toBe("2026-08-24");
+  });
+
+  it.each([undefined, "2026-02-30", "24-08-2026", "next monday"])(
+    "ignores invalid creation date %s",
+    (value) => {
+      expect(creationDate(value)).toBeUndefined();
+    },
+  );
+});
+
+describe("creationProjectID", () => {
+  it("accepts a positive project ID", () => {
+    expect(creationProjectID("42")).toBe("42");
+  });
+
+  it.each([undefined, "all", "0", "-1"])("ignores invalid project ID %s", (value) => {
+    expect(creationProjectID(value)).toBeUndefined();
   });
 });
 

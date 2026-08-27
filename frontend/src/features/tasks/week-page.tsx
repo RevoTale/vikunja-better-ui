@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ProjectsDocument, SessionDocument, WeekDocument, type WeekQuery } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import { ListMessage } from "./list-state";
+import { currentDateInTimeZone } from "./local-date-time";
 import { TaskActionFeedback } from "./task-action-feedback";
 import { useTaskListActions } from "./use-task-list-actions";
 import { useTaskRefreshFeedback } from "./use-task-refresh-feedback";
@@ -22,7 +23,7 @@ type WeekPageProps = {
 
 export function WeekPage({ search, setSearch }: WeekPageProps) {
   const location = useLocation();
-  const pendingTodayScroll = useRef(false);
+  const hasAutoScrolledToToday = useRef(false);
   const {
     data: sessionData,
     error: sessionError,
@@ -42,7 +43,7 @@ export function WeekPage({ search, setSearch }: WeekPageProps) {
   const actions = useTaskListActions(sessionData?.session.csrfToken ?? undefined, refetch);
   const week = data?.week;
   const timezone = sessionData?.session.vikunjaUser?.timezone;
-  const today = timezone ? currentLocalDate(timezone) : undefined;
+  const today = timezone ? currentDateInTimeZone(timezone) : undefined;
   const returnTo = `${location.pathname}${location.searchStr}`;
   const backgroundError =
     error && week
@@ -56,18 +57,21 @@ export function WeekPage({ search, setSearch }: WeekPageProps) {
   useTaskRefreshFeedback({ refreshing: loading && Boolean(week), errorMessage: backgroundError });
 
   useEffect(() => {
-    if (!pendingTodayScroll.current || !today || !week?.days.some((day) => day.date === today)) {
+    if (!today || !week) return;
+    if (!week.days.some((day) => day.date === today)) {
+      hasAutoScrolledToToday.current = false;
       return;
     }
+    if (hasAutoScrolledToToday.current) return;
+
     const frame = requestAnimationFrame(() => {
-      pendingTodayScroll.current = false;
+      hasAutoScrolledToToday.current = true;
       scrollToToday();
     });
     return () => cancelAnimationFrame(frame);
   }, [today, week]);
 
   const navigateToWeek = (week?: string) => {
-    pendingTodayScroll.current = false;
     setSearch(week ? { project: search.project, week } : { project: search.project });
   };
 
@@ -77,7 +81,6 @@ export function WeekPage({ search, setSearch }: WeekPageProps) {
       scrollToToday();
       return;
     }
-    pendingTodayScroll.current = true;
     setSearch({ project: search.project });
   };
 
@@ -141,6 +144,7 @@ export function WeekPage({ search, setSearch }: WeekPageProps) {
           completingTaskID={actions.completingTaskID}
           onComplete={actions.markDone}
           today={today}
+          createProjectID={search.project === "all" ? undefined : search.project}
         />
       </div>
       <TaskActionFeedback actions={actions} />
@@ -180,17 +184,6 @@ function WeekNavigation({
       </Button>
     </nav>
   );
-}
-
-function currentLocalDate(timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
-  return `${values["year"]}-${values["month"]}-${values["day"]}`;
 }
 
 function scrollToToday(): void {
