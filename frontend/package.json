@@ -3,10 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "packageManager": "pnpm@11.24.0",
+  "packageManager": "pnpm@12.1.0",
   "engines": {
     "node": "26.8.1",
-    "pnpm": ">=11.22.0 <12"
+    "pnpm": ">=11.22.0 <13"
   },
   "scripts": {
     "build": "vite build",
