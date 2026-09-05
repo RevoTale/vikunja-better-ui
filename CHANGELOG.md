@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.2](https://github.com/RevoTale/vikunja-better-ui/compare/v1.6.1...v1.6.2) (2026-09-05)
+
+
+### Bug Fixes
+
+* **deps:** update dependency lucide-react to v1.37.0 ([61a64c5](https://github.com/RevoTale/vikunja-better-ui/commit/61a64c5219a97c1b4a87204a358c6f2b10166344))
+* **deps:** update dependency lucide-react to v1.37.0 ([4ec0c5b](https://github.com/RevoTale/vikunja-better-ui/commit/4ec0c5b0671ecaa7903cd862baf5d95241e979c3))
+
 ## [1.6.1](https://github.com/RevoTale/vikunja-better-ui/compare/v1.6.0...v1.6.1) (2026-08-27)
 
 
