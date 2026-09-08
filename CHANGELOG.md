@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.6.1](https://github.com/RevoTale/vikunja-better-ui/compare/v1.6.0...v1.6.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **deps:** update tanstack-router monorepo ([d2e19cb](https://github.com/RevoTale/vikunja-better-ui/commit/d2e19cb676b7401c4e00feb7bbd5febc6eb45126))
+* **deps:** update tanstack-router monorepo ([b24f663](https://github.com/RevoTale/vikunja-better-ui/commit/b24f66365c5f8030ab052b49e258c68da48c30ce))
+
+## [1.6.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.5.0...v1.6.0) (2026-08-27)
+
+
+### Features
+
+* **tasks:** remember successful creation values ([b4c86b4](https://github.com/RevoTale/vikunja-better-ui/commit/b4c86b49630d5fa9ea9252d2e69855e5294f52d3))
+* **tasks:** support recurring jobs ([cb0043a](https://github.com/RevoTale/vikunja-better-ui/commit/cb0043ac1f4db4f459bf0d2341bd127e77f081d3))
+* **week:** add contextual weekly planning ([8738218](https://github.com/RevoTale/vikunja-better-ui/commit/873821822e64857673ea4fc7d69751c2c026659f))
+
+
+### Bug Fixes
+
+* **deps:** update dependency lucide-react to v1.34.0 ([af924ff](https://github.com/RevoTale/vikunja-better-ui/commit/af924ff24860c95e7b410970e613933546e7abbb))
+* **deps:** update dependency lucide-react to v1.34.0 ([d649b49](https://github.com/RevoTale/vikunja-better-ui/commit/d649b49c17efc065d0c45f3ca8ce46c7d4f74180))
+* **tasks:** prevent metadata badges from clipping ([940db10](https://github.com/RevoTale/vikunja-better-ui/commit/940db1047c45b0f50cd9aefe50477bab6553c6b3))
+
 ## [1.5.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.4.0...v1.5.0) (2026-08-25)
 
 
