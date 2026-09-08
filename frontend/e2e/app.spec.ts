@@ -10,6 +10,18 @@ const vikunjaTimezone = requiredEnv("E2E_TIMEZONE");
 const invalidTitle = requiredEnv("E2E_INVALID_TITLE");
 const labeledTitle = requiredEnv("E2E_LABELED_TITLE");
 
+test("Week is the default landing page and logo destination", async ({ page }) => {
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/login\?returnTo=%2Fweek/);
+  await login(page);
+  await expect(page).toHaveURL(/\/week/);
+  await page.goto("/today");
+  await page.getByRole("link", { name: /Better Vikunja/ }).click();
+  await expect(page).toHaveURL(/\/week/);
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/week/);
+});
+
 test("login restores the requested route and core navigation is accessible", async ({ page }) => {
   await blockBrowserVikunjaCalls(page);
   await page.goto("/jobs?project=all&page=1");
@@ -396,7 +408,8 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   }
   expect(todayHeadingBox.y).toBeGreaterThanOrEqual(appHeaderBox.y + appHeaderBox.height);
   await page.goto("/month");
-  await expect(page.getByRole("heading", { name: "This month" })).toBeVisible();
+  await expect(page).toHaveURL(/\/week/);
+  await expect(page.getByRole("heading", { name: "This week", exact: true })).toBeVisible();
   await page.goto("/today");
   await expectTaskPriorityLayout(page, oneTime, "High");
   await page.getByRole("button", { name: `Complete ${oneTime}` }).click();
@@ -498,7 +511,9 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await selectDate(page, "Start date", jobDate);
   await page.getByLabel("Start time", { exact: true }).fill("10:15");
   await expect(page.getByLabel("Title (optional)")).toHaveAttribute("placeholder", job);
-  await page.getByLabel("Duration in minutes").fill("45");
+  await chooseSelectOption(page, "Duration unit", "Minutes");
+  await page.getByLabel("Duration", { exact: true }).fill("45");
+  await chooseSelectOption(page, "Completion window unit", "Minutes");
   await page.getByLabel("Time to complete after it ends").fill("60");
   await page.getByRole("button", { name: "Create job", exact: true }).click();
   await expect(page.getByRole("heading", { name: job })).toBeVisible();
@@ -1262,7 +1277,7 @@ async function expectBrandTimezone(page: Page) {
   const timezone = page
     .getByText(`Timezone ${vikunjaTimezone}`, { exact: true })
     .filter({ visible: true });
-  await expect(brand).toHaveAttribute("href", "/today?project=all&page=1");
+  await expect(brand).toHaveAttribute("href", "/week?project=all");
   await expect(timezone).toBeVisible();
   const brandBox = await brand.boundingBox();
   const timezoneBox = await timezone.boundingBox();

@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import { type FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import type { ProjectsQuery } from "@/graphql/graphql";
@@ -10,6 +10,7 @@ import { TaskTypeFields } from "./create-type-fields";
 import { taskTypeLabel } from "./creation-type";
 import { jobTitlePlaceholder } from "./job-title";
 import type { LocalDateTimeParts } from "./local-date-time";
+import { ScheduleShift } from "./schedule-shift";
 import {
   type CreationBaseType,
   hasTaskFormErrors,
@@ -81,6 +82,7 @@ export function CreateTaskForm({
       type={type}
       initialJob={initialJob}
       projects={projects}
+      timezone={timezone}
       defaultProject={defaultProject}
       explicitProjectId={explicitProjectId}
       defaultDate={defaultDate}
@@ -95,6 +97,7 @@ export function CreateTaskForm({
 }
 
 function ReadyCreateTaskForm({
+  timezone,
   type,
   initialJob,
   projects,
@@ -108,6 +111,7 @@ function ReadyCreateTaskForm({
   onSubmit,
   onFieldErrorsChange,
 }: {
+  timezone: string;
   type: CreationBaseType;
   initialJob: boolean;
   projects: ProjectsQuery["projects"]["items"];
@@ -121,7 +125,8 @@ function ReadyCreateTaskForm({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onFieldErrorsChange: (errors: TaskFormErrors) => void;
 }) {
-  const { state, changeField, changeVariant } = useTaskCreationAutofill({
+  const [resetVersion, setResetVersion] = useState(0);
+  const { state, changeField, changeVariant, reset } = useTaskCreationAutofill({
     baseType: type,
     defaultDate,
     defaultProjectId: defaultProject,
@@ -135,6 +140,7 @@ function ReadyCreateTaskForm({
 
   return (
     <form
+      key={resetVersion}
       className="mt-6 grid gap-5"
       onSubmit={onSubmit}
       onInput={(event) => {
@@ -144,6 +150,20 @@ function ReadyCreateTaskForm({
       }}
       noValidate
     >
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          disabled={loading}
+          onClick={() => {
+            reset();
+            setResetVersion((version) => version + 1);
+            onFieldErrorsChange({});
+          }}
+        >
+          Reset autosave
+        </Button>
+      </div>
       <SharedFields
         projects={projects}
         errors={fieldErrors}
@@ -190,6 +210,25 @@ function ReadyCreateTaskForm({
         values={values}
         autofilled={autofilled}
         onFieldChange={changeField}
+      />
+      <ScheduleShift
+        timezone={timezone}
+        fields={
+          values.job
+            ? { start: `${values.startDate}T${values.startTime}` }
+            : {
+                due: `${type === "recurring" ? values.firstDueDate : values.dueDate}${values.dueTime ? `T${values.dueTime}` : ""}`,
+              }
+        }
+        onChange={(next) => {
+          if (values.job && next.start) {
+            changeField("startDate", next.start.slice(0, 10));
+            changeField("startTime", next.start.slice(11));
+          } else if (next.due) {
+            changeField(type === "recurring" ? "firstDueDate" : "dueDate", next.due.slice(0, 10));
+            changeField("dueTime", next.due.slice(11));
+          }
+        }}
       />
       <Button type="submit" disabled={loading}>
         {loading ? "Creating…" : creationButtonLabel(type, values.job)}

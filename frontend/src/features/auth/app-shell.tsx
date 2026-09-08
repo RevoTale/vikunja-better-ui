@@ -3,7 +3,6 @@ import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import {
   BriefcaseBusiness,
   CalendarDays,
-  CalendarRange,
   CheckCircle2,
   History,
   LogOut,
@@ -23,7 +22,6 @@ import { cn } from "@/lib/utils";
 const navigation = [
   { to: "/today", label: "Today", mobileLabel: "Today", icon: CheckCircle2 },
   { to: "/week", label: "Week", mobileLabel: "Week", icon: CalendarDays },
-  { to: "/month", label: "Month", mobileLabel: "Month", icon: CalendarRange },
   { to: "/jobs", label: "Jobs", mobileLabel: "Jobs", icon: BriefcaseBusiness },
   { to: "/unscheduled", label: "No deadline", mobileLabel: "No date", icon: TimerOff },
   { to: "/history", label: "History", mobileLabel: "History", icon: History },
@@ -59,7 +57,7 @@ export function AppShell() {
     setCSRFToken(undefined);
     try {
       await apollo.clearStore();
-      await navigate({ to: "/login", search: { returnTo: "/today" }, replace: true });
+      await navigate({ to: "/login", search: { returnTo: "/week" }, replace: true });
     } catch {
       setSignOutError(
         "You are signed out, but the login page could not be opened. Refresh the page.",
@@ -111,7 +109,7 @@ export function AppShell() {
         </main>
       </div>
       <nav
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-6 border-t bg-background lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t bg-background lg:hidden"
         aria-label="Main navigation"
       >
         {navigation.map((item) => (
@@ -125,8 +123,8 @@ export function AppShell() {
 function Brand({ timezone }: { timezone: string | undefined }) {
   return (
     <Link
-      to="/today"
-      search={{ project: "all", page: 1 }}
+      to="/week"
+      search={{ project: "all" }}
       className="flex w-fit items-center gap-2.5 rounded-sm leading-tight outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <BrandMark className="size-8" />

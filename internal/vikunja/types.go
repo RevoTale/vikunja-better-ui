@@ -70,6 +70,10 @@ type TaskWrite struct {
 }
 
 type TaskPatch struct {
+	Title       *string    `json:"title,omitempty"`
+	Description *string    `json:"description,omitempty"`
+	ProjectID   *int64     `json:"project_id,omitempty"`
+	Priority    *int64     `json:"priority,omitempty"`
 	Done        *bool      `json:"done,omitempty"`
 	DueDate     *time.Time `json:"due_date,omitempty"`
 	StartDate   *time.Time `json:"start_date,omitempty"`
@@ -79,6 +83,11 @@ type TaskPatch struct {
 }
 
 type TaskCheck struct {
+	Updated     *time.Time
+	Title       *string
+	Description *string
+	ProjectID   *int64
+	Priority    *int64
 	Done        *bool
 	DoneAt      *time.Time
 	DueDate     *time.Time

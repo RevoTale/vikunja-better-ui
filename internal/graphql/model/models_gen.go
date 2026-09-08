@@ -154,6 +154,7 @@ type SkipRecurringTaskInput struct {
 
 type Task struct {
 	ID                string             `json:"id"`
+	Version           string             `json:"version"`
 	Title             string             `json:"title"`
 	Description       string             `json:"description"`
 	Kind              TaskKind           `json:"kind"`
@@ -226,6 +227,22 @@ type TaskPageIssue struct {
 type UndoTaskCompletionInput struct {
 	CsrfToken  string `json:"csrfToken"`
 	Capability string `json:"capability"`
+}
+
+type UpdateTaskInput struct {
+	CsrfToken       string           `json:"csrfToken"`
+	TaskID          string           `json:"taskId"`
+	ExpectedVersion string           `json:"expectedVersion"`
+	Title           string           `json:"title"`
+	Description     string           `json:"description"`
+	ProjectID       string           `json:"projectId"`
+	Priority        TaskPriority     `json:"priority"`
+	Job             bool             `json:"job"`
+	DueDate         *LocalDate       `json:"dueDate,omitempty"`
+	DueTime         *LocalTime       `json:"dueTime,omitempty"`
+	StartAt         *LocalDateTime   `json:"startAt,omitempty"`
+	EndAt           *LocalDateTime   `json:"endAt,omitempty"`
+	Recurrence      *RecurrenceInput `json:"recurrence,omitempty"`
 }
 
 type VikunjaUser struct {

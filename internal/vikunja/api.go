@@ -293,6 +293,11 @@ func (client *Client) PatchTaskChecked(ctx context.Context, taskID int64, patch 
 		ctx, http.MethodPatch, path, nil, operations, "", "application/json-patch+json", &task,
 	); err != nil {
 		var upstreamError *Error
+		if errors.As(err, &upstreamError) && upstreamError.Status == http.StatusNotModified {
+			// Huma returns no body when the checked patch leaves the task unchanged.
+			current, _, readErr := client.Task(ctx, taskID)
+			return current, readErr
+		}
 		if errors.As(err, &upstreamError) && upstreamError.Status == http.StatusUnprocessableEntity {
 			return Task{}, ErrConditionFailed
 		}
@@ -306,6 +311,11 @@ func (client *Client) PatchTaskChecked(ctx context.Context, taskID int64, patch 
 
 func taskCheckOperations(check TaskCheck) []jsonPatchOperation {
 	operations := make([]jsonPatchOperation, 0, 7)
+	operations = appendJSONPatchValue(operations, "test", "/updated", check.Updated)
+	operations = appendJSONPatchValue(operations, "test", "/title", check.Title)
+	operations = appendJSONPatchValue(operations, "test", "/description", check.Description)
+	operations = appendJSONPatchValue(operations, "test", "/project_id", check.ProjectID)
+	operations = appendJSONPatchValue(operations, "test", "/priority", check.Priority)
 	operations = appendJSONPatchValue(operations, "test", "/done", check.Done)
 	operations = appendJSONPatchValue(operations, "test", "/done_at", check.DoneAt)
 	operations = appendJSONPatchValue(operations, "test", "/due_date", check.DueDate)
@@ -318,6 +328,10 @@ func taskCheckOperations(check TaskCheck) []jsonPatchOperation {
 
 func taskPatchOperations(patch TaskPatch) []jsonPatchOperation {
 	operations := make([]jsonPatchOperation, 0, 6)
+	operations = appendJSONPatchValue(operations, "replace", "/title", patch.Title)
+	operations = appendJSONPatchValue(operations, "replace", "/description", patch.Description)
+	operations = appendJSONPatchValue(operations, "replace", "/project_id", patch.ProjectID)
+	operations = appendJSONPatchValue(operations, "replace", "/priority", patch.Priority)
 	operations = appendJSONPatchValue(operations, "replace", "/done", patch.Done)
 	operations = appendJSONPatchValue(operations, "replace", "/due_date", patch.DueDate)
 	operations = appendJSONPatchValue(operations, "replace", "/start_date", patch.StartDate)

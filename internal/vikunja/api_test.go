@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -494,6 +495,38 @@ func TestClientPatchTaskCheckedUsesJSONPatchTests(t *testing.T) {
 	)
 	if err != nil || !task.Done {
 		t.Fatalf("PatchTaskChecked() = %#v, %v", task, err)
+	}
+}
+
+func TestClientPatchTaskCheckedReadsUnchangedTask(t *testing.T) {
+	t.Parallel()
+	for _, status := range []int{http.StatusOK, http.StatusForbidden} {
+		t.Run(strconv.Itoa(status), func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPatch {
+					w.WriteHeader(http.StatusNotModified)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(status)
+				_, _ = w.Write([]byte(`{"id":42,"title":"Unchanged"}`))
+			}))
+			t.Cleanup(server.Close)
+			title := "Unchanged"
+			task, err := testClient(t, server.URL, "test-token").PatchTaskChecked(t.Context(), 42,
+				TaskPatch{Title: &title}, TaskCheck{Title: &title})
+			if status == http.StatusOK {
+				if err != nil || task.ID != 42 || task.Title != title {
+					t.Fatalf("task = %#v, error = %v", task, err)
+				}
+			} else {
+				var upstream *Error
+				if !errors.As(err, &upstream) || upstream.Status != status {
+					t.Fatalf("error = %v", err)
+				}
+			}
+		})
 	}
 }
 

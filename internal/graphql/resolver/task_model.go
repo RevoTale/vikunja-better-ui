@@ -38,7 +38,8 @@ func taskModel(
 	}
 
 	return &model.Task{
-		ID: strconv.FormatInt(task.ID, 10), Title: task.Title, Description: task.Description,
+		Version: service.TaskVersion(task),
+		ID:      strconv.FormatInt(task.ID, 10), Title: task.Title, Description: task.Description,
 		Kind: taskKindModel(classification.Kind), IsDone: task.Done, DoneAt: optionalTime(task.DoneAt),
 		CompletionOutcome: completionOutcome,
 		Project: &model.Project{

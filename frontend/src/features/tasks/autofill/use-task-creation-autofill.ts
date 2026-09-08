@@ -28,5 +28,10 @@ export function useTaskCreationAutofill(context: TaskCreationAutofillContext) {
     );
   };
 
-  return { state, changeField, changeVariant };
+  function reset() {
+    memoryRef.current = { records: {} };
+    setState(createInitialAutofillState(context));
+  }
+
+  return { state, changeField, changeVariant, reset };
 }

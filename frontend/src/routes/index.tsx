@@ -11,8 +11,8 @@ export const Route = createFileRoute("/")({
     });
     setCSRFToken(data?.session.csrfToken);
     if (data?.session.authenticated) {
-      throw redirect({ to: "/today", search: { project: "all", page: 1 } });
+      throw redirect({ to: "/week", search: { project: "all" } });
     }
-    throw redirect({ to: "/login", search: { returnTo: "/today" } });
+    throw redirect({ to: "/login", search: { returnTo: "/week" } });
   },
 });

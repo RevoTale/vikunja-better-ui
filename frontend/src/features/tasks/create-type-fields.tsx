@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { AppInput } from "@/components/app-input";
 import { AppSelect } from "@/components/app-select";
+import { DurationInput } from "@/components/duration-input";
 import type {
   ChangeTaskCreationAutofillField,
   TaskCreationAutofillField,
@@ -179,18 +180,20 @@ function RecurringFields({
   );
 }
 
-function RecurrenceFields({
+export function RecurrenceFields({
   errors,
   timeOfDay,
   isJob,
+  initial,
 }: {
   errors: TaskFormErrors;
   timeOfDay: string;
   isJob: boolean;
+  initial?: { interval: number; unit: string; mode: string; keepDueTime: boolean } | null;
 }) {
-  const [unit, setUnit] = useState("DAY");
-  const [mode, setMode] = useState("FROM_COMPLETION");
-  const [keepDueTime, setKeepDueTime] = useState(true);
+  const [unit, setUnit] = useState(initial?.unit ?? "DAY");
+  const [mode, setMode] = useState(initial?.mode ?? "FROM_COMPLETION");
+  const [keepDueTime, setKeepDueTime] = useState(initial?.keepDueTime ?? true);
   const canKeepDueTime = Boolean(timeOfDay) && mode === "FROM_COMPLETION" && unit !== "MONTH";
   return (
     <>
@@ -202,7 +205,7 @@ function RecurrenceFields({
               name="interval"
               type="number"
               min="1"
-              defaultValue="1"
+              defaultValue={initial?.interval ?? 1}
               required
               {...attributes}
             />
@@ -302,18 +305,16 @@ function JobFields({
       <div className="grid gap-5 sm:grid-cols-2">
         <ValidatedField
           name="durationMinutes"
-          label="Duration in minutes"
+          label="Duration"
           error={errors.durationMinutes}
           autofilled={autofilled.has("durationMinutes")}
         >
           {(attributes) => (
-            <AppInput
+            <DurationInput
               id="durationMinutes"
               name="durationMinutes"
-              type="number"
-              min="1"
               value={values.durationMinutes}
-              onChange={(event) => onFieldChange("durationMinutes", event.currentTarget.value)}
+              onChange={(value) => onFieldChange("durationMinutes", value)}
               required
               {...attributes}
             />
@@ -326,15 +327,12 @@ function JobFields({
           autofilled={autofilled.has("completionWindowMinutes")}
         >
           {(attributes) => (
-            <AppInput
+            <DurationInput
               id="completionWindowMinutes"
+              unitLabel="Completion window unit"
               name="completionWindowMinutes"
-              type="number"
-              min="1"
               value={values.completionWindowMinutes}
-              onChange={(event) =>
-                onFieldChange("completionWindowMinutes", event.currentTarget.value)
-              }
+              onChange={(value) => onFieldChange("completionWindowMinutes", value)}
               required
               {...attributes}
             />

@@ -2,18 +2,18 @@ import { isValidLocalDate } from "@/features/tasks/local-date-time";
 
 export function safeReturnTo(value: unknown): string {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
-    return "/today";
+    return "/week";
   }
 
   try {
     decodeURI(value);
     const url = new URL(value, "https://app.invalid");
     if (url.origin !== "https://app.invalid" || url.hash || !isApplicationPath(url.pathname)) {
-      return "/today";
+      return "/week";
     }
     return `${url.pathname}${url.search}`;
   } catch {
-    return "/today";
+    return "/week";
   }
 }
 
@@ -47,5 +47,5 @@ function isApplicationPath(pathname: string): boolean {
   if (/^\/(today|week|month|jobs|unscheduled|history)$/.test(pathname)) {
     return true;
   }
-  return /^\/tasks\/(new|[1-9]\d*)(\/(extended|delete))?$/.test(pathname);
+  return /^\/tasks\/(new|[1-9]\d*)(\/(extended|delete|edit))?$/.test(pathname);
 }

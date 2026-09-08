@@ -18,6 +18,7 @@ import { Route as AuthenticatedTasksTaskIdRouteImport } from './routes/_authenti
 import { Route as AuthenticatedTasksNewRouteImport } from './routes/_authenticated.tasks.new'
 import { Route as AuthenticatedTasksTaskIdIndexRouteImport } from './routes/_authenticated.tasks.$taskId.index'
 import { Route as AuthenticatedTasksTaskIdDeleteRouteImport } from './routes/_authenticated.tasks.$taskId.delete'
+import { Route as AuthenticatedTasksTaskIdEditRouteImport } from './routes/_authenticated.tasks.$taskId.edit'
 import { Route as AuthenticatedTasksTaskIdExtendedRouteImport } from './routes/_authenticated.tasks.$taskId.extended'
 
 const IndexRoute = IndexRouteImport.update({
@@ -88,6 +89,12 @@ const AuthenticatedTasksTaskIdDeleteRoute =
     path: '/delete',
     getParentRoute: () => AuthenticatedTasksTaskIdRoute,
   } as any)
+const AuthenticatedTasksTaskIdEditRoute =
+  AuthenticatedTasksTaskIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => AuthenticatedTasksTaskIdRoute,
+  } as any)
 const AuthenticatedTasksTaskIdExtendedRoute =
   AuthenticatedTasksTaskIdExtendedRouteImport.update({
     id: '/extended',
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/tasks/$taskId': typeof AuthenticatedTasksTaskIdRouteWithChildren
   '/tasks/new': typeof AuthenticatedTasksNewRoute
   '/tasks/$taskId/delete': typeof AuthenticatedTasksTaskIdDeleteRoute
+  '/tasks/$taskId/edit': typeof AuthenticatedTasksTaskIdEditRoute
   '/tasks/$taskId/extended': typeof AuthenticatedTasksTaskIdExtendedRoute
   '/tasks/$taskId/': typeof AuthenticatedTasksTaskIdIndexRoute
 }
@@ -121,6 +129,7 @@ export interface FileRoutesByTo {
   '/week': typeof AuthenticatedWeekRoute
   '/tasks/new': typeof AuthenticatedTasksNewRoute
   '/tasks/$taskId/delete': typeof AuthenticatedTasksTaskIdDeleteRoute
+  '/tasks/$taskId/edit': typeof AuthenticatedTasksTaskIdEditRoute
   '/tasks/$taskId/extended': typeof AuthenticatedTasksTaskIdExtendedRoute
   '/tasks/$taskId': typeof AuthenticatedTasksTaskIdIndexRoute
 }
@@ -138,6 +147,7 @@ export interface FileRoutesById {
   '/_authenticated/tasks/$taskId': typeof AuthenticatedTasksTaskIdRouteWithChildren
   '/_authenticated/tasks/new': typeof AuthenticatedTasksNewRoute
   '/_authenticated/tasks/$taskId/delete': typeof AuthenticatedTasksTaskIdDeleteRoute
+  '/_authenticated/tasks/$taskId/edit': typeof AuthenticatedTasksTaskIdEditRoute
   '/_authenticated/tasks/$taskId/extended': typeof AuthenticatedTasksTaskIdExtendedRoute
   '/_authenticated/tasks/$taskId/': typeof AuthenticatedTasksTaskIdIndexRoute
 }
@@ -155,6 +165,7 @@ export interface FileRouteTypes {
     | '/tasks/$taskId'
     | '/tasks/new'
     | '/tasks/$taskId/delete'
+    | '/tasks/$taskId/edit'
     | '/tasks/$taskId/extended'
     | '/tasks/$taskId/'
   fileRoutesByTo: FileRoutesByTo
@@ -169,6 +180,7 @@ export interface FileRouteTypes {
     | '/week'
     | '/tasks/new'
     | '/tasks/$taskId/delete'
+    | '/tasks/$taskId/edit'
     | '/tasks/$taskId/extended'
     | '/tasks/$taskId'
   id:
@@ -185,6 +197,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tasks/$taskId'
     | '/_authenticated/tasks/new'
     | '/_authenticated/tasks/$taskId/delete'
+    | '/_authenticated/tasks/$taskId/edit'
     | '/_authenticated/tasks/$taskId/extended'
     | '/_authenticated/tasks/$taskId/'
   fileRoutesById: FileRoutesById
@@ -288,6 +301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTasksTaskIdDeleteRouteImport
       parentRoute: typeof AuthenticatedTasksTaskIdRoute
     }
+    '/_authenticated/tasks/$taskId/edit': {
+      id: '/_authenticated/tasks/$taskId/edit'
+      path: '/edit'
+      fullPath: '/tasks/$taskId/edit'
+      preLoaderRoute: typeof AuthenticatedTasksTaskIdEditRouteImport
+      parentRoute: typeof AuthenticatedTasksTaskIdRoute
+    }
     '/_authenticated/tasks/$taskId/extended': {
       id: '/_authenticated/tasks/$taskId/extended'
       path: '/extended'
@@ -300,6 +320,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedTasksTaskIdRouteChildren {
   AuthenticatedTasksTaskIdDeleteRoute: typeof AuthenticatedTasksTaskIdDeleteRoute
+  AuthenticatedTasksTaskIdEditRoute: typeof AuthenticatedTasksTaskIdEditRoute
   AuthenticatedTasksTaskIdExtendedRoute: typeof AuthenticatedTasksTaskIdExtendedRoute
   AuthenticatedTasksTaskIdIndexRoute: typeof AuthenticatedTasksTaskIdIndexRoute
 }
@@ -307,6 +328,7 @@ interface AuthenticatedTasksTaskIdRouteChildren {
 const AuthenticatedTasksTaskIdRouteChildren: AuthenticatedTasksTaskIdRouteChildren =
   {
     AuthenticatedTasksTaskIdDeleteRoute: AuthenticatedTasksTaskIdDeleteRoute,
+    AuthenticatedTasksTaskIdEditRoute: AuthenticatedTasksTaskIdEditRoute,
     AuthenticatedTasksTaskIdExtendedRoute:
       AuthenticatedTasksTaskIdExtendedRoute,
     AuthenticatedTasksTaskIdIndexRoute: AuthenticatedTasksTaskIdIndexRoute,

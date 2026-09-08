@@ -17,7 +17,7 @@ the whole repository.
 
 ## What it does
 
-- Shows overdue and due-today tasks first, with week, month, and project
+- Shows overdue and due-today tasks first, with week and project
   filters.
 - Presents Week as a responsive day-row ledger with read-only scheduled-cycle
   projections and honest completion-based recurrence explanations.
@@ -97,6 +97,54 @@ Storage and collision handling stay in a dedicated feature module instead of
 individual form components. See the
 [task creation autofill specification](docs/specs/task-creation-autofill.md) and
 [ADR-007](docs/decisions/0007-local-task-creation-autofill.md).
+
+**Reset autosave** resets the entire current creation form to its normal
+defaults, including description and recurrence controls. Explicit date/project
+context from the originating page is preserved. Remembered values and their
+indicators are removed from the form and are not reapplied when toggling Job.
+This does not delete browser memory: reopening New task can use the last
+successful creation again. Creating a task successfully replaces that memory.
+
+### Editing tasks and adjusting dates
+
+Week is the default landing page and the logo's destination. Signing in keeps
+an explicitly requested page, including Today; otherwise it opens Week.
+
+Open an active task and select **Edit**. Change its title, description, project,
+priority, Job mode, recurrence, start, end, and due dates. **Save changes** is the
+only action that writes the task. Cancel leaves the original task unchanged.
+Recurring edits affect the live task and future projections, never completed
+history. Completed tasks remain read-only.
+
+**Shift schedule** previews a relative adjustment before applying it to the
+form. Choose the whole schedule or just Start, End, or Due; choose Earlier or
+Later; then enter any whole-minute duration, such as 56 minutes or 1 hour.
+Creation forms shift the due date or the Job start (its end and due follow the
+configured durations). Missing dates stay empty.
+
+The preview is not saved automatically. **Apply shift to fields** updates the
+visible date fields and clears the shift amount to prevent accidental repeated
+shifts. **Save changes** saves those fields. Saving an unchanged task succeeds
+after confirming its current state; changing only Job mode still updates its
+marker label. A failed confirmation remains an error, not a successful save.
+
+Duration and completion-window inputs accept **minutes, hours, or days**. Four
+hours is stored as 240 minutes; changing units preserves the duration. In the
+editor, **Set duration and completion window** recalculates End and Due from
+Start. Timed durations use elapsed time: one day is 24 hours, including across
+DST. Whole-day shifts of a date-only deadline use calendar days. Ambiguous or
+nonexistent local times are rejected; the Vikunja user timezone is authoritative.
+Shifts into a repeated DST hour are rejected in the preview before Apply is
+enabled, since the form cannot distinguish the two occurrences of that hour.
+
+The editor rejects a task changed since it was loaded and keeps your draft.
+**Reload task and discard edits** explicitly replaces the draft with fresh
+data. Vikunja stores task fields and marker labels through separate requests;
+if a metadata update fails, the app reports partial success and asks you to
+reload before retrying. It never reports that failure as a successful save.
+
+Month is no longer a navigation tab. Existing `/month` links redirect to Week.
+The GraphQL `MONTH` scope remains available for existing consumers.
 
 The Week view combines real tasks with clearly marked, non-actionable computed
 scheduled cycles. It never assigns an estimated day to From completion

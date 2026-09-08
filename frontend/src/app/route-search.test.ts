@@ -9,14 +9,21 @@ import {
 } from "./route-search";
 
 describe("safeReturnTo", () => {
+  it("preserves edit deep links and their return destination", () => {
+    const path = "/tasks/42/edit?returnTo=%2Fweek%3Fproject%3D8";
+    expect(safeReturnTo(path)).toBe(path);
+    expect(safeReturnTo("/tasks/42/edit/other")).toBe("/week");
+  });
   it.each(["https://example.com", "//example.com", "/login", "not-a-path", "/tasks/%"])(
     "rejects %s",
     (value) => {
-      expect(safeReturnTo(value)).toBe("/today");
+      expect(safeReturnTo(value)).toBe("/week");
     },
   );
 
   it("keeps an allowlisted application URL with search state", () => {
+    expect(safeReturnTo(undefined)).toBe("/week");
+    expect(safeReturnTo("/today?project=all&page=1")).toBe("/today?project=all&page=1");
     expect(safeReturnTo("/jobs?project=8&page=2")).toBe("/jobs?project=8&page=2");
     expect(safeReturnTo("/tasks/42/delete?returnTo=%2Ftoday")).toBe(
       "/tasks/42/delete?returnTo=%2Ftoday",

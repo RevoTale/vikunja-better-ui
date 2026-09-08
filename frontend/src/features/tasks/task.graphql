@@ -1,6 +1,7 @@
 query TaskDetails($id: ID!) {
   task(id: $id) {
     id
+    version
     title
     description
     kind
@@ -29,6 +30,13 @@ query TaskDetails($id: ID!) {
       id
       title
     }
+  }
+}
+
+mutation UpdateTask($input: UpdateTaskInput!) {
+  updateTask(input: $input) {
+    id
+    version
   }
 }
 

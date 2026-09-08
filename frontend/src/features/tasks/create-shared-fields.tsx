@@ -3,7 +3,6 @@ import { AppSelect } from "@/components/app-select";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import type {
-  ChangeTaskCreationAutofillField,
   TaskCreationAutofillField,
   TaskCreationValues,
 } from "./autofill/task-creation-autofill";
@@ -19,20 +18,27 @@ export function SharedFields({
   values,
   autofilled,
   onFieldChange,
+  description,
+  titleRequired = false,
 }: {
   projects: readonly { id: string; title: string }[];
   errors: TaskFormErrors;
   type: CreationBaseType;
   titlePlaceholder: string;
-  values: TaskCreationValues;
+  values: Pick<TaskCreationValues, "job" | "title" | "projectId" | "priority">;
   autofilled: ReadonlySet<TaskCreationAutofillField>;
-  onFieldChange: ChangeTaskCreationAutofillField;
+  onFieldChange: <Field extends "title" | "projectId" | "priority">(
+    field: Field,
+    value: TaskCreationValues[Field],
+  ) => void;
+  description?: string;
+  titleRequired?: boolean;
 }) {
   return (
     <>
       <ValidatedField
         name="title"
-        label={values.job && type !== "recurring" ? "Title (optional)" : "Title"}
+        label={!titleRequired && values.job && type !== "recurring" ? "Title (optional)" : "Title"}
         error={errors.title}
         autofilled={autofilled.has("title")}
       >
@@ -41,7 +47,7 @@ export function SharedFields({
             id="title"
             name="title"
             autoFocus
-            required={!values.job || type === "recurring"}
+            required={titleRequired || !values.job || type === "recurring"}
             placeholder={values.job && type !== "recurring" ? titlePlaceholder : undefined}
             maxLength={250}
             value={values.title}
@@ -52,7 +58,7 @@ export function SharedFields({
       </ValidatedField>
       <Field>
         <FieldLabel htmlFor="description">Description</FieldLabel>
-        <Textarea id="description" name="description" />
+        <Textarea id="description" name="description" defaultValue={description} />
       </Field>
       <div className="grid gap-5 sm:grid-cols-2">
         <ValidatedField
