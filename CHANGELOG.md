@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.7.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.6.1...v1.7.0) (2026-09-08)
+
+
+### Features
+
+* **tasks:** add task editing and schedule controls ([1970191](https://github.com/RevoTale/vikunja-better-ui/commit/197019167c96088d34dfeeec182bac4cfe9bd1b7))
+
+
+### Bug Fixes
+
+* **deps:** update dependency lucide-react to v1.37.0 ([61a64c5](https://github.com/RevoTale/vikunja-better-ui/commit/61a64c5219a97c1b4a87204a358c6f2b10166344))
+* **deps:** update dependency lucide-react to v1.37.0 ([4ec0c5b](https://github.com/RevoTale/vikunja-better-ui/commit/4ec0c5b0671ecaa7903cd862baf5d95241e979c3))
+* **deps:** update dependency lucide-react to v1.39.0 ([e4cb6d1](https://github.com/RevoTale/vikunja-better-ui/commit/e4cb6d1f06382aa2f0f58e9ba4f902a97530e116))
+* **deps:** update dependency lucide-react to v1.39.0 ([b5d2057](https://github.com/RevoTale/vikunja-better-ui/commit/b5d2057cff5da53bdbc9efb6329a0901c3c01b30))
+* **deps:** update module github.com/vektah/gqlparser/v2 to v2.5.37 ([576144e](https://github.com/RevoTale/vikunja-better-ui/commit/576144ec569a8a99780c8877a7a49869c2e7879e))
+* **deps:** update module github.com/vektah/gqlparser/v2 to v2.5.37 ([701a29d](https://github.com/RevoTale/vikunja-better-ui/commit/701a29dbeeb7a7d5d0d594a38edf5d16c56ca069))
+
 ## [1.6.1](https://github.com/RevoTale/vikunja-better-ui/compare/v1.6.0...v1.6.1) (2026-08-27)
 
 
