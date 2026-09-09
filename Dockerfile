@@ -12,7 +12,7 @@ COPY frontend/ ./
 COPY internal/graphql/schema/ /source/internal/graphql/schema/
 RUN pnpm run generate:graphql && pnpm run build
 
-FROM golang:1.27.0-trixie@sha256:ae28539d2ef595b9a2930dd7f031d9592376829dc0eae7cb869559f7d5812c3a AS backend
+FROM golang:1.27.1-trixie@sha256:9baa6b4187bbb98d240372a8a235ac0bb6b5ddd52bba1431dc2f7c0705862728 AS backend
 WORKDIR /source
 COPY go.mod go.sum ./
 RUN go mod download
