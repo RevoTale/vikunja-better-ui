@@ -3,9 +3,9 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "packageManager": "pnpm@12.4.1",
+  "packageManager": "pnpm@12.5.1",
   "engines": {
-    "node": "26.8.1",
+    "node": "26.8.2",
     "pnpm": ">=11.22.0 <13"
   },
   "scripts": {
@@ -19,39 +19,39 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@apollo/client": "4.2.12",
+    "@apollo/client": "4.3.0",
     "@base-ui/react": "^1.8.0",
     "@daypicker/react": "10.0.1",
     "@graphql-typed-document-node/core": "3.2.0",
-    "@tanstack/react-router": "1.170.32",
+    "@tanstack/react-router": "1.170.36",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "date-fns": "4.4.0",
     "graphql": "17.0.2",
-    "lucide-react": "1.45.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
+    "lucide-react": "1.46.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "rxjs": "7.8.2",
     "shadcn": "^4.21.0",
-    "tailwind-merge": "3.6.0",
+    "tailwind-merge": "3.7.0",
     "tw-animate-css": "^1.4.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
-    "@biomejs/biome": "2.5.13",
-    "@graphql-codegen/cli": "7.4.1",
+    "@biomejs/biome": "2.5.14",
+    "@graphql-codegen/cli": "7.4.2",
     "@graphql-codegen/client-preset": "6.2.0",
-    "@graphql-codegen/typescript-operations": "6.1.6",
-    "@playwright/test": "1.62.1",
+    "@graphql-codegen/typescript-operations": "6.1.7",
+    "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "4.3.3",
-    "@tanstack/router-plugin": "1.168.35",
-    "@types/node": "26.5.1",
-    "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.5",
+    "@tanstack/router-plugin": "1.168.38",
+    "@types/node": "26.6.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
-    "vite": "8.2.2",
-    "vitest": "4.1.11"
+    "vite": "8.3.0",
+    "vitest": "5.0.0"
   }
 }
