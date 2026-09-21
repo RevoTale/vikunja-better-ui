@@ -37,6 +37,19 @@ the whole repository.
 
 Only Vikunja 2.5.0 and its REST API v2 are supported.
 
+### Overdue schedule display
+
+Active overdue task rows keep their original scheduled date and time visible,
+but strike them through. Job rows also strike their work interval and
+"Complete by" deadline. This marks a missed schedule, not a completed task;
+the title, priority, labels, and explicit **Overdue** status remain unstruck.
+The existing sorting rules are unchanged.
+
+Date-only deadlines become overdue after their stored end-of-day boundary;
+their synthetic time stays hidden. Week rows strike the displayed time only,
+not the shared day heading or "Anytime" placeholder. Completed history items,
+computed occurrences, and schedules that are not overdue are not struck through.
+
 ## Recurring renewal behavior
 
 Timed recurring tasks that renew **From completion date** default

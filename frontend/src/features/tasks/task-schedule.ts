@@ -64,9 +64,9 @@ function emptySchedule(): TaskSchedule {
 }
 
 function urgencyFor(due: Date, hasDueTime: boolean, now: Date): TaskUrgency {
-  if (!hasDueTime) return "muted";
   const remaining = due.getTime() - now.getTime();
   if (remaining < 0) return "overdue";
+  if (!hasDueTime) return "muted";
   return remaining <= soonThresholdMilliseconds ? "soon" : "normal";
 }
 

@@ -318,7 +318,7 @@ func (e *CompletionOutcome) UnmarshalGQL(v any) error {
 }
 
 func (e CompletionOutcome) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *CompletionOutcome) UnmarshalJSON(b []byte) error {
@@ -373,7 +373,7 @@ func (e *CompletionStatus) UnmarshalGQL(v any) error {
 }
 
 func (e CompletionStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *CompletionStatus) UnmarshalJSON(b []byte) error {
@@ -434,7 +434,7 @@ func (e *MarkerKind) UnmarshalGQL(v any) error {
 }
 
 func (e MarkerKind) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *MarkerKind) UnmarshalJSON(b []byte) error {
@@ -489,7 +489,7 @@ func (e *PageIssueCode) UnmarshalGQL(v any) error {
 }
 
 func (e PageIssueCode) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *PageIssueCode) UnmarshalJSON(b []byte) error {
@@ -544,7 +544,7 @@ func (e *RecurrenceMode) UnmarshalGQL(v any) error {
 }
 
 func (e RecurrenceMode) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *RecurrenceMode) UnmarshalJSON(b []byte) error {
@@ -601,7 +601,7 @@ func (e *RecurrenceUnit) UnmarshalGQL(v any) error {
 }
 
 func (e RecurrenceUnit) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *RecurrenceUnit) UnmarshalJSON(b []byte) error {
@@ -668,7 +668,7 @@ func (e *RepairStep) UnmarshalGQL(v any) error {
 }
 
 func (e RepairStep) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *RepairStep) UnmarshalJSON(b []byte) error {
@@ -727,7 +727,7 @@ func (e *TaskKind) UnmarshalGQL(v any) error {
 }
 
 func (e TaskKind) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *TaskKind) UnmarshalJSON(b []byte) error {
@@ -782,7 +782,7 @@ func (e *TaskMutationStatus) UnmarshalGQL(v any) error {
 }
 
 func (e TaskMutationStatus) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *TaskMutationStatus) UnmarshalJSON(b []byte) error {
@@ -845,7 +845,7 @@ func (e *TaskPriority) UnmarshalGQL(v any) error {
 }
 
 func (e TaskPriority) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *TaskPriority) UnmarshalJSON(b []byte) error {
@@ -908,7 +908,7 @@ func (e *TaskScope) UnmarshalGQL(v any) error {
 }
 
 func (e TaskScope) MarshalGQL(w io.Writer) {
-	fmt.Fprint(w, strconv.Quote(e.String()))
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
 }
 
 func (e *TaskScope) UnmarshalJSON(b []byte) error {

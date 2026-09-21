@@ -95,6 +95,18 @@ test("login restores the requested route and core navigation is accessible", asy
     await expectUnclippedLines(longProjectBadge, 3);
   }
   await expectTaskRowLayout(page, labeledTitle, "focus");
+  const overdueRow = page.locator('[data-slot="card"]').filter({ hasText: labeledTitle });
+  const schedule = overdueRow.locator('[data-slot="task-schedule"]');
+  await expect(schedule.locator("p").nth(0)).toHaveCSS("text-decoration-line", "line-through");
+  await expect(schedule.locator("p").nth(1)).toHaveCSS("text-decoration-line", "line-through");
+  await expect(schedule.getByText("Overdue", { exact: true })).toHaveCSS(
+    "text-decoration-line",
+    "none",
+  );
+  await expect(overdueRow.getByRole("link", { name: labeledTitle, exact: true })).toHaveCSS(
+    "text-decoration-line",
+    "none",
+  );
   await expectBaseUICSP(page);
 });
 

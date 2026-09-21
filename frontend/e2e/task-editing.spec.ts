@@ -202,6 +202,7 @@ async function signIn(page: Page) {
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/today/);
+  await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
 }
 
 async function select(page: Page, label: string, option: string) {

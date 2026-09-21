@@ -36,12 +36,13 @@ export function TaskRow({
 }) {
   const labels = visibleTaskLabels(task.labels);
   const schedule = taskSchedule(task);
+  const overdue = !projection && schedule.urgency === "overdue";
   const hint = showRecurrenceHint ? recurrenceHint(task) : null;
   return (
     <Card
       className={cn(
         "py-0",
-        task.isOverdue && "border-destructive/50 bg-destructive/5",
+        overdue && "border-destructive/50 bg-destructive/5",
         projection && "border-dashed border-muted-foreground/30 bg-muted/40 text-muted-foreground",
       )}
       data-projection={projection || undefined}
@@ -62,7 +63,9 @@ export function TaskRow({
               {task.title}
             </Link>
             {schedule.completeBy ? (
-              <p className="mt-1 text-xs text-muted-foreground">{schedule.completeBy}</p>
+              <p className={cn("mt-1 text-xs text-muted-foreground", overdue && "line-through")}>
+                {schedule.completeBy}
+              </p>
             ) : null}
             {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
           </div>
@@ -100,6 +103,7 @@ function Schedule({
   projection: boolean;
 }) {
   const primary = dayGrouped ? (schedule.time ?? "Anytime") : schedule.date;
+  const overdue = !projection && schedule.urgency === "overdue";
   return (
     <div
       className={cn(
@@ -108,11 +112,22 @@ function Schedule({
       )}
       data-slot="task-schedule"
     >
-      <p className="text-sm font-semibold leading-tight">{primary}</p>
+      <p
+        className={cn(
+          "text-sm font-semibold leading-tight",
+          overdue && (!dayGrouped || schedule.time) && "line-through",
+        )}
+      >
+        {primary}
+      </p>
       {!dayGrouped && schedule.time ? (
-        <p className="mt-1 whitespace-nowrap text-xs">{schedule.time}</p>
+        <p className={cn("mt-1 whitespace-nowrap text-xs", overdue && "line-through")}>
+          {schedule.time}
+        </p>
       ) : null}
-      {schedule.status ? <p className="mt-1 text-xs font-medium">{schedule.status}</p> : null}
+      {!projection && schedule.status ? (
+        <p className="mt-1 text-xs font-medium">{schedule.status}</p>
+      ) : null}
     </div>
   );
 }

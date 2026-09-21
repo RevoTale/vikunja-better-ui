@@ -12,7 +12,7 @@
 			"version": "26.8.1",
 			"pnpmVersion": "none"
 		},
-		"ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+		"ghcr.io/devcontainers/features/docker-outside-of-docker:1.10.1": {
 			"moby": false
 		}
 	},

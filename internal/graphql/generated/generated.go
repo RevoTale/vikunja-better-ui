@@ -9193,10 +9193,6 @@ func (ec *executionContext) unmarshalNCompleteTaskInput2githubᚗcomᚋRevoTale�
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNCompletionPayload2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐCompletionPayload(ctx context.Context, sel ast.SelectionSet, v model.CompletionPayload) graphql.Marshaler {
-	return ec._CompletionPayload(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNCompletionPayload2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐCompletionPayload(ctx context.Context, sel ast.SelectionSet, v *model.CompletionPayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -9251,10 +9247,6 @@ func (ec *executionContext) marshalNDateTime2timeᚐTime(ctx context.Context, se
 func (ec *executionContext) unmarshalNDeleteTaskInput2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐDeleteTaskInput(ctx context.Context, v any) (model.DeleteTaskInput, error) {
 	res, err := ec.unmarshalInputDeleteTaskInput(ctx, v)
 	return res, graphql.ErrorOnPath(ctx, err)
-}
-
-func (ec *executionContext) marshalNDeleteTaskPayload2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐDeleteTaskPayload(ctx context.Context, sel ast.SelectionSet, v model.DeleteTaskPayload) graphql.Marshaler {
-	return ec._DeleteTaskPayload(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNDeleteTaskPayload2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐDeleteTaskPayload(ctx context.Context, sel ast.SelectionSet, v *model.DeleteTaskPayload) graphql.Marshaler {
@@ -9350,10 +9342,6 @@ func (ec *executionContext) unmarshalNLoginInput2githubᚗcomᚋRevoTaleᚋvikun
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNLoginPayload2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLoginPayload(ctx context.Context, sel ast.SelectionSet, v model.LoginPayload) graphql.Marshaler {
-	return ec._LoginPayload(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNLoginPayload2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLoginPayload(ctx context.Context, sel ast.SelectionSet, v *model.LoginPayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -9362,10 +9350,6 @@ func (ec *executionContext) marshalNLoginPayload2ᚖgithubᚗcomᚋRevoTaleᚋvi
 		return graphql.Null
 	}
 	return ec._LoginPayload(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNLogoutPayload2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLogoutPayload(ctx context.Context, sel ast.SelectionSet, v model.LogoutPayload) graphql.Marshaler {
-	return ec._LogoutPayload(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNLogoutPayload2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLogoutPayload(ctx context.Context, sel ast.SelectionSet, v *model.LogoutPayload) graphql.Marshaler {
@@ -9454,10 +9438,6 @@ func (ec *executionContext) marshalNProject2ᚖgithubᚗcomᚋRevoTaleᚋvikunja
 	return ec._Project(ctx, sel, v)
 }
 
-func (ec *executionContext) marshalNProjectResult2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐProjectResult(ctx context.Context, sel ast.SelectionSet, v model.ProjectResult) graphql.Marshaler {
-	return ec._ProjectResult(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNProjectResult2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐProjectResult(ctx context.Context, sel ast.SelectionSet, v *model.ProjectResult) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -9533,10 +9513,6 @@ func (ec *executionContext) unmarshalNRepairTaskMetadataInput2githubᚗcomᚋRev
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNSession2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐSession(ctx context.Context, sel ast.SelectionSet, v model.Session) graphql.Marshaler {
-	return ec._Session(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNSession2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐSession(ctx context.Context, sel ast.SelectionSet, v *model.Session) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -9571,10 +9547,6 @@ func (ec *executionContext) marshalNString2string(ctx context.Context, sel ast.S
 		}
 	}
 	return res
-}
-
-func (ec *executionContext) marshalNTask2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTask(ctx context.Context, sel ast.SelectionSet, v model.Task) graphql.Marshaler {
-	return ec._Task(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNTask2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.Task) graphql.Marshaler {
@@ -9618,10 +9590,6 @@ func (ec *executionContext) unmarshalNTaskListInput2githubᚗcomᚋRevoTaleᚋvi
 	return res, graphql.ErrorOnPath(ctx, err)
 }
 
-func (ec *executionContext) marshalNTaskMutationPayload2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskMutationPayload(ctx context.Context, sel ast.SelectionSet, v model.TaskMutationPayload) graphql.Marshaler {
-	return ec._TaskMutationPayload(ctx, sel, &v)
-}
-
 func (ec *executionContext) marshalNTaskMutationPayload2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskMutationPayload(ctx context.Context, sel ast.SelectionSet, v *model.TaskMutationPayload) graphql.Marshaler {
 	if v == nil {
 		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
@@ -9640,10 +9608,6 @@ func (ec *executionContext) unmarshalNTaskMutationStatus2githubᚗcomᚋRevoTale
 
 func (ec *executionContext) marshalNTaskMutationStatus2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskMutationStatus(ctx context.Context, sel ast.SelectionSet, v model.TaskMutationStatus) graphql.Marshaler {
 	return v
-}
-
-func (ec *executionContext) marshalNTaskPage2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPage(ctx context.Context, sel ast.SelectionSet, v model.TaskPage) graphql.Marshaler {
-	return ec._TaskPage(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNTaskPage2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPage(ctx context.Context, sel ast.SelectionSet, v *model.TaskPage) graphql.Marshaler {
@@ -9767,10 +9731,6 @@ func (ec *executionContext) marshalNWeekProjection2ᚖgithubᚗcomᚋRevoTaleᚋ
 		return graphql.Null
 	}
 	return ec._WeekProjection(ctx, sel, v)
-}
-
-func (ec *executionContext) marshalNWeekView2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekView(ctx context.Context, sel ast.SelectionSet, v model.WeekView) graphql.Marshaler {
-	return ec._WeekView(ctx, sel, &v)
 }
 
 func (ec *executionContext) marshalNWeekView2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐWeekView(ctx context.Context, sel ast.SelectionSet, v *model.WeekView) graphql.Marshaler {
