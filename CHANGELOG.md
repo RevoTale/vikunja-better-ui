@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/RevoTale/vikunja-better-ui/compare/v1.7.0...v1.7.1) (2026-09-26)
+
+
+### Bug Fixes
+
+* **deps:** update dependency @apollo/client to v4.3.1 ([#72](https://github.com/RevoTale/vikunja-better-ui/issues/72)) ([a6d2d86](https://github.com/RevoTale/vikunja-better-ui/commit/a6d2d8628a12d2572aec23d07a218c7265ee027a))
+
 ## [1.7.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.6.1...v1.7.0) (2026-09-08)
 
 
