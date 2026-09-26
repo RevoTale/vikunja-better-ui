@@ -167,8 +167,8 @@ importers:
   .:
     dependencies:
       '@apollo/client':
-        specifier: 4.3.0
-        version: 4.3.0(graphql-ws@6.2.2(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rxjs@7.8.2)
+        specifier: 4.3.1
+        version: 4.3.1(graphql-ws@6.2.2(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rxjs@7.8.2)
       '@base-ui/react':
         specifier: ^1.8.0
         version: 1.8.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -266,8 +266,8 @@ importers:
 
 packages:
 
-  '@apollo/client@4.3.0':
-    resolution: {integrity: sha512-1ESwmPyTo3MEVuYGxMclwVGTEzTv+DEy9ZwKJqWzT436Ei4SMfGZnGaH6WUtuAH7FrEHptXGBFMixsX+ECnbJA==}
+  '@apollo/client@4.3.1':
+    resolution: {integrity: sha512-MFHzUfHxS+A6AzH+cS4896jHuSTRw5ACUANijz1gyesWZDLsbgZ17oCb/KfRAOUuoUr8AzCaBE+xJPi7R7ZOCA==}
     peerDependencies:
       graphql: ^16.0.0 || ^17.0.0
       graphql-ws: ^5.5.5 || ^6.0.3
@@ -3380,7 +3380,7 @@ packages:
 
 snapshots:
 
-  '@apollo/client@4.3.0(graphql-ws@6.2.2(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rxjs@7.8.2)':
+  '@apollo/client@4.3.1(graphql-ws@6.2.2(graphql@17.0.2)(ws@8.21.3))(graphql@17.0.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rxjs@7.8.2)':
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@17.0.2)
       '@wry/caches': 1.0.1
