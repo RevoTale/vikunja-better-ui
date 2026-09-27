@@ -97,8 +97,9 @@ test("login restores the requested route and core navigation is accessible", asy
   await expectTaskRowLayout(page, labeledTitle, "focus");
   const overdueRow = page.locator('[data-slot="card"]').filter({ hasText: labeledTitle });
   const schedule = overdueRow.locator('[data-slot="task-schedule"]');
-  await expect(schedule.locator("p").nth(0)).toHaveCSS("text-decoration-line", "line-through");
-  await expect(schedule.locator("p").nth(1)).toHaveCSS("text-decoration-line", "line-through");
+  await expect(schedule.getByText("High", { exact: true })).toBeVisible();
+  await expect(overdueRow.getByText("High", { exact: true })).toHaveCount(1);
+  await expect(schedule).not.toContainText(/\d{2}:\d{2}|\d{2} [A-Z][a-z]{2}/);
   await expect(schedule.getByText("Overdue", { exact: true })).toHaveCSS(
     "text-decoration-line",
     "none",
@@ -108,6 +109,7 @@ test("login restores the requested route and core navigation is accessible", asy
     "none",
   );
   await expectBaseUICSP(page);
+  await page.screenshot({ path: test.info().outputPath("overdue-priority.png"), fullPage: true });
 });
 
 test("login displays the GraphQL error returned by the app", async ({ page }) => {
@@ -1205,7 +1207,10 @@ async function expectTaskRowLayout(page: Page, title: string, label: string) {
   await expect(projectBadge).toHaveClass(/bg-secondary/);
   await expect(metadata).toHaveCSS("flex-wrap", "wrap");
   await expect(metadata).toHaveCSS("justify-content", "flex-end");
-  await expect(metadata.locator("li").first()).toHaveText("High");
+  await expect(metadata.locator("li").first()).toHaveText(label);
+  await expect(
+    card.locator('[data-slot="task-schedule"]').getByText("High", { exact: true }),
+  ).toBeVisible();
   expect(Math.abs(kindBox.x + kindBox.width - (metadataBox.x + metadataBox.width))).toBeLessThan(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => document.documentElement.clientWidth),

@@ -4,10 +4,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type TaskItem, TaskRow } from "./task-row";
 
 vi.mock("@tanstack/react-router", () => ({
-  Link: ({ children }: { children: React.ReactNode }) => <a href="/tasks/1">{children}</a>,
+  Link: ({
+    children,
+    "aria-label": label,
+  }: {
+    children: React.ReactNode;
+    "aria-label"?: string;
+  }) => (
+    <a href="/tasks/1" aria-label={label}>
+      {children}
+    </a>
+  ),
 }));
 
 const task: TaskItem = {
+  commentCount: null,
   id: "1",
   title: "Read a book",
   description: "",
@@ -41,43 +52,66 @@ function render(overrides: Partial<TaskItem> = {}, dayGrouped = false, projectio
 }
 
 describe("overdue task schedule", () => {
+  it("shows a compact discussion link only for real tasks with comments", () => {
+    expect(render({ commentCount: 3 })).toContain('aria-label="3 comments on Read a book"');
+    expect(render({ commentCount: 1 })).toContain('aria-label="1 comment on Read a book"');
+    for (const commentCount of [null, 0]) {
+      expect(render({ commentCount })).not.toContain("comments on Read a book");
+    }
+    expect(render({ commentCount: 3 }, true, true)).not.toContain("comments on Read a book");
+  });
+  it("places discussion below the completion deadline and outside metadata", () => {
+    const markup = render({
+      commentCount: 3,
+      kind: "JOB",
+      isDone: true,
+      startAt: "2026-08-14T06:00:00Z",
+      endAt: "2026-08-14T07:00:00Z",
+    });
+    const discussion = markup.indexOf('aria-label="3 comments on Read a book"');
+    expect(discussion).toBeGreaterThan(markup.indexOf("Complete by 07:30"));
+    expect(discussion).toBeLessThan(markup.indexOf('data-slot="task-metadata"'));
+  });
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-14T08:00:00Z"));
   });
   afterEach(() => vi.useRealTimers());
 
-  it("strikes the date and time, but not the title or Overdue status", () => {
+  it("replaces overdue date and time with one priority badge", () => {
     const markup = render();
-    expect(markup).toMatch(/<p class="[^"]*line-through[^"]*">14 Aug<\/p>/);
-    expect(markup).toMatch(/<p class="[^"]*line-through[^"]*">07:30<\/p>/);
-    expect(markup).toContain('<p class="mt-1 text-xs font-medium">Overdue</p>');
+    expect(markup).not.toContain("14 Aug");
+    expect(markup).not.toContain("07:30");
+    expect(markup.match(/>High</g)).toHaveLength(1);
+    expect(markup.indexOf(">Overdue<")).toBeLessThan(markup.indexOf(">High<"));
+    expect(markup.indexOf(">High<")).toBeLessThan(markup.indexOf('data-slot="task-content"'));
+    expect(markup).toContain('<p class="mb-1 text-xs font-medium">Overdue</p>');
     expect(markup).toContain('<a href="/tasks/1">Read a book</a>');
-    expect(markup.match(/line-through/g)).toHaveLength(2);
+    expect(markup).not.toContain("line-through");
   });
 
-  it("strikes a date-only deadline from a previous day without inventing a time", () => {
+  it("hides a date-only overdue deadline without inventing a time", () => {
     const markup = render({ dueAt: "2026-08-13T23:59:59Z", hasDueTime: false });
-    expect(markup).toMatch(/<p class="[^"]*line-through[^"]*">13 Aug<\/p>/);
+    expect(markup).not.toContain("13 Aug");
     expect(markup).not.toContain("23:59");
     expect(markup).toContain("Overdue");
   });
 
-  it("strikes the job interval and completion deadline", () => {
+  it("hides the overdue job interval and completion deadline", () => {
     const markup = render({
       kind: "JOB",
       startAt: "2026-08-14T06:00:00Z",
       endAt: "2026-08-14T07:00:00Z",
     });
-    expect(markup).toMatch(/<p class="[^"]*line-through[^"]*">06:00–07:00<\/p>/);
-    expect(markup).toMatch(/<p class="[^"]*line-through[^"]*">Complete by 07:30<\/p>/);
+    expect(markup).not.toContain("06:00–07:00");
+    expect(markup).not.toContain("Complete by");
   });
 
-  it("strikes only the time in day-grouped rows", () => {
+  it("replaces the overdue time in day-grouped rows", () => {
     const markup = render({}, true);
-    expect(markup).toMatch(/<p class="[^"]*line-through[^"]*">07:30<\/p>/);
+    expect(markup).not.toContain("07:30");
     expect(markup).not.toContain("14 Aug");
-    expect(markup.match(/line-through/g)).toHaveLength(1);
+    expect(markup.match(/>High</g)).toHaveLength(1);
   });
 
   it.each([
@@ -93,12 +127,26 @@ describe("overdue task schedule", () => {
     const markup = render({}, true, true);
     expect(markup).not.toContain("line-through");
     expect(markup).not.toContain(">Overdue<");
+    expect(markup).toContain("07:30");
+    expect(markup.indexOf(">High<")).toBeGreaterThan(markup.indexOf('data-slot="task-metadata"'));
   });
 
-  it("does not strike the Anytime placeholder in a date-only weekly row", () => {
+  it("replaces Anytime in an overdue date-only weekly row", () => {
     const markup = render({ dueAt: "2026-08-13T23:59:59Z", hasDueTime: false }, true);
-    expect(markup).toContain("Anytime");
+    expect(markup).not.toContain("Anytime");
     expect(markup).toContain("Overdue");
     expect(markup).not.toContain("line-through");
   });
+  it("shows No priority once for an overdue task without a priority", () => {
+    expect(render({ priority: "UNSET" }).match(/>No priority</g)).toHaveLength(1);
+  });
+  it.each([{ isDone: true }, { dueAt: "2026-08-14T09:00:00Z" }])(
+    "keeps non-overdue priority in metadata: %j",
+    (overrides) => {
+      const markup = render(overrides);
+      expect(markup).toContain("14 Aug");
+      expect(markup.match(/>High</g)).toHaveLength(1);
+      expect(markup.indexOf(">High<")).toBeGreaterThan(markup.indexOf('data-slot="task-metadata"'));
+    },
+  );
 });

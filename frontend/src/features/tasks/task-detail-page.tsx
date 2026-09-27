@@ -1,104 +1,66 @@
 import { useQuery } from "@apollo/client/react";
-import { ArrowLeft } from "lucide-react";
-import type { ReactNode } from "react";
-
-import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, MessageSquare } from "lucide-react";
+import { lazy, Suspense } from "react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { TaskDetailsDocument } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import { cn } from "@/lib/utils";
-import { formatDateTime } from "./format-date-time";
-import { PriorityBadge } from "./priority-badge";
+import { TaskDescription } from "./task-description";
 import { TaskDetailActions } from "./task-detail-actions";
-import { taskKindLabel } from "./task-kind-label";
-import { TaskRecurrenceSetting } from "./task-recurrence-setting";
+import { TaskProperties } from "./task-properties";
+
+const DiscussionThread = lazy(() =>
+  import("@/features/task-discussion/discussion-thread").then((module) => ({
+    default: module.DiscussionThread,
+  })),
+);
 
 export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo: string }) {
   const { data, loading, error, refetch } = useQuery(TaskDetailsDocument, {
     variables: { id: taskId },
   });
-  if (loading && !data) return <p>Loading task…</p>;
-  if (error)
-    return (
-      <p role="alert" className="text-destructive">
-        {graphQLErrorMessage(error, "Task could not be loaded.")}
-      </p>
-    );
+  if (loading && !data) return <p role="status">Loading task…</p>;
+  const failure = error ? (
+    <div role="alert" className="mb-4 text-destructive">
+      <p>{graphQLErrorMessage(error, "Task could not be loaded.")}</p>
+      <Button variant="outline" onClick={() => void refetch().catch(() => undefined)}>
+        Retry task
+      </Button>
+    </div>
+  ) : null;
   const task = data?.task;
-  if (!task) return <p>Task not found.</p>;
+  if (!task) return failure ?? <p>Task not found.</p>;
   return (
-    <section>
-      <a
-        href={returnTo}
-        className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "mb-4 px-0")}
-      >
-        <ArrowLeft /> Back
-      </a>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">
-            {task.project.title} · {taskKindLabel(task)}
-          </p>
-          <h1 className="mt-1 font-serif text-3xl font-semibold">{task.title}</h1>
-        </div>
+    <section className="mx-auto max-w-6xl min-w-0">
+      {failure}
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+        <a href={returnTo} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "px-0")}>
+          <ArrowLeft /> Back
+        </a>
         <TaskDetailActions task={task} returnTo={returnTo} onChanged={() => refetch()} />
       </div>
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>
-            <h2>Task</h2>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <dl className="grid gap-4 sm:grid-cols-2">
-            <Fact label="Status" value={taskStatus(task)} />
-            <Fact label="Priority" value={<PriorityBadge priority={task.priority} />} />
-            {task.isDone && task.doneAt ? (
-              <Fact label="Completed" value={format(task.doneAt, true, task.timezone)} />
-            ) : null}
-            <Fact label="Due" value={format(task.dueAt, task.hasDueTime, task.timezone)} />
-            <Fact label="Start" value={format(task.startAt, true, task.timezone)} />
-            <Fact label="End" value={format(task.endAt, true, task.timezone)} />
-            <Fact label="Timezone" value={task.timezone} />
-          </dl>
-          {task.description ? (
-            <div className="mt-6 whitespace-pre-wrap border-t pt-4 text-sm">{task.description}</div>
-          ) : null}
-          {task.recurrenceRule ? (
-            <p className="mt-4 text-sm">
-              Repeats every {task.recurrenceRule.interval} {task.recurrenceRule.unit.toLowerCase()}{" "}
-              from{" "}
-              {task.recurrenceRule.mode === "FROM_COMPLETION"
-                ? "completion"
-                : "the scheduled cycle"}
-              .
+      <div className="grid min-w-0 gap-x-8 gap-y-6 xl:grid-cols-[minmax(0,1fr)_16rem]">
+        <div className="min-w-0 xl:col-start-1">
+          <header className="space-y-3">
+            <p className="text-xs text-muted-foreground wrap-anywhere">
+              {task.project.title} <span aria-hidden="true">/</span> Task #{task.id}
             </p>
-          ) : null}
-          <TaskRecurrenceSetting task={task} onChanged={() => refetch()} />
-        </CardContent>
-      </Card>
+            <h1 className="text-2xl font-semibold tracking-tight wrap-anywhere sm:text-3xl">
+              {task.title}
+            </h1>
+          </header>
+          <TaskDescription description={task.description} />
+        </div>
+        <TaskProperties task={task} onChanged={() => refetch()} />
+        <section aria-label="Discussion" className="min-w-0 space-y-5 border-t pt-6 xl:col-start-1">
+          <h2 className="flex items-center gap-2 text-lg font-semibold">
+            <MessageSquare aria-hidden="true" className="size-4 text-muted-foreground" /> Discussion
+          </h2>
+          <Suspense fallback={<p role="status">Loading discussion…</p>}>
+            <DiscussionThread key={taskId} taskId={taskId} />
+          </Suspense>
+        </section>
+      </div>
     </section>
   );
-}
-
-function taskStatus(task: {
-  completionOutcome: "COMPLETED" | "SKIPPED" | null;
-  isDone: boolean;
-  isOverdue: boolean;
-}): string {
-  if (task.completionOutcome === "SKIPPED") return "Skipped";
-  if (task.isDone) return "Completed";
-  return task.isOverdue ? "Overdue" : "Open";
-}
-
-function Fact({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div>
-      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</dt>
-      <dd className="mt-1 text-sm">{value}</dd>
-    </div>
-  );
-}
-function format(value: string | null, withTime: boolean, timezone: string) {
-  return value ? formatDateTime(value, withTime, timezone) : "—";
 }

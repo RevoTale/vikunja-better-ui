@@ -39,16 +39,17 @@ Only Vikunja 2.5.0 and its REST API v2 are supported.
 
 ### Overdue schedule display
 
-Active overdue task rows keep their original scheduled date and time visible,
-but strike them through. Job rows also strike their work interval and
-"Complete by" deadline. This marks a missed schedule, not a completed task;
-the title, priority, labels, and explicit **Overdue** status remain unstruck.
-The existing sorting rules are unchanged.
+Active overdue task rows replace the scheduled date and time with **Overdue**,
+followed by priority underneath. Priority is omitted from the metadata badges to avoid
+duplication; unset priority appears as **No priority**. Overdue Job rows also
+hide their work interval and **Complete by** deadline. Full dates remain on
+the task detail page, where **Overdue** appears as a red outlined badge.
+Sorting and stored dates are unchanged.
 
 Date-only deadlines become overdue after their stored end-of-day boundary;
-their synthetic time stays hidden. Week rows strike the displayed time only,
-not the shared day heading or "Anytime" placeholder. Completed history items,
-computed occurrences, and schedules that are not overdue are not struck through.
+their synthetic time stays hidden. Week rows use the same priority-first display,
+while retaining their shared day heading. Completed history items, computed
+occurrences and non-overdue schedules retain their dates and times.
 
 ## Recurring renewal behavior
 
@@ -232,7 +233,7 @@ Use a dedicated Vikunja API token with these permissions:
 | Permission group | Actions |
 | --- | --- |
 | `other` | `user` |
-| `other` (optional quote avatars) | `avatar` |
+| `other` (optional author avatars) | `avatar` |
 | `projects` | `read_all` |
 | `tasks` | `create`, `read_all`, `read_one`, `update`, `delete` |
 | `labels` | `create`, `read_all` |
@@ -248,14 +249,33 @@ Do not use the app username or password to authenticate with Vikunja.
 
 ### Task discussion
 
-Open a task, then choose **Discussion**. Write formatted comments, add links,
+Open a task to read its formatted description, inspect its properties and join
+the discussion below. On wide screens, properties sit beside the description;
+on phones, they appear between the description and discussion. **Edit** keeps
+the existing task editing workflow. Unsupported description content is flagged,
+not silently treated as fully displayed.
+
+Choose **Discussion** for the separate conversation page. Both views share the
+same **Sort comments** selector: **Oldest first** reads the conversation in
+chronological order; **Newest first** shows recent comments first. Changing
+order returns to the first page without clearing the draft. **Refresh** shows
+a spinner only if the request is still pending after one second. Before that,
+the button keeps its normal appearance while blocking duplicate clicks. A fast
+response goes directly to a checkmark with **Updated**, shown for two seconds.
+A failed refresh shows an error, never a success confirmation.
+
+Both views share comments, reply navigation and browser-local draft recovery. A discussion
+loading error does not hide task details. Write formatted comments, add links,
 reply with a quote, or edit and delete your own comments. Deletion asks for
 confirmation. The token needs the `tasks_comments` permissions listed above.
 
 The editor supports headings, lists, checklists, quotes, tables, separators,
 safe links, inline code and code blocks. **More formatting** includes underline,
 strikethrough, highlight, subscript and superscript. Code blocks have language
-selection, syntax highlighting and **Copy code**; pasting into code preserves
+selection, syntax highlighting and **Copy code**. Successful copying shows a
+green checkmark and **Copied** for two seconds without changing button width.
+If clipboard access fails, a visible message suggests selecting and copying
+the code manually; no success checkmark is shown. Pasting into code preserves
 literal text and whitespace. Select a table cell to add/remove rows or columns.
 Formatting buttons have icons and show when active. Click **Underline**, **Bold**
 or **Inline code**, then type; click again to turn it off. Selected text is
@@ -278,7 +298,13 @@ proportional headings and inline code, and block-level monospace code with
 horizontal scrolling. Lists, tables and code padding scale with their text.
 
 Replies are ordinary Vikunja comments with a source quote and original ID.
-The quote header shows the original author's name and Vikunja avatar, with
+Task lists show a small discussion icon below **Complete by** (or below the
+title when no completion deadline is shown), separate from metadata badges.
+It shows the total number of comments,
+including replies. Click it to open Discussion. Zero/unknown counts and computed
+occurrences do not show the indicator. Counts arrive with the task-list request
+through Vikunja's `expand=comment_count`, without per-task comment requests.
+Main comment headers and quoted replies show the author's name and Vikunja avatar, with
 initials while loading or if the photo is unavailable. Enable `other:avatar`
 on the backend token for photos; missing access does not block comments.
 Avatars are cached in memory for the current app session, not stored locally.

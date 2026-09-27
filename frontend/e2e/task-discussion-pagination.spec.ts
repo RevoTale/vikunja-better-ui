@@ -93,7 +93,8 @@ test("discussion supports pagination, lazy reply chains, and recovery of an empt
       response.request().postDataJSON().operationName === "DiscussionComments" &&
       response.request().postDataJSON().variables.order === "DESC",
   );
-  await page.getByRole("button", { name: "Oldest first", exact: true }).click();
+  await page.getByRole("combobox", { name: "Sort comments", exact: true }).click();
+  await page.getByRole("option", { name: "Newest first", exact: true }).click();
   await descending;
   const timestamps = await page
     .getByRole("article")

@@ -37,6 +37,7 @@ query Week($input: WeekInput!) {
 }
 
 fragment WeekTask on Task {
+  commentCount
   id
   title
   description
@@ -71,6 +72,7 @@ fragment WeekTask on Task {
 query TaskList($input: TaskListInput!) {
   tasks(input: $input) {
     items {
+      commentCount
       id
       title
       description

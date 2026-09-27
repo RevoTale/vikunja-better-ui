@@ -38,8 +38,9 @@ func taskModel(
 	}
 
 	return &model.Task{
-		Version: service.TaskVersion(task),
-		ID:      strconv.FormatInt(task.ID, 10), Title: task.Title, Description: task.Description,
+		CommentCount: commentCountModel(task.CommentCount),
+		Version:      service.TaskVersion(task),
+		ID:           strconv.FormatInt(task.ID, 10), Title: task.Title, Description: task.Description,
 		Kind: taskKindModel(classification.Kind), IsDone: task.Done, DoneAt: optionalTime(task.DoneAt),
 		CompletionOutcome: completionOutcome,
 		Project: &model.Project{
@@ -53,6 +54,14 @@ func taskModel(
 		IsOverdue: !task.Done && !task.DueDate.IsZero() && task.DueDate.Before(now),
 		Timezone:  timezone,
 	}, nil
+}
+
+func commentCountModel(count *int64) *int {
+	if count == nil || *count < 0 || *count > math.MaxInt32 {
+		return nil
+	}
+	value := int(*count)
+	return &value
 }
 
 func completionOutcomeModel(outcome service.CompletionOutcome) *model.CompletionOutcome {

@@ -38,6 +38,7 @@ type LabelWrite struct {
 }
 
 type Task struct {
+	CommentCount  *int64    `json:"comment_count,omitempty"`
 	ID            int64     `json:"id"`
 	Title         string    `json:"title"`
 	Description   string    `json:"description"`
@@ -121,14 +122,15 @@ type TaskCheck struct {
 }
 
 type TaskQuery struct {
-	Page               int64
-	PerPage            int64
-	Search             string
-	Filter             string
-	FilterTimezone     string
-	FilterIncludeNulls *bool
-	SortBy             []string
-	OrderBy            []string
+	IncludeCommentCount bool
+	Page                int64
+	PerPage             int64
+	Search              string
+	Filter              string
+	FilterTimezone      string
+	FilterIncludeNulls  *bool
+	SortBy              []string
+	OrderBy             []string
 }
 
 type page[T any] struct {

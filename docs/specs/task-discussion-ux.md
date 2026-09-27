@@ -7,6 +7,36 @@ or desktop without turning the task editor into a second full page.
 
 ## Navigation
 
+### Task detail composition
+
+The task detail page presents the title and description as the primary content,
+with a compact properties panel beside it at wide desktop sizes. On smaller
+screens the order is title/description, properties, then Discussion. Remove the
+generic Task card around all fields. Use the app's existing typography, colors
+and spacing rather than copying Linear branding.
+
+Render supported native description HTML through the existing sanitized
+read-only renderer. Preserve plain text line breaks and warn about unsupported
+content. Description editing remains the existing Edit workflow; no autosave or
+new write path is introduced. Show a quiet empty state when absent.
+
+Embed the same discussion thread used by `/tasks/$taskId/discussion` below the
+description/properties. Retain the dedicated route and its task context. Share
+queries, drafts, reply navigation, uploads and uncertain-save protection; never
+mount two composers for one task on the same page. Discussion failures must not
+hide task content. Keep loading/errors local to the conversation.
+
+Acceptance: desktop side panel and readable content width; no 320px overflow;
+all task actions/recurrence controls retained; embedded posting/replying and
+standalone discussion both work; drafts survive route changes without autofill
+overwriting typed text. Verify native-description safety, task edit workflows,
+mobile/desktop Axe and existing discussion E2E.
+
+Reference: [Linear comments and reactions](https://linear.app/docs/comment-on-issues)
+and [editing issues](https://linear.app/docs/editing-issues). Borrow the
+description/properties/conversation hierarchy, not inline autosave or native
+thread semantics that this application does not implement.
+
 - Add a `Discussion` action to the task detail actions.
 - Use a stable route such as `/tasks/$taskId/discussion` with the existing
   `returnTo` behavior.

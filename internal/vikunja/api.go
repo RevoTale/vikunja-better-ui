@@ -79,6 +79,9 @@ func (client *Client) TasksPage(ctx context.Context, input TaskQuery) (TaskPage,
 		"per_page": []string{strconv.FormatInt(input.PerPage, 10)},
 	}
 	setOptionalQuery(query, "q", input.Search)
+	if input.IncludeCommentCount {
+		query.Set("expand", "comment_count")
+	}
 	setOptionalQuery(query, "filter", input.Filter)
 	setOptionalQuery(query, "filter_timezone", input.FilterTimezone)
 	if input.FilterIncludeNulls != nil {

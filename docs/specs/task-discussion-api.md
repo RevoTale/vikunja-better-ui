@@ -133,6 +133,13 @@ and same-origin resource policy. Upstream cookies and redirects are not forwarde
 HEAD closes the upstream body; 416 retains Content-Range. No range emulation or
 whole-file buffering is used when Vikunja ignores a Range request.
 
+## Task-list counts
+
+Task list and Week GraphQL items include nullable `commentCount`, supplied by
+Vikunja's `expand=comment_count` in the existing task-page calls. Missing or
+invalid values remain null, never a fabricated zero. Only counts are expanded,
+not comment bodies. Integration Jobs requests do not enable this expansion.
+
 ## Quote avatars
 
 `discussionAvatar(username)` requires an app session and returns a raster data

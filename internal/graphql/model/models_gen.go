@@ -177,6 +177,8 @@ type SkipRecurringTaskInput struct {
 }
 
 type Task struct {
+	// Total discussion comments, including replies; null when unavailable.
+	CommentCount      *int               `json:"commentCount,omitempty"`
 	ID                string             `json:"id"`
 	Version           string             `json:"version"`
 	Title             string             `json:"title"`

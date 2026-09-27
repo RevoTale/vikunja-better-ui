@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Check } from "lucide-react";
+import { Check, MessageSquare } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,13 @@ export function TaskRow({
       data-projection={projection || undefined}
     >
       <CardContent className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-x-3 px-3 py-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:px-4 sm:py-3">
-        <Schedule schedule={schedule} dayGrouped={dayGrouped} projection={projection} />
+        <Schedule
+          schedule={schedule}
+          dayGrouped={dayGrouped}
+          projection={projection}
+          overdue={overdue}
+          priority={task.priority}
+        />
         <div
           className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2"
           data-slot="task-content"
@@ -62,10 +68,22 @@ export function TaskRow({
             >
               {task.title}
             </Link>
-            {schedule.completeBy ? (
-              <p className={cn("mt-1 text-xs text-muted-foreground", overdue && "line-through")}>
-                {schedule.completeBy}
-              </p>
+            {!overdue && schedule.completeBy ? (
+              <p className="mt-1 text-xs text-muted-foreground">{schedule.completeBy}</p>
+            ) : null}
+            {!projection && task.commentCount != null && task.commentCount > 0 ? (
+              <div className="mt-1" data-slot="task-discussion">
+                <Link
+                  to="/tasks/$taskId/discussion"
+                  params={{ taskId: task.id }}
+                  search={{ returnTo }}
+                  className="inline-flex min-h-6 min-w-6 items-center justify-center gap-1 rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                  aria-label={`${task.commentCount} ${task.commentCount === 1 ? "comment" : "comments"} on ${task.title}`}
+                >
+                  <MessageSquare className="size-3.5" aria-hidden="true" />
+                  <span className="tabular-nums">{task.commentCount}</span>
+                </Link>
+              </div>
             ) : null}
             {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
           </div>
@@ -86,6 +104,7 @@ export function TaskRow({
             task={task}
             labels={labels}
             projection={projection}
+            hidePriority={overdue}
           />
         </div>
       </CardContent>
@@ -97,13 +116,16 @@ function Schedule({
   schedule,
   dayGrouped,
   projection,
+  overdue,
+  priority,
 }: {
   schedule: ReturnType<typeof taskSchedule>;
   dayGrouped: boolean;
   projection: boolean;
+  overdue: boolean;
+  priority: TaskItem["priority"];
 }) {
   const primary = dayGrouped ? (schedule.time ?? "Anytime") : schedule.date;
-  const overdue = !projection && schedule.urgency === "overdue";
   return (
     <div
       className={cn(
@@ -112,21 +134,16 @@ function Schedule({
       )}
       data-slot="task-schedule"
     >
-      <p
-        className={cn(
-          "text-sm font-semibold leading-tight",
-          overdue && (!dayGrouped || schedule.time) && "line-through",
-        )}
-      >
-        {primary}
-      </p>
-      {!dayGrouped && schedule.time ? (
-        <p className={cn("mt-1 whitespace-nowrap text-xs", overdue && "line-through")}>
-          {schedule.time}
-        </p>
-      ) : null}
       {!projection && schedule.status ? (
-        <p className="mt-1 text-xs font-medium">{schedule.status}</p>
+        <p className="mb-1 text-xs font-medium">{schedule.status}</p>
+      ) : null}
+      {overdue ? (
+        <PriorityBadge priority={priority} className="max-w-full whitespace-normal wrap-anywhere" />
+      ) : (
+        <p className="text-sm font-semibold leading-tight">{primary}</p>
+      )}
+      {!overdue && !dayGrouped && schedule.time ? (
+        <p className="mt-1 whitespace-nowrap text-xs">{schedule.time}</p>
       ) : null}
     </div>
   );
@@ -144,19 +161,23 @@ function TaskMetadata({
   task,
   labels,
   projection = false,
+  hidePriority,
 }: {
   className?: string;
   task: TaskItem;
   labels: ReadonlyArray<TaskItem["labels"][number]>;
   projection?: boolean;
+  hidePriority: boolean;
 }) {
   return (
     <ul
       className={cn("flex min-w-0 flex-wrap items-center gap-1.5", className)}
-      aria-label="Task priority, labels, project, and type"
+      aria-label={
+        hidePriority ? "Task labels, project, and type" : "Task priority, labels, project, and type"
+      }
       data-slot="task-metadata"
     >
-      {task.priority !== "UNSET" ? (
+      {!hidePriority && task.priority !== "UNSET" ? (
         <li className="min-w-0 max-w-full">
           <PriorityBadge className="max-w-full" priority={task.priority} />
         </li>

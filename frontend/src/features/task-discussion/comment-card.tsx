@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { DeleteDiscussionCommentDocument, type DiscussionCommentFragment } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
+import { AuthorAvatar } from "./author-avatar";
 import { CommentBody } from "./comment-body";
 import { CommentComposer } from "./comment-composer";
 import { commentText, hasUnsupportedContent } from "./html";
@@ -34,6 +35,7 @@ export function CommentCard({
   const article = useRef<HTMLElement>(null);
   const inFlight = useRef(false);
   const own = access?.authorId === comment.author.id;
+  const authorName = comment.author.name || comment.author.username;
   const unsupported = hasUnsupportedContent(comment.bodyHtml);
 
   function finishEdit() {
@@ -72,10 +74,20 @@ export function CommentCard({
       className="scroll-mt-28 space-y-3 rounded-lg border-b px-2 py-5 outline-none focus:ring-2 focus:ring-ring"
     >
       {navigation}
-      <header className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-        <span className="text-base font-semibold text-foreground">
-          {comment.author.name || comment.author.username}
-        </span>
+      <header className="flex flex-wrap items-center justify-between gap-2 text-sm">
+        <div className="flex min-w-0 items-center gap-2">
+          <AuthorAvatar
+            key={comment.author.username}
+            name={authorName}
+            username={comment.author.username}
+          />
+          <span
+            data-comment-author
+            className="min-w-0 text-base font-semibold text-foreground wrap-anywhere"
+          >
+            {authorName}
+          </span>
+        </div>
         <time
           dateTime={comment.createdAt}
           title={new Date(comment.createdAt).toLocaleString()}

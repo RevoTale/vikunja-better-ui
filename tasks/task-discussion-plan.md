@@ -452,3 +452,23 @@ API v2 has verified pagination. Use a dedicated Discussion route and direct
 Lexical extensions, with the CMS as a UX reference. Open a single quoted
 original on demand instead of scanning pages. Keep writes non-retrying when
 confirmation is uncertain. See companion verification notes for final evidence.
+
+## Task-detail composition follow-up
+
+User-approved scope: redesign the task detail page around description, compact
+properties and inline Discussion, while retaining the standalone Discussion page.
+
+1. Add a responsive end-to-end regression for embedded comments, description
+   rendering and preserved standalone navigation/drafts.
+2. Extract the existing conversation into one reusable `DiscussionThread`;
+   keep page-specific headings/navigation in its route wrapper.
+3. Compose a task-detail description column and properties panel, retaining all
+   existing actions and recurrence settings. Reuse sanitized HTML rendering.
+4. Verify desktop/mobile and existing editing/discussion workflows, review and
+   simplify, then run generation, validation and safe tests. Refresh preview
+   without resetting its isolated fixture. No commit or push.
+
+Completed: shared thread, responsive description/properties composition,
+documentation, review/fix/simplification/re-review and preserved preview.
+Final evidence: 20 focused and 206 full browser cases passed, plus generation,
+validation and safe tests. See the task-detail verification record.

@@ -193,7 +193,7 @@ export function TaskDetailActions({
               if (pending) event.preventDefault();
             }}
             className={cn(
-              buttonVariants({ variant: "destructive", size: "sm" }),
+              buttonVariants({ variant: "outline", size: "sm" }),
               pending && "pointer-events-none opacity-50",
             )}
           >

@@ -1,5 +1,5 @@
 import { skipToken, useFragment, useQuery } from "@apollo/client/react";
-import { CornerUpLeftIcon } from "lucide-react";
+import { ArrowUpRightIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { DiscussionCommentFragmentDoc, DiscussionOriginalDocument } from "@/graphql/graphql";
@@ -54,7 +54,7 @@ export function ReplyQuote({
           title="View original"
           onClick={() => onOriginal(sourceId)}
         >
-          <CornerUpLeftIcon aria-hidden="true" />
+          <ArrowUpRightIcon aria-hidden="true" />
         </Button>
       </div>
       <div>{children}</div>

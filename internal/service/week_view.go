@@ -160,7 +160,8 @@ func weekTaskQuery(request WeekRequest, start time.Time, end time.Time) vikunja.
 	filterParts = appendProjectFilter(filterParts, request.ProjectID)
 	includeNulls := false
 	return vikunja.TaskQuery{
-		Page: 1, PerPage: 1000, Filter: strings.Join(filterParts, " && "),
+		IncludeCommentCount: true,
+		Page:                1, PerPage: 1000, Filter: strings.Join(filterParts, " && "),
 		FilterTimezone: request.Timezone, FilterIncludeNulls: &includeNulls,
 	}
 }

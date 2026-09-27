@@ -116,6 +116,8 @@ type RecurrenceRule {
 }
 
 type Task {
+  "Total discussion comments, including replies; null when unavailable."
+  commentCount: Int
   id: ID!
   version: String!
   title: String!

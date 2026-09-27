@@ -35,6 +35,8 @@ type taskEditClient interface {
 
 // TaskVersion binds an editor to the complete upstream representation it loaded.
 func TaskVersion(task vikunja.Task) string {
+	// Expanded discussion metadata is not part of the editable task state.
+	task.CommentCount = nil
 	encoded, _ := json.Marshal(task) // Task contains only JSON-safe scalar values.
 	digest := sha256.Sum256(encoded)
 	return hex.EncodeToString(digest[:])

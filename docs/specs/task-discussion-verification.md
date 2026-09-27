@@ -1,5 +1,50 @@
 # Task Discussion Verification
 
+## Task-detail composition: 2026-09-28
+
+Task details now place the formatted description before Discussion, with a
+desktop properties sidebar and a single-column mobile layout. Both routes use
+one `DiscussionThread`; standalone navigation, replies, uploads and draft
+recovery retain their existing workflows. Description rendering reuses the
+sanitized renderer and preserves LF, CRLF and CR in legacy plain text.
+
+- Final focused browser suite: 20 passed across Chromium 320/768/1024/1440 and
+  mobile WebKit. Covers HTML safety, no external iframe requests, plain-text
+  line endings, inline posting, cross-route draft recovery, isolated comment
+  errors, accessibility and task-list count navigation.
+- Full `task e2e`: 206 passed in 4.1 minutes against isolated Vikunja 2.5.0.
+  Chromium uses the approved executable override; WebKit is bundled.
+- `task gen:check`, `task validate` and `task test` passed after the final code
+  change: Go race tests and 193 frontend tests in 37 files.
+- Mobile and desktop screenshots were inspected. Review, fixes, simplification
+  and re-review found no remaining required changes.
+- Axe exposed insufficient contrast in the old destructive-style Delete link.
+  It now uses outline styling; deletion still requires its separate confirmation.
+- The full suite exposed a page-1 assumption in the count test. It now follows
+  real pagination. Review also caught plain-text CRLF normalization; regression
+  coverage includes all three line-ending forms.
+- Logs: `.cache/e2e/task-detail-focused-final.log`,
+  `.cache/e2e/task-detail-e2e-final.log` and
+  `.cache/e2e/task-detail-{gencheck,validate,test}.log`.
+- The previously recorded WebKit CSP warning on Today remains. No physical
+  device, production deployment, commit or push is claimed.
+
+## Task-list discussion counts: 2026-09-28
+
+UI lists/week request `expand=comment_count` with task pages. Integration Jobs
+and recurrence retry searches retain their previous requests. The compact link
+counts all comments/replies, hides zero/unknown values and computed occurrences,
+and preserves the list return destination. Expanded counts are excluded from
+task edit-version hashing; a regression reproduced the mismatch before the fix.
+
+- Focused browser checks: 16 passed, covering count navigation/deletion on all
+  five responsive browser profiles and task-editing regressions. Axe passed and
+  the 320px screenshot was inspected.
+- Final `task gen:check`, `task validate` and `task test` passed, including Go
+  race checks and 193 frontend tests. Full E2E was not rerun for this follow-up.
+- Independent scoped review found no required fixes. No new dependency.
+- Logs: `.cache/e2e/comment-count-{browser-final,gencheck,validate,test}.log`.
+
 ## Author typography hierarchy: 2026-09-28
 
 Main authors now use 16px semibold foreground text; quoted authors use 14px

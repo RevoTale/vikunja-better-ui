@@ -94,12 +94,17 @@ test("discussion supports a compact source author header above the quote text", 
   });
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   const quote = page.locator("article blockquote");
+  const primaryHeader = page.locator(`#comment-${original.createTaskComment.id} > header`);
+  await expect(primaryHeader.locator("img")).toBeVisible();
+  expect(
+    await primaryHeader.locator("img").evaluate((image: HTMLImageElement) => image.naturalWidth),
+  ).toBeGreaterThan(0);
   const header = quote.locator("[data-quote-author]");
   await expect(header).toContainText(
     original.createTaskComment.author.name || original.createTaskComment.author.username,
   );
   const typography = await quote.evaluate((element) => {
-    const primary = element.closest("article")?.querySelector("header > span");
+    const primary = element.closest("article")?.querySelector("[data-comment-author]");
     const quoted = element.querySelector("[data-quote-author] > span:not([aria-hidden])");
     if (!primary || !quoted) throw new Error("Missing author names");
     const mainStyle = getComputedStyle(primary);
@@ -163,6 +168,9 @@ test("discussion supports initials when an avatar is unavailable", async ({ page
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   const header = page.locator("[data-quote-author]");
   await expect(header.getByText("EU", { exact: true })).toBeVisible();
+  const primaryHeader = page.locator(`#comment-${original.createTaskComment.id} > header`);
+  await expect(primaryHeader.getByText("EU", { exact: true })).toBeVisible();
+  await expect(primaryHeader.locator("img")).toHaveCount(0);
   await expect(header).toContainText("E2E User");
   await expect(header.locator("img")).toHaveCount(0);
   await header.getByRole("button", { name: "View original" }).click();

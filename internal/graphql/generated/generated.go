@@ -138,6 +138,7 @@ type ComplexityRoot struct {
 	}
 
 	Task struct {
+		CommentCount      func(childComplexity int) int
 		CompletionOutcome func(childComplexity int) int
 		Description       func(childComplexity int) int
 		DoneAt            func(childComplexity int) int
@@ -802,6 +803,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.Session.VikunjaUser(childComplexity), true
 
+	case "Task.commentCount":
+		if e.ComplexityRoot.Task.CommentCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Task.CommentCount(childComplexity), true
 	case "Task.completionOutcome":
 		if e.ComplexityRoot.Task.CompletionOutcome == nil {
 			break
@@ -1667,6 +1674,8 @@ type RecurrenceRule {
 }
 
 type Task {
+  "Total discussion comments, including replies; null when unavailable."
+  commentCount: Int
   id: ID!
   version: String!
   title: String!
@@ -2062,6 +2071,8 @@ func (ec *executionContext) childFields_Session(ctx context.Context, field graph
 
 func (ec *executionContext) childFields_Task(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "commentCount":
+		return ec.fieldContext_Task_commentCount(ctx, field)
 	case "id":
 		return ec.fieldContext_Task_id(ctx, field)
 	case "version":
@@ -4857,6 +4868,29 @@ func (ec *executionContext) fieldContext_Session_vikunjaUser(_ context.Context, 
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _Task_commentCount(ctx context.Context, field graphql.CollectedField, obj *model.Task) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Task_commentCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CommentCount, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Task_commentCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Task", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
 func (ec *executionContext) _Task_id(ctx context.Context, field graphql.CollectedField, obj *model.Task) (ret graphql.Marshaler) {
@@ -10139,6 +10173,11 @@ func (ec *executionContext) _Task(ctx context.Context, sel ast.SelectionSet, obj
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Task")
+		case "commentCount":
+			out.Values[i] = ec._Task_commentCount(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "id":
 			out.Values[i] = ec._Task_id(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -12344,6 +12383,24 @@ func (ec *executionContext) marshalOID2ᚖstring(ctx context.Context, sel ast.Se
 	_ = sel
 	_ = ctx
 	res := graphql.MarshalID(*v)
+	return res
+}
+
+func (ec *executionContext) unmarshalOInt2ᚖint(ctx context.Context, v any) (*int, error) {
+	if v == nil {
+		return nil, nil
+	}
+	res, err := graphql.UnmarshalInt(v)
+	return &res, graphql.ErrorOnPath(ctx, err)
+}
+
+func (ec *executionContext) marshalOInt2ᚖint(ctx context.Context, sel ast.SelectionSet, v *int) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	_ = sel
+	_ = ctx
+	res := graphql.MarshalInt(*v)
 	return res
 }
 

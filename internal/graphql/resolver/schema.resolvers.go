@@ -432,7 +432,8 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 	}
 	projectTitles := projectTitleMap(projects)
 	result, err := service.ListTasks(ctx, r.tasks, service.ListRequest{
-		Scope: service.TaskScope(input.Scope), ProjectID: selectedProjectID,
+		IncludeCommentCount: true,
+		Scope:               service.TaskScope(input.Scope), ProjectID: selectedProjectID,
 		Page: input.Page, PageSize: input.PageSize, Now: r.now(),
 		Location: location, Timezone: user.Settings.Timezone,
 		WeekStart: time.Weekday(user.Settings.WeekStart), ProjectTitles: projectTitles,

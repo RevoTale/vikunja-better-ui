@@ -31,21 +31,22 @@ type ListIssue struct {
 }
 
 type ListRequest struct {
-	Scope           TaskScope
-	ProjectID       *int64
-	Page            int
-	PageSize        int
-	Now             time.Time
-	Location        *time.Location
-	Timezone        string
-	WeekStart       time.Weekday
-	ProjectTitles   map[int64]string
-	JobLabelIDs     []int64
-	FilterLabelIDs  []int64
-	CompletedFrom   time.Time
-	CompletedBefore time.Time
-	JobSort         JobSort
-	SortOrder       SortOrder
+	IncludeCommentCount bool
+	Scope               TaskScope
+	ProjectID           *int64
+	Page                int
+	PageSize            int
+	Now                 time.Time
+	Location            *time.Location
+	Timezone            string
+	WeekStart           time.Weekday
+	ProjectTitles       map[int64]string
+	JobLabelIDs         []int64
+	FilterLabelIDs      []int64
+	CompletedFrom       time.Time
+	CompletedBefore     time.Time
+	JobSort             JobSort
+	SortOrder           SortOrder
 }
 
 type JobSort string
@@ -332,7 +333,8 @@ func candidateTaskQuery(request ListRequest) vikunja.TaskQuery {
 	}
 	filterParts = appendProjectFilter(filterParts, request.ProjectID)
 	query := vikunja.TaskQuery{
-		Page: 1, PerPage: 1000, Filter: strings.Join(filterParts, " && "),
+		IncludeCommentCount: request.IncludeCommentCount,
+		Page:                1, PerPage: 1000, Filter: strings.Join(filterParts, " && "),
 		FilterTimezone: request.Timezone, FilterIncludeNulls: &includeNulls,
 	}
 	if request.Scope == TaskScopeCompletedJobs {
@@ -353,7 +355,8 @@ func joinIDs(values []int64) string {
 func historyTaskQuery(request ListRequest) vikunja.TaskQuery {
 	filterParts := appendProjectFilter([]string{"done = true"}, request.ProjectID)
 	return vikunja.TaskQuery{
-		Page: 1, PerPage: int64(request.PageSize), Filter: strings.Join(filterParts, " && "),
+		IncludeCommentCount: request.IncludeCommentCount,
+		Page:                1, PerPage: int64(request.PageSize), Filter: strings.Join(filterParts, " && "),
 		FilterTimezone: request.Timezone, SortBy: []string{"done_at", "id"}, OrderBy: []string{"desc", "desc"},
 	}
 }
