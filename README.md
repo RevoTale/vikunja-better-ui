@@ -232,16 +232,137 @@ Use a dedicated Vikunja API token with these permissions:
 | Permission group | Actions |
 | --- | --- |
 | `other` | `user` |
+| `other` (optional quote avatars) | `avatar` |
 | `projects` | `read_all` |
 | `tasks` | `create`, `read_all`, `read_one`, `update`, `delete` |
 | `labels` | `create`, `read_all` |
 | `tasks_labels` | `create`, `read_all`, `delete` |
+| `tasks_comments` (Discussion) | `create`, `read_all`, `read_one`, `update`, `delete` |
+| `tasks_attachments` (Discussion media) | `create`, `read_all`, `read_one` |
 
 This is the minimum permission set exercised by the app's end-to-end tests.
 Missing permissions can make login or task operations fail because the backend
 validates the token by reading the current Vikunja user immediately after app
 authentication. Store the generated token value as `APP_VIKUNJA_API_TOKEN`.
 Do not use the app username or password to authenticate with Vikunja.
+
+### Task discussion
+
+Open a task, then choose **Discussion**. Write formatted comments, add links,
+reply with a quote, or edit and delete your own comments. Deletion asks for
+confirmation. The token needs the `tasks_comments` permissions listed above.
+
+The editor supports headings, lists, checklists, quotes, tables, separators,
+safe links, inline code and code blocks. **More formatting** includes underline,
+strikethrough, highlight, subscript and superscript. Code blocks have language
+selection, syntax highlighting and **Copy code**; pasting into code preserves
+literal text and whitespace. Select a table cell to add/remove rows or columns.
+Formatting buttons have icons and show when active. Click **Underline**, **Bold**
+or **Inline code**, then type; click again to turn it off. Selected text is
+formatted in place. **Code block** is separate from inline code. Heading, quote
+and list buttons also toggle back to a paragraph. **Undo** and **Redo** are
+disabled when there is no corresponding editor history. Link editing preserves
+the selected text while you enter a URL.
+Markdown shortcuts include `# ` for headings, `- ` for bullets, `[ ] ` for
+checklists and a fenced-code prefix. Type three backticks on an empty line of
+a normal paragraph: the third backtick immediately opens a code block. No Space
+or Enter is needed. Choose the language with **Code language** afterward.
+This also works after Shift+Enter, retaining the preceding text. Undo restores
+the literal fence; Redo restores the block. Pasted text stays literal, including
+backticks. A pasted fence (optionally followed by `js` or another language)
+can still be converted explicitly with Enter or Space. Use **Continue writing**
+to leave the code block.
+
+Editor and saved comments share Tailwind typography: readable body text,
+proportional headings and inline code, and block-level monospace code with
+horizontal scrolling. Lists, tables and code padding scale with their text.
+
+Replies are ordinary Vikunja comments with a source quote and original ID.
+The quote header shows the original author's name and Vikunja avatar, with
+initials while loading or if the photo is unavailable. Enable `other:avatar`
+on the backend token for photos; missing access does not block comments.
+Avatars are cached in memory for the current app session, not stored locally.
+Click the small arrow beside the author (**View original**) to jump to its
+original. Off-page originals load in a dialog. Follow quote arrows through a
+chain; **Back to reply** retraces your steps. Closing the dialog returns to
+your starting comment. Your draft stays unchanged. If an original is unavailable,
+the quote remains readable and you can retry or go back.
+Native comments with unsupported structures or styles remain read-only here;
+edit them in Vikunja to avoid losing content. Native Vikunja 2.5 displays
+highlight/subscript/superscript as plain text and removes these formats on save.
+The composer warns when these formats
+or media players are used; keep editing them in Better UI.
+
+#### Images, audio and video
+
+Open **Media and attachments** to upload a file or choose an existing task
+attachment. You can also paste or drop a file. The file picker works on mobile.
+Add alternative text to images. Audio/video use native controls, without
+autoplay; codec support depends on the browser.
+
+- One file per upload, at most **20 MiB**; Vikunja may impose a smaller limit.
+- Images: PNG, JPEG, GIF, WebP. No SVG, HEIC, arbitrary remote images or embeds.
+- Audio: MP3, WAV, Ogg, FLAC, M4A/MP4 and WebM. Video: MP4, WebM and Ogg.
+  Content signatures are checked; this is not a full codec validator or transcoder.
+  Free-format MP3 is not detected. Native audio-only WebM may be classified as
+  video when reused unless its filename ends in `.weba`.
+  FLAC with only a final STREAMINFO metadata block is rejected because Vikunja
+  2.5 cannot persist a playable MIME type for it.
+- Uploads become **Vikunja task attachments immediately**, before posting.
+  Removing a reference, undoing insertion, deleting a comment or abandoning a
+  draft does not delete the file. Manage unused files in native Vikunja.
+- You can keep typing during upload. Posting waits for it; completion updates
+  only that upload's placeholder. An uncertain upload is not retried: check
+  **Choose task attachment** and reuse the file, or explicitly allow another upload.
+- Native Vikunja displays audio/video as attachment links. Editing there can
+  remove the player marker; the link and underlying file remain.
+
+For native image interoperability, `APP_VIKUNJA_URL` must match the API base
+used by the native client, including any path prefix. Stored image references
+use native API v1 URLs; Better UI's backend transport uses API v2. Better UI
+displays files only through authenticated same-origin media URLs; the browser
+never receives the Vikunja token. Responses use `Cache-Control: private, no-store`.
+Seeking works only when Vikunja supports the requested byte range.
+Attachment deletion permission is not needed.
+
+Drafts stay in this browser, separately for each Vikunja user, task and edited
+comment. **Restore draft** is explicit and disabled once you start editing.
+**Discard saved draft** asks for confirmation and removes only that local draft;
+posted comments and uploaded files remain. Once you type, **Dismiss draft notice**
+only hides the recovery notice and keeps your current text and autosaved draft.
+Unavailable storage never blocks typing or posting. A failed save keeps the
+text and disables another submission until you check the refreshed discussion
+and choose **I checked; allow retry**. There is no automatic write retry.
+
+Comments load oldest first, 50 per page (or the instance limit). **Newest first**
+changes upstream ordering; **Refresh** reloads without replacing your draft.
+Vikunja orders by creation time; comments with identical timestamps have no
+guaranteed tie order. Pagination is not a snapshot if other clients add/delete
+comments while you browse.
+
+#### GraphQL API
+
+The authenticated GraphQL API exposes `taskComments(taskId, page, pageSize,
+order)`, `taskComment(taskId, commentId)` and `createTaskComment`,
+`updateTaskComment`, `deleteTaskComment`.
+Mutation inputs require the existing CSRF token. Comment authors are the
+Vikunja token owner; the app login name does not change authorship.
+
+Media adds `taskAttachments(taskId, page)` and `uploadTaskMedia(input)` with an
+`Upload` scalar. Send uploads as GraphQL multipart requests with the existing
+session, exact Origin and `X-CSRF-Token` header. Metadata and upload remain
+GraphQL; only binary GET/HEAD uses `/media/tasks/{task}/attachments/{attachment}`.
+
+Comments remain in Vikunja as HTML. Ordering (`ASC` by default, or `DESC`)
+and pagination run in Vikunja, with one page fetched per query. The returned
+page size reflects the instance's cap. Editing and deleting remain subject
+to Vikunja's author and task permission checks.
+
+HTML is sanitized before display, import and export; only supported content and
+safe links are rendered. Existing installations can keep using task views
+without comment permissions; only Discussion needs the additional capabilities.
+See the [discussion specification](docs/specs/task-discussion.md) and
+[API contract](docs/specs/task-discussion-api.md).
 
 ## Read-only Jobs integration
 
@@ -463,6 +584,16 @@ separately; `style-src` includes that allowance as a WebKit fallback, while
 arm64, verifies its pinned SHA-256 digest and detached signature, and runs it
 directly with an isolated SQLite directory. Every run creates deterministic
 fixtures and a short-lived scoped token, then removes its temporary data.
+
+Playwright uses its bundled browsers by default. To verify an upstream Chromium
+runtime fix, set `E2E_CHROMIUM_EXECUTABLE` to an already-installed browser's
+absolute path inside the Dev Container before running `task e2e`. This changes
+only Chromium projects; WebKit and all test assertions remain unchanged. The
+harness does not download an alternative browser or silently fall back to one.
+Custom browser versions are not guaranteed compatible with Playwright; record
+the exact version and full-suite results. See the
+[Discussion verification record](docs/specs/task-discussion-verification.md)
+for the ARM64 video-renderer issue and tested runtime.
 
 ### Preview the complete E2E app
 

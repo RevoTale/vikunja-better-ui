@@ -11,6 +11,7 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/auth"
 	"github.com/RevoTale/vikunja-better-ui/internal/graphql/generated"
 	"github.com/RevoTale/vikunja-better-ui/internal/graphql/resolver"
+	"github.com/RevoTale/vikunja-better-ui/internal/web"
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 )
@@ -23,6 +24,7 @@ const (
 func NewHandler(root *resolver.Resolver, production bool, logger *slog.Logger) *handler.Server {
 	server := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: root}))
 	server.AddTransport(transport.POST{})
+	server.AddTransport(transport.MultipartForm{MaxUploadSize: web.MaxGraphQLUploadBytes, MaxMemory: 1 << 20})
 	server.Use(extension.FixedComplexityLimit(maxOperationComplexity))
 	server.AroundOperations(operationBoundary(production))
 	server.SetRecoverFunc(func(_ context.Context, recovered any) error {

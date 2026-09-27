@@ -316,7 +316,7 @@ await request(`/tasks/${invalidTask.id}/labels`, {
 
 const routes = await request("/routes", { token: jwt });
 const permissions = {
-  other: selectPermissions(routes, "other", ["user"]),
+  other: selectPermissions(routes, "other", ["user", "avatar"]),
   projects: selectPermissions(routes, "projects", ["read_all"]),
   tasks: selectPermissions(routes, "tasks", [
     "create",
@@ -327,6 +327,8 @@ const permissions = {
   ]),
   labels: selectPermissions(routes, "labels", ["create", "read_all"]),
   tasks_labels: selectPermissions(routes, "tasks_labels", ["create", "read_all", "delete"]),
+  tasks_comments: selectPermissions(routes, "tasks_comments", ["create", "read_all", "read_one", "update", "delete"]),
+  tasks_attachments: selectPermissions(routes, "tasks_attachments", ["create", "read_all", "read_one"]),
 };
 
 const apiToken = await request("/tokens", {

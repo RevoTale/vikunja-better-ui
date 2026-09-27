@@ -14,6 +14,7 @@ const config: CodegenConfig = {
         strictScalars: true,
         useTypeImports: true,
         scalars: {
+          Upload: "File",
           DateTime: "string",
           LocalDate: "string",
           LocalTime: "string",

@@ -1,0 +1,4 @@
+extend type Query {
+  "A bounded raster avatar from Vikunja. Null means the UI should show initials."
+  discussionAvatar(username: String!): String
+}

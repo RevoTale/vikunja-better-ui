@@ -1,0 +1,26 @@
+fragment DiscussionAttachment on TaskAttachment {
+  id
+  taskId
+  name
+  mimeType
+  sizeBytes
+  contentUrl
+  sourceUrl
+}
+
+mutation UploadDiscussionMedia($input: UploadTaskMediaInput!) {
+  uploadTaskMedia(input: $input) {
+    ...DiscussionAttachment
+  }
+}
+
+query DiscussionAttachments($taskId: ID!, $page: Int!) {
+  taskAttachments(taskId: $taskId, page: $page) {
+    items {
+      ...DiscussionAttachment
+    }
+    page
+    totalPages
+    hasMore
+  }
+}

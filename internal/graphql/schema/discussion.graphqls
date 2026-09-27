@@ -1,0 +1,60 @@
+enum DiscussionOrder {
+  ASC
+  DESC
+}
+
+type DiscussionAuthor {
+  id: ID!
+  username: String!
+  name: String!
+}
+
+type TaskComment {
+  id: ID!
+  bodyHtml: String!
+  author: DiscussionAuthor!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type TaskCommentPage {
+  items: [TaskComment!]!
+  page: Int!
+  pageSize: Int!
+  totalPages: Int!
+  hasMore: Boolean!
+}
+
+extend type Query {
+  taskComment(taskId: ID!, commentId: ID!): TaskComment!
+  taskComments(taskId: ID!, page: Int! = 1, pageSize: Int! = 50, order: DiscussionOrder! = ASC): TaskCommentPage!
+}
+
+input CreateTaskCommentInput {
+  csrfToken: String!
+  taskId: ID!
+  bodyHtml: String!
+}
+
+input UpdateTaskCommentInput {
+  csrfToken: String!
+  taskId: ID!
+  commentId: ID!
+  bodyHtml: String!
+}
+
+input DeleteTaskCommentInput {
+  csrfToken: String!
+  taskId: ID!
+  commentId: ID!
+}
+
+type DeleteTaskCommentPayload {
+  deletedCommentId: ID!
+}
+
+extend type Mutation {
+  createTaskComment(input: CreateTaskCommentInput!): TaskComment!
+  updateTaskComment(input: UpdateTaskCommentInput!): TaskComment!
+  deleteTaskComment(input: DeleteTaskCommentInput!): DeleteTaskCommentPayload!
+}

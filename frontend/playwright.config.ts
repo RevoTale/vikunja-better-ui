@@ -2,6 +2,8 @@ import { defineConfig } from "@playwright/test";
 
 const baseURL = process.env["E2E_BASE_URL"];
 if (!baseURL) throw new Error("E2E_BASE_URL is required; run task e2e through the harness");
+const chromiumExecutable = process.env["E2E_CHROMIUM_EXECUTABLE"];
+const chromiumLaunchOptions = chromiumExecutable ? { executablePath: chromiumExecutable } : {};
 
 export default defineConfig({
   testDir: "./e2e",
@@ -22,9 +24,10 @@ export default defineConfig({
   projects: [
     {
       name: "phone-320",
-      grep: /login restores/,
+      grep: /login restores|discussion supports/,
       use: {
         browserName: "chromium",
+        launchOptions: chromiumLaunchOptions,
         viewport: { width: 320, height: 800 },
         isMobile: true,
         hasTouch: true,
@@ -32,7 +35,7 @@ export default defineConfig({
     },
     {
       name: "phone-webkit",
-      grep: /login restores/,
+      grep: /login restores|discussion supports|discussion plays/,
       use: {
         browserName: "webkit",
         viewport: { width: 320, height: 800 },
@@ -42,15 +45,18 @@ export default defineConfig({
     },
     {
       name: "tablet-768",
-      grep: /login restores/,
-      use: { viewport: { width: 768, height: 1024 } },
+      grep: /login restores|discussion supports/,
+      use: { viewport: { width: 768, height: 1024 }, launchOptions: chromiumLaunchOptions },
     },
     {
       name: "desktop-1024",
-      grep: /login restores/,
-      use: { viewport: { width: 1024, height: 768 } },
+      grep: /login restores|discussion supports/,
+      use: { viewport: { width: 1024, height: 768 }, launchOptions: chromiumLaunchOptions },
     },
-    { name: "desktop-1440", use: { viewport: { width: 1440, height: 900 } } },
+    {
+      name: "desktop-1440",
+      use: { viewport: { width: 1440, height: 900 }, launchOptions: chromiumLaunchOptions },
+    },
     {
       name: "timezone-webkit",
       grep: /task creation and display use the Vikunja timezone/,

@@ -1,0 +1,3 @@
+query DiscussionAvatar($username: String!) {
+  discussionAvatar(username: $username)
+}

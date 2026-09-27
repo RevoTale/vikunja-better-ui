@@ -57,6 +57,29 @@ type Task struct {
 	MaxPermission *int      `json:"max_permission"`
 }
 
+// TaskComment is the comment representation returned by Vikunja.
+// Comment may contain the HTML produced by the Vikunja rich-text editor.
+type TaskComment struct {
+	ID      int64     `json:"id"`
+	Comment string    `json:"comment"`
+	TaskID  int64     `json:"task_id"`
+	Author  *User     `json:"author"`
+	Created time.Time `json:"created"`
+	Updated time.Time `json:"updated"`
+}
+
+type TaskCommentWrite struct {
+	Comment string `json:"comment"`
+}
+
+type CommentQuery struct {
+	Page    int64
+	PerPage int64
+	Order   string
+}
+
+type CommentPage = page[TaskComment]
+
 type TaskWrite struct {
 	Title       string     `json:"title"`
 	Description string     `json:"description,omitempty"`

@@ -8,6 +8,8 @@ import (
 	"io"
 	"strconv"
 	"time"
+
+	"github.com/99designs/gqlgen/graphql"
 )
 
 type CompleteTaskInput struct {
@@ -65,10 +67,26 @@ type CreateRecurringTaskInput struct {
 	KeepDueTime  bool           `json:"keepDueTime"`
 }
 
+type CreateTaskCommentInput struct {
+	CsrfToken string `json:"csrfToken"`
+	TaskID    string `json:"taskId"`
+	BodyHTML  string `json:"bodyHtml"`
+}
+
 type CreatorDiagnostic struct {
 	ID       string `json:"id"`
 	Username string `json:"username"`
 	Name     string `json:"name"`
+}
+
+type DeleteTaskCommentInput struct {
+	CsrfToken string `json:"csrfToken"`
+	TaskID    string `json:"taskId"`
+	CommentID string `json:"commentId"`
+}
+
+type DeleteTaskCommentPayload struct {
+	DeletedCommentID string `json:"deletedCommentId"`
 }
 
 type DeleteTaskInput struct {
@@ -78,6 +96,12 @@ type DeleteTaskInput struct {
 
 type DeleteTaskPayload struct {
 	DeletedTaskID string `json:"deletedTaskId"`
+}
+
+type DiscussionAuthor struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	Name     string `json:"name"`
 }
 
 type Label struct {
@@ -173,6 +197,39 @@ type Task struct {
 	Timezone          string             `json:"timezone"`
 }
 
+type TaskAttachment struct {
+	ID         string  `json:"id"`
+	TaskID     string  `json:"taskId"`
+	Name       string  `json:"name"`
+	MimeType   string  `json:"mimeType"`
+	SizeBytes  float64 `json:"sizeBytes"`
+	ContentURL string  `json:"contentUrl"`
+	SourceURL  string  `json:"sourceUrl"`
+}
+
+type TaskAttachmentPage struct {
+	Items      []*TaskAttachment `json:"items"`
+	Page       int               `json:"page"`
+	TotalPages int               `json:"totalPages"`
+	HasMore    bool              `json:"hasMore"`
+}
+
+type TaskComment struct {
+	ID        string            `json:"id"`
+	BodyHTML  string            `json:"bodyHtml"`
+	Author    *DiscussionAuthor `json:"author"`
+	CreatedAt time.Time         `json:"createdAt"`
+	UpdatedAt time.Time         `json:"updatedAt"`
+}
+
+type TaskCommentPage struct {
+	Items      []*TaskComment `json:"items"`
+	Page       int            `json:"page"`
+	PageSize   int            `json:"pageSize"`
+	TotalPages int            `json:"totalPages"`
+	HasMore    bool           `json:"hasMore"`
+}
+
 type TaskDiagnostics struct {
 	ID             string             `json:"id"`
 	ProjectID      string             `json:"projectId"`
@@ -229,6 +286,13 @@ type UndoTaskCompletionInput struct {
 	Capability string `json:"capability"`
 }
 
+type UpdateTaskCommentInput struct {
+	CsrfToken string `json:"csrfToken"`
+	TaskID    string `json:"taskId"`
+	CommentID string `json:"commentId"`
+	BodyHTML  string `json:"bodyHtml"`
+}
+
 type UpdateTaskInput struct {
 	CsrfToken       string           `json:"csrfToken"`
 	TaskID          string           `json:"taskId"`
@@ -243,6 +307,12 @@ type UpdateTaskInput struct {
 	StartAt         *LocalDateTime   `json:"startAt,omitempty"`
 	EndAt           *LocalDateTime   `json:"endAt,omitempty"`
 	Recurrence      *RecurrenceInput `json:"recurrence,omitempty"`
+}
+
+type UploadTaskMediaInput struct {
+	CsrfToken string         `json:"csrfToken"`
+	TaskID    string         `json:"taskId"`
+	File      graphql.Upload `json:"file"`
 }
 
 type VikunjaUser struct {
@@ -385,6 +455,61 @@ func (e *CompletionStatus) UnmarshalJSON(b []byte) error {
 }
 
 func (e CompletionStatus) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type DiscussionOrder string
+
+const (
+	DiscussionOrderAsc  DiscussionOrder = "ASC"
+	DiscussionOrderDesc DiscussionOrder = "DESC"
+)
+
+var AllDiscussionOrder = []DiscussionOrder{
+	DiscussionOrderAsc,
+	DiscussionOrderDesc,
+}
+
+func (e DiscussionOrder) IsValid() bool {
+	switch e {
+	case DiscussionOrderAsc, DiscussionOrderDesc:
+		return true
+	}
+	return false
+}
+
+func (e DiscussionOrder) String() string {
+	return string(e)
+}
+
+func (e *DiscussionOrder) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = DiscussionOrder(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid DiscussionOrder", str)
+	}
+	return nil
+}
+
+func (e DiscussionOrder) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *DiscussionOrder) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e DiscussionOrder) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

@@ -151,6 +151,14 @@ export function TaskDetailActions({
     <div className="flex flex-col items-start gap-2 sm:items-end">
       <fieldset className="flex flex-wrap gap-2">
         <legend className="sr-only">Task actions</legend>
+        <Link
+          to="/tasks/$taskId/discussion"
+          params={{ taskId: task.id }}
+          search={{ returnTo }}
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+        >
+          Discussion
+        </Link>
         {!task.isDone && !pending ? (
           <Link
             to="/tasks/$taskId/edit"

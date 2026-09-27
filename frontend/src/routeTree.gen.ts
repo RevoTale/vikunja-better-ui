@@ -18,6 +18,7 @@ import { Route as AuthenticatedTasksTaskIdRouteImport } from './routes/_authenti
 import { Route as AuthenticatedTasksNewRouteImport } from './routes/_authenticated.tasks.new'
 import { Route as AuthenticatedTasksTaskIdIndexRouteImport } from './routes/_authenticated.tasks.$taskId.index'
 import { Route as AuthenticatedTasksTaskIdDeleteRouteImport } from './routes/_authenticated.tasks.$taskId.delete'
+import { Route as AuthenticatedTasksTaskIdDiscussionRouteImport } from './routes/_authenticated.tasks.$taskId.discussion'
 import { Route as AuthenticatedTasksTaskIdEditRouteImport } from './routes/_authenticated.tasks.$taskId.edit'
 import { Route as AuthenticatedTasksTaskIdExtendedRouteImport } from './routes/_authenticated.tasks.$taskId.extended'
 
@@ -89,6 +90,12 @@ const AuthenticatedTasksTaskIdDeleteRoute =
     path: '/delete',
     getParentRoute: () => AuthenticatedTasksTaskIdRoute,
   } as any)
+const AuthenticatedTasksTaskIdDiscussionRoute =
+  AuthenticatedTasksTaskIdDiscussionRouteImport.update({
+    id: '/discussion',
+    path: '/discussion',
+    getParentRoute: () => AuthenticatedTasksTaskIdRoute,
+  } as any)
 const AuthenticatedTasksTaskIdEditRoute =
   AuthenticatedTasksTaskIdEditRouteImport.update({
     id: '/edit',
@@ -114,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/tasks/$taskId': typeof AuthenticatedTasksTaskIdRouteWithChildren
   '/tasks/new': typeof AuthenticatedTasksNewRoute
   '/tasks/$taskId/delete': typeof AuthenticatedTasksTaskIdDeleteRoute
+  '/tasks/$taskId/discussion': typeof AuthenticatedTasksTaskIdDiscussionRoute
   '/tasks/$taskId/edit': typeof AuthenticatedTasksTaskIdEditRoute
   '/tasks/$taskId/extended': typeof AuthenticatedTasksTaskIdExtendedRoute
   '/tasks/$taskId/': typeof AuthenticatedTasksTaskIdIndexRoute
@@ -129,6 +137,7 @@ export interface FileRoutesByTo {
   '/week': typeof AuthenticatedWeekRoute
   '/tasks/new': typeof AuthenticatedTasksNewRoute
   '/tasks/$taskId/delete': typeof AuthenticatedTasksTaskIdDeleteRoute
+  '/tasks/$taskId/discussion': typeof AuthenticatedTasksTaskIdDiscussionRoute
   '/tasks/$taskId/edit': typeof AuthenticatedTasksTaskIdEditRoute
   '/tasks/$taskId/extended': typeof AuthenticatedTasksTaskIdExtendedRoute
   '/tasks/$taskId': typeof AuthenticatedTasksTaskIdIndexRoute
@@ -147,6 +156,7 @@ export interface FileRoutesById {
   '/_authenticated/tasks/$taskId': typeof AuthenticatedTasksTaskIdRouteWithChildren
   '/_authenticated/tasks/new': typeof AuthenticatedTasksNewRoute
   '/_authenticated/tasks/$taskId/delete': typeof AuthenticatedTasksTaskIdDeleteRoute
+  '/_authenticated/tasks/$taskId/discussion': typeof AuthenticatedTasksTaskIdDiscussionRoute
   '/_authenticated/tasks/$taskId/edit': typeof AuthenticatedTasksTaskIdEditRoute
   '/_authenticated/tasks/$taskId/extended': typeof AuthenticatedTasksTaskIdExtendedRoute
   '/_authenticated/tasks/$taskId/': typeof AuthenticatedTasksTaskIdIndexRoute
@@ -165,6 +175,7 @@ export interface FileRouteTypes {
     | '/tasks/$taskId'
     | '/tasks/new'
     | '/tasks/$taskId/delete'
+    | '/tasks/$taskId/discussion'
     | '/tasks/$taskId/edit'
     | '/tasks/$taskId/extended'
     | '/tasks/$taskId/'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
     | '/week'
     | '/tasks/new'
     | '/tasks/$taskId/delete'
+    | '/tasks/$taskId/discussion'
     | '/tasks/$taskId/edit'
     | '/tasks/$taskId/extended'
     | '/tasks/$taskId'
@@ -197,6 +209,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tasks/$taskId'
     | '/_authenticated/tasks/new'
     | '/_authenticated/tasks/$taskId/delete'
+    | '/_authenticated/tasks/$taskId/discussion'
     | '/_authenticated/tasks/$taskId/edit'
     | '/_authenticated/tasks/$taskId/extended'
     | '/_authenticated/tasks/$taskId/'
@@ -301,6 +314,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedTasksTaskIdDeleteRouteImport
       parentRoute: typeof AuthenticatedTasksTaskIdRoute
     }
+    '/_authenticated/tasks/$taskId/discussion': {
+      id: '/_authenticated/tasks/$taskId/discussion'
+      path: '/discussion'
+      fullPath: '/tasks/$taskId/discussion'
+      preLoaderRoute: typeof AuthenticatedTasksTaskIdDiscussionRouteImport
+      parentRoute: typeof AuthenticatedTasksTaskIdRoute
+    }
     '/_authenticated/tasks/$taskId/edit': {
       id: '/_authenticated/tasks/$taskId/edit'
       path: '/edit'
@@ -320,6 +340,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedTasksTaskIdRouteChildren {
   AuthenticatedTasksTaskIdDeleteRoute: typeof AuthenticatedTasksTaskIdDeleteRoute
+  AuthenticatedTasksTaskIdDiscussionRoute: typeof AuthenticatedTasksTaskIdDiscussionRoute
   AuthenticatedTasksTaskIdEditRoute: typeof AuthenticatedTasksTaskIdEditRoute
   AuthenticatedTasksTaskIdExtendedRoute: typeof AuthenticatedTasksTaskIdExtendedRoute
   AuthenticatedTasksTaskIdIndexRoute: typeof AuthenticatedTasksTaskIdIndexRoute
@@ -328,6 +349,8 @@ interface AuthenticatedTasksTaskIdRouteChildren {
 const AuthenticatedTasksTaskIdRouteChildren: AuthenticatedTasksTaskIdRouteChildren =
   {
     AuthenticatedTasksTaskIdDeleteRoute: AuthenticatedTasksTaskIdDeleteRoute,
+    AuthenticatedTasksTaskIdDiscussionRoute:
+      AuthenticatedTasksTaskIdDiscussionRoute,
     AuthenticatedTasksTaskIdEditRoute: AuthenticatedTasksTaskIdEditRoute,
     AuthenticatedTasksTaskIdExtendedRoute:
       AuthenticatedTasksTaskIdExtendedRoute,

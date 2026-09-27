@@ -1,0 +1,88 @@
+@reference "../../styles/global.css";
+
+.discussion-rich-text {
+  @apply min-w-0 text-base leading-relaxed wrap-anywhere;
+}
+.discussion-rich-text > * + * {
+  @apply mt-[0.75em];
+}
+.discussion-rich-text ul {
+  @apply list-disc ps-[1.5em];
+}
+.discussion-rich-text ol {
+  @apply list-decimal ps-[1.5em];
+}
+.discussion-rich-text blockquote {
+  @apply my-[0.75em] border-s-2 border-border ps-[0.75em] text-muted-foreground;
+}
+.discussion-rich-text a {
+  @apply text-primary underline underline-offset-2;
+}
+.discussion-rich-text :is(h1, h2, h3, h4, h5, h6) {
+  @apply my-[0.75em] text-lg leading-snug font-semibold;
+}
+.discussion-rich-text :is(h1, [data-heading-level="1"]) {
+  @apply text-2xl;
+}
+.discussion-rich-text :is(h2, [data-heading-level="2"]) {
+  @apply text-xl;
+}
+.discussion-rich-text
+  :is(h4, h5, h6, [data-heading-level="4"], [data-heading-level="5"], [data-heading-level="6"]) {
+  @apply text-base;
+}
+.discussion-rich-text code:not(.discussion-code) {
+  @apply rounded bg-muted px-[0.25em] font-mono text-[0.875em];
+}
+
+.discussion-rich-text :is(pre, .discussion-code) {
+  @apply block max-w-full overflow-x-auto rounded-md bg-muted p-[0.75em] font-mono text-sm leading-normal whitespace-pre wrap-normal;
+  tab-size: 4;
+}
+.discussion-rich-text pre code:not(.discussion-code) {
+  @apply bg-transparent p-0 text-[length:inherit];
+}
+.discussion-rich-text :is(.syntax-keyword, .syntax-operator) {
+  @apply font-semibold text-primary;
+}
+.discussion-rich-text :is(.syntax-string, .syntax-number) {
+  @apply text-foreground italic;
+}
+.discussion-rich-text .syntax-comment {
+  @apply text-muted-foreground italic;
+}
+.discussion-rich-text .syntax-function {
+  @apply text-primary;
+}
+.discussion-table-scroll {
+  @apply my-[0.75em] max-w-full overflow-x-auto;
+}
+.discussion-rich-text table {
+  @apply min-w-full border-collapse;
+}
+.discussion-rich-text :is(td, th) {
+  @apply min-w-[6em] border border-border p-[0.5em] align-top;
+}
+.discussion-rich-text th {
+  @apply bg-muted font-semibold;
+}
+.discussion-rich-text hr {
+  @apply my-[1em] border-t border-border;
+}
+.discussion-rich-text :is(.discussion-checklist, ul[data-type="taskList"]) {
+  @apply list-none ps-[1.75em];
+}
+.discussion-rich-text :is(.discussion-checked, .discussion-unchecked, li[data-type="taskItem"]) {
+  @apply relative;
+}
+.discussion-rich-text
+  :is(.discussion-checked, .discussion-unchecked, li[data-type="taskItem"])::before {
+  content: "□";
+  @apply absolute start-[-1.5em] w-[1.25em] cursor-pointer;
+}
+.discussion-rich-text :is(.discussion-checked, li[data-checked="true"])::before {
+  content: "☑";
+}
+.discussion-rich-text mark {
+  @apply bg-accent text-accent-foreground;
+}

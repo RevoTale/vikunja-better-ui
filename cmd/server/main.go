@@ -54,13 +54,16 @@ func run(configuration config.Config, logger *slog.Logger) error {
 	root := resolver.New(resolver.Dependencies{
 		Credentials: auth.NewCredentials(configuration.AuthUsername, configuration.AuthPassword),
 		Sessions:    sessions, Cookies: cookies, Limiter: auth.NewLoginLimiter(now),
-		Users: vikunjaClient, Projects: vikunjaClient, Tasks: vikunjaClient,
+		Users: vikunjaClient, Projects: vikunjaClient, Tasks: vikunjaClient, Comments: vikunjaClient,
+		Attachments:  vikunjaClient,
+		Avatars:      vikunjaClient,
 		Capabilities: capabilities, Logger: logger, Now: now,
 	})
 
 	mux := http.NewServeMux()
 	graphQL := graphqlserver.NewHandler(root, production, logger)
-	mux.Handle("/graphql", web.GraphQLBoundary(configuration.AllowedOrigin)(auth.HTTPContext(sessions, cookies)(graphQL)))
+	mux.Handle("/graphql", auth.HTTPContext(sessions, cookies)(web.GraphQLBoundary(configuration.AllowedOrigin, sessions)(graphQL)))
+	mux.Handle("GET /media/tasks/{task}/attachments/{attachment}", auth.HTTPContext(sessions, cookies)(web.NewTaskMediaHandler(vikunjaClient, logger)))
 	mux.Handle(
 		"/integrations/v1/jobs",
 		integration.NewJobsHandler(configuration.VikunjaURL, configuration.AllowedOrigin, logger, now),

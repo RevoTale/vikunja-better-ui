@@ -38,6 +38,11 @@ session cookie. Do not add a database for sessions or application data.
 Use GraphQL for all browser application requests. Implement login and logout as
 GraphQL mutations.
 
+The approved exception is authenticated same-origin binary attachment streaming
+at `/media/tasks/{task}/attachments/{attachment}`. Uploads and metadata remain
+GraphQL. Validate IDs, enforce upstream access, allow only safe media, stream
+with bounded memory, and use private no-store caching. Never proxy arbitrary URLs.
+
 ## Required stack
 
 ### Backend

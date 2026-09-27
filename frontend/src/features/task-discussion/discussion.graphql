@@ -1,0 +1,47 @@
+fragment DiscussionComment on TaskComment {
+  id
+  bodyHtml
+  author {
+    id
+    username
+    name
+  }
+  createdAt
+  updatedAt
+}
+
+query DiscussionComments($taskId: ID!, $page: Int!, $order: DiscussionOrder!) {
+  taskComments(taskId: $taskId, page: $page, order: $order) {
+    items {
+      ...DiscussionComment
+    }
+    page
+    pageSize
+    totalPages
+    hasMore
+  }
+}
+
+query DiscussionOriginal($taskId: ID!, $commentId: ID!) {
+  taskComment(taskId: $taskId, commentId: $commentId) {
+    ...DiscussionComment
+  }
+}
+
+mutation CreateDiscussionComment($input: CreateTaskCommentInput!) {
+  createTaskComment(input: $input) {
+    ...DiscussionComment
+  }
+}
+
+mutation UpdateDiscussionComment($input: UpdateTaskCommentInput!) {
+  updateTaskComment(input: $input) {
+    ...DiscussionComment
+  }
+}
+
+mutation DeleteDiscussionComment($input: DeleteTaskCommentInput!) {
+  deleteTaskComment(input: $input) {
+    deletedCommentId
+  }
+}

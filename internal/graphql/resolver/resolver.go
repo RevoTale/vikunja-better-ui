@@ -2,6 +2,7 @@ package resolver
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"time"
 
@@ -17,6 +18,23 @@ type userReader interface {
 
 type projectReader interface {
 	Projects(context.Context) ([]vikunja.Project, error)
+}
+
+type commentClient interface {
+	TaskComment(context.Context, int64, int64) (vikunja.TaskComment, error)
+	TaskComments(context.Context, int64, vikunja.CommentQuery) (vikunja.CommentPage, error)
+	CreateTaskComment(context.Context, int64, vikunja.TaskCommentWrite) (vikunja.TaskComment, error)
+	UpdateTaskComment(context.Context, int64, int64, vikunja.TaskCommentWrite) (vikunja.TaskComment, error)
+	DeleteTaskComment(context.Context, int64, int64) error
+}
+
+type attachmentClient interface {
+	TaskAttachments(context.Context, int64, int64) (vikunja.AttachmentPage, error)
+	UploadTaskAttachment(context.Context, int64, string, io.Reader) (vikunja.TaskAttachment, error)
+}
+
+type avatarReader interface {
+	Avatar(context.Context, string) (string, error)
 }
 
 type taskClient interface {
@@ -41,6 +59,9 @@ type Dependencies struct {
 	Users        userReader
 	Projects     projectReader
 	Tasks        taskClient
+	Comments     commentClient
+	Attachments  attachmentClient
+	Avatars      avatarReader
 	Capabilities *service.CapabilityManager
 	Logger       *slog.Logger
 	Now          func() time.Time
@@ -54,6 +75,9 @@ type Resolver struct {
 	users        userReader
 	projects     projectReader
 	tasks        taskClient
+	comments     commentClient
+	attachments  attachmentClient
+	avatars      avatarReader
 	capabilities *service.CapabilityManager
 	logger       *slog.Logger
 	now          func() time.Time
@@ -68,6 +92,9 @@ func New(dependencies Dependencies) *Resolver {
 		users:        dependencies.Users,
 		projects:     dependencies.Projects,
 		tasks:        dependencies.Tasks,
+		comments:     dependencies.Comments,
+		attachments:  dependencies.Attachments,
+		avatars:      dependencies.Avatars,
 		capabilities: dependencies.Capabilities,
 		logger:       dependencies.Logger,
 		now:          dependencies.Now,

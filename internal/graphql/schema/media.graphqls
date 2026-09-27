@@ -1,0 +1,32 @@
+scalar Upload
+
+type TaskAttachment {
+  id: ID!
+  taskId: ID!
+  name: String!
+  mimeType: String!
+  sizeBytes: Float!
+  contentUrl: String!
+  sourceUrl: String!
+}
+
+type TaskAttachmentPage {
+  items: [TaskAttachment!]!
+  page: Int!
+  totalPages: Int!
+  hasMore: Boolean!
+}
+
+input UploadTaskMediaInput {
+  csrfToken: String!
+  taskId: ID!
+  file: Upload!
+}
+
+extend type Query {
+  taskAttachments(taskId: ID!, page: Int! = 1): TaskAttachmentPage!
+}
+
+extend type Mutation {
+  uploadTaskMedia(input: UploadTaskMediaInput!): TaskAttachment!
+}
