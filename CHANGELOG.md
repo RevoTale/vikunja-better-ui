@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.0.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.7.0...v2.0.0) (2026-09-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* **tasks:** Job classification now uses vbu:job; plain job is an ordinary label. No automatic migration is performed.
+
+### Features
+
+* **discussion:** add rich-text comments, media and reply navigation ([26a79da](https://github.com/RevoTale/vikunja-better-ui/commit/26a79da138f5d38d6f5281a3352b42332e4f8928))
+* **tasks:** add label management and explicit value reuse ([8d53eee](https://github.com/RevoTale/vikunja-better-ui/commit/8d53eeef909e3496a1cce9177180817393587c0f))
+* **tasks:** integrate task details and discussion ([96b5a3f](https://github.com/RevoTale/vikunja-better-ui/commit/96b5a3ff8a3698b44472b15b5cae996c48317ce1))
+* **tasks:** show actionable task count in Today navigation ([b5cbe16](https://github.com/RevoTale/vikunja-better-ui/commit/b5cbe162633c4af6aebb24b7766194fa70a0c59a))
+
+
+### Bug Fixes
+
+* **deps:** update dependency @apollo/client to v4.3.1 ([#72](https://github.com/RevoTale/vikunja-better-ui/issues/72)) ([a6d2d86](https://github.com/RevoTale/vikunja-better-ui/commit/a6d2d8628a12d2572aec23d07a218c7265ee027a))
+* **tasks:** give mobile metadata the full card width ([16547f3](https://github.com/RevoTale/vikunja-better-ui/commit/16547f35974c5d942473bc79f8613c6f6d0194ef))
+
 ## [1.7.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.6.1...v1.7.0) (2026-09-08)
 
 
