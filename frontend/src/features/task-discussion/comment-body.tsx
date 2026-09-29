@@ -1,4 +1,5 @@
 import { createElement, lazy, type ReactNode, Suspense, useMemo } from "react";
+import { discussionLinks } from "./discussion-links";
 import { cleanComment } from "./html";
 import { mediaFromElement } from "./media-html";
 import { MediaPreview } from "./media-preview";
@@ -53,7 +54,7 @@ function renderRootNode(
 
 // Render the allowlisted DOM as React elements, never inject upstream HTML.
 function renderNode(node: ChildNode, key: number): ReactNode {
-  if (node.nodeType === Node.TEXT_NODE) return node.textContent;
+  if (node.nodeType === Node.TEXT_NODE) return renderText(node);
   if (!(node instanceof HTMLElement)) return null;
   const media = mediaFromElement(node);
   if (media) return <MediaPreview key={key} {...media} />;
@@ -117,4 +118,18 @@ function renderNode(node: ChildNode, key: number): ReactNode {
   }
   if (tag === "br" || tag === "hr") return createElement(tag, props);
   return createElement(tag, props, ...Array.from(node.childNodes, renderNode));
+}
+
+function renderText(node: ChildNode): ReactNode {
+  if (node.parentElement?.closest("a,code,pre")) return node.textContent;
+  return discussionLinks(node.textContent ?? "").map((part, index) =>
+    part.href ? (
+      // biome-ignore lint/suspicious/noArrayIndexKey: Stateless segments of one immutable text node.
+      <a key={index} href={part.href} target="_blank" rel="noopener noreferrer">
+        {part.text}
+      </a>
+    ) : (
+      part.text
+    ),
+  );
 }

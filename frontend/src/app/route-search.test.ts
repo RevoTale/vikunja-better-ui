@@ -9,6 +9,9 @@ import {
 } from "./route-search";
 
 describe("safeReturnTo", () => {
+  it("preserves a comment target through login", () => {
+    expect(safeReturnTo("/tasks/42/discussion?comment=7")).toBe("/tasks/42/discussion?comment=7");
+  });
   it("preserves edit deep links and their return destination", () => {
     const path = "/tasks/42/edit?returnTo=%2Fweek%3Fproject%3D8";
     expect(safeReturnTo(path)).toBe(path);

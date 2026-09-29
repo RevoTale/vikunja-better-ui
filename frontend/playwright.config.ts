@@ -24,7 +24,7 @@ export default defineConfig({
   projects: [
     {
       name: "phone-320",
-      grep: /login restores|discussion supports/,
+      grep: /login restores|discussion supports|task labels support/,
       use: {
         browserName: "chromium",
         launchOptions: chromiumLaunchOptions,
@@ -35,7 +35,7 @@ export default defineConfig({
     },
     {
       name: "phone-webkit",
-      grep: /login restores|discussion supports|discussion plays/,
+      grep: /login restores|discussion supports|discussion plays|task labels support/,
       use: {
         browserName: "webkit",
         viewport: { width: 320, height: 800 },

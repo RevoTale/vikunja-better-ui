@@ -166,7 +166,7 @@ func (handler *jobsHandler) jobs(
 	if labelsErr != nil {
 		return jobsResponse{}, labelsErr
 	}
-	jobLabelIDs := service.ExactLabelIDs(labels, "job")
+	jobLabelIDs := service.ExactLabelIDs(labels, "vbu:job")
 	var filterLabelIDs []int64
 	if input.label != "" {
 		filterLabelIDs = service.ExactLabelIDs(labels, input.label)

@@ -3,6 +3,7 @@ export type WeekEntry<Task, Projection> =
   | { kind: "projection"; projection: Projection };
 
 type WeekTaskSchedule = {
+  isOverdue?: boolean;
   startAt?: string | null;
   endAt?: string | null;
   dueAt: string | null;
@@ -18,6 +19,12 @@ export function mergeWeekEntries<
       (projection): WeekEntry<Task, Projection> => ({ kind: "projection", projection }),
     ),
   ].sort((left, right) => {
+    const leftOverdue = left.kind === "task" && left.task.isOverdue === true;
+    const rightOverdue = right.kind === "task" && right.task.isOverdue === true;
+    if (leftOverdue !== rightOverdue) return leftOverdue ? -1 : 1;
+    // The server owns priority/due/title/ID ordering. Do not reorder overdue
+    // tasks by start time while merging the future computed occurrences.
+    if (leftOverdue && rightOverdue) return 0;
     const leftTimes = weekEntryTimes(left);
     const rightTimes = weekEntryTimes(right);
     const timeOrder =

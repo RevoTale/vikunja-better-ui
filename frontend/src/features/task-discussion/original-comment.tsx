@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/compone
 import { DiscussionOriginalDocument } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import { CommentBody } from "./comment-body";
+import { CommentsLoading } from "./discussion-loading";
 
 export function OriginalComment({
   taskId,
@@ -40,7 +41,12 @@ export function OriginalComment({
         </DialogTitle>
         <DialogDescription>Referenced comment in this task.</DialogDescription>
         {navigation}
-        {loading ? <p role="status">Loading original…</p> : null}
+        {loading ? (
+          <div role="status" aria-label="Loading original comment">
+            <span className="sr-only">Loading original…</span>
+            <CommentsLoading />
+          </div>
+        ) : null}
         {error ? (
           <>
             <p role="alert">
@@ -55,7 +61,7 @@ export function OriginalComment({
             </Button>
           </>
         ) : null}
-        {!error && data ? (
+        {!loading && !error && data ? (
           <>
             <p className="text-base font-semibold text-foreground">
               {data.taskComment.author.name || data.taskComment.author.username}

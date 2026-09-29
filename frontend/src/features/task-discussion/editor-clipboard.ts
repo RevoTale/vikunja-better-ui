@@ -1,5 +1,6 @@
 import { $isCodeNode } from "@lexical/code-core";
 import { $generateNodesFromDOM } from "@lexical/html";
+import { $toggleLink } from "@lexical/link";
 import {
   $addUpdateTag,
   $getSelection,
@@ -8,6 +9,7 @@ import {
   type LexicalEditor,
   PASTE_TAG,
 } from "lexical";
+import { matchDiscussionUrl } from "./discussion-links";
 import { editorDocument, hasUnsupportedContent } from "./html";
 
 export function $pasteClipboard(
@@ -23,6 +25,17 @@ export function $pasteClipboard(
     ($isCodeNode(selection.anchor.getNode()) || $isCodeNode(selection.anchor.getNode().getParent()))
   ) {
     selection.insertRawText(clipboard.getData("text/plain"));
+    return;
+  }
+  const text = clipboard.getData("text/plain");
+  const match = matchDiscussionUrl(text);
+  if (
+    $isRangeSelection(selection) &&
+    !selection.isCollapsed() &&
+    !selection.hasFormat("code") &&
+    match?.text === text
+  ) {
+    $toggleLink(match.url, { target: "_blank", rel: "noopener noreferrer" });
     return;
   }
   const html = clipboard.getData("text/html");

@@ -14,6 +14,7 @@ import { EditJobDuration } from "./edit-job-duration";
 import { currentDateInTimeZone } from "./local-date-time";
 import { ScheduleShift } from "./schedule-shift";
 import { formatLocalInstant, type ScheduleFields } from "./shift-schedule";
+import { TaskLabelPicker } from "./task-label-picker";
 
 type Task = NonNullable<TaskDetailsQuery["task"]>;
 
@@ -29,6 +30,7 @@ export function EditTaskForm({
   onSave: (input: Omit<UpdateTaskInput, "csrfToken">) => Promise<void>;
 }) {
   const [expectedVersion] = useState(task.version);
+  const [labelsPending, setLabelsPending] = useState(false);
   const today = currentDateInTimeZone(task.timezone) ?? "";
   const [recurring, setRecurring] = useState(Boolean(task.recurrenceRule));
   const [values, setValues] = useState(() => ({
@@ -46,10 +48,12 @@ export function EditTaskForm({
   }));
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (labelsPending) return;
     const form = new FormData(event.currentTarget);
     await onSave({
       taskId: task.id,
       expectedVersion,
+      labelIds: form.getAll("labelIds").map(String),
       title: values.title,
       description: String(form.get("description") ?? ""),
       projectId: values.projectId,
@@ -81,7 +85,6 @@ export function EditTaskForm({
           values={values}
           description={task.description}
           titleRequired
-          autofilled={new Set()}
           onFieldChange={(field, value) => setValues((current) => ({ ...current, [field]: value }))}
         />
         <div className="flex flex-wrap gap-5">
@@ -134,7 +137,10 @@ export function EditTaskForm({
             Changes apply to this task and its future schedule. Completed history stays unchanged.
           </p>
         ) : null}
-        <Button type="submit">{pending ? "Saving…" : "Save changes"}</Button>
+        <TaskLabelPicker initialLabels={task.labels} onPendingChange={setLabelsPending} />
+        <Button type="submit" disabled={labelsPending}>
+          {pending ? "Saving…" : "Save changes"}
+        </Button>
       </fieldset>
     </form>
   );

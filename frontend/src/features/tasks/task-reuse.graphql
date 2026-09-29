@@ -1,0 +1,14 @@
+query TaskReuseValues($job: Boolean!, $recurring: Boolean!) {
+  taskReuseValues(job: $job, recurring: $recurring) {
+    taskId
+    title
+    projectId
+    priority
+    labels {
+      id
+      title
+    }
+    durationMinutes
+    completionWindowMinutes
+  }
+}

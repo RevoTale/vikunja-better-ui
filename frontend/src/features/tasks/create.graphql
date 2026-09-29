@@ -1,5 +1,6 @@
 mutation CreateOneTimeTask($input: CreateOneTimeTaskInput!) {
   createOneTimeTask(input: $input) {
+    labelError
     status
     task {
       id
@@ -29,6 +30,7 @@ mutation CreateOneTimeTask($input: CreateOneTimeTaskInput!) {
 
 mutation CreateRecurringTask($input: CreateRecurringTaskInput!) {
   createRecurringTask(input: $input) {
+    labelError
     status
     task {
       id
@@ -64,6 +66,7 @@ mutation CreateRecurringTask($input: CreateRecurringTaskInput!) {
 
 mutation CreateJob($input: CreateJobInput!) {
   createJob(input: $input) {
+    labelError
     status
     task {
       id

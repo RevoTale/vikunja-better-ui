@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { commentMenu } from "./comment-menu-fixture";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 
 test("discussion supports pagination, lazy reply chains, and recovery of an emptied last page", async ({
@@ -81,7 +82,9 @@ test("discussion supports pagination, lazy reply chains, and recovery of an empt
   await page
     .getByRole("textbox", { name: "Comment", exact: true })
     .fill("Keep draft across pagination");
-  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await (await commentMenu(page, page))
+    .getByRole("menuitem", { name: "Delete", exact: true })
+    .click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Delete comment", exact: true })

@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { commentMenu } from "./comment-menu-fixture";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 
 test("discussion supports comments, replies, edits, drafts and deletion", async ({
@@ -23,7 +24,9 @@ test("discussion supports comments, replies, edits, drafts and deletion", async 
   await page.screenshot({ path: testInfo.outputPath("discussion.png"), fullPage: true });
   await reply.getByRole("button", { name: "View original", exact: true }).click();
   await expect(first).toBeFocused();
-  await reply.getByRole("button", { name: "Edit", exact: true }).click();
+  await (await commentMenu(page, reply))
+    .getByRole("menuitem", { name: "Edit", exact: true })
+    .click();
   await page.getByRole("textbox", { name: "Edit comment", exact: true }).fill("Edited follow-up");
   await page.getByRole("button", { name: "Save comment", exact: true }).click();
   await expect(page.getByRole("article").filter({ hasText: "Edited follow-up" })).toBeVisible();
@@ -36,7 +39,9 @@ test("discussion supports comments, replies, edits, drafts and deletion", async 
   await editor.fill("Do not replace this");
   await expect(page.getByRole("button", { name: "Restore draft", exact: true })).toBeDisabled();
   const edited = page.getByRole("article").filter({ hasText: "Edited follow-up" });
-  await edited.getByRole("button", { name: "Delete", exact: true }).click();
+  await (await commentMenu(page, edited))
+    .getByRole("menuitem", { name: "Delete", exact: true })
+    .click();
   await page
     .getByRole("dialog")
     .getByRole("button", { name: "Delete comment", exact: true })
@@ -67,7 +72,9 @@ test("discussion edits plain native comments with unavailable draft storage", as
   });
   await page.reload();
   const comment = page.getByRole("article").filter({ hasText: "Plain native comment" });
-  await comment.getByRole("button", { name: "Edit", exact: true }).click();
+  await (await commentMenu(page, comment))
+    .getByRole("menuitem", { name: "Edit", exact: true })
+    .click();
   const editor = page.getByRole("textbox", { name: "Edit comment", exact: true });
   await expect(editor).toHaveText("Plain native comment");
   await expect(editor).toBeFocused();
@@ -126,7 +133,9 @@ test("discussion prevents lossy editing of native tables and images", async ({ p
   );
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   const comment = page.getByRole("article").filter({ hasText: "Keep native content" });
-  await expect(comment.getByRole("button", { name: "Edit", exact: true })).toBeDisabled();
+  await expect(
+    (await commentMenu(page, comment)).getByRole("menuitem", { name: "Edit", exact: true }),
+  ).toBeDisabled();
   await expect(comment).toContainText("Open native Vikunja");
   const data = await discussionGraphQL<{ taskComments: { items: { bodyHtml: string }[] } }>(
     page,

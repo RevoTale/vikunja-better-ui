@@ -15,8 +15,8 @@
 .discussion-rich-text blockquote {
   @apply my-[0.75em] border-s-2 border-border ps-[0.75em] text-muted-foreground;
 }
-.discussion-rich-text a {
-  @apply text-primary underline underline-offset-2;
+.discussion-rich-text a[href] {
+  @apply cursor-pointer text-blue-700 underline decoration-current underline-offset-2 hover:decoration-2 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring dark:text-blue-300;
 }
 .discussion-rich-text :is(h1, h2, h3, h4, h5, h6) {
   @apply my-[0.75em] text-lg leading-snug font-semibold;

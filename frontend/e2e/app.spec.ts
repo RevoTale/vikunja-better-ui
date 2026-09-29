@@ -200,7 +200,7 @@ test("task creation identifies invalid fields and clears corrected errors", asyn
   await page.goto("/tasks/new?type=recurring&returnTo=%2Ftoday");
   await login(page);
 
-  await page.getByLabel("Title").fill("   ");
+  await page.getByRole("textbox", { name: /^Title/ }).fill("   ");
   await selectDate(page, "First due date", "");
   await page.getByLabel("Every").fill("2");
   await chooseSelectOption(page, "Unit", "Months");
@@ -215,11 +215,17 @@ test("task creation identifies invalid fields and clears corrected errors", asyn
   await expect(
     page.getByText("Monthly recurrence must use Scheduled cycle.", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByLabel("Title")).toHaveAttribute("aria-invalid", "true");
-  await expect(page.getByLabel("Title")).toHaveAttribute("aria-describedby", "title-error");
-  await expect(page.getByLabel("Title")).toBeFocused();
+  await expect(page.getByRole("textbox", { name: /^Title/ })).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  await expect(page.getByRole("textbox", { name: /^Title/ })).toHaveAttribute(
+    "aria-describedby",
+    "title-error",
+  );
+  await expect(page.getByRole("textbox", { name: /^Title/ })).toBeFocused();
 
-  await page.getByLabel("Title").fill("Valid recurring task");
+  await page.getByRole("textbox", { name: /^Title/ }).fill("Valid recurring task");
   await chooseSelectOption(page, "Priority", "No priority");
   await selectDate(page, "First due date", localDate());
   await page.getByLabel("Every").fill("1");
@@ -227,7 +233,10 @@ test("task creation identifies invalid fields and clears corrected errors", asyn
 
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.getByText("Enter a title.", { exact: true })).toHaveCount(0);
-  await expect(page.getByLabel("Title")).not.toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByRole("textbox", { name: /^Title/ })).not.toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });
 
@@ -236,9 +245,10 @@ test("task creation and display use the Vikunja timezone", async ({ page }) => {
   await page.goto("/tasks/new?type=one-time&returnTo=%2Ftoday");
   await login(page);
 
-  const dueDate = localDate();
+  // Keep the list expectation independent of whether today's 00:30 has passed.
+  const dueDate = addCalendarDays(localDate(), -1);
   const title = `Timezone E2E ${Date.now()}`;
-  await page.getByLabel("Title").fill(title);
+  await page.getByRole("textbox", { name: /^Title/ }).fill(title);
   await selectDate(page, "Due date", dueDate);
   await page.getByLabel("Due time", { exact: true }).fill("00:30");
   await page.getByRole("button", { name: "Create one-time task", exact: true }).click();
@@ -254,19 +264,19 @@ test("task creation and display use the Vikunja timezone", async ({ page }) => {
   await expect(page.getByText(`${displayDate(dueDate)} - 00:30`, { exact: true })).toBeVisible();
   await page.goto("/today");
   const taskCard = page.locator('[data-slot="card"]').filter({ hasText: title });
-  await expect(taskCard.locator('[data-slot="task-schedule"]')).toContainText(
-    `${displayShortDate(dueDate)}00:30`,
-  );
+  const schedule = taskCard.locator('[data-slot="task-schedule"]');
+  await expect(schedule).toHaveText("OverdueNo priority");
+  await expect(schedule).not.toContainText(displayShortDate(dueDate));
 });
 
-test("new task autofill remembers only successful creation without overriding context", async ({
+test("successful creation leaves the next form at defaults and preserves explicit context", async ({
   page,
 }) => {
   await blockBrowserVikunjaCalls(page);
   await page.goto("/tasks/new?type=one-time&returnTo=%2Ftoday");
   await login(page);
 
-  await page.getByLabel("Title").fill("   ");
+  await page.getByRole("textbox", { name: /^Title/ }).fill("   ");
   await page.getByRole("button", { name: "Create one-time task", exact: true }).click();
   await expect(page.getByText("Enter a title.", { exact: true })).toBeVisible();
   await page.reload();
@@ -274,7 +284,7 @@ test("new task autofill remembers only successful creation without overriding co
 
   const title = `Remembered E2E ${Date.now()}`;
   const dueDate = addCalendarDays(localDate(), 2);
-  await page.getByLabel("Title").fill(title);
+  await page.getByRole("textbox", { name: /^Title/ }).fill(title);
   await chooseSelectOption(page, "Project", "E2E Empty Project");
   await chooseSelectOption(page, "Priority", "High");
   await selectDate(page, "Due date", dueDate);
@@ -283,23 +293,30 @@ test("new task autofill remembers only successful creation without overriding co
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
 
   await page.goto("/tasks/new?type=one-time&returnTo=%2Ftoday");
-  await expect(page.getByLabel("Title")).toHaveValue(title);
-  await expect(page.getByLabel("Title")).toHaveAttribute("aria-describedby", "title-autofill");
-  await expect(page.getByLabel("Project", { exact: true })).toContainText("E2E Empty Project");
-  await expect(page.getByLabel("Priority", { exact: true })).toContainText("High");
-  await expect(page.locator('input[name="dueDate"]')).toHaveValue(dueDate);
-  await expect(page.getByLabel("Due time", { exact: true })).toHaveValue("18:15");
+  await expect(page.getByRole("textbox", { name: /^Title/ })).toHaveValue("");
+  await expect(page.getByLabel("Project", { exact: true })).toContainText("E2E Daily Tasks");
+  await expect(page.getByLabel("Priority", { exact: true })).toContainText("No priority");
+  await expect(page.locator('input[name="dueDate"]')).toHaveValue("");
+  await expect(page.getByLabel("Due time", { exact: true })).toHaveValue("");
+  expect(
+    await page.evaluate(() =>
+      Object.keys(localStorage).filter((key) => key.startsWith("vbu:task-create-autofill:")),
+    ),
+  ).toEqual([]);
 
-  await page.getByLabel("Title").press("ControlOrMeta+a");
-  await page.getByLabel("Title").pressSequentially(title);
-  await expect(page.getByLabel("Title")).not.toHaveAttribute("aria-describedby", /title-autofill/);
-  await expect(page.getByText("From last task", { exact: true })).toHaveCount(4);
+  await page.getByRole("textbox", { name: /^Title/ }).press("ControlOrMeta+a");
+  await page.getByRole("textbox", { name: /^Title/ }).pressSequentially(title);
+  await expect(page.getByRole("textbox", { name: /^Title/ })).not.toHaveAttribute(
+    "aria-describedby",
+    /title-autofill/,
+  );
+  await expect(page.getByText("From last task", { exact: true })).toHaveCount(0);
 
   const contextualDate = addCalendarDays(dueDate, 1);
   await page.goto(
     `/tasks/new?type=one-time&returnTo=%2Ftoday&date=${contextualDate}&project=${projectID}`,
   );
-  await expect(page.getByLabel("Title")).toHaveValue(title);
+  await expect(page.getByRole("textbox", { name: /^Title/ })).toHaveValue("");
   await expect(page.locator('input[name="dueDate"]')).toHaveValue(contextualDate);
   await expect(datePickerButton(page, "Due date")).not.toHaveAttribute(
     "aria-describedby",
@@ -346,11 +363,17 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await expect(page.getByRole("button", { name: `Complete ${invalidTitle}` })).toHaveCount(0);
   await chooseSelectOption(page, "Project", "E2E Daily Tasks");
   await expect(page).toHaveURL(new RegExp(`project=${projectID}`));
-  expect(await elementPadding(page.locator('[data-slot="card-content"]').first())).toEqual({
-    top: "12px",
-    bottom: "12px",
-    left: "16px",
-  });
+  const firstLoadedTask = page
+    .locator('[data-slot="card-content"]')
+    .filter({ has: page.locator('[data-slot="task-content"]') })
+    .first();
+  await expect
+    .poll(() => elementPadding(firstLoadedTask))
+    .toEqual({
+      top: "12px",
+      bottom: "12px",
+      left: "16px",
+    });
   await page.goto("/week");
   const weekHeading = page.getByRole("heading", { name: "This week", exact: true });
   await expect(weekHeading).toBeVisible();
@@ -489,7 +512,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   if (!recurringJobID) throw new Error("created recurring Job ID is missing from the URL");
   const recurringJobBefore = await vikunjaTask(recurringJobID);
   expect(recurringJobBefore.repeat_mode).toBe(2);
-  expect(hasLabelTitle(recurringJobBefore, "job")).toBe(true);
+  expect(hasLabelTitle(recurringJobBefore, "vbu:job")).toBe(true);
   expect(hasLabelTitle(recurringJobBefore, "vbu:fixed-due-time")).toBe(true);
   await page.goto("/today");
   const recurringJobCard = page.locator('[data-slot="card"]').filter({ hasText: recurringJob });
@@ -509,7 +532,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
       (task) =>
         task.done &&
         task.repeat_after === 0 &&
-        hasLabelTitle(task, "job") &&
+        hasLabelTitle(task, "vbu:job") &&
         hasLabelTitle(task, "vbu:recurrence-history") &&
         !hasLabelTitle(task, "vbu:fixed-due-time"),
     ),
@@ -551,15 +574,38 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await page.goto("/jobs");
   const jobCard = page.locator('[data-slot="card"]').filter({ hasText: job });
   await expect(jobCard.getByText(job, { exact: true })).toBeVisible();
-  await expect(jobCard.locator('[data-slot="task-schedule"]')).toContainText("10:15–11:00");
-  await expect(jobCard.getByText("Complete by 12:00", { exact: true })).toBeVisible();
+  if (Date.now() >= new Date(jobTask.due_date).getTime()) {
+    await expect(jobCard.locator('[data-slot="task-schedule"]')).toHaveText("OverdueNo priority");
+    await expect(jobCard.getByText("Complete by 12:00", { exact: true })).toHaveCount(0);
+  } else {
+    await expect(jobCard.locator('[data-slot="task-schedule"]')).toContainText("10:15–11:00");
+    await expect(jobCard.getByText("Complete by 12:00", { exact: true })).toBeVisible();
+  }
   await page.goto("/today");
   await expect(page.getByText(job, { exact: true })).toBeVisible();
 
   await createTask(page, "one-time task", unscheduled, async () => {
-    await selectDate(page, "Due date", "");
+    await expect(page.locator('input[name="dueDate"]')).toHaveValue("");
   });
+  const unscheduledResponse = page.waitForResponse(
+    (response) => graphQLOperation(response.request().postData()) === "TaskList",
+  );
   await page.goto("/unscheduled");
+  await unscheduledResponse;
+  const taskList = page.locator("main section > div[aria-busy]").filter({
+    has: page.locator('[data-slot="card"]'),
+  });
+  await expect(taskList).toHaveAttribute("aria-busy", "false");
+  while (!(await page.getByText(unscheduled, { exact: true }).isVisible())) {
+    const next = page.getByRole("button", { name: "Go to next page" });
+    await expect(next).toBeEnabled();
+    const nextResponse = page.waitForResponse(
+      (response) => graphQLOperation(response.request().postData()) === "TaskList",
+    );
+    await next.click();
+    await nextResponse;
+    await expect(taskList).toHaveAttribute("aria-busy", "false");
+  }
   await expect(page.getByText(unscheduled, { exact: true })).toBeVisible();
 
   await page.goto("/history");
@@ -775,7 +821,7 @@ test("skipping a recurring Job renews its schedule and preserves skipped Job his
   expect(localDateTime(renewed.start_date)).toBe(`${addCalendarDays(localDate(), 2)}T18:00`);
   expect(localDateTime(renewed.end_date)).toBe(`${addCalendarDays(localDate(), 2)}T19:00`);
   expect(localDateTime(renewed.due_date)).toBe(`${addCalendarDays(localDate(), 2)}T20:00`);
-  expect(hasLabelTitle(renewed, "job")).toBe(true);
+  expect(hasLabelTitle(renewed, "vbu:job")).toBe(true);
   expect(hasLabelTitle(renewed, "vbu:fixed-due-time")).toBe(true);
   expect(hasLabelTitle(renewed, "vbu:skipped")).toBe(false);
 
@@ -786,7 +832,7 @@ test("skipping a recurring Job renews its schedule and preserves skipped Job his
   expect(snapshots[0]?.done).toBe(true);
   expect(snapshots[0]?.repeat_after).toBe(0);
   expect(snapshots[0]?.labels.map((label: { title: string }) => label.title)).toEqual(
-    expect.arrayContaining(["job", "vbu:recurrence-history", "vbu:skipped"]),
+    expect.arrayContaining(["vbu:job", "vbu:recurrence-history", "vbu:skipped"]),
   );
   expect(hasLabelTitle(snapshots[0] ?? {}, "vbu:fixed-due-time")).toBe(false);
 });
@@ -949,7 +995,9 @@ async function createTask(
   const job = page.getByLabel("Job", { exact: true });
   if (type === "job") await job.check();
   else await job.uncheck();
-  await page.getByLabel(type === "job" ? "Title (optional)" : "Title").fill(title);
+  await page
+    .getByRole("textbox", { name: type === "job" ? "Title (optional)" : "Title", exact: true })
+    .fill(title);
   if (fill) await fill();
   await page
     .getByRole("button", { name: type === "job" ? "Create job" : `Create ${type}`, exact: true })
@@ -1218,7 +1266,7 @@ async function expectTaskRowLayout(page: Page, title: string, label: string) {
   if (isPhone) {
     const headerBox = await page.locator("header").boundingBox();
     const headingBox = await page.getByRole("heading", { name: "Today" }).boundingBox();
-    const filterBox = await page.getByLabel("Project", { exact: true }).boundingBox();
+    const filterBox = await page.getByLabel("Filter by label", { exact: true }).boundingBox();
     const firstCardBox = await page.locator('[data-slot="card"]').first().boundingBox();
     const invalidKind = page.getByText("Invalid: history snapshot still repeats", {
       exact: true,

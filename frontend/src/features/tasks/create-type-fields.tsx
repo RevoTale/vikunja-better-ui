@@ -3,15 +3,12 @@ import { useState } from "react";
 import { AppInput } from "@/components/app-input";
 import { AppSelect } from "@/components/app-select";
 import { DurationInput } from "@/components/duration-input";
-import type {
-  ChangeTaskCreationAutofillField,
-  TaskCreationAutofillField,
-  TaskCreationValues,
-} from "./autofill/task-creation-autofill";
 import { DatePickerField } from "./date-picker-field";
 import { JobStartFields } from "./job-start-fields";
 import type { LocalDateTimeParts } from "./local-date-time";
+import type { ChangeTaskCreationField, TaskCreationValues } from "./task-creation-values";
 import type { CreationBaseType, TaskFormErrors } from "./task-form-validation";
+import { ReuseValueButton, useTaskReuseValues } from "./task-reuse";
 import { TimeInput24 } from "./time-input-24";
 import { ValidatedField } from "./validated-field";
 
@@ -20,15 +17,13 @@ export function TaskTypeFields({
   errors,
   defaultDate,
   values,
-  autofilled,
   onFieldChange,
 }: {
   type: CreationBaseType;
   errors: TaskFormErrors;
   defaultDate: string;
   values: TaskCreationValues;
-  autofilled: ReadonlySet<TaskCreationAutofillField>;
-  onFieldChange: ChangeTaskCreationAutofillField;
+  onFieldChange: ChangeTaskCreationField;
 }) {
   if (values.job)
     return (
@@ -38,7 +33,6 @@ export function TaskTypeFields({
           defaultDate={defaultDate}
           start={{ date: values.startDate, time: values.startTime }}
           values={values}
-          autofilled={autofilled}
           onFieldChange={onFieldChange}
         />
         {type === "recurring" ? (
@@ -52,7 +46,6 @@ export function TaskTypeFields({
         errors={errors}
         defaultDate={defaultDate}
         values={values}
-        autofilled={autofilled}
         onFieldChange={onFieldChange}
       />
     );
@@ -62,7 +55,6 @@ export function TaskTypeFields({
         errors={errors}
         defaultDate={defaultDate}
         values={values}
-        autofilled={autofilled}
         onFieldChange={onFieldChange}
       />
     );
@@ -73,23 +65,16 @@ function OneTimeFields({
   errors,
   defaultDate,
   values,
-  autofilled,
   onFieldChange,
 }: {
   errors: TaskFormErrors;
   defaultDate: string;
   values: TaskCreationValues;
-  autofilled: ReadonlySet<TaskCreationAutofillField>;
-  onFieldChange: ChangeTaskCreationAutofillField;
+  onFieldChange: ChangeTaskCreationField;
 }) {
   return (
     <div className="grid gap-5 sm:grid-cols-2">
-      <ValidatedField
-        name="dueDate"
-        label="Due date"
-        error={errors.dueDate}
-        autofilled={autofilled.has("dueDate")}
-      >
+      <ValidatedField name="dueDate" label="Due date" error={errors.dueDate}>
         {(attributes) => (
           <DatePickerField
             id="dueDate"
@@ -102,12 +87,7 @@ function OneTimeFields({
           />
         )}
       </ValidatedField>
-      <ValidatedField
-        name="dueTime"
-        label="Due time"
-        error={errors.dueTime}
-        autofilled={autofilled.has("dueTime")}
-      >
+      <ValidatedField name="dueTime" label="Due time" error={errors.dueTime}>
         {(attributes) => (
           <TimeInput24
             id="dueTime"
@@ -127,24 +107,17 @@ function RecurringFields({
   errors,
   defaultDate,
   values,
-  autofilled,
   onFieldChange,
 }: {
   errors: TaskFormErrors;
   defaultDate: string;
   values: TaskCreationValues;
-  autofilled: ReadonlySet<TaskCreationAutofillField>;
-  onFieldChange: ChangeTaskCreationAutofillField;
+  onFieldChange: ChangeTaskCreationField;
 }) {
   return (
     <>
       <div className="grid gap-5 sm:grid-cols-2">
-        <ValidatedField
-          name="firstDueDate"
-          label="First due date"
-          error={errors.firstDueDate}
-          autofilled={autofilled.has("firstDueDate")}
-        >
+        <ValidatedField name="firstDueDate" label="First due date" error={errors.firstDueDate}>
           {(attributes) => (
             <DatePickerField
               id="firstDueDate"
@@ -158,12 +131,7 @@ function RecurringFields({
             />
           )}
         </ValidatedField>
-        <ValidatedField
-          name="dueTime"
-          label="Due time"
-          error={errors.dueTime}
-          autofilled={autofilled.has("dueTime")}
-        >
+        <ValidatedField name="dueTime" label="Due time" error={errors.dueTime}>
           {(attributes) => (
             <TimeInput24
               id="dueTime"
@@ -280,23 +248,21 @@ function JobFields({
   defaultDate,
   start,
   values,
-  autofilled,
   onFieldChange,
 }: {
   errors: TaskFormErrors;
   defaultDate: string;
   start: LocalDateTimeParts;
   values: TaskCreationValues;
-  autofilled: ReadonlySet<TaskCreationAutofillField>;
-  onFieldChange: ChangeTaskCreationAutofillField;
+  onFieldChange: ChangeTaskCreationField;
 }) {
+  const previous = useTaskReuseValues();
   return (
     <>
       <JobStartFields
         value={start}
         defaultDate={defaultDate}
         errors={errors}
-        autofilled={autofilled}
         onChange={(next) => {
           if (next.date !== start.date) onFieldChange("startDate", next.date);
           if (next.time !== start.time) onFieldChange("startTime", next.time);
@@ -307,7 +273,16 @@ function JobFields({
           name="durationMinutes"
           label="Duration"
           error={errors.durationMinutes}
-          autofilled={autofilled.has("durationMinutes")}
+          action={
+            <ReuseValueButton
+              label="duration"
+              value={previous?.durationMinutes ? `${previous.durationMinutes} min` : null}
+              onApply={() => {
+                if (previous?.durationMinutes)
+                  onFieldChange("durationMinutes", String(previous.durationMinutes));
+              }}
+            />
+          }
         >
           {(attributes) => (
             <DurationInput
@@ -324,7 +299,21 @@ function JobFields({
           name="completionWindowMinutes"
           label="Time to complete after it ends"
           error={errors.completionWindowMinutes}
-          autofilled={autofilled.has("completionWindowMinutes")}
+          action={
+            <ReuseValueButton
+              label="completion window"
+              value={
+                previous?.completionWindowMinutes ? `${previous.completionWindowMinutes} min` : null
+              }
+              onApply={() => {
+                if (previous?.completionWindowMinutes)
+                  onFieldChange(
+                    "completionWindowMinutes",
+                    String(previous.completionWindowMinutes),
+                  );
+              }}
+            />
+          }
         >
           {(attributes) => (
             <DurationInput

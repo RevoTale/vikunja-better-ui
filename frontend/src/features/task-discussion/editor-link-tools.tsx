@@ -1,8 +1,8 @@
 import { TOGGLE_LINK_COMMAND } from "@lexical/link";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { CheckIcon, UnlinkIcon, XIcon } from "lucide-react";
+import { CheckIcon, ExternalLinkIcon, UnlinkIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { safeLink } from "./html";
 import type { EditorAction } from "./use-editor-toolbar";
@@ -30,6 +30,16 @@ export function EditorLinkTools({
   };
   return (
     <div className="flex flex-wrap items-center gap-2 p-2">
+      {initialUrl && safeLink(initialUrl) ? (
+        <a
+          className={buttonVariants({ variant: "outline" })}
+          href={initialUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <ExternalLinkIcon aria-hidden="true" className="size-4" /> Open link
+        </a>
+      ) : null}
       <Input
         ref={input}
         aria-label="Link URL"

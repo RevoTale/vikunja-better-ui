@@ -143,12 +143,13 @@ func (resolver *Resolver) createTaskPayload(
 	projectID int64,
 	write vikunja.TaskWrite,
 	marker string,
+	labelIDs []string,
 ) (*model.TaskMutationPayload, error) {
 	markers := []string{}
 	if marker != "" {
 		markers = append(markers, marker)
 	}
-	return resolver.createTaskPayloadWithMarkers(ctx, session, user, projects, projectID, write, markers)
+	return resolver.createTaskPayloadWithMarkers(ctx, session, user, projects, projectID, write, markers, labelIDs)
 }
 
 func (resolver *Resolver) createTaskPayloadWithMarkers(
@@ -159,9 +160,17 @@ func (resolver *Resolver) createTaskPayloadWithMarkers(
 	projectID int64,
 	write vikunja.TaskWrite,
 	markers []string,
+	labelIDs []string,
 ) (*model.TaskMutationPayload, error) {
-	result, err := service.CreateTaskWithMarkers(ctx, resolver.tasks, projectID, write, markers)
+	ids, err := parseLabelIDs(labelIDs)
 	if err != nil {
+		return nil, err
+	}
+	result, err := service.CreateLabeledTask(ctx, resolver.tasks, projectID, write, markers, ids)
+	if err != nil {
+		if errors.Is(err, service.ErrInvalidLabels) {
+			return nil, labelClientError(err)
+		}
 		resolver.logError("create Vikunja task", err)
 		return nil, upstreamClientError(err, "The task could not be created. Refresh the list before retrying.")
 	}
@@ -175,6 +184,11 @@ func (resolver *Resolver) createTaskPayloadWithMarkers(
 	payload := &model.TaskMutationPayload{
 		Task: mapped, Status: model.TaskMutationStatusConfirmed,
 		MissingMarkers: []model.MarkerKind{}, RemainingRepairSteps: []model.RepairStep{},
+	}
+	if result.LabelError != nil {
+		resolver.logError("attach created task labels", result.LabelError)
+		message := "The task was created, but its labels could not be confirmed. Open the created task to review its labels; do not create it again."
+		payload.LabelError = &message
 	}
 	if !result.RepairRequired {
 		return payload, nil
@@ -243,7 +257,7 @@ func validationClientError(err error) error {
 
 func markerModels(title string) (model.MarkerKind, model.RepairStep) {
 	switch title {
-	case "job":
+	case "vbu:job":
 		return model.MarkerKindJob, model.RepairStepAttachJob
 	case "vbu:recurrence-history":
 		return model.MarkerKindRecurrenceHistory, model.RepairStepAttachRecurrenceHistory

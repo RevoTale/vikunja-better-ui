@@ -332,6 +332,9 @@ func candidateTaskQuery(request ListRequest) vikunja.TaskQuery {
 	case TaskScopeHistory:
 	}
 	filterParts = appendProjectFilter(filterParts, request.ProjectID)
+	if len(request.FilterLabelIDs) > 0 && (request.Scope == TaskScopeToday || request.Scope == TaskScopeUnscheduled) {
+		filterParts = append(filterParts, "labels in "+joinIDs(request.FilterLabelIDs))
+	}
 	query := vikunja.TaskQuery{
 		IncludeCommentCount: request.IncludeCommentCount,
 		Page:                1, PerPage: 1000, Filter: strings.Join(filterParts, " && "),

@@ -9,6 +9,7 @@ import { formatDayDate, formatDayName } from "./week-date-format";
 import { mergeWeekEntries } from "./week-entries";
 
 export function WeekDaySection({
+  countLoading = false,
   day,
   returnTo,
   completingTaskID,
@@ -17,6 +18,7 @@ export function WeekDaySection({
   headingLevel,
   createProjectID,
 }: {
+  countLoading?: boolean;
   day: WeekQuery["week"]["days"][number];
   returnTo: string;
   completingTaskID: string | undefined;
@@ -68,6 +70,7 @@ export function WeekDaySection({
         {entries.map((entry) =>
           entry.kind === "task" ? (
             <TaskRow
+              countLoading={countLoading}
               key={entry.task.id}
               task={entry.task}
               returnTo={returnTo}

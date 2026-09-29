@@ -38,7 +38,12 @@ const task: TaskItem = {
   labels: [],
 };
 
-function render(overrides: Partial<TaskItem> = {}, dayGrouped = false, projection = false) {
+function render(
+  overrides: Partial<TaskItem> = {},
+  dayGrouped = false,
+  projection = false,
+  countLoading = false,
+) {
   return renderToStaticMarkup(
     <TaskRow
       task={{ ...task, ...overrides }}
@@ -47,11 +52,23 @@ function render(overrides: Partial<TaskItem> = {}, dayGrouped = false, projectio
       onComplete={() => undefined}
       dayGrouped={dayGrouped}
       projection={projection}
+      countLoading={countLoading}
     />,
   );
 }
 
 describe("overdue task schedule", () => {
+  it("uses an inline placeholder while the count refreshes without presenting the old number as current", () => {
+    const markup = render({ commentCount: 3 }, false, false, true);
+    expect(markup).toContain('aria-label="Updating comment count"');
+    expect(markup).not.toContain('aria-label="3 comments on Read a book"');
+    expect(markup).not.toContain(">3</span>");
+    expect(render({ commentCount: null }, false, false, true)).toContain(
+      'aria-label="Updating comment count"',
+    );
+    expect(render({ commentCount: null })).not.toContain("Updating comment count");
+    expect(render({ commentCount: 3 }, false, true, true)).not.toContain("Updating comment count");
+  });
   it("shows a compact discussion link only for real tasks with comments", () => {
     expect(render({ commentCount: 3 })).toContain('aria-label="3 comments on Read a book"');
     expect(render({ commentCount: 1 })).toContain('aria-label="1 comment on Read a book"');
@@ -60,7 +77,7 @@ describe("overdue task schedule", () => {
     }
     expect(render({ commentCount: 3 }, true, true)).not.toContain("comments on Read a book");
   });
-  it("places discussion below the completion deadline and outside metadata", () => {
+  it("places discussion first in the shared metadata row after the completion deadline", () => {
     const markup = render({
       commentCount: 3,
       kind: "JOB",
@@ -69,7 +86,9 @@ describe("overdue task schedule", () => {
       endAt: "2026-08-14T07:00:00Z",
     });
     const discussion = markup.indexOf('aria-label="3 comments on Read a book"');
+    expect(markup).toContain('data-slot="task-metadata-row"');
     expect(discussion).toBeGreaterThan(markup.indexOf("Complete by 07:30"));
+    expect(discussion).toBeGreaterThan(markup.indexOf('data-slot="task-metadata-row"'));
     expect(discussion).toBeLessThan(markup.indexOf('data-slot="task-metadata"'));
   });
   beforeEach(() => {

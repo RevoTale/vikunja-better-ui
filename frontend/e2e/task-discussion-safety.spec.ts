@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { commentMenu } from "./comment-menu-fixture";
 import { discussionFixture } from "./discussion-fixture";
 
 test("discussion sanitizes upstream and pasted HTML without losing supported formatting", async ({
@@ -51,7 +52,10 @@ test("discussion sanitizes upstream and pasted HTML without losing supported for
     "rel",
     "noopener noreferrer",
   );
-  await expect(comment.getByRole("button", { name: "Edit", exact: true })).toHaveCount(0);
+  await expect(
+    (await commentMenu(page, comment)).getByRole("menuitem", { name: "Edit", exact: true }),
+  ).toHaveCount(0);
+  await page.keyboard.press("Escape");
   const editor = page.getByRole("textbox", { name: "Comment", exact: true });
   await editor.focus();
   await editor.evaluate((element, html) => {

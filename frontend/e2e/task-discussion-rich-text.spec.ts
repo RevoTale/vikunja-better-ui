@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { commentMenu } from "./comment-menu-fixture";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 
 for (const trigger of ["Enter", "Space"]) {
@@ -32,7 +33,9 @@ for (const trigger of ["Enter", "Space"]) {
     await expect(page.getByRole("article").locator("pre code")).toHaveText(
       "const preserved = true;",
     );
-    await page.getByRole("button", { name: "Edit", exact: true }).click();
+    await (await commentMenu(page, page))
+      .getByRole("menuitem", { name: "Edit", exact: true })
+      .click();
     await expect(page.getByRole("textbox", { name: "Edit comment", exact: true })).toContainText(
       "Keep this paragraph",
     );
@@ -62,7 +65,9 @@ test("discussion preserves code, tables, checklists and text formats through edi
   await expect.poll(() => article.locator("pre").textContent()).toBe(code);
   await expect(article.locator("th").first()).toHaveText("Header");
   await expect(article.locator('li[data-checked="true"]')).toContainText("Checked item");
-  await article.getByRole("button", { name: "Edit", exact: true }).click();
+  await (await commentMenu(page, article))
+    .getByRole("menuitem", { name: "Edit", exact: true })
+    .click();
   const form = page.getByRole("region", { name: "Edit comment form" });
   const editor = form.getByRole("textbox", { name: "Edit comment", exact: true });
   await expect(editor).toContainText("Cell one");
@@ -152,7 +157,10 @@ test("discussion refuses lossy editing of native styles and disclosure blocks", 
   const articles = page.getByRole("article");
   await expect(articles).toHaveCount(6);
   for (const article of await articles.all()) {
-    await expect(article.getByRole("button", { name: "Edit", exact: true })).toBeDisabled();
+    await expect(
+      (await commentMenu(page, article)).getByRole("menuitem", { name: "Edit", exact: true }),
+    ).toBeDisabled();
+    await page.keyboard.press("Escape");
     await expect(article).toContainText("content not supported here");
   }
 });

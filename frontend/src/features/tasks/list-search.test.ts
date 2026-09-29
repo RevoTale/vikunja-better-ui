@@ -3,6 +3,14 @@ import { describe, expect, it } from "vitest";
 import { parseListSearch } from "./list-search";
 
 describe("parseListSearch", () => {
+  it("keeps label IDs distinct from project IDs", () => {
+    expect(parseListSearch({ project: 7, label: 9, page: 2 })).toEqual({
+      project: "7",
+      label: "9",
+      page: 2,
+    });
+    expect(parseListSearch({ label: "job" })).toEqual({ project: "all", page: 1 });
+  });
   it.each([{}, { project: "all", page: 1 }, { project: "7", page: "2" }, { project: 7 }])(
     "normalizes %o",
     (input) => {

@@ -11,32 +11,37 @@ import { graphQLErrorMessage } from "@/lib/user-error";
 import { CommentCard } from "./comment-card";
 import { CommentComposer } from "./comment-composer";
 import { DiscussionControls } from "./discussion-controls";
+import { CommentsLoading, EditorLoading } from "./discussion-loading";
 import { replyQuote } from "./html";
 import { OriginalComment } from "./original-comment";
 import { ReplyNavigation } from "./reply-navigation";
 import { useReplyNavigation } from "./use-reply-navigation";
 import "./discussion.css";
 
-export function DiscussionThread({ taskId }: { taskId: string }) {
+export function DiscussionThread({
+  taskId,
+  linkedCommentId,
+}: {
+  taskId: string;
+  linkedCommentId?: string | undefined;
+}) {
   const [page, setPage] = useState(1);
   const [order, setOrder] = useState<DiscussionOrder>("ASC");
   const [reply, setReply] = useState<{ quote: string } | null>(null);
-  const navigation = useReplyNavigation();
-  const current = navigation.current;
-  const [refreshError, setRefreshError] = useState("");
   const session = useQuery(SessionDocument);
   const comments = useQuery(DiscussionCommentsDocument, {
     variables: { taskId, page, order },
-    fetchPolicy: "network-only",
+    fetchPolicy: "cache-and-network",
   });
   const access =
     session.data?.session.vikunjaUser && session.data.session.csrfToken
       ? { authorId: session.data.session.vikunjaUser.id, csrfToken: session.data.session.csrfToken }
       : undefined;
-  const list = comments.data?.taskComments;
+  const list = comments.data?.taskComments ?? comments.previousData?.taskComments;
+  const navigation = useReplyNavigation(linkedCommentId, Boolean(list));
+  const current = navigation.current;
 
   function refresh(revealNew = false) {
-    setRefreshError("");
     return comments
       .refetch()
       .then(({ data }) => {
@@ -45,12 +50,7 @@ export function DiscussionThread({ taskId }: { taskId: string }) {
         else if (page > last) setPage(last);
         return true;
       })
-      .catch((caught: unknown) => {
-        setRefreshError(
-          graphQLErrorMessage(caught, "Comments could not be refreshed. Your draft is unchanged."),
-        );
-        return false;
-      });
+      .catch(() => false);
   }
 
   function startReply(comment: DiscussionCommentFragment) {
@@ -60,26 +60,35 @@ export function DiscussionThread({ taskId }: { taskId: string }) {
 
   return (
     <div className="min-w-0 space-y-5">
-      <DiscussionControls
-        loading={comments.loading}
-        order={order}
-        onRefresh={() => refresh()}
-        onOrderChange={(value) => {
-          navigation.reset();
-          setPage(1);
-          setOrder(value);
-        }}
-      />
-      {comments.error || refreshError ? (
-        <p role="alert" className="text-destructive">
-          {refreshError || graphQLErrorMessage(comments.error, "Comments could not be loaded.")}
+      <div className="space-y-1">
+        <DiscussionControls
+          loading={comments.loading}
+          order={order}
+          onRefresh={() => refresh()}
+          onOrderChange={(value) => {
+            navigation.reset();
+            setPage(1);
+            setOrder(value);
+          }}
+        />
+        <p role="status" className="min-h-5 text-xs text-muted-foreground">
+          <span
+            className={
+              comments.loading && list
+                ? "opacity-100 motion-safe:transition-opacity motion-safe:duration-150"
+                : "invisible opacity-0"
+            }
+          >
+            Updating comments…
+          </span>
         </p>
-      ) : null}
-      {comments.loading && !list ? <p role="status">Loading comments…</p> : null}
+      </div>
+      <DiscussionError error={comments.error} retained={Boolean(list)} />
       {list?.items.length === 0 ? (
         <p className="py-4 text-muted-foreground">No comments yet. Start the discussion below.</p>
       ) : null}
-      <section aria-label="Comments" aria-busy={comments.loading}>
+      <section aria-label="Comments" aria-busy={comments.loading} className="space-y-4">
+        {comments.loading && !list ? <CommentsLoading /> : null}
         {list?.items.map((comment) => (
           <CommentCard
             key={comment.id}
@@ -102,16 +111,16 @@ export function DiscussionThread({ taskId }: { taskId: string }) {
           <Button
             variant="outline"
             className="min-h-11"
-            disabled={page <= 1 || comments.loading}
+            disabled={list.page <= 1 || comments.loading}
             onClick={() => {
               navigation.reset();
-              setPage(page - 1);
+              setPage(list.page - 1);
             }}
           >
             Previous comments
           </Button>
           <span className="text-sm">
-            Page {page} of {Math.max(1, list.totalPages)}
+            Page {list.page} of {Math.max(1, list.totalPages)}
           </span>
           <Button
             variant="outline"
@@ -119,7 +128,7 @@ export function DiscussionThread({ taskId }: { taskId: string }) {
             disabled={!list.hasMore || comments.loading}
             onClick={() => {
               navigation.reset();
-              setPage(page + 1);
+              setPage(list.page + 1);
             }}
           >
             Next comments
@@ -140,21 +149,12 @@ export function DiscussionThread({ taskId }: { taskId: string }) {
             }}
           />
         ) : (
-          <>
-            <p role="status">
-              {session.loading
-                ? "Loading comment permissions…"
-                : "Your Vikunja identity could not be loaded. Comments remain read-only."}
-            </p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                void session.refetch().catch(() => undefined);
-              }}
-            >
-              Retry permissions
-            </Button>
-          </>
+          <CommentPermissions
+            loading={session.loading}
+            retry={() => {
+              void session.refetch().catch(() => undefined);
+            }}
+          />
         )}
       </section>
       {current?.dialog ? (
@@ -163,9 +163,35 @@ export function DiscussionThread({ taskId }: { taskId: string }) {
           commentId={current.id}
           onOriginal={(id) => navigation.follow(current.id, id)}
           onClose={navigation.close}
-          navigation={<ReplyNavigation depth={navigation.depth} onBack={navigation.back} />}
+          navigation={
+            navigation.depth > 0 ? (
+              <ReplyNavigation depth={navigation.depth} onBack={navigation.back} />
+            ) : null
+          }
         />
       ) : null}
     </div>
+  );
+}
+
+function CommentPermissions({ loading, retry }: { loading: boolean; retry: () => void }) {
+  if (loading) return <EditorLoading />;
+  return (
+    <>
+      <p role="status">Your Vikunja identity could not be loaded. Comments remain read-only.</p>
+      <Button variant="outline" onClick={retry}>
+        Retry permissions
+      </Button>
+    </>
+  );
+}
+
+function DiscussionError({ error, retained }: { error: unknown; retained: boolean }) {
+  if (!error) return null;
+  return (
+    <p role="alert" className="text-destructive">
+      {graphQLErrorMessage(error, "Comments could not be loaded. Your draft is unchanged.")}
+      {retained ? " Displayed comments are from the previous successful load." : ""}
+    </p>
   );
 }

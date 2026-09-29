@@ -72,6 +72,32 @@ func TestListTasksUsesTheLocalDayBoundaryAcrossDST(t *testing.T) {
 	}
 }
 
+func TestOrdinaryLabelFilterRunsBeforePagination(t *testing.T) {
+	t.Parallel()
+	for _, scope := range []TaskScope{TaskScopeToday, TaskScopeUnscheduled} {
+		t.Run(string(scope), func(t *testing.T) {
+			t.Parallel()
+			now := time.Date(2026, time.September, 29, 12, 0, 0, 0, time.UTC)
+			client := &listClientStub{pages: []vikunja.TaskPage{{Items: []vikunja.Task{
+				{ID: 1}, {ID: 2, Labels: []vikunja.Label{{ID: 8, Title: "same"}}}, {ID: 3, Labels: []vikunja.Label{{ID: 9, Title: "same"}}},
+			}, Total: 3, Page: 1, PerPage: 1000, TotalPages: 1}}}
+			if scope == TaskScopeToday {
+				for i := range client.pages[0].Items {
+					client.pages[0].Items[i].DueDate = now.Add(-time.Hour)
+				}
+			}
+			result, err := ListTasks(t.Context(), client, ListRequest{Scope: scope, Page: 1, PageSize: 1, Now: now, Location: time.UTC, Timezone: "UTC", FilterLabelIDs: []int64{8}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			assertTaskIDs(t, result.Items, 2)
+			if result.TotalItems != 1 || result.HasMore || !strings.Contains(client.queries[0].Filter, "labels in 8") {
+				t.Fatalf("result=%#v queries=%#v", result, client.queries)
+			}
+		})
+	}
+}
+
 func TestListTasksReturnsOnlyRequestedActivePage(t *testing.T) {
 	t.Parallel()
 
@@ -133,7 +159,7 @@ func TestListTasksReturnsEmptyJobsWithoutMarkerLabels(t *testing.T) {
 func TestListTasksFiltersJobsByRequiredLabelBeforePagination(t *testing.T) {
 	t.Parallel()
 
-	jobLabel := vikunja.Label{ID: 4, Title: "job"}
+	jobLabel := vikunja.Label{ID: 4, Title: "vbu:job"}
 	dashboardLabel := vikunja.Label{ID: 8, Title: "dashboard"}
 	duplicateDashboardLabel := vikunja.Label{ID: 9, Title: "dashboard"}
 	client := &listClientStub{pages: []vikunja.TaskPage{{
@@ -162,7 +188,7 @@ func TestListTasksFiltersSortsAndPaginatesCompletedJobs(t *testing.T) {
 
 	completedFrom := time.Date(2026, time.August, 24, 0, 0, 0, 0, time.FixedZone("EEST", 3*60*60))
 	completedBefore := time.Date(2026, time.August, 31, 0, 0, 0, 0, time.FixedZone("EEST", 3*60*60))
-	jobMarker := vikunja.Label{ID: 4, Title: "job"}
+	jobMarker := vikunja.Label{ID: 4, Title: "vbu:job"}
 	dashboardLabel := vikunja.Label{ID: 8, Title: "dashboard"}
 	duplicateDashboardLabel := vikunja.Label{ID: 9, Title: "dashboard"}
 	newest := completedFrom.Add(5 * 24 * time.Hour)
@@ -228,7 +254,7 @@ func TestListTasksMergesAllJobsBeforeSortingAndPagination(t *testing.T) {
 
 	completedFrom := time.Date(2026, time.August, 24, 0, 0, 0, 0, time.UTC)
 	completedBefore := completedFrom.AddDate(0, 0, 7)
-	jobLabel := vikunja.Label{ID: 4, Title: "job"}
+	jobLabel := vikunja.Label{ID: 4, Title: "vbu:job"}
 	client := &unifiedJobsClient{active: vikunja.TaskPage{
 		Items: []vikunja.Task{
 			{ID: 20, StartDate: completedFrom.Add(36 * time.Hour), DueDate: completedFrom.Add(38 * time.Hour), Labels: []vikunja.Label{jobLabel}},
@@ -264,7 +290,7 @@ func TestListTasksSortsAllJobsByDerivedFinishTime(t *testing.T) {
 
 	completedFrom := time.Date(2026, time.August, 24, 0, 0, 0, 0, time.UTC)
 	completedBefore := completedFrom.AddDate(0, 0, 7)
-	jobLabel := vikunja.Label{ID: 4, Title: "job"}
+	jobLabel := vikunja.Label{ID: 4, Title: "vbu:job"}
 	client := &unifiedJobsClient{active: vikunja.TaskPage{
 		Items: []vikunja.Task{
 			{ID: 20, DueDate: completedFrom.Add(72 * time.Hour), Labels: []vikunja.Label{jobLabel}},

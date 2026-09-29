@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { commentMenu } from "./comment-menu-fixture";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 import { silentWave } from "./discussion-media-fixture";
 
@@ -50,7 +51,9 @@ test("discussion supports image uploads without overwriting newer text", async (
   await expect(comment).toContainText("Text typed while uploading.");
   await expect(comment.getByAltText("A tiny test image")).toBeVisible();
   expect(uploads).toBe(1);
-  await comment.getByRole("button", { name: "Edit", exact: true }).click();
+  await (await commentMenu(page, comment))
+    .getByRole("menuitem", { name: "Edit", exact: true })
+    .click();
   await expect(page.getByLabel("Image alternative text")).toHaveValue("A tiny test image");
   await page.getByRole("button", { name: "Remove media", exact: true }).click();
   await page.getByRole("button", { name: "Save comment", exact: true }).click();
@@ -148,7 +151,7 @@ test("discussion does not resurrect a removed upload placeholder", async ({ page
   await expect(editor).toContainText("Keep this instead");
   await page.getByRole("button", { name: "Post comment", exact: true }).click();
   await expect(page.getByRole("article")).toContainText("Keep this instead");
-  await expect(page.getByRole("article").locator("img")).toHaveCount(0);
+  await expect(page.getByRole("article").locator(".discussion-rich-text img")).toHaveCount(0);
 });
 
 test("discussion supports pasted images, dropped audio and media-only comments", async ({
@@ -196,7 +199,9 @@ test("discussion supports pasted images, dropped audio and media-only comments",
   const article = page.getByRole("article");
   await expect(article.getByAltText("Pasted image")).toBeVisible();
   await expect(article.locator("audio")).toBeVisible();
-  await article.getByRole("button", { name: "Edit", exact: true }).click();
+  await (await commentMenu(page, article))
+    .getByRole("menuitem", { name: "Edit", exact: true })
+    .click();
   await expect(page.getByLabel("Image alternative text")).toHaveValue("Pasted image");
   await page.getByRole("button", { name: "Save comment", exact: true }).click();
   await expect(article.locator("audio")).toBeVisible();

@@ -10,6 +10,13 @@ fragment DiscussionComment on TaskComment {
   updatedAt
 }
 
+query DiscussionTaskLink($id: ID!) {
+  task(id: $id) {
+    id
+    title
+  }
+}
+
 query DiscussionComments($taskId: ID!, $page: Int!, $order: DiscussionOrder!) {
   taskComments(taskId: $taskId, page: $page, order: $order) {
     items {

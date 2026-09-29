@@ -32,6 +32,7 @@ type CompletionPayload struct {
 }
 
 type CreateJobInput struct {
+	LabelIds                []string         `json:"labelIds,omitempty"`
 	CsrfToken               string           `json:"csrfToken"`
 	Title                   *string          `json:"title,omitempty"`
 	Description             *string          `json:"description,omitempty"`
@@ -44,6 +45,7 @@ type CreateJobInput struct {
 }
 
 type CreateOneTimeTaskInput struct {
+	LabelIds    []string     `json:"labelIds,omitempty"`
 	CsrfToken   string       `json:"csrfToken"`
 	Title       string       `json:"title"`
 	Description *string      `json:"description,omitempty"`
@@ -54,6 +56,7 @@ type CreateOneTimeTaskInput struct {
 }
 
 type CreateRecurringTaskInput struct {
+	LabelIds     []string       `json:"labelIds,omitempty"`
 	CsrfToken    string         `json:"csrfToken"`
 	Title        string         `json:"title"`
 	Description  *string        `json:"description,omitempty"`
@@ -252,6 +255,7 @@ type TaskDiagnostics struct {
 }
 
 type TaskListInput struct {
+	LabelID   *string   `json:"labelId,omitempty"`
 	Scope     TaskScope `json:"scope"`
 	ProjectID *string   `json:"projectId,omitempty"`
 	Page      int       `json:"page"`
@@ -259,6 +263,7 @@ type TaskListInput struct {
 }
 
 type TaskMutationPayload struct {
+	LabelError           *string            `json:"labelError,omitempty"`
 	Task                 *Task              `json:"task"`
 	Status               TaskMutationStatus `json:"status"`
 	MissingMarkers       []MarkerKind       `json:"missingMarkers"`
@@ -283,6 +288,17 @@ type TaskPageIssue struct {
 	ProjectID *string       `json:"projectId,omitempty"`
 }
 
+// Explicit per-field reuse, never automatic form defaults. No schedule dates are exposed.
+type TaskReuseValues struct {
+	TaskID                  string       `json:"taskId"`
+	Title                   string       `json:"title"`
+	ProjectID               string       `json:"projectId"`
+	Priority                TaskPriority `json:"priority"`
+	Labels                  []*Label     `json:"labels"`
+	DurationMinutes         *int         `json:"durationMinutes,omitempty"`
+	CompletionWindowMinutes *int         `json:"completionWindowMinutes,omitempty"`
+}
+
 type UndoTaskCompletionInput struct {
 	CsrfToken  string `json:"csrfToken"`
 	Capability string `json:"capability"`
@@ -296,6 +312,7 @@ type UpdateTaskCommentInput struct {
 }
 
 type UpdateTaskInput struct {
+	LabelIds        []string         `json:"labelIds,omitempty"`
 	CsrfToken       string           `json:"csrfToken"`
 	TaskID          string           `json:"taskId"`
 	ExpectedVersion string           `json:"expectedVersion"`

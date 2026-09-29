@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { commentMenu } from "./comment-menu-fixture";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 
 for (const softLine of [false, true]) {
@@ -105,7 +106,9 @@ test("discussion supports matching editor and saved text dimensions", async ({
   await expect(article.getByText("Small heading", { exact: true })).toHaveCSS("font-size", "18px");
   await expect(article.locator("p code")).toHaveCSS("font-size", "14px");
   await expect(article.locator("pre code")).toHaveCSS("font-size", "14px");
-  await article.getByRole("button", { name: "Edit", exact: true }).click();
+  await (await commentMenu(page, article))
+    .getByRole("menuitem", { name: "Edit", exact: true })
+    .click();
   const editor = page.getByRole("textbox", { name: "Edit comment", exact: true });
   await expect(editor.locator("h1")).toHaveCSS("font-size", "24px");
   await expect(editor.locator("h2")).toHaveCSS("font-size", "20px");

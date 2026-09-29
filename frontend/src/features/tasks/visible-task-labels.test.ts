@@ -15,8 +15,8 @@ describe("visibleTaskLabels", () => {
         { id: "7", title: "vbu:fixed-due-time " },
       ]),
     ).toEqual([
+      { id: "1", title: "job" },
       { id: "2", title: "focus" },
-      { id: "7", title: "vbu:fixed-due-time " },
     ]);
   });
 });

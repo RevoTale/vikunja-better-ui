@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Check, MessageSquare } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import type { TaskListQuery } from "@/graphql/graphql";
 import { cn } from "@/lib/utils";
 import { PriorityBadge } from "./priority-badge";
 import { recurrenceHint } from "./recurrence-hint";
+import { TaskDiscussionLink } from "./task-discussion-link";
 import { taskKindLabels } from "./task-kind-label";
 import { type TaskUrgency, taskSchedule } from "./task-schedule";
 import { visibleTaskLabels } from "./visible-task-labels";
@@ -25,6 +26,7 @@ export function TaskRow({
   projection = false,
   showRecurrenceHint = false,
   dayGrouped = false,
+  countLoading = false,
 }: {
   task: TaskItem;
   returnTo: string;
@@ -33,6 +35,7 @@ export function TaskRow({
   projection?: boolean;
   showRecurrenceHint?: boolean;
   dayGrouped?: boolean;
+  countLoading?: boolean;
 }) {
   const labels = visibleTaskLabels(task.labels);
   const schedule = taskSchedule(task);
@@ -71,20 +74,6 @@ export function TaskRow({
             {!overdue && schedule.completeBy ? (
               <p className="mt-1 text-xs text-muted-foreground">{schedule.completeBy}</p>
             ) : null}
-            {!projection && task.commentCount != null && task.commentCount > 0 ? (
-              <div className="mt-1" data-slot="task-discussion">
-                <Link
-                  to="/tasks/$taskId/discussion"
-                  params={{ taskId: task.id }}
-                  search={{ returnTo }}
-                  className="inline-flex min-h-6 min-w-6 items-center justify-center gap-1 rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-                  aria-label={`${task.commentCount} ${task.commentCount === 1 ? "comment" : "comments"} on ${task.title}`}
-                >
-                  <MessageSquare className="size-3.5" aria-hidden="true" />
-                  <span className="tabular-nums">{task.commentCount}</span>
-                </Link>
-              </div>
-            ) : null}
             {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
           </div>
           {!projection && !task.isDone && task.kind !== "INVALID" ? (
@@ -99,13 +88,18 @@ export function TaskRow({
               <Check />
             </Button>
           ) : null}
-          <TaskMetadata
-            className="col-span-2 justify-end"
-            task={task}
-            labels={labels}
-            projection={projection}
-            hidePriority={overdue}
-          />
+          <div className="col-span-2 flex min-w-0 items-start gap-2" data-slot="task-metadata-row">
+            {!projection ? (
+              <TaskDiscussionLink task={task} returnTo={returnTo} loading={countLoading} />
+            ) : null}
+            <TaskMetadata
+              className="min-h-6 flex-1 justify-end"
+              task={task}
+              labels={labels}
+              projection={projection}
+              hidePriority={overdue}
+            />
+          </div>
         </div>
       </CardContent>
     </Card>

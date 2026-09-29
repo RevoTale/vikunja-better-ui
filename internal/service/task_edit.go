@@ -14,6 +14,7 @@ import (
 var ErrEditPartial = errors.New("task fields saved but metadata could not be confirmed")
 
 type EditTaskInput struct {
+	LabelIDs        []int64
 	TaskID          int64
 	ExpectedVersion string
 	ProjectID       int64
@@ -56,6 +57,10 @@ func EditTask(ctx context.Context, client taskEditClient, input EditTaskInput, l
 	if input.ExpectedVersion == "" || input.ExpectedVersion != TaskVersion(before) {
 		return vikunja.Task{}, vikunja.ErrConditionFailed
 	}
+	selectedLabels, err := loadTaskLabels(ctx, client, input.LabelIDs)
+	if err != nil {
+		return vikunja.Task{}, err
+	}
 	write, markers, err := BuildEditedTask(input, location)
 	if err != nil {
 		return vikunja.Task{}, err
@@ -83,22 +88,37 @@ func EditTask(ctx context.Context, client taskEditClient, input EditTaskInput, l
 	if err := updateEditMarkers(ctx, client, before, markers); err != nil {
 		return vikunja.Task{}, errors.Join(ErrEditPartial, err)
 	}
+	if input.LabelIDs != nil {
+		if err := updateOrdinaryLabels(ctx, client, before, selectedLabels); err != nil {
+			return vikunja.Task{}, errors.Join(ErrEditPartial, err)
+		}
+	}
 	confirmed, _, err := client.Task(ctx, before.ID)
 	if err != nil {
 		return vikunja.Task{}, errors.Join(ErrEditPartial, err)
 	}
-	if confirmed.Done || confirmed.Title != write.Title || confirmed.Description != write.Description || confirmed.ProjectID != input.ProjectID ||
+	if err := confirmEditedTask(confirmed, write, input.ProjectID, markers); err != nil {
+		return vikunja.Task{}, err
+	}
+	if input.LabelIDs != nil && !ordinaryLabelsMatch(confirmed.Labels, selectedLabels) {
+		return vikunja.Task{}, errors.Join(ErrEditPartial, vikunja.ErrRejectedResponse)
+	}
+	return confirmed, nil
+}
+
+func confirmEditedTask(confirmed vikunja.Task, write vikunja.TaskWrite, projectID int64, markers map[string]bool) error {
+	if confirmed.Done || confirmed.Title != write.Title || confirmed.Description != write.Description || confirmed.ProjectID != projectID ||
 		confirmed.Priority != write.Priority || confirmed.RepeatAfter != write.RepeatAfter ||
 		confirmed.RepeatMode != write.RepeatMode || !confirmed.DueDate.Equal(*write.DueDate) ||
 		!confirmed.StartDate.Equal(*write.StartDate) || !confirmed.EndDate.Equal(*write.EndDate) {
-		return vikunja.Task{}, errors.Join(ErrEditPartial, vikunja.ErrRejectedResponse)
+		return errors.Join(ErrEditPartial, vikunja.ErrRejectedResponse)
 	}
 	for title, wanted := range markers {
 		if hasLabel(confirmed.Labels, title) != wanted {
-			return vikunja.Task{}, errors.Join(ErrEditPartial, vikunja.ErrRejectedResponse)
+			return errors.Join(ErrEditPartial, vikunja.ErrRejectedResponse)
 		}
 	}
-	return confirmed, nil
+	return nil
 }
 
 func preserveEditPrecision(next *time.Time, before time.Time) {

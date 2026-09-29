@@ -1,9 +1,10 @@
-export type ListSearch = { project: string; page: number };
+export type ListSearch = { project: string; page: number; label?: string };
 
 export function parseListSearch(search: Record<string, unknown>): ListSearch {
   return {
     project: parseProject(search["project"]),
     page: parsePage(search["page"]),
+    ...(parseProject(search["label"]) !== "all" ? { label: parseProject(search["label"]) } : {}),
   };
 }
 

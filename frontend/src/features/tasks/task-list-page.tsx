@@ -23,6 +23,8 @@ import type { ListSearch } from "./list-search";
 import { IssueList, ListMessage } from "./list-state";
 import { paginationRange } from "./pagination-range";
 import { TaskActionFeedback } from "./task-action-feedback";
+import { TaskLabelFilter } from "./task-label-filter";
+import { TaskListLoading } from "./task-list-loading";
 import { type TaskItem, TaskRow } from "./task-row";
 import { useTaskListActions } from "./use-task-list-actions";
 import { useTaskRefreshFeedback } from "./use-task-refresh-feedback";
@@ -37,6 +39,7 @@ type TaskListPageProps = {
 
 export function TaskListPage({ title, description, scope, search, setSearch }: TaskListPageProps) {
   const location = useLocation();
+  const supportsLabels = scope === "TODAY" || scope === "UNSCHEDULED";
   const { data: sessionData, error: sessionError } = useQuery(SessionDocument);
   const { data: projectData, error: projectError } = useQuery(ProjectsDocument);
   const { data, loading, error, refetch } = useQuery(TaskListDocument, {
@@ -46,6 +49,7 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
         page: search.page,
         pageSize: 30,
         projectId: search.project === "all" ? null : search.project,
+        ...(supportsLabels && search.label ? { labelId: search.label } : {}),
       },
     },
     fetchPolicy: "cache-and-network",
@@ -84,9 +88,17 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
               label: project.title,
             })) ?? []),
           ]}
-          onValueChange={(project) => setSearch({ project, page: 1 })}
+          onValueChange={(project) => setSearch({ ...search, project, page: 1 })}
         />
       </div>
+      {supportsLabels ? (
+        <TaskLabelFilter
+          value={search.label ?? "all"}
+          onChange={(label) =>
+            setSearch({ project: search.project, page: 1, ...(label !== "all" ? { label } : {}) })
+          }
+        />
+      ) : null}
       <div className="mt-4 sm:mt-6" aria-busy={loading}>
         {!error && (sessionError || projectError) ? (
           <ListMessage tone="error">
@@ -138,7 +150,7 @@ function TaskListContent({
   completingTaskID: string | undefined;
   onComplete: (task: TaskItem) => void;
 }) {
-  if (loading && !dataLoaded) return <ListMessage>Loading tasks…</ListMessage>;
+  if (loading && !dataLoaded) return <TaskListLoading />;
   if (error && !taskPage) {
     return (
       <ListMessage tone="error">
@@ -151,6 +163,7 @@ function TaskListContent({
   if (scope === "UNSCHEDULED") {
     return (
       <GroupedTasks
+        countLoading={loading}
         tasks={taskPage.items}
         returnTo={returnTo}
         completingTaskID={completingTaskID}
@@ -162,6 +175,7 @@ function TaskListContent({
     <div className="grid gap-2 sm:gap-3">
       {taskPage.items.map((task) => (
         <TaskRow
+          countLoading={loading}
           key={task.id}
           task={task}
           returnTo={returnTo}
@@ -230,6 +244,7 @@ function TaskPagination({
 }
 
 function GroupedTasks(props: {
+  countLoading: boolean;
   tasks: TaskItem[];
   returnTo: string;
   completingTaskID: string | undefined;

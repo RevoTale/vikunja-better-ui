@@ -53,7 +53,7 @@ if (currentUser.settings?.timezone !== fixtureTimezone) {
 const jobLabel = await request("/labels", {
   method: "POST",
   token: jwt,
-  body: JSON.stringify({ title: "job" }),
+  body: JSON.stringify({ title: "vbu:job" }),
 });
 const focusLabel = await request("/labels", {
   method: "POST",

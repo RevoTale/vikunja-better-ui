@@ -3,7 +3,7 @@ package service
 import "github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 
 const (
-	jobLabel               = "job"
+	jobLabel               = "vbu:job"
 	dateOnlyLabel          = "vbu:date-only"
 	recurrenceHistoryLabel = "vbu:recurrence-history"
 	skippedLabel           = "vbu:skipped"

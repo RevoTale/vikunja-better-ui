@@ -63,7 +63,7 @@ test("saving unchanged tasks and label-only edits succeeds", async ({ page }) =>
     const after = await upstreamTask(id);
     expect(after.start_date).toBe(before.start_date);
     expect(after.end_date).toBe(before.end_date);
-    expect((after.labels ?? []).some((label) => label.title === "job")).toBe(job);
+    expect((after.labels ?? []).some((label) => label.title === "vbu:job")).toBe(job);
   }
 });
 
@@ -111,7 +111,7 @@ test("task editing preserves drafts on conflict and saves fields and schedule", 
   expect((await upstreamTask(id)).title).toBe("Changed elsewhere");
 });
 
-test("Reset autosave clears the whole form and does not refill on job switching", async ({
+test("fresh tasks do not recall previous Jobs and switching preserves current edits", async ({
   page,
 }) => {
   await signIn(page);
@@ -121,14 +121,14 @@ test("Reset autosave clears the whole form and does not refill on job switching"
   await page.getByRole("button", { name: "Create job", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Remember this job" })).toBeVisible();
   await page.goto("/tasks/new?type=one-time");
-  await expect(page.getByLabel("Title (optional)")).toHaveValue("Remember this job");
-  await page.getByLabel("Description").fill("Discard this draft too");
-  await page.getByRole("button", { name: "Reset autosave" }).click();
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("");
   await expect(page.getByLabel("Description")).toHaveValue("");
   await expect(page.getByLabel("Job", { exact: true })).not.toBeChecked();
+  await page.getByLabel("Title", { exact: true }).fill("Keep this draft");
+  await page.getByLabel("Description").fill("Keep this description");
   await page.getByLabel("Job", { exact: true }).check();
-  await expect(page.getByLabel("Title (optional)")).toHaveValue("");
+  await expect(page.getByLabel("Title (optional)")).toHaveValue("Keep this draft");
+  await expect(page.getByLabel("Description")).toHaveValue("Keep this description");
   await expect(page.locator('input[name="durationMinutes"]')).toHaveValue("60");
 });
 
@@ -164,7 +164,7 @@ test("editing recurrence and Job mode updates markers while keeping history read
   await expect(page.getByRole("heading", { name: "Recurring editor job" })).toBeVisible();
   const plain = await upstreamTask(id);
   expect(plain.repeat_after).toBe(0);
-  expect((plain.labels ?? []).some((label) => label.title === "job")).toBe(false);
+  expect((plain.labels ?? []).some((label) => label.title === "vbu:job")).toBe(false);
   await upstreamTask(id, { done: true });
   await page.goto(`/tasks/${id}/edit`);
   await expect(page.getByText("Completed tasks and history are read-only.")).toBeVisible();

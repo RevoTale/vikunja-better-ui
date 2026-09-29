@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 
-test("discussion supports stable comment dimensions when focused", async ({ page }) => {
+test("discussion supports stable comment dimensions when focused", async ({ page }, testInfo) => {
   const { taskId, csrfToken } = await discussionFixture(page);
   await discussionGraphQL(
     page,
@@ -31,6 +31,18 @@ test("discussion supports stable comment dimensions when focused", async ({ page
       };
     });
   const before = await dimensions();
+  for (const colorScheme of ["dark", "light"] as const) {
+    await page.emulateMedia({ colorScheme });
+    await expect(comment).toHaveCSS("border-top-width", "1px");
+    const colors = await comment.evaluate((element) => ({
+      card: getComputedStyle(element).backgroundColor,
+      page: getComputedStyle(document.body).backgroundColor,
+    }));
+    expect(colors.card).not.toBe("rgba(0, 0, 0, 0)");
+    expect(colors.card).not.toBe(colors.page);
+    await expect(comment.locator("[data-comment-actions]")).toHaveCSS("border-top-width", "1px");
+    await comment.screenshot({ path: testInfo.outputPath(`comment-${colorScheme}.png`) });
+  }
   await comment.focus();
   await expect(comment).toBeFocused();
   expect(await dimensions()).toEqual(before);

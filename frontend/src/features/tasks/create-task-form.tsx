@@ -3,20 +3,21 @@ import { type FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ProjectsQuery } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
-import { AutofillIndicator } from "./autofill/autofill-indicator";
-import { useTaskCreationAutofill } from "./autofill/use-task-creation-autofill";
 import { SharedFields } from "./create-shared-fields";
 import { TaskTypeFields } from "./create-type-fields";
 import { taskTypeLabel } from "./creation-type";
 import { jobTitlePlaceholder } from "./job-title";
 import type { LocalDateTimeParts } from "./local-date-time";
 import { ScheduleShift } from "./schedule-shift";
+import { type ChangeTaskCreationField, defaultTaskCreationValues } from "./task-creation-values";
 import {
   type CreationBaseType,
   hasTaskFormErrors,
   type TaskFormErrors,
   validateTaskForm,
 } from "./task-form-validation";
+import { TaskLabelPicker } from "./task-label-picker";
+import { TaskReuseProvider } from "./task-reuse";
 
 export function CreateTaskForm({
   type,
@@ -78,13 +79,12 @@ export function CreateTaskForm({
   }
   return (
     <ReadyCreateTaskForm
-      key={`${type}:${initialJob}:${initialDate ?? ""}:${explicitProjectId ?? ""}`}
+      key={`${initialDate ?? ""}:${explicitProjectId ?? ""}`}
       type={type}
       initialJob={initialJob}
       projects={projects}
       timezone={timezone}
       defaultProject={defaultProject}
-      explicitProjectId={explicitProjectId}
       defaultDate={defaultDate}
       initialDate={initialDate}
       selectedJobStart={selectedJobStart}
@@ -102,7 +102,6 @@ function ReadyCreateTaskForm({
   initialJob,
   projects,
   defaultProject,
-  explicitProjectId,
   defaultDate,
   initialDate,
   selectedJobStart,
@@ -116,7 +115,6 @@ function ReadyCreateTaskForm({
   initialJob: boolean;
   projects: ProjectsQuery["projects"]["items"];
   defaultProject: string;
-  explicitProjectId: string | undefined;
   defaultDate: string;
   initialDate: string | undefined;
   selectedJobStart: LocalDateTimeParts;
@@ -125,24 +123,27 @@ function ReadyCreateTaskForm({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onFieldErrorsChange: (errors: TaskFormErrors) => void;
 }) {
-  const [resetVersion, setResetVersion] = useState(0);
-  const { state, changeField, changeVariant, reset } = useTaskCreationAutofill({
-    baseType: type,
-    defaultDate,
-    defaultProjectId: defaultProject,
-    defaultJobStart: selectedJobStart,
-    accessibleProjectIds: projects.map((project) => String(project.id)),
-    ...(initialDate ? { explicitDate: initialDate } : {}),
-    ...(explicitProjectId ? { explicitProjectId } : {}),
-    ...(initialJob ? { explicitJob: true } : {}),
-  });
-  const { values, autofilled } = state;
+  const [labelsPending, setLabelsPending] = useState(false);
+  const [values, setValues] = useState(() =>
+    defaultTaskCreationValues({
+      job: initialJob,
+      projectId: defaultProject,
+      today: defaultDate,
+      date: initialDate,
+      jobStart: selectedJobStart,
+    }),
+  );
+  const changeField: ChangeTaskCreationField = (field, value) => {
+    setValues((current) => ({ ...current, [field]: value }));
+  };
 
   return (
     <form
-      key={resetVersion}
       className="mt-6 grid gap-5"
-      onSubmit={onSubmit}
+      onSubmit={(event) => {
+        if (labelsPending) event.preventDefault();
+        else onSubmit(event);
+      }}
       onInput={(event) => {
         if (hasTaskFormErrors(fieldErrors)) {
           onFieldErrorsChange(validateTaskForm(type, new FormData(event.currentTarget)));
@@ -150,32 +151,6 @@ function ReadyCreateTaskForm({
       }}
       noValidate
     >
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="outline"
-          disabled={loading}
-          onClick={() => {
-            reset();
-            setResetVersion((version) => version + 1);
-            onFieldErrorsChange({});
-          }}
-        >
-          Reset autosave
-        </Button>
-      </div>
-      <SharedFields
-        projects={projects}
-        errors={fieldErrors}
-        type={type}
-        titlePlaceholder={jobTitlePlaceholder({
-          date: values.startDate,
-          time: values.startTime,
-        })}
-        values={values}
-        autofilled={autofilled}
-        onFieldChange={changeField}
-      />
       <div className="rounded-md border bg-muted/30 p-4">
         <label className="flex cursor-pointer items-start gap-3" htmlFor="job">
           <input
@@ -183,12 +158,10 @@ function ReadyCreateTaskForm({
             name="job"
             type="checkbox"
             checked={values.job}
-            onChange={(event) => changeVariant(event.currentTarget.checked)}
+            onChange={(event) => changeField("job", event.currentTarget.checked)}
             className="mt-1 size-4 accent-primary"
             aria-label="Job"
-            aria-describedby={
-              autofilled.has("job") ? "job-description job-autofill" : "job-description"
-            }
+            aria-describedby="job-description"
           />
           <span>
             <span className="block text-sm font-medium">Job</span>
@@ -197,40 +170,45 @@ function ReadyCreateTaskForm({
             </span>
           </span>
         </label>
-        {autofilled.has("job") ? (
-          <div className="mt-1 pl-7">
-            <AutofillIndicator id="job-autofill" />
-          </div>
-        ) : null}
       </div>
-      <TaskTypeFields
-        type={type}
-        errors={fieldErrors}
-        defaultDate={defaultDate}
-        values={values}
-        autofilled={autofilled}
-        onFieldChange={changeField}
-      />
-      <ScheduleShift
-        timezone={timezone}
-        fields={
-          values.job
-            ? { start: `${values.startDate}T${values.startTime}` }
-            : {
-                due: `${type === "recurring" ? values.firstDueDate : values.dueDate}${values.dueTime ? `T${values.dueTime}` : ""}`,
-              }
-        }
-        onChange={(next) => {
-          if (values.job && next.start) {
-            changeField("startDate", next.start.slice(0, 10));
-            changeField("startTime", next.start.slice(11));
-          } else if (next.due) {
-            changeField(type === "recurring" ? "firstDueDate" : "dueDate", next.due.slice(0, 10));
-            changeField("dueTime", next.due.slice(11));
+      <TaskReuseProvider job={values.job} recurring={type === "recurring"}>
+        <SharedFields
+          projects={projects}
+          errors={fieldErrors}
+          type={type}
+          titlePlaceholder={jobTitlePlaceholder({ date: values.startDate, time: values.startTime })}
+          values={values}
+          onFieldChange={changeField}
+        />
+        <TaskTypeFields
+          type={type}
+          errors={fieldErrors}
+          defaultDate={defaultDate}
+          values={values}
+          onFieldChange={changeField}
+        />
+        <ScheduleShift
+          timezone={timezone}
+          fields={
+            values.job
+              ? { start: `${values.startDate}T${values.startTime}` }
+              : {
+                  due: `${type === "recurring" ? values.firstDueDate : values.dueDate}${values.dueTime ? `T${values.dueTime}` : ""}`,
+                }
           }
-        }}
-      />
-      <Button type="submit" disabled={loading}>
+          onChange={(next) => {
+            if (values.job && next.start) {
+              changeField("startDate", next.start.slice(0, 10));
+              changeField("startTime", next.start.slice(11));
+            } else if (next.due) {
+              changeField(type === "recurring" ? "firstDueDate" : "dueDate", next.due.slice(0, 10));
+              changeField("dueTime", next.due.slice(11));
+            }
+          }}
+        />
+        <TaskLabelPicker onPendingChange={setLabelsPending} />
+      </TaskReuseProvider>
+      <Button type="submit" disabled={loading || labelsPending}>
         {loading ? "Creating…" : creationButtonLabel(type, values.job)}
       </Button>
     </form>

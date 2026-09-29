@@ -1,4 +1,5 @@
 import { useQuery } from "@apollo/client/react";
+import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/features/tasks/format-date-time";
 import { TaskDetailsDocument } from "@/graphql/graphql";
@@ -22,8 +23,13 @@ export function DiscussionHeader({ taskId }: { taskId: string }) {
               : ""}
           </p>
         </>
+      ) : loading ? (
+        <div role="status" aria-label="Loading task context" className="mt-2 space-y-2">
+          <LoadingPlaceholder className="h-7 w-2/3" />
+          <LoadingPlaceholder className="h-5 w-1/2" />
+        </div>
       ) : (
-        <p>{loading ? "Loading task…" : "Task context unavailable."}</p>
+        <p>Task context unavailable.</p>
       )}
       {error ? (
         <>

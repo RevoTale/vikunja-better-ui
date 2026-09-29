@@ -2,11 +2,13 @@ import { useQuery } from "@apollo/client/react";
 import { ArrowLeft, MessageSquare } from "lucide-react";
 import { lazy, Suspense } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { CommentsLoading } from "@/features/task-discussion/discussion-loading";
 import { TaskDetailsDocument } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import { cn } from "@/lib/utils";
 import { TaskDescription } from "./task-description";
 import { TaskDetailActions } from "./task-detail-actions";
+import { TaskDetailLoading } from "./task-detail-loading";
 import { TaskProperties } from "./task-properties";
 
 const DiscussionThread = lazy(() =>
@@ -19,7 +21,7 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
   const { data, loading, error, refetch } = useQuery(TaskDetailsDocument, {
     variables: { id: taskId },
   });
-  if (loading && !data) return <p role="status">Loading task…</p>;
+  if (loading && !data) return <TaskDetailLoading />;
   const failure = error ? (
     <div role="alert" className="mb-4 text-destructive">
       <p>{graphQLErrorMessage(error, "Task could not be loaded.")}</p>
@@ -56,7 +58,7 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
           <h2 className="flex items-center gap-2 text-lg font-semibold">
             <MessageSquare aria-hidden="true" className="size-4 text-muted-foreground" /> Discussion
           </h2>
-          <Suspense fallback={<p role="status">Loading discussion…</p>}>
+          <Suspense fallback={<CommentsLoading />}>
             <DiscussionThread key={taskId} taskId={taskId} />
           </Suspense>
         </section>

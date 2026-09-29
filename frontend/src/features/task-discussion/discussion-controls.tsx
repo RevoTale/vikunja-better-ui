@@ -3,7 +3,6 @@ import { useEffect, useId, useState } from "react";
 import { AppSelect } from "@/components/app-select";
 import { Button } from "@/components/ui/button";
 import type { DiscussionOrder } from "@/graphql/graphql";
-import { cn } from "@/lib/utils";
 
 const orders = [
   { value: "ASC", label: "Oldest first" },
@@ -44,6 +43,7 @@ export function DiscussionControls({
           Sort comments
         </label>
         <AppSelect
+          className="disabled:opacity-100"
           id={id}
           value={order}
           options={orders}
@@ -56,7 +56,7 @@ export function DiscussionControls({
       </div>
       <Button
         variant="outline"
-        className={cn("min-h-11 w-32", refreshState === "pending" && "disabled:opacity-100")}
+        className="min-h-11 w-32 disabled:opacity-100"
         aria-label={showLoading ? "Refresh: Refreshing…" : success ? "Refresh: Updated" : "Refresh"}
         disabled={loading || pending}
         onClick={async () => {

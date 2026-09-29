@@ -36,11 +36,15 @@ test("discussion supports task-list counts and direct navigation", async ({ page
   const discussion = page.locator('[data-slot="task-discussion"]').filter({ has: link });
   await expect(discussion).toBeVisible();
   await expect(page.locator('[data-slot="task-metadata"]').filter({ has: link })).toHaveCount(0);
+  const metadataRow = page.locator('[data-slot="task-metadata-row"]').filter({ has: link });
+  await expect(metadataRow).toBeVisible();
   const title = page.locator(`a[href^="/tasks/${taskId}?"]`);
   const titleBox = await title.boundingBox();
   const discussionBox = await discussion.boundingBox();
   expect(titleBox && discussionBox && discussionBox.y >= titleBox.y + titleBox.height).toBe(true);
   expect(titleBox && discussionBox && Math.abs(titleBox.x - discussionBox.x) < 1).toBe(true);
+  const metadataBox = await metadataRow.locator('[data-slot="task-metadata"]').boundingBox();
+  expect(metadataBox && discussionBox && Math.abs(metadataBox.y - discussionBox.y) < 1).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("task-comment-count.png"), fullPage: true });
   expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
   await link.click();
@@ -52,8 +56,20 @@ test("discussion supports task-list counts and direct navigation", async ({ page
     { input: { taskId, commentId: reply.createTaskComment.id, csrfToken } },
     csrfToken,
   );
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/graphql", async (route) => {
+    if (route.request().postDataJSON()?.operationName === "TaskList") await gate;
+    await route.continue();
+  });
   await page.goBack();
+  await expect(link.getByRole("status", { name: "Updating comment count" })).toBeVisible();
+  const pendingBox = await discussion.boundingBox();
+  release();
   await expect(link).toHaveAccessibleName("1 comment on Discussion journal");
+  expect((await discussion.boundingBox())?.height).toBe(pendingBox?.height);
   await discussionGraphQL(
     page,
     "mutation($input: DeleteTaskCommentInput!) { deleteTaskComment(input: $input) { deletedCommentId } }",

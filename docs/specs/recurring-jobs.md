@@ -59,7 +59,7 @@ The next occurrence is anchored by `startAt`:
   renew the task again.
 - Each completed or skipped occurrence creates a non-recurring History snapshot
   because Vikunja exposes only the latest `done_at` for the renewed task.
-- The snapshot keeps the exact `job` label and receives
+- The snapshot keeps the exact `vbu:job` label and receives
   `vbu:recurrence-history`; skipped occurrences also receive `vbu:skipped`.
 - The snapshot does not keep recurrence or fixed-time marker fields.
 

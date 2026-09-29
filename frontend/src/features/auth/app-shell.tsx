@@ -12,6 +12,7 @@ import {
 import { useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
+import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { createActionForPath } from "@/features/tasks/create-action";
 import { LogoutDocument, SessionDocument } from "@/graphql/graphql";
@@ -31,7 +32,7 @@ export function AppShell() {
   const apollo = useApolloClient();
   const navigate = useNavigate();
   const location = useLocation();
-  const { data, error: sessionError } = useQuery(SessionDocument);
+  const { data, loading: sessionLoading, error: sessionError } = useQuery(SessionDocument);
   const [logout, { loading }] = useMutation(LogoutDocument);
   const [signOutError, setSignOutError] = useState("");
 
@@ -71,7 +72,7 @@ export function AppShell() {
   return (
     <div className="min-h-svh bg-background lg:grid lg:grid-cols-[15rem_1fr]">
       <aside className="hidden border-r border-sidebar-border bg-sidebar p-4 lg:flex lg:flex-col">
-        <Brand timezone={data?.session.vikunjaUser?.timezone} />
+        <Brand timezone={data?.session.vikunjaUser?.timezone} loading={sessionLoading} />
         <nav className="mt-8 grid gap-1" aria-label="Main navigation">
           {navigation.map((item) => (
             <NavigationLink key={item.to} {...item} />
@@ -91,7 +92,7 @@ export function AppShell() {
       <div className="min-w-0 pb-20 lg:pb-0">
         <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur lg:px-8">
           <div className="lg:hidden">
-            <Brand timezone={data?.session.vikunjaUser?.timezone} />
+            <Brand timezone={data?.session.vikunjaUser?.timezone} loading={sessionLoading} />
           </div>
           <p className="hidden text-sm text-muted-foreground sm:block">
             {data?.session.vikunjaUser?.username}
@@ -120,7 +121,7 @@ export function AppShell() {
   );
 }
 
-function Brand({ timezone }: { timezone: string | undefined }) {
+function Brand({ timezone, loading }: { timezone: string | undefined; loading: boolean }) {
   return (
     <Link
       to="/week"
@@ -132,11 +133,20 @@ function Brand({ timezone }: { timezone: string | undefined }) {
         <span className="block font-serif text-lg font-semibold tracking-tight">
           Better Vikunja
         </span>
-        {timezone ? (
-          <span className="mt-0.5 block text-[0.65rem] text-muted-foreground">
-            Timezone {timezone}
-          </span>
-        ) : null}
+        <span
+          data-slot="timezone"
+          className="mt-0.5 block min-h-4 text-[0.65rem] leading-4 text-muted-foreground"
+        >
+          {timezone ? (
+            `Timezone ${timezone}`
+          ) : loading ? (
+            <span role="status" aria-label="Loading timezone" className="block py-0.5">
+              <LoadingPlaceholder className="h-3 w-32" />
+            </span>
+          ) : (
+            "Timezone unavailable"
+          )}
+        </span>
       </span>
     </Link>
   );

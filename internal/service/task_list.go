@@ -255,6 +255,9 @@ func compareJobs(left taskListCandidate, right taskListCandidate, now time.Time)
 		}
 		return 1
 	}
+	if leftOverdue {
+		return comparePriorityDueTitleID(left, right)
+	}
 	if result := compareTimeZeroLast(left.Task.StartDate, right.Task.StartDate); result != 0 {
 		return result
 	}

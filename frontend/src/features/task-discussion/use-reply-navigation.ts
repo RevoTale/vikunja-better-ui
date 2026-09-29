@@ -2,9 +2,15 @@ import { useEffect, useState } from "react";
 
 type Stop = { id: string; dialog: boolean };
 
-export function useReplyNavigation() {
+export function useReplyNavigation(linkedCommentId?: string, ready = false) {
   const [trail, setTrail] = useState<Stop[]>([]);
   const current = trail.at(-1);
+  useEffect(() => {
+    if (!ready || !linkedCommentId) return;
+    setTrail([
+      { id: linkedCommentId, dialog: !document.getElementById(`comment-${linkedCommentId}`) },
+    ]);
+  }, [linkedCommentId, ready]);
 
   useEffect(() => {
     if (!current || current.dialog) return;
@@ -33,7 +39,7 @@ export function useReplyNavigation() {
     depth: Math.max(0, trail.length - 1),
     follow,
     back: () => setTrail((previous) => previous.slice(0, -1)),
-    close: () => setTrail((previous) => previous.slice(0, 1)),
+    close: () => setTrail((previous) => (previous[0]?.dialog ? [] : previous.slice(0, 1))),
     reset: () => setTrail([]),
   };
 }

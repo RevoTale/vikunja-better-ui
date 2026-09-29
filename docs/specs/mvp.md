@@ -2,6 +2,10 @@
 
 Status: Accepted on 2026-08-12.
 
+The legacy `job` marker references below are superseded by the 2026-09-29
+breaking contract: only `vbu:job` identifies Jobs; `job` is ordinary metadata.
+No automatic data migration is performed. See the README label contract.
+
 Product authority: `docs/ideas/recurring-task-client.md`.
 
 This specification retains the accepted exact `job` label and reserves the

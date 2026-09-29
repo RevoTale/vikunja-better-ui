@@ -12,7 +12,7 @@ Accepted.
 
 Server-side dashboards such as Glance need the same active Jobs projection as
 the browser client and may also need Jobs completed within a reporting
-interval. Calling Vikunja directly would duplicate Better UI's exact `job`
+interval. Calling Vikunja directly would duplicate Better UI's exact `vbu:job`
 marker, classification, sorting, timezone, pagination, and optional label
 filter behavior. Reusing the browser GraphQL endpoint would require dashboard
 clients to manage an expiring cookie session and would place read and mutation

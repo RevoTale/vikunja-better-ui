@@ -34,6 +34,10 @@ func (r *mutationResolver) UpdateTask(ctx context.Context, input model.UpdateTas
 		Title: input.Title, Description: input.Description, Priority: priority, Job: input.Job,
 		DueDate: optionalLocalDate(input.DueDate), DueTime: optionalLocalTime(input.DueTime),
 	}
+	edit.LabelIDs, err = parseLabelIDs(input.LabelIds)
+	if err != nil {
+		return nil, err
+	}
 	if input.StartAt != nil {
 		edit.StartLocal = string(*input.StartAt)
 	}
@@ -59,6 +63,8 @@ func (r *mutationResolver) UpdateTask(ctx context.Context, input model.UpdateTas
 
 func editClientError(resolver *Resolver, err error) error {
 	switch {
+	case errors.Is(err, service.ErrInvalidLabels):
+		return labelClientError(err)
 	case errors.Is(err, service.ErrInvalidEdit):
 		return validationClientError(err)
 	case errors.Is(err, service.ErrTaskNotActive):

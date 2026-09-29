@@ -22,10 +22,6 @@ import {
 } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import { cn } from "@/lib/utils";
-import {
-  rememberSuccessfulTaskCreation,
-  taskCreationSnapshot,
-} from "./autofill/task-creation-autofill-storage";
 import { CreateTaskForm } from "./create-task-form";
 import { shortTaskTypeLabel, taskTypeLabel } from "./creation-type";
 import { defaultJobStart } from "./job-title";
@@ -71,13 +67,14 @@ export function CreateTaskPage({
   const [createJob, jobState] = useMutation(CreateJobDocument);
   const [repair, repairState] = useMutation(RepairTaskMetadataDocument);
   const [error, setError] = useState("");
+  const [labelWarning, setLabelWarning] = useState<{ taskId: string; message: string }>();
   const [fieldErrors, setFieldErrors] = useState<TaskFormErrors>({});
   const [repairInfo, setRepairInfo] = useState<{
     capability: string;
     taskId: string;
     steps: readonly string[];
   }>();
-  const baseType: CreationBaseType = type === "job" ? "one-time" : type;
+  const [baseType, setBaseType] = useState<CreationBaseType>(type === "job" ? "one-time" : type);
   const projects = projectData?.projects.items ?? [];
   const timezone = sessionData?.session.vikunjaUser?.timezone;
   const defaultDate = timezone ? currentDateInTimeZone(timezone) : undefined;
@@ -94,12 +91,14 @@ export function CreateTaskPage({
     const title = text(form, "title").trim();
     const projectId = text(form, "projectId");
     const priority = text(form, "priority") as TaskPriority;
+    const labelIds = form.getAll("labelIds").map(String);
     if (text(form, "job") === "on") {
       return (
         await createJob({
           variables: {
             input: {
               csrfToken,
+              labelIds,
               title: title || null,
               description: optional(form, "description"),
               projectId,
@@ -127,6 +126,7 @@ export function CreateTaskPage({
           variables: {
             input: {
               csrfToken,
+              labelIds,
               title,
               description: optional(form, "description"),
               projectId,
@@ -143,6 +143,7 @@ export function CreateTaskPage({
         variables: {
           input: {
             csrfToken,
+            labelIds,
             title,
             description: optional(form, "description"),
             projectId,
@@ -176,11 +177,11 @@ export function CreateTaskPage({
       setError("Your session is unavailable. Refresh the page and sign in again.");
       return;
     }
-    const autofillSnapshot = taskCreationSnapshot(baseType, form);
     try {
       const payload: CreatePayload | undefined = await createValidatedTask(form, csrfToken);
       if (!payload) throw new Error("empty result");
-      rememberSuccessfulTaskCreation(autofillSnapshot);
+      if (payload.labelError)
+        setLabelWarning({ taskId: payload.task.id, message: payload.labelError });
       if (payload.status === "REPAIR_REQUIRED" && payload.repairCapability) {
         setRepairInfo({
           capability: payload.repairCapability,
@@ -189,6 +190,7 @@ export function CreateTaskPage({
         });
         return;
       }
+      if (payload.labelError) return;
       try {
         await navigate({
           to: "/tasks/$taskId",
@@ -201,22 +203,26 @@ export function CreateTaskPage({
         );
       }
     } catch (caught) {
-      const validationMessage = graphQLValidationMessage(caught);
-      const serverErrors = validationMessage
-        ? serverTaskFormErrors(baseType, form, validationMessage)
-        : {};
-      if (hasTaskFormErrors(serverErrors)) {
-        setFieldErrors(serverErrors);
-        focusFirstInvalid(formElement, serverErrors);
-        return;
-      }
-      setError(
-        graphQLErrorMessage(
-          caught,
-          "The task could not be created. Refresh the relevant list before trying again if the result is uncertain.",
-        ),
-      );
+      showCreationError(caught, form, formElement);
     }
+  }
+
+  function showCreationError(caught: unknown, form: FormData, formElement: HTMLFormElement) {
+    const validationMessage = graphQLValidationMessage(caught);
+    const serverErrors = validationMessage
+      ? serverTaskFormErrors(baseType, form, validationMessage)
+      : {};
+    if (hasTaskFormErrors(serverErrors)) {
+      setFieldErrors(serverErrors);
+      focusFirstInvalid(formElement, serverErrors);
+      return;
+    }
+    setError(
+      graphQLErrorMessage(
+        caught,
+        "The task could not be created. Refresh the relevant list before trying again if the result is uncertain.",
+      ),
+    );
   }
 
   async function continueRepair() {
@@ -233,6 +239,10 @@ export function CreateTaskPage({
           taskId: payload.task.id,
           steps: payload.remainingRepairSteps,
         });
+        return;
+      }
+      if (labelWarning) {
+        setRepairInfo(undefined);
         return;
       }
       try {
@@ -276,6 +286,22 @@ export function CreateTaskPage({
       </section>
     );
 
+  if (labelWarning)
+    return (
+      <section className="mx-auto max-w-2xl">
+        <h1 className="font-serif text-3xl font-semibold">Task created</h1>
+        <p role="alert" className="mt-4">
+          {labelWarning.message}
+        </p>
+        <a
+          className={cn(buttonVariants({ variant: "outline" }), "mt-4")}
+          href={`/tasks/${labelWarning.taskId}/edit?returnTo=${encodeURIComponent(returnTo)}`}
+        >
+          Review task labels
+        </a>
+      </section>
+    );
+
   return (
     <section className="mx-auto max-w-2xl">
       <a
@@ -298,16 +324,7 @@ export function CreateTaskPage({
               if (value === baseType) return;
               setError("");
               setFieldErrors({});
-              return navigate({
-                to: "/tasks/new",
-                search: {
-                  type: value,
-                  returnTo,
-                  ...(initialDate ? { date: initialDate } : {}),
-                  ...(initialProjectID ? { project: initialProjectID } : {}),
-                },
-                replace: true,
-              });
+              setBaseType(value);
             }}
           >
             {shortTaskTypeLabel(value)}
@@ -331,7 +348,6 @@ export function CreateTaskPage({
         </div>
       ) : null}
       <CreateTaskForm
-        key={baseType}
         type={baseType}
         initialJob={type === "job"}
         projects={projects}

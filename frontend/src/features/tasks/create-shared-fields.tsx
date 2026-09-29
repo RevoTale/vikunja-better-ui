@@ -2,12 +2,10 @@ import { AppInput } from "@/components/app-input";
 import { AppSelect } from "@/components/app-select";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
-import type {
-  TaskCreationAutofillField,
-  TaskCreationValues,
-} from "./autofill/task-creation-autofill";
+import type { TaskCreationValues } from "./task-creation-values";
 import type { CreationBaseType, TaskFormErrors } from "./task-form-validation";
 import { taskPriorityOption, taskPriorityOptions } from "./task-priority";
+import { ReuseValueButton, useTaskReuseValues } from "./task-reuse";
 import { ValidatedField } from "./validated-field";
 
 export function SharedFields({
@@ -16,7 +14,6 @@ export function SharedFields({
   type,
   titlePlaceholder,
   values,
-  autofilled,
   onFieldChange,
   description,
   titleRequired = false,
@@ -26,7 +23,6 @@ export function SharedFields({
   type: CreationBaseType;
   titlePlaceholder: string;
   values: Pick<TaskCreationValues, "job" | "title" | "projectId" | "priority">;
-  autofilled: ReadonlySet<TaskCreationAutofillField>;
   onFieldChange: <Field extends "title" | "projectId" | "priority">(
     field: Field,
     value: TaskCreationValues[Field],
@@ -34,13 +30,23 @@ export function SharedFields({
   description?: string;
   titleRequired?: boolean;
 }) {
+  const previous = useTaskReuseValues();
+  const previousProject = projects.find((project) => project.id === previous?.projectId);
   return (
     <>
       <ValidatedField
         name="title"
         label={!titleRequired && values.job && type !== "recurring" ? "Title (optional)" : "Title"}
         error={errors.title}
-        autofilled={autofilled.has("title")}
+        action={
+          <ReuseValueButton
+            label="title"
+            value={previous?.title}
+            onApply={() => {
+              if (previous) onFieldChange("title", previous.title);
+            }}
+          />
+        }
       >
         {(attributes) => (
           <AppInput
@@ -65,7 +71,15 @@ export function SharedFields({
           name="projectId"
           label="Project"
           error={errors.projectId}
-          autofilled={autofilled.has("projectId")}
+          action={
+            <ReuseValueButton
+              label="project"
+              value={previousProject?.title}
+              onApply={() => {
+                if (previousProject) onFieldChange("projectId", previousProject.id);
+              }}
+            />
+          }
         >
           {(attributes) => (
             <AppSelect
@@ -86,7 +100,15 @@ export function SharedFields({
           name="priority"
           label="Priority"
           error={errors.priority}
-          autofilled={autofilled.has("priority")}
+          action={
+            <ReuseValueButton
+              label="priority"
+              value={previous ? taskPriorityOption(previous.priority).label : null}
+              onApply={() => {
+                if (previous) onFieldChange("priority", previous.priority);
+              }}
+            />
+          }
         >
           {(attributes) => (
             <AppSelect

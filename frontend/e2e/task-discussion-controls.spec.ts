@@ -14,6 +14,11 @@ test("discussion supports clear sorting and temporary refresh confirmation", asy
   const refresh = page.getByRole("button", { name: /^Refresh/ });
   await expect(refresh).toBeEnabled();
   const width = (await refresh.boundingBox())?.width;
+  const emptyState = page.getByText("No comments yet. Start the discussion below.", {
+    exact: true,
+  });
+  await expect(emptyState).toBeVisible();
+  const emptyHeight = (await emptyState.boundingBox())?.height;
   const orderBox = await order.boundingBox();
   const refreshBox = await refresh.boundingBox();
   expect(
@@ -33,6 +38,8 @@ test("discussion supports clear sorting and temporary refresh confirmation", asy
   });
   await refresh.click();
   await expect(refresh).toBeDisabled();
+  await expect(emptyState).toBeVisible();
+  expect((await emptyState.boundingBox())?.height).toBe(emptyHeight);
   await expect(refresh).toHaveText("Refresh");
   await expect(refresh).toHaveCSS("opacity", "1");
   await page.clock.fastForward(900);

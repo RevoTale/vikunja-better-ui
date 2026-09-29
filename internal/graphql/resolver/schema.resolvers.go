@@ -91,7 +91,7 @@ func (r *mutationResolver) CreateOneTimeTask(ctx context.Context, input model.Cr
 	if dateOnly {
 		marker = "vbu:date-only"
 	}
-	return r.createTaskPayload(ctx, session, user, projects, projectID, write, marker)
+	return r.createTaskPayload(ctx, session, user, projects, projectID, write, marker, input.LabelIds)
 }
 
 // CreateRecurringTask is the resolver for the createRecurringTask field.
@@ -127,7 +127,7 @@ func (r *mutationResolver) CreateRecurringTask(ctx context.Context, input model.
 	} else if input.KeepDueTime {
 		marker = "vbu:fixed-due-time"
 	}
-	return r.createTaskPayload(ctx, session, user, projects, projectID, write, marker)
+	return r.createTaskPayload(ctx, session, user, projects, projectID, write, marker, input.LabelIds)
 }
 
 // CreateJob is the resolver for the createJob field.
@@ -158,11 +158,11 @@ func (r *mutationResolver) CreateJob(ctx context.Context, input model.CreateJobI
 	if err != nil {
 		return nil, validationClientError(err)
 	}
-	markers := []string{"job"}
+	markers := []string{"vbu:job"}
 	if input.Recurrence != nil && input.Recurrence.KeepDueTime {
 		markers = append(markers, "vbu:fixed-due-time")
 	}
-	return r.createTaskPayloadWithMarkers(ctx, session, user, projects, projectID, write, markers)
+	return r.createTaskPayloadWithMarkers(ctx, session, user, projects, projectID, write, markers, input.LabelIds)
 }
 
 // CompleteTask is the resolver for the completeTask field.
@@ -398,6 +398,10 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 	includeLabels := input.Scope == model.TaskScopeJobs
 	userRead := concurrent.Start(func() (vikunja.User, error) { return r.users.CurrentUser(ctx) })
 	projectsRead := concurrent.Start(func() ([]vikunja.Project, error) { return r.projects.Projects(ctx) })
+	filterLabelIDs, labelErr := r.selectedTaskLabel(ctx, input.LabelID, input.Scope)
+	if labelErr != nil {
+		return nil, labelErr
+	}
 	var labelsRead *concurrent.Future[[]vikunja.Label]
 	if includeLabels {
 		labelsRead = concurrent.Start(func() ([]vikunja.Label, error) { return r.tasks.Labels(ctx) })
@@ -408,14 +412,9 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 	if err != nil {
 		return nil, err
 	}
-	var jobLabelIDs []int64
-	if includeLabels {
-		labels, labelsErr := labelsRead.Wait()
-		if labelsErr != nil {
-			r.logError("resolve job marker labels", labelsErr)
-			return nil, upstreamClientError(labelsErr, "Job markers could not be loaded.")
-		}
-		jobLabelIDs = service.ExactLabelIDs(labels, "job")
+	jobLabelIDs, err := r.waitForJobLabels(labelsRead)
+	if err != nil {
+		return nil, err
 	}
 
 	var projects []vikunja.Project
@@ -430,14 +429,13 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 	if err != nil {
 		return nil, err
 	}
-	projectTitles := projectTitleMap(projects)
 	result, err := service.ListTasks(ctx, r.tasks, service.ListRequest{
 		IncludeCommentCount: true,
 		Scope:               service.TaskScope(input.Scope), ProjectID: selectedProjectID,
 		Page: input.Page, PageSize: input.PageSize, Now: r.now(),
 		Location: location, Timezone: user.Settings.Timezone,
-		WeekStart: time.Weekday(user.Settings.WeekStart), ProjectTitles: projectTitles,
-		JobLabelIDs: jobLabelIDs,
+		WeekStart: time.Weekday(user.Settings.WeekStart), ProjectTitles: projectTitleMap(projects),
+		JobLabelIDs: jobLabelIDs, FilterLabelIDs: filterLabelIDs,
 	})
 	if err != nil {
 		r.logError("list tasks", err)

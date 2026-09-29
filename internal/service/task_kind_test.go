@@ -27,6 +27,9 @@ func TestClassifyTask(t *testing.T) {
 			wantOutcome: CompletionOutcomeCompleted,
 		},
 		{name: "job", task: taskWithLabels(jobLabel), wantKind: TaskKindJob},
+		{name: "canonical job marker", task: taskWithLabels("vbu:job"), wantKind: TaskKindJob},
+		{name: "legacy job is ordinary", task: taskWithLabels("job"), wantKind: TaskKindOneTime},
+		{name: "noncanonical job marker is not a job", task: taskWithLabels("VBU:job"), wantKind: TaskKindOneTime},
 		{
 			name: "recurring", task: vikunja.Task{RepeatAfter: 86400},
 			wantKind: TaskKindRecurring, wantRecurring: true,

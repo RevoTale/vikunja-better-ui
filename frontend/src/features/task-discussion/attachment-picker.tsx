@@ -1,5 +1,6 @@
 import { useQuery } from "@apollo/client/react";
 import { useState } from "react";
+import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button } from "@/components/ui/button";
 import {
   type DiscussionAttachmentFragment,
@@ -33,7 +34,14 @@ export function AttachmentPicker({
       >
         Refresh attachments
       </Button>
-      {loading ? <p role="status">Loading attachments…</p> : null}
+      <div role="status" className="min-h-5 text-xs text-muted-foreground">
+        {loading ? (
+          <>
+            <span className="sr-only">Loading attachments…</span>
+            <LoadingPlaceholder className="h-4 w-32" />
+          </>
+        ) : null}
+      </div>
       {error ? (
         <p role="alert">{graphQLErrorMessage(error, "Could not load task attachments.")}</p>
       ) : null}

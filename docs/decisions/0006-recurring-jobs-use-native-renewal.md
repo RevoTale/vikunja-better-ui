@@ -34,8 +34,8 @@ capability. A repair validates that the live task is still the same renewed
 occurrence before completing normalization or creating the History snapshot.
 Repair never marks the live task done again.
 
-Store `job` and fixed-time behavior as exact Vikunja labels. Completed snapshots
-retain `job` but omit recurrence and fixed-time markers.
+Store `vbu:job` and fixed-time behavior as exact Vikunja labels. Completed snapshots
+retain `vbu:job` but omit recurrence and fixed-time markers.
 
 ## Alternatives considered
 

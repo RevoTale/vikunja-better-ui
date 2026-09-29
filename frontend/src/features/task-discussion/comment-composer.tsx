@@ -2,6 +2,7 @@ import { SaveIcon, SendIcon, XIcon } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CommentBody } from "./comment-body";
+import { EditorLoading } from "./discussion-loading";
 import { draftKey, draftStorage, loadDraft, saveDraft } from "./draft";
 import { DraftRecovery } from "./draft-recovery";
 import { cleanComment, hasCommentContent, maxCommentBytes, splitReply } from "./html";
@@ -81,7 +82,7 @@ export function CommentComposer({
   return (
     <section
       ref={root}
-      className="space-y-3"
+      className="space-y-2"
       aria-label={commentId ? "Edit comment form" : "New comment form"}
     >
       {recovered ? (
@@ -119,7 +120,7 @@ export function CommentComposer({
           </Button>
         </div>
       ) : null}
-      <Suspense fallback={<p role="status">Loading editor…</p>}>
+      <Suspense fallback={<EditorLoading />}>
         <DiscussionEditor
           key={epoch}
           taskId={taskId}

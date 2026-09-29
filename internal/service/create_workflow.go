@@ -16,10 +16,40 @@ type taskCreateClient interface {
 }
 
 type CreationResult struct {
+	LabelError     error
 	Task           vikunja.Task
 	RepairRequired bool
 	MissingMarkers []string
 	RepairCause    error
+}
+
+func CreateLabeledTask(ctx context.Context, client taskCreateClient, projectID int64, input vikunja.TaskWrite, markers []string, labelIDs []int64) (CreationResult, error) {
+	selected, err := loadTaskLabels(ctx, client, labelIDs)
+	if err != nil {
+		return CreationResult{}, err
+	}
+	result, err := CreateTaskWithMarkers(ctx, client, projectID, input, markers)
+	if err != nil || len(selected) == 0 {
+		return result, err
+	}
+	for _, label := range selected {
+		if err := client.AttachLabel(ctx, result.Task.ID, label.ID); err != nil {
+			result.LabelError = err
+			break
+		}
+	}
+	confirmed, _, readErr := client.Task(ctx, result.Task.ID)
+	if readErr != nil {
+		result.LabelError = readErr
+		return result, nil
+	}
+	result.Task = confirmed
+	if !ordinaryLabelsMatch(confirmed.Labels, selected) {
+		result.LabelError = vikunja.ErrRejectedResponse
+	} else {
+		result.LabelError = nil
+	}
+	return result, nil
 }
 
 func CreateTaskWithMarker(

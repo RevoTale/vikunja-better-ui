@@ -2,7 +2,11 @@
 
 ## Status
 
-Implemented on 2026-08-27.
+Removed on 2026-09-29. This is a historical specification, not an implementation
+requirement. Task creation now uses normal defaults and explicit date/project
+context, without browser-stored last-task values. The separate
+[manual value reuse](task-value-reuse.md) feature reads Vikunja only and applies
+individual fields only after a click. Discussion drafts remain unchanged.
 
 ## Outcome
 

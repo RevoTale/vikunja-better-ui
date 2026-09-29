@@ -182,7 +182,7 @@ type blockingTaskClient struct {
 func (client *blockingTaskClient) Labels(context.Context) ([]vikunja.Label, error) {
 	client.started <- "labels"
 	<-client.release
-	return []vikunja.Label{{ID: 4, Title: "job"}}, nil
+	return []vikunja.Label{{ID: 4, Title: "vbu:job"}}, nil
 }
 
 type overlapResolverReader struct {

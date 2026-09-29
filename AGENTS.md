@@ -174,6 +174,14 @@ generated files.
 - Install only shadcn components that the application uses. Prefer the latest
   Base UI composition and capabilities exposed by the generated component.
 - Show loading, empty, error, and success states for remote workflows.
+- Prefer flicker-free initial and component loading: reserve layout space,
+  keep the static shell visible, and use layout-matched placeholders instead
+  of briefly flashing loading text. Load independent sections independently.
+- Loading presentation must not sacrifice freshness or disguise cached data
+  as a confirmed fresh result. Do not render empty or zero-value states before
+  the relevant request succeeds. Follow the loading policy in
+  `docs/decisions/0005-fresh-task-loading.md`; ask when the appropriate loading
+  treatment is unclear instead of inventing a new convention.
 - Keep mobile and desktop layouts usable.
 - Confirm destructive actions and name the affected resource, except task
   completion. Task completion follows the accepted one-click semantics:

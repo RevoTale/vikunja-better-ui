@@ -3,7 +3,15 @@ import { buttonVariants } from "@/components/ui/button";
 import { DiscussionHeader } from "./discussion-header";
 import { DiscussionThread } from "./discussion-thread";
 
-export function DiscussionPage({ taskId, returnTo }: { taskId: string; returnTo: string }) {
+export function DiscussionPage({
+  taskId,
+  returnTo,
+  commentId,
+}: {
+  taskId: string;
+  returnTo: string;
+  commentId: string | undefined;
+}) {
   return (
     <section className="mx-auto max-w-3xl space-y-5">
       <Link
@@ -15,7 +23,7 @@ export function DiscussionPage({ taskId, returnTo }: { taskId: string; returnTo:
         Back to task
       </Link>
       <DiscussionHeader taskId={taskId} />
-      <DiscussionThread key={taskId} taskId={taskId} />
+      <DiscussionThread key={taskId} taskId={taskId} linkedCommentId={commentId} />
     </section>
   );
 }

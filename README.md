@@ -44,7 +44,10 @@ followed by priority underneath. Priority is omitted from the metadata badges to
 duplication; unset priority appears as **No priority**. Overdue Job rows also
 hide their work interval and **Complete by** deadline. Full dates remain on
 the task detail page, where **Overdue** appears as a red outlined badge.
-Sorting and stored dates are unchanged.
+Overdue tasks sort by highest priority first, then earliest due date/time within
+that priority, with title and ID as deterministic ties. Week keeps this order
+inside each calendar day; future entries remain chronological. Stored dates are
+unchanged.
 
 Date-only deadlines become overdue after their stored end-of-day boundary;
 their synthetic time stays hidden. Week rows use the same priority-first display,
@@ -100,24 +103,29 @@ not offer Undo. See the [Recurring Jobs specification](docs/specs/recurring-jobs
 and [ADR-006](docs/decisions/0006-recurring-jobs-use-native-renewal.md) for the
 full creation, renewal, repair, projection, and History contracts.
 
-### Task creation autofill
+### Task creation defaults
 
-New task remembers selected values only after a successful
-task creation and only in the current browser. Explicit URL context and current
-user input always take precedence. Each populated field is marked
-**From last task**, and storage failures leave the normal form unchanged.
+New task starts from normal defaults and the date/project selected on the
+originating page. Nothing is filled automatically. Choose Job above the fields;
+changing Job or recurring mode preserves shared values entered in this form.
 
-Storage and collision handling stay in a dedicated feature module instead of
-individual form components. See the
-[task creation autofill specification](docs/specs/task-creation-autofill.md) and
-[ADR-007](docs/decisions/0007-local-task-creation-autofill.md).
+Use the history icon beside title, project, priority, labels, or Job duration
+and completion window to reuse that field from the latest task. Labels are
+added without removing current selections. Dates, times, descriptions, and
+recurrence rules are never copied. A click can replace the selected field;
+loading a suggestion cannot. Unavailable values have disabled buttons.
 
-**Reset autosave** resets the entire current creation form to its normal
-defaults, including description and recurrence controls. Explicit date/project
-context from the originating page is preserved. Remembered values and their
-indicators are removed from the form and are not reapplied when toggling Job.
-This does not delete browser memory: reopening New task can use the last
-successful creation again. Creating a task successfully replaces that memory.
+Suggestions are fetched fresh through `taskReuseValues(job:, recurring:)`.
+They come from the newest accessible task created by the configured Vikunja
+API token owner (not the Better UI login), separately for all four Job/recurring
+combinations. Sorting uses creation time, then ID, newest first. History copies
+are excluded; ordinary completed tasks remain eligible. The existing user-read,
+task-read, and label-read token permissions are sufficient. Lookup failures do
+not block task creation; use **Retry previous values** to retry.
+
+No task-creation values are saved in localStorage and there is no Reset autosave.
+Old task-creation localStorage records are ignored; they are not read, updated,
+or used to change a form. Discussion draft recovery is separate and unchanged.
 
 ### Editing tasks and adjusting dates
 
@@ -160,6 +168,45 @@ reload before retrying. It never reports that failure as a successful save.
 Month is no longer a navigation tab. Existing `/month` links redirect to Week.
 The GraphQL `MONTH` scope remains available for existing consumers.
 
+### Task labels
+
+In **New task** or **Edit**, use **Labels** to select existing Vikunja labels.
+Enter a title and choose **Create or reuse label** to create one and select it.
+Saving the task applies the selection; unchecking a label removes only its
+association with that task, not the label itself. Completed history stays read-only.
+
+**Today** and **No date** have a single **Filter by label** control. It includes
+tasks with that label and combines with the project filter. **All labels** clears
+the filter. The label ID is stored in the URL and retained through pagination and
+return navigation. Duplicate titles show their IDs; titles are not identifiers.
+
+Internal `vbu:*` labels are hidden from these controls and protected on
+the server. Only the exact `vbu:job` marker identifies a Job. **Breaking change:**
+`job` is now an ordinary, visible, editable and filterable label, not a Job alias.
+Existing tasks carrying only `job` no longer appear as Jobs, including in the
+Glance integration. No existing labels or tasks are renamed or modified at startup.
+Namespace protection ignores case and surrounding whitespace; Job classification
+requires the exact canonical marker.
+
+Labels are not remembered between task creations.
+Creating a label is a separate action: it
+remains in Vikunja if you abandon the form. Retrying reuses an exact existing title
+(the lowest ID when duplicates exist); simultaneous creation from different
+clients can still create duplicates.
+
+Up to 50 selected IDs and label titles up to 250 characters are accepted. The
+existing `labels` (`create`, `read_all`) and `tasks_labels` (`create`, `read_all`,
+`delete`) token permissions are sufficient. Missing permissions are shown as
+errors, not empty successful results.
+
+If task creation succeeds but label attachment cannot be confirmed, **Task
+created** offers **Review task labels**. Edit that task instead of creating it
+again. An uncertain edit requires reloading before retrying. Existing GraphQL
+clients may omit `labelIds` to preserve labels on edit; an empty list clears only
+ordinary labels. `taskLabels` and `createTaskLabel` use the app session, with CSRF
+protection for creation. `tasks(input: {labelId: ...})` accepts label filters only
+for `TODAY` and `UNSCHEDULED`; creation payloads expose nullable `labelError`.
+
 The Week view combines real tasks with clearly marked, non-actionable computed
 scheduled cycles. It never assigns an estimated day to From completion
 recurrence. See the [weekly ledger specification](docs/specs/weekly-ledger.md)
@@ -200,6 +247,14 @@ Background refreshes that finish within one second stay silent. A slower
 refresh uses a fixed toast, so task rows do not move; it closes on success and
 becomes an error toast on failure while cached rows remain visible. Initial
 loading and initial errors stay in the page because no cached list exists.
+Initial task and discussion loading uses content-shaped skeletons instead of
+flashing loading text. The header reserves its timezone line. Comment counts
+use inline placeholders during refresh; no extra per-task request is made.
+Each task-list skeleton includes three badge placeholders. Comment counts sit
+at the left of the badge row; badges wrap on mobile without clipping titles or labels.
+Discussions keep the editor and previous comments visible while a fresh page
+loads, with an “Updating comments…” indicator. Failed reads clearly identify
+retained comments as older results. Motion effects respect reduced-motion settings.
 See [ADR-005](docs/decisions/0005-fresh-task-loading.md) and the
 [performance guide](docs/performance.md) for the exact request graph,
 benchmarks, and safe latency logs.
@@ -264,6 +319,42 @@ the button keeps its normal appearance while blocking duplicate clicks. A fast
 response goes directly to a checkmark with **Updated**, shown for two seconds.
 A failed refresh shows an error, never a success confirmation.
 
+Comments use separate, subtly bordered cards with a contrasting surface and a
+divided action row, in both light and dark themes. Loading placeholders follow
+the same card outline; keyboard focus adds a ring without resizing the comment.
+
+Discussion links are underlined and colored in both themes. Pasted HTTP(S) and
+`www.` URLs become links immediately; typed URLs convert after Space or Enter.
+Localhost, IP addresses and ports are supported. Incomplete URLs and code stay
+literal. Paste a URL over selected text to keep that text as its label. Click an
+editor link or use **Link** / **Cmd/Ctrl+K** to open, edit or remove it.
+
+Same-origin Better UI task links resolve through GraphQL during editing and save
+the task title as a snapshot. Other origins, including native Vikunja URLs, stay
+ordinary links. Lookup failures never block publishing. Delayed results cannot
+overwrite edited or removed links, or change a submitted draft. Saved titles do
+not follow later task renames; the destination still identifies the same task.
+Published comments perform no title lookups. Legacy plain URLs become clickable
+for display only, without changing stored HTML. Links open in a new tab with
+opener protection; custom labels are preserved.
+
+Comment cards use compact spacing and a single 44px Reply action row without
+extra vertical footer padding. Loading placeholders match the card padding.
+
+The **Comment actions** (`…`) menu contains **Copy link to comment** and **Copy
+content as Markdown**. Authors also have **Edit** and **Delete**, with deletion
+confirmation. **Reply** remains directly visible. Copy success shows a temporary
+checkmark; clipboard failures show an error. Direct links retain their target
+through login and open an original-comment dialog if the comment is outside the
+loaded page. Deleted or inaccessible targets show the existing unavailable state.
+
+Markdown copying preserves standard text formatting and code. Rich structures
+without a faithful Markdown representation retain sanitized HTML, including
+tables and media. Attachment links still require app access; copying does not
+make attachments public. Unsupported native content cannot be copied as Markdown
+or edited here; use native Vikunja instead. Thread subscriptions, resolution and
+task/subtask creation from comments are not part of this menu.
+
 Both views share comments, reply navigation and browser-local draft recovery. A discussion
 loading error does not hide task details. Write formatted comments, add links,
 reply with a quote, or edit and delete your own comments. Deletion asks for
@@ -298,8 +389,8 @@ proportional headings and inline code, and block-level monospace code with
 horizontal scrolling. Lists, tables and code padding scale with their text.
 
 Replies are ordinary Vikunja comments with a source quote and original ID.
-Task lists show a small discussion icon below **Complete by** (or below the
-title when no completion deadline is shown), separate from metadata badges.
+Task lists show a small discussion icon at the left of the metadata row,
+with flexible space before the right-aligned, wrapping badges.
 It shows the total number of comments,
 including replies. Click it to open Discussion. Zero/unknown counts and computed
 occurrences do not show the indicator. Counts arrive with the task-list request
@@ -435,7 +526,7 @@ server loads active and completed Jobs concurrently, merges and sorts the full
 bounded candidate set, and only then applies pagination.
 
 The optional `label` parameter is an exact, case-sensitive label-title match.
-When present, returned tasks must have both the `job` marker and the requested
+When present, returned tasks must have both the `vbu:job` marker and the requested
 label. An unknown label returns an empty page. `page` defaults to `1`, and
 `pageSize` defaults to `30` with a maximum of `100`.
 

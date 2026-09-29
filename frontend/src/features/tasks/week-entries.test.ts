@@ -3,6 +3,37 @@ import { describe, expect, it } from "vitest";
 import { mergeWeekEntries } from "./week-entries";
 
 describe("mergeWeekEntries", () => {
+  it("keeps overdue priority first, then oldest due, regardless of start time", () => {
+    const tasks = [
+      {
+        id: "late-high",
+        priority: "HIGH" as const,
+        isOverdue: true,
+        startAt: "2026-08-24T04:00:00Z",
+        dueAt: "2026-08-24T10:00:00Z",
+      },
+      {
+        id: "early-high",
+        priority: "HIGH" as const,
+        isOverdue: true,
+        dueAt: "2026-08-24T09:00:00Z",
+      },
+      { id: "urgent", priority: "URGENT" as const, isOverdue: true, dueAt: "2026-08-24T11:00:00Z" },
+      {
+        id: "future",
+        priority: "DO_NOW" as const,
+        isOverdue: false,
+        startAt: "2026-08-24T02:00:00Z",
+        dueAt: "2026-08-24T18:00:00Z",
+      },
+    ] as const;
+    const serverOrdered = [tasks[2], tasks[1], tasks[0], tasks[3]];
+    expect(
+      mergeWeekEntries(serverOrdered, []).map((entry) =>
+        entry.kind === "task" ? entry.task.id : "projection",
+      ),
+    ).toEqual(["urgent", "early-high", "late-high", "future"]);
+  });
   it("places active and computed work in due-time order", () => {
     const entries = mergeWeekEntries(
       [

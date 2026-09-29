@@ -1,6 +1,7 @@
 import { skipToken, useFragment, useQuery } from "@apollo/client/react";
 import { ArrowUpRightIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button } from "@/components/ui/button";
 import { DiscussionCommentFragmentDoc, DiscussionOriginalDocument } from "@/graphql/graphql";
 import { AuthorAvatar } from "./author-avatar";
@@ -44,7 +45,13 @@ export function ReplyQuote({
           {...(author ? { username: author.username } : {})}
         />
         <span className="min-w-0 text-sm font-normal text-muted-foreground wrap-anywhere">
-          {name}
+          {!author && original.loading ? (
+            <span role="status" aria-label="Loading author">
+              <LoadingPlaceholder className="h-4 w-24" />
+            </span>
+          ) : (
+            name
+          )}
         </span>
         <Button
           variant="ghost"

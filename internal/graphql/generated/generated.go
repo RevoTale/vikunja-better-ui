@@ -87,6 +87,7 @@ type ComplexityRoot struct {
 		CreateOneTimeTask       func(childComplexity int, input model.CreateOneTimeTaskInput) int
 		CreateRecurringTask     func(childComplexity int, input model.CreateRecurringTaskInput) int
 		CreateTaskComment       func(childComplexity int, input model.CreateTaskCommentInput) int
+		CreateTaskLabel         func(childComplexity int, csrfToken string, title string) int
 		DeleteTask              func(childComplexity int, input model.DeleteTaskInput) int
 		DeleteTaskComment       func(childComplexity int, input model.DeleteTaskCommentInput) int
 		Login                   func(childComplexity int, input model.LoginInput) int
@@ -119,6 +120,8 @@ type ComplexityRoot struct {
 		TaskComment      func(childComplexity int, taskID string, commentID string) int
 		TaskComments     func(childComplexity int, taskID string, page int, pageSize int, order model.DiscussionOrder) int
 		TaskDiagnostics  func(childComplexity int, id string) int
+		TaskLabels       func(childComplexity int) int
+		TaskReuseValues  func(childComplexity int, job bool, recurring bool) int
 		Tasks            func(childComplexity int, input model.TaskListInput) int
 		Week             func(childComplexity int, input model.WeekInput) int
 	}
@@ -212,6 +215,7 @@ type ComplexityRoot struct {
 	}
 
 	TaskMutationPayload struct {
+		LabelError           func(childComplexity int) int
 		MissingMarkers       func(childComplexity int) int
 		RemainingRepairSteps func(childComplexity int) int
 		RepairCapability     func(childComplexity int) int
@@ -234,6 +238,16 @@ type ComplexityRoot struct {
 		Code      func(childComplexity int) int
 		Message   func(childComplexity int) int
 		ProjectID func(childComplexity int) int
+	}
+
+	TaskReuseValues struct {
+		CompletionWindowMinutes func(childComplexity int) int
+		DurationMinutes         func(childComplexity int) int
+		Labels                  func(childComplexity int) int
+		Priority                func(childComplexity int) int
+		ProjectID               func(childComplexity int) int
+		TaskID                  func(childComplexity int) int
+		Title                   func(childComplexity int) int
 	}
 
 	VikunjaUser struct {
@@ -272,6 +286,7 @@ type ComplexityRoot struct {
 // region    ************************** generated!.gotpl **************************
 
 type MutationResolver interface {
+	CreateTaskLabel(ctx context.Context, csrfToken string, title string) (*model.Label, error)
 	UpdateTask(ctx context.Context, input model.UpdateTaskInput) (*model.Task, error)
 	Login(ctx context.Context, input model.LoginInput) (*model.LoginPayload, error)
 	Logout(ctx context.Context, csrfToken string) (*model.LogoutPayload, error)
@@ -290,6 +305,8 @@ type MutationResolver interface {
 	UploadTaskMedia(ctx context.Context, input model.UploadTaskMediaInput) (*model.TaskAttachment, error)
 }
 type QueryResolver interface {
+	TaskReuseValues(ctx context.Context, job bool, recurring bool) (*model.TaskReuseValues, error)
+	TaskLabels(ctx context.Context) ([]*model.Label, error)
 	Session(ctx context.Context) (*model.Session, error)
 	Projects(ctx context.Context) (*model.ProjectResult, error)
 	Tasks(ctx context.Context, input model.TaskListInput) (*model.TaskPage, error)
@@ -503,6 +520,17 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Mutation.CreateTaskComment(childComplexity, args["input"].(model.CreateTaskCommentInput)), true
+	case "Mutation.createTaskLabel":
+		if e.ComplexityRoot.Mutation.CreateTaskLabel == nil {
+			break
+		}
+
+		args, err := ec.field_Mutation_createTaskLabel_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Mutation.CreateTaskLabel(childComplexity, args["csrfToken"].(string), args["title"].(string)), true
 	case "Mutation.deleteTask":
 		if e.ComplexityRoot.Mutation.DeleteTask == nil {
 			break
@@ -730,6 +758,23 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.TaskDiagnostics(childComplexity, args["id"].(string)), true
+	case "Query.taskLabels":
+		if e.ComplexityRoot.Query.TaskLabels == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.TaskLabels(childComplexity), true
+	case "Query.taskReuseValues":
+		if e.ComplexityRoot.Query.TaskReuseValues == nil {
+			break
+		}
+
+		args, err := ec.field_Query_taskReuseValues_args(ctx, rawArgs)
+		if err != nil {
+			return 0, false
+		}
+
+		return e.ComplexityRoot.Query.TaskReuseValues(childComplexity, args["job"].(bool), args["recurring"].(bool)), true
 	case "Query.tasks":
 		if e.ComplexityRoot.Query.Tasks == nil {
 			break
@@ -1145,6 +1190,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.TaskDiagnostics.UpdatedAt(childComplexity), true
 
+	case "TaskMutationPayload.labelError":
+		if e.ComplexityRoot.TaskMutationPayload.LabelError == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TaskMutationPayload.LabelError(childComplexity), true
 	case "TaskMutationPayload.missingMarkers":
 		if e.ComplexityRoot.TaskMutationPayload.MissingMarkers == nil {
 			break
@@ -1243,6 +1294,49 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TaskPageIssue.ProjectID(childComplexity), true
+
+	case "TaskReuseValues.completionWindowMinutes":
+		if e.ComplexityRoot.TaskReuseValues.CompletionWindowMinutes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TaskReuseValues.CompletionWindowMinutes(childComplexity), true
+	case "TaskReuseValues.durationMinutes":
+		if e.ComplexityRoot.TaskReuseValues.DurationMinutes == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TaskReuseValues.DurationMinutes(childComplexity), true
+	case "TaskReuseValues.labels":
+		if e.ComplexityRoot.TaskReuseValues.Labels == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TaskReuseValues.Labels(childComplexity), true
+	case "TaskReuseValues.priority":
+		if e.ComplexityRoot.TaskReuseValues.Priority == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TaskReuseValues.Priority(childComplexity), true
+	case "TaskReuseValues.projectId":
+		if e.ComplexityRoot.TaskReuseValues.ProjectID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TaskReuseValues.ProjectID(childComplexity), true
+	case "TaskReuseValues.taskId":
+		if e.ComplexityRoot.TaskReuseValues.TaskID == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TaskReuseValues.TaskID(childComplexity), true
+	case "TaskReuseValues.title":
+		if e.ComplexityRoot.TaskReuseValues.Title == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TaskReuseValues.Title(childComplexity), true
 
 	case "VikunjaUser.defaultProjectId":
 		if e.ComplexityRoot.VikunjaUser.DefaultProjectID == nil {
@@ -1736,6 +1830,7 @@ type WeekView {
 }
 
 type TaskMutationPayload {
+  labelError: String
   task: Task!
   status: TaskMutationStatus!
   missingMarkers: [MarkerKind!]!
@@ -1788,6 +1883,7 @@ type TaskDiagnostics {
 }
 
 input TaskListInput {
+  labelId: ID
   scope: TaskScope!
   projectId: ID
   page: Int! = 1
@@ -1805,6 +1901,7 @@ input LoginInput {
 }
 
 input CreateOneTimeTaskInput {
+  labelIds: [ID!]
   csrfToken: String!
   title: String!
   description: String
@@ -1815,6 +1912,7 @@ input CreateOneTimeTaskInput {
 }
 
 input CreateRecurringTaskInput {
+  labelIds: [ID!]
   csrfToken: String!
   title: String!
   description: String
@@ -1829,6 +1927,7 @@ input CreateRecurringTaskInput {
 }
 
 input CreateJobInput {
+  labelIds: [ID!]
   csrfToken: String!
   title: String
   description: String
@@ -1886,7 +1985,21 @@ input RepairTaskMetadataInput {
   capability: String!
 }
 
+"Explicit per-field reuse, never automatic form defaults. No schedule dates are exposed."
+type TaskReuseValues {
+  taskId: ID!
+  title: String!
+  projectId: ID!
+  priority: TaskPriority!
+  labels: [Label!]!
+  durationMinutes: Int
+  completionWindowMinutes: Int
+}
+
 type Query {
+  "Newest task by the token owner matching both flags; null when none exists."
+  taskReuseValues(job: Boolean!, recurring: Boolean!): TaskReuseValues
+  taskLabels: [Label!]!
   session: Session!
   projects: ProjectResult!
   tasks(input: TaskListInput!): TaskPage!
@@ -1896,6 +2009,7 @@ type Query {
 }
 
 type Mutation {
+  createTaskLabel(csrfToken: String!, title: String!): Label!
   updateTask(input: UpdateTaskInput!): Task!
   login(input: LoginInput!): LoginPayload!
   logout(csrfToken: String!): LogoutPayload!
@@ -1911,6 +2025,7 @@ type Mutation {
 }
 
 input UpdateTaskInput {
+  labelIds: [ID!]
   csrfToken: String!
   taskId: ID!
   expectedVersion: String!
@@ -2219,6 +2334,8 @@ func (ec *executionContext) childFields_TaskDiagnostics(ctx context.Context, fie
 
 func (ec *executionContext) childFields_TaskMutationPayload(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "labelError":
+		return ec.fieldContext_TaskMutationPayload_labelError(ctx, field)
 	case "task":
 		return ec.fieldContext_TaskMutationPayload_task(ctx, field)
 	case "status":
@@ -2265,6 +2382,26 @@ func (ec *executionContext) childFields_TaskPageIssue(ctx context.Context, field
 		return ec.fieldContext_TaskPageIssue_projectId(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type TaskPageIssue", field.Name)
+}
+
+func (ec *executionContext) childFields_TaskReuseValues(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "taskId":
+		return ec.fieldContext_TaskReuseValues_taskId(ctx, field)
+	case "title":
+		return ec.fieldContext_TaskReuseValues_title(ctx, field)
+	case "projectId":
+		return ec.fieldContext_TaskReuseValues_projectId(ctx, field)
+	case "priority":
+		return ec.fieldContext_TaskReuseValues_priority(ctx, field)
+	case "labels":
+		return ec.fieldContext_TaskReuseValues_labels(ctx, field)
+	case "durationMinutes":
+		return ec.fieldContext_TaskReuseValues_durationMinutes(ctx, field)
+	case "completionWindowMinutes":
+		return ec.fieldContext_TaskReuseValues_completionWindowMinutes(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type TaskReuseValues", field.Name)
 }
 
 func (ec *executionContext) childFields_VikunjaUser(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -2510,6 +2647,28 @@ func (ec *executionContext) field_Mutation_createTaskComment_args(ctx context.Co
 		return nil, err
 	}
 	args["input"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Mutation_createTaskLabel_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "csrfToken",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["csrfToken"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "title",
+		func(ctx context.Context, v any) (string, error) {
+			return ec.unmarshalNString2string(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["title"] = arg1
 	return args, nil
 }
 
@@ -2788,6 +2947,28 @@ func (ec *executionContext) field_Query_taskDiagnostics_args(ctx context.Context
 		return nil, err
 	}
 	args["id"] = arg0
+	return args, nil
+}
+
+func (ec *executionContext) field_Query_taskReuseValues_args(ctx context.Context, rawArgs map[string]any) (map[string]any, error) {
+	var err error
+	args := map[string]any{}
+	arg0, err := graphql.ProcessArgField(ctx, rawArgs, "job",
+		func(ctx context.Context, v any) (bool, error) {
+			return ec.unmarshalNBoolean2bool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["job"] = arg0
+	arg1, err := graphql.ProcessArgField(ctx, rawArgs, "recurring",
+		func(ctx context.Context, v any) (bool, error) {
+			return ec.unmarshalNBoolean2bool(ctx, v)
+		})
+	if err != nil {
+		return nil, err
+	}
+	args["recurring"] = arg1
 	return args, nil
 }
 
@@ -3378,6 +3559,50 @@ func (ec *executionContext) _LogoutPayload_authenticated(ctx context.Context, fi
 }
 func (ec *executionContext) fieldContext_LogoutPayload_authenticated(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("LogoutPayload", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Mutation_createTaskLabel(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Mutation_createTaskLabel(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Mutation().CreateTaskLabel(ctx, fc.Args["csrfToken"].(string), fc.Args["title"].(string))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.Label) graphql.Marshaler {
+			return ec.marshalNLabel2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLabel(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Mutation_createTaskLabel(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Mutation",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Label(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Mutation_createTaskLabel_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _Mutation_updateTask(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -4180,6 +4405,82 @@ func (ec *executionContext) fieldContext_ProjectResult_items(_ context.Context, 
 		IsResolver: false,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_Project(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_taskReuseValues(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_taskReuseValues(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			fc := graphql.GetFieldContext(ctx)
+			return ec.Resolvers.Query().TaskReuseValues(ctx, fc.Args["job"].(bool), fc.Args["recurring"].(bool))
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.TaskReuseValues) graphql.Marshaler {
+			return ec.marshalOTaskReuseValues2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskReuseValues(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Query_taskReuseValues(ctx context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_TaskReuseValues(ctx, field)
+		},
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = ec.Recover(ctx, r)
+			ec.Error(ctx, err)
+		}
+	}()
+	ctx = graphql.WithFieldContext(ctx, fc)
+	if fc.Args, err = ec.field_Query_taskReuseValues_args(ctx, field.ArgumentMap(ec.Variables)); err != nil {
+		ec.Error(ctx, err)
+		return fc, err
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_taskLabels(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_taskLabels(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().TaskLabels(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.Label) graphql.Marshaler {
+			return ec.marshalNLabel2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLabelᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_taskLabels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Label(ctx, field)
 		},
 	}
 	return fc, nil
@@ -6239,6 +6540,29 @@ func (ec *executionContext) fieldContext_TaskDiagnostics_maxPermission(_ context
 	return graphql.NewScalarFieldContext("TaskDiagnostics", field, false, false, errors.New("field of type String does not have child fields"))
 }
 
+func (ec *executionContext) _TaskMutationPayload_labelError(ctx context.Context, field graphql.CollectedField, obj *model.TaskMutationPayload) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TaskMutationPayload_labelError(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.LabelError, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *string) graphql.Marshaler {
+			return ec.marshalOString2ᚖstring(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TaskMutationPayload_labelError(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TaskMutationPayload", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
 func (ec *executionContext) _TaskMutationPayload_task(ctx context.Context, field graphql.CollectedField, obj *model.TaskMutationPayload) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6632,6 +6956,176 @@ func (ec *executionContext) _TaskPageIssue_projectId(ctx context.Context, field 
 }
 func (ec *executionContext) fieldContext_TaskPageIssue_projectId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("TaskPageIssue", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _TaskReuseValues_taskId(ctx context.Context, field graphql.CollectedField, obj *model.TaskReuseValues) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TaskReuseValues_taskId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.TaskID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TaskReuseValues_taskId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TaskReuseValues", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _TaskReuseValues_title(ctx context.Context, field graphql.CollectedField, obj *model.TaskReuseValues) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TaskReuseValues_title(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Title, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TaskReuseValues_title(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TaskReuseValues", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _TaskReuseValues_projectId(ctx context.Context, field graphql.CollectedField, obj *model.TaskReuseValues) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TaskReuseValues_projectId(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.ProjectID, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNID2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TaskReuseValues_projectId(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TaskReuseValues", field, false, false, errors.New("field of type ID does not have child fields"))
+}
+
+func (ec *executionContext) _TaskReuseValues_priority(ctx context.Context, field graphql.CollectedField, obj *model.TaskReuseValues) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TaskReuseValues_priority(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Priority, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.TaskPriority) graphql.Marshaler {
+			return ec.marshalNTaskPriority2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPriority(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TaskReuseValues_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TaskReuseValues", field, false, false, errors.New("field of type TaskPriority does not have child fields"))
+}
+
+func (ec *executionContext) _TaskReuseValues_labels(ctx context.Context, field graphql.CollectedField, obj *model.TaskReuseValues) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TaskReuseValues_labels(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Labels, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.Label) graphql.Marshaler {
+			return ec.marshalNLabel2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLabelᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_TaskReuseValues_labels(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "TaskReuseValues",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_Label(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _TaskReuseValues_durationMinutes(ctx context.Context, field graphql.CollectedField, obj *model.TaskReuseValues) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TaskReuseValues_durationMinutes(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DurationMinutes, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TaskReuseValues_durationMinutes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TaskReuseValues", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _TaskReuseValues_completionWindowMinutes(ctx context.Context, field graphql.CollectedField, obj *model.TaskReuseValues) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TaskReuseValues_completionWindowMinutes(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CompletionWindowMinutes, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *int) graphql.Marshaler {
+			return ec.marshalOInt2ᚖint(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TaskReuseValues_completionWindowMinutes(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TaskReuseValues", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
 func (ec *executionContext) _VikunjaUser_id(ctx context.Context, field graphql.CollectedField, obj *model.VikunjaUser) (ret graphql.Marshaler) {
@@ -8229,13 +8723,20 @@ func (ec *executionContext) unmarshalInputCreateJobInput(ctx context.Context, ob
 		asMap["completionWindowMinutes"] = 60
 	}
 
-	fieldsInOrder := [...]string{"csrfToken", "title", "description", "projectId", "priority", "startAt", "durationMinutes", "completionWindowMinutes", "recurrence"}
+	fieldsInOrder := [...]string{"labelIds", "csrfToken", "title", "description", "projectId", "priority", "startAt", "durationMinutes", "completionWindowMinutes", "recurrence"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "labelIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("labelIds"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LabelIds = data
 		case "csrfToken":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("csrfToken"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -8315,13 +8816,20 @@ func (ec *executionContext) unmarshalInputCreateOneTimeTaskInput(ctx context.Con
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"csrfToken", "title", "description", "projectId", "priority", "dueDate", "dueTime"}
+	fieldsInOrder := [...]string{"labelIds", "csrfToken", "title", "description", "projectId", "priority", "dueDate", "dueTime"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "labelIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("labelIds"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LabelIds = data
 		case "csrfToken":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("csrfToken"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -8394,13 +8902,20 @@ func (ec *executionContext) unmarshalInputCreateRecurringTaskInput(ctx context.C
 		asMap["keepDueTime"] = true
 	}
 
-	fieldsInOrder := [...]string{"csrfToken", "title", "description", "projectId", "priority", "firstDueDate", "dueTime", "interval", "unit", "mode", "keepDueTime"}
+	fieldsInOrder := [...]string{"labelIds", "csrfToken", "title", "description", "projectId", "priority", "firstDueDate", "dueTime", "interval", "unit", "mode", "keepDueTime"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "labelIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("labelIds"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LabelIds = data
 		case "csrfToken":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("csrfToken"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -8846,13 +9361,20 @@ func (ec *executionContext) unmarshalInputTaskListInput(ctx context.Context, obj
 		asMap["pageSize"] = 30
 	}
 
-	fieldsInOrder := [...]string{"scope", "projectId", "page", "pageSize"}
+	fieldsInOrder := [...]string{"labelId", "scope", "projectId", "page", "pageSize"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "labelId":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("labelId"))
+			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LabelID = data
 		case "scope":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("scope"))
 			data, err := ec.unmarshalNTaskScope2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskScope(ctx, v)
@@ -8985,13 +9507,20 @@ func (ec *executionContext) unmarshalInputUpdateTaskInput(ctx context.Context, o
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"csrfToken", "taskId", "expectedVersion", "title", "description", "projectId", "priority", "job", "dueDate", "dueTime", "startAt", "endAt", "recurrence"}
+	fieldsInOrder := [...]string{"labelIds", "csrfToken", "taskId", "expectedVersion", "title", "description", "projectId", "priority", "job", "dueDate", "dueTime", "startAt", "endAt", "recurrence"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "labelIds":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("labelIds"))
+			data, err := ec.unmarshalOID2ᚕstringᚄ(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.LabelIds = data
 		case "csrfToken":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("csrfToken"))
 			data, err := ec.unmarshalNString2string(ctx, v)
@@ -9561,6 +10090,13 @@ func (ec *executionContext) _Mutation(ctx context.Context, sel ast.SelectionSet)
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Mutation")
+		case "createTaskLabel":
+			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
+				return ec._Mutation_createTaskLabel(ctx, field)
+			})
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "updateTask":
 			out.Values[i] = ec.OperationContext.RootResolverMiddleware(innerCtx, func(ctx context.Context) (res graphql.Marshaler) {
 				return ec._Mutation_updateTask(ctx, field)
@@ -9800,6 +10336,50 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
+		case "taskReuseValues":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_taskReuseValues(ctx, field)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "taskLabels":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_taskLabels(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "session":
 			field := field
 
@@ -10651,6 +11231,11 @@ func (ec *executionContext) _TaskMutationPayload(ctx context.Context, sel ast.Se
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("TaskMutationPayload")
+		case "labelError":
+			out.Values[i] = ec._TaskMutationPayload_labelError(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		case "task":
 			out.Values[i] = ec._TaskMutationPayload_task(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
@@ -10794,6 +11379,74 @@ func (ec *executionContext) _TaskPageIssue(ctx context.Context, sel ast.Selectio
 			}
 		case "projectId":
 			out.Values[i] = ec._TaskPageIssue_projectId(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var taskReuseValuesImplementors = []string{"TaskReuseValues"}
+
+func (ec *executionContext) _TaskReuseValues(ctx context.Context, sel ast.SelectionSet, obj *model.TaskReuseValues) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, taskReuseValuesImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("TaskReuseValues")
+		case "taskId":
+			out.Values[i] = ec._TaskReuseValues_taskId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "title":
+			out.Values[i] = ec._TaskReuseValues_title(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "projectId":
+			out.Values[i] = ec._TaskReuseValues_projectId(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "priority":
+			out.Values[i] = ec._TaskReuseValues_priority(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "labels":
+			out.Values[i] = ec._TaskReuseValues_labels(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "durationMinutes":
+			out.Values[i] = ec._TaskReuseValues_durationMinutes(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "completionWindowMinutes":
+			out.Values[i] = ec._TaskReuseValues_completionWindowMinutes(ctx, field, obj)
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
@@ -12368,6 +13021,41 @@ func (ec *executionContext) marshalODateTime2ᚖtimeᚐTime(ctx context.Context,
 	return res
 }
 
+func (ec *executionContext) unmarshalOID2ᚕstringᚄ(ctx context.Context, v any) ([]string, error) {
+	if v == nil {
+		return nil, nil
+	}
+	vSlice := graphql.CoerceList(v)
+	var err error
+	res := make([]string, len(vSlice))
+	for i := range vSlice {
+		ctx := graphql.WithPathContext(ctx, graphql.NewPathWithIndex(i))
+		res[i], err = ec.unmarshalNID2string(ctx, vSlice[i])
+		if err != nil {
+			return nil, err
+		}
+	}
+	return res, nil
+}
+
+func (ec *executionContext) marshalOID2ᚕstringᚄ(ctx context.Context, sel ast.SelectionSet, v []string) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	ret := make(graphql.Array, len(v))
+	for i := range v {
+		ret[i] = ec.marshalNID2string(ctx, sel, v[i])
+	}
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
 func (ec *executionContext) unmarshalOID2ᚖstring(ctx context.Context, v any) (*string, error) {
 	if v == nil {
 		return nil, nil
@@ -12497,6 +13185,13 @@ func (ec *executionContext) marshalOTaskDiagnostics2ᚖgithubᚗcomᚋRevoTale�
 		return graphql.Null
 	}
 	return ec._TaskDiagnostics(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOTaskReuseValues2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskReuseValues(ctx context.Context, sel ast.SelectionSet, v *model.TaskReuseValues) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._TaskReuseValues(ctx, sel, v)
 }
 
 func (ec *executionContext) marshalOVikunjaUser2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐVikunjaUser(ctx context.Context, sel ast.SelectionSet, v *model.VikunjaUser) graphql.Marshaler {

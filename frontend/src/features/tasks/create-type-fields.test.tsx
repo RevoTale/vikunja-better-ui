@@ -1,8 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-
-import type { TaskCreationValues } from "./autofill/task-creation-autofill";
 import { TaskTypeFields } from "./create-type-fields";
+import type { TaskCreationValues } from "./task-creation-values";
 
 const values: TaskCreationValues = {
   job: false,
@@ -22,7 +21,6 @@ const sharedProps = {
   errors: {},
   defaultDate: "2026-08-27",
   values,
-  autofilled: new Set<keyof TaskCreationValues>(),
   onFieldChange: () => undefined,
 } as const;
 

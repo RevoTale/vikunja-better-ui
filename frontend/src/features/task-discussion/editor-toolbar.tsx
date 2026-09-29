@@ -1,4 +1,5 @@
 import { $createCodeNode } from "@lexical/code-core";
+import { $isLinkNode } from "@lexical/link";
 import {
   INSERT_CHECK_LIST_COMMAND,
   INSERT_ORDERED_LIST_COMMAND,
@@ -10,6 +11,7 @@ import { $createHeadingNode, $createQuoteNode } from "@lexical/rich-text";
 import { $setBlocksType } from "@lexical/selection";
 import {
   $createParagraphNode,
+  $getNearestNodeFromDOMNode,
   $getSelection,
   FORMAT_TEXT_COMMAND,
   REDO_COMMAND,
@@ -37,7 +39,7 @@ import {
   UnderlineIcon,
   Undo2Icon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EditorCodeTools } from "./editor-code-tools";
 import { EditorLinkTools } from "./editor-link-tools";
@@ -59,6 +61,39 @@ const textTools = [
 export function EditorToolbar() {
   const { editor, state, run, canUndo, canRedo } = useEditorToolbar();
   const [showLink, setShowLink] = useState(false);
+  useEffect(
+    () =>
+      editor.registerRootListener((root) => {
+        if (!root) return;
+        const click = (event: MouseEvent) => {
+          if (!(event.target instanceof Element) || !event.target.closest("a[href]")) return;
+          event.preventDefault();
+          const target = event.target.closest("a[href]");
+          if (!target) return;
+          editor.update(
+            () => {
+              const link = $getNearestNodeFromDOMNode(target);
+              if ($isLinkNode(link)) link.selectEnd();
+            },
+            { discrete: true },
+          );
+          setShowLink(true);
+        };
+        const shortcut = (event: KeyboardEvent) => {
+          if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+            event.preventDefault();
+            setShowLink(true);
+          }
+        };
+        root.addEventListener("click", click);
+        root.addEventListener("keydown", shortcut);
+        return () => {
+          root.removeEventListener("click", click);
+          root.removeEventListener("keydown", shortcut);
+        };
+      }),
+    [editor],
+  );
   function textButtons(extended: boolean) {
     return textTools
       .slice(extended ? 3 : 0, extended ? undefined : 3)

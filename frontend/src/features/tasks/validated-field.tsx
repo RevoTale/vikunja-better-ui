@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { AutofillIndicator } from "./autofill/autofill-indicator";
 import type { TaskFormField } from "./task-form-validation";
 
 type ControlAttributes = {
@@ -13,30 +12,28 @@ export function ValidatedField({
   name,
   label,
   error,
-  autofilled = false,
   children,
+  action,
 }: {
   name: TaskFormField;
   label: ReactNode;
   error: string | undefined;
-  autofilled?: boolean;
   children: (attributes: ControlAttributes) => ReactNode;
+  action?: ReactNode;
 }) {
   const errorID = `${name}-error`;
-  const autofillID = `${name}-autofill`;
-  const describedBy = [autofilled ? autofillID : undefined, error ? errorID : undefined]
-    .filter(Boolean)
-    .join(" ");
   const attributes: ControlAttributes = {
     ...(error ? { "aria-invalid": true as const } : {}),
-    ...(describedBy ? { "aria-describedby": describedBy } : {}),
+    ...(error ? { "aria-describedby": errorID } : {}),
   };
 
   return (
     <Field data-invalid={Boolean(error)}>
-      <FieldLabel htmlFor={name}>{label}</FieldLabel>
+      <div className="flex items-center justify-between gap-2">
+        <FieldLabel htmlFor={name}>{label}</FieldLabel>
+        {action}
+      </div>
       {children(attributes)}
-      {autofilled ? <AutofillIndicator id={autofillID} /> : null}
       <FieldError id={errorID}>{error}</FieldError>
     </Field>
   );

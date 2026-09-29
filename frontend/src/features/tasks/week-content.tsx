@@ -1,5 +1,6 @@
 import type { WeekQuery } from "@/graphql/graphql";
 import { IssueList, ListMessage } from "./list-state";
+import { TaskListLoading } from "./task-list-loading";
 import type { TaskItem } from "./task-row";
 import { groupCurrentWeekDays } from "./week-day-groups";
 import { WeekDaySection } from "./week-day-section";
@@ -27,7 +28,7 @@ export function WeekContent({
   today,
   createProjectID,
 }: WeekContentProps) {
-  if (loading && !dataLoaded) return <ListMessage>Loading week…</ListMessage>;
+  if (loading && !dataLoaded) return <TaskListLoading />;
   if (error && !week) {
     return (
       <ListMessage tone="error">
@@ -45,6 +46,7 @@ export function WeekContent({
         <>
           {currentWeek.earlier.map((day) => (
             <WeekDaySection
+              countLoading={loading}
               key={day.date}
               day={day}
               returnTo={returnTo}
@@ -56,6 +58,7 @@ export function WeekContent({
             />
           ))}
           <WeekDaySection
+            countLoading={loading}
             day={currentWeek.today}
             returnTo={returnTo}
             completingTaskID={completingTaskID}
@@ -65,6 +68,7 @@ export function WeekContent({
             createProjectID={createProjectID}
           />
           <WeekDayGroup
+            countLoading={loading}
             id="week-upcoming"
             title="Upcoming"
             days={currentWeek.upcoming}
@@ -77,6 +81,7 @@ export function WeekContent({
       ) : (
         week.days.map((day) => (
           <WeekDaySection
+            countLoading={loading}
             key={day.date}
             day={day}
             returnTo={returnTo}
@@ -93,6 +98,7 @@ export function WeekContent({
 }
 
 function WeekDayGroup({
+  countLoading,
   id,
   title,
   days,
@@ -101,6 +107,7 @@ function WeekDayGroup({
   onComplete,
   createProjectID,
 }: {
+  countLoading: boolean;
   id: string;
   title: string;
   days: WeekQuery["week"]["days"];
@@ -121,6 +128,7 @@ function WeekDayGroup({
       </h2>
       {days.map((day) => (
         <WeekDaySection
+          countLoading={countLoading}
           key={day.date}
           day={day}
           returnTo={returnTo}

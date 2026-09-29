@@ -2,7 +2,14 @@
 
 ## Status
 
-Accepted.
+Superseded on 2026-09-29: task creation recall was removed at the user's request
+because it interfered with entered values and added unnecessary state complexity.
+New forms use normal defaults and explicit date/project context only. No task
+creation memory is read or written. Discussion draft recovery is unaffected.
+Manual per-field reuse from Vikunja is described in
+[the replacement specification](../specs/task-value-reuse.md); it never applies
+values automatically.
+The remainder of this ADR records the former design, not current behavior.
 
 ## Date
 
@@ -78,4 +85,3 @@ requirements.
   without a browser.
 - The feature adds no network calls, backend state, GraphQL fields, or runtime
   dependency.
-

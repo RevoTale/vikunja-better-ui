@@ -14,12 +14,18 @@ import {
   configExtension,
   defineExtension,
 } from "lexical";
+import { registerDiscussionLinks } from "./editor-autolinks";
 import { editorDocument, safeLink } from "./html";
 import { MediaNode } from "./media-node";
 
-export function createDiscussionExtension(initialHtml: string) {
+export function createDiscussionExtension(
+  initialHtml: string,
+  links: { origin: string; resolveTitle: (id: string) => Promise<string | null> },
+) {
   return defineExtension({
     name: "vbu/discussion",
+    // Register before HTML import; late transforms reprocess existing code blocks.
+    register: (editor) => registerDiscussionLinks(editor, links.origin, links.resolveTitle),
     nodes: [HorizontalRuleNode, MediaNode],
     dependencies: [
       RichTextExtension,

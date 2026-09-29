@@ -1,0 +1,13 @@
+query TaskLabels {
+  taskLabels {
+    id
+    title
+  }
+}
+
+mutation CreateTaskLabel($csrfToken: String!, $title: String!) {
+  createTaskLabel(csrfToken: $csrfToken, title: $title) {
+    id
+    title
+  }
+}

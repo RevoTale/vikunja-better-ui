@@ -92,7 +92,8 @@ func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 			writeTestPage(t, writer, []map[string]any{{"id": 7, "title": "Home"}})
 		case "/api/v2/labels":
 			writeTestPage(t, writer, []map[string]any{
-				{"id": 4, "title": "job"},
+				{"id": 4, "title": "vbu:job"},
+				{"id": 9, "title": "job"},
 				{"id": 8, "title": "dashboard"},
 			})
 		case "/api/v2/tasks":
@@ -101,14 +102,18 @@ func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 			}
 			writeTestPage(t, writer, []map[string]any{
 				{
+					"id": 3, "title": "Ordinary legacy label", "project_id": 7,
+					"labels": []map[string]any{{"id": 9, "title": "job"}, {"id": 8, "title": "dashboard"}},
+				},
+				{
 					"id": 1, "title": "Hidden job", "project_id": 7,
-					"labels": []map[string]any{{"id": 4, "title": "job"}},
+					"labels": []map[string]any{{"id": 4, "title": "vbu:job"}},
 				},
 				{
 					"id": 2, "title": "Visible job", "description": "Shown in Glance", "project_id": 7,
 					"priority": 3, "due_date": dueAt, "start_date": now.Add(time.Hour), "done_at": now,
 					"repeat_after": 172800, "repeat_mode": 2,
-					"labels": []map[string]any{{"id": 4, "title": "job"}, {"id": 8, "title": "dashboard"}},
+					"labels": []map[string]any{{"id": 4, "title": "vbu:job"}, {"id": 8, "title": "dashboard"}},
 				},
 			})
 		default:
@@ -229,7 +234,7 @@ func TestJobsHandlerReturnsCompletedJobsByCompletionTime(t *testing.T) {
 			writeTestPage(t, writer, []map[string]any{{"id": 7, "title": "Home"}})
 		case "/api/v2/labels":
 			writeTestPage(t, writer, []map[string]any{
-				{"id": 4, "title": "job"},
+				{"id": 4, "title": "vbu:job"},
 				{"id": 8, "title": "dashboard"},
 			})
 		case "/api/v2/tasks":
@@ -245,7 +250,7 @@ func TestJobsHandlerReturnsCompletedJobsByCompletionTime(t *testing.T) {
 			}
 			writeTestPage(t, writer, []map[string]any{{
 				"id": 12, "title": "Finished job", "project_id": 7, "done": true, "done_at": completedAt,
-				"labels": []map[string]any{{"id": 4, "title": "job"}, {"id": 8, "title": "dashboard"}},
+				"labels": []map[string]any{{"id": 4, "title": "vbu:job"}, {"id": 8, "title": "dashboard"}},
 			}})
 		default:
 			t.Errorf("unexpected upstream path %q", request.URL.Path)
@@ -299,19 +304,19 @@ func TestJobsHandlerReturnsUnifiedJobsWithDerivedFinishTime(t *testing.T) {
 		case "/api/v2/projects":
 			writeTestPage(t, writer, []map[string]any{{"id": 7, "title": "Home"}})
 		case "/api/v2/labels":
-			writeTestPage(t, writer, []map[string]any{{"id": 4, "title": "job"}})
+			writeTestPage(t, writer, []map[string]any{{"id": 4, "title": "vbu:job"}})
 		case "/api/v2/tasks":
 			if strings.HasPrefix(request.URL.Query().Get("filter"), "done = true") {
 				writeTestPage(t, writer, []map[string]any{{
 					"id": 12, "title": "Completed", "project_id": 7, "done": true, "done_at": completedAt,
 					"due_date": completedFrom.Add(5 * 24 * time.Hour),
-					"labels":   []map[string]any{{"id": 4, "title": "job"}},
+					"labels":   []map[string]any{{"id": 4, "title": "vbu:job"}},
 				}})
 				return
 			}
 			writeTestPage(t, writer, []map[string]any{{
 				"id": 10, "title": "Active", "project_id": 7, "due_date": activeDueAt,
-				"labels": []map[string]any{{"id": 4, "title": "job"}},
+				"labels": []map[string]any{{"id": 4, "title": "vbu:job"}},
 			}})
 		default:
 			http.NotFound(writer, request)
@@ -374,7 +379,7 @@ func TestJobsHandlerDoesNotWaitForProjectsBeforeLoadingTasks(t *testing.T) {
 			writeTestPage(t, writer, []map[string]any{{"id": 7, "title": "Home"}})
 		case "/api/v2/labels":
 			started <- "labels"
-			writeTestPage(t, writer, []map[string]any{{"id": 4, "title": "job"}})
+			writeTestPage(t, writer, []map[string]any{{"id": 4, "title": "vbu:job"}})
 		case "/api/v2/tasks":
 			started <- "tasks"
 			writeTestJSON(t, writer, map[string]any{
@@ -493,7 +498,7 @@ func TestJobsHandlerReturnsEmptyPageForUnknownLabel(t *testing.T) {
 		case "/api/v2/projects":
 			writeTestPage(t, writer, []map[string]any{{"id": 7, "title": "Home"}})
 		case "/api/v2/labels":
-			writeTestPage(t, writer, []map[string]any{{"id": 4, "title": "job"}})
+			writeTestPage(t, writer, []map[string]any{{"id": 4, "title": "vbu:job"}})
 		default:
 			t.Errorf("unexpected upstream path %q", request.URL.Path)
 			http.NotFound(writer, request)
