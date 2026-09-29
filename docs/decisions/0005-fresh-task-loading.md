@@ -74,8 +74,13 @@ confirmation that every existing loading state implements it.
   position, and height, allowing one extra title line and badge row in the
   controlled two-line fixture.
 - Place the comment count at the left of the metadata row, with flexible space
-  before the right-aligned badges. On narrow screens the badge group wraps beside
-  the count. Keep the count separate from the semantic list of task labels.
+  before the right-aligned badges. On phones this row spans the full card content
+  width, rather than leaving the schedule column empty and squeezing badges into
+  unnecessary rows. At `sm` and above it aligns with the task title. Skeletons
+  use the same responsive grid. The badge group wraps beside the count; longer
+  content remains unrestricted. Keep the count separate from the semantic list
+  of task labels. Test both compact and wider project names so font-dependent
+  wrapping does not hide an overly constrained mobile layout.
 - Comment counts arrive with task data, not through per-task requests. Initial
   task placeholders include a short inline count placeholder. During a fresh
   list read, existing positive counts become inline skeletons; unresolved

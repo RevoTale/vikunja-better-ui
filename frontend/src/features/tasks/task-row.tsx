@@ -50,7 +50,7 @@ export function TaskRow({
       )}
       data-projection={projection || undefined}
     >
-      <CardContent className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-x-3 px-3 py-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:px-4 sm:py-3">
+      <CardContent className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-x-3 gap-y-2 px-3 py-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:px-4 sm:py-3">
         <Schedule
           schedule={schedule}
           dayGrouped={dayGrouped}
@@ -59,7 +59,7 @@ export function TaskRow({
           priority={task.priority}
         />
         <div
-          className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-2"
+          className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3"
           data-slot="task-content"
         >
           <div className="min-w-0">
@@ -88,18 +88,21 @@ export function TaskRow({
               <Check />
             </Button>
           ) : null}
-          <div className="col-span-2 flex min-w-0 items-start gap-2" data-slot="task-metadata-row">
-            {!projection ? (
-              <TaskDiscussionLink task={task} returnTo={returnTo} loading={countLoading} />
-            ) : null}
-            <TaskMetadata
-              className="min-h-6 flex-1 justify-end"
-              task={task}
-              labels={labels}
-              projection={projection}
-              hidePriority={overdue}
-            />
-          </div>
+        </div>
+        <div
+          className="col-span-2 flex min-w-0 items-start gap-2 sm:col-span-1 sm:col-start-2"
+          data-slot="task-metadata-row"
+        >
+          {!projection ? (
+            <TaskDiscussionLink task={task} returnTo={returnTo} loading={countLoading} />
+          ) : null}
+          <TaskMetadata
+            className="min-h-6 flex-1 justify-end"
+            task={task}
+            labels={labels}
+            projection={projection}
+            hidePriority={overdue}
+          />
         </div>
       </CardContent>
     </Card>

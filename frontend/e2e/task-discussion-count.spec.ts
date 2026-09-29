@@ -42,7 +42,15 @@ test("discussion supports task-list counts and direct navigation", async ({ page
   const titleBox = await title.boundingBox();
   const discussionBox = await discussion.boundingBox();
   expect(titleBox && discussionBox && discussionBox.y >= titleBox.y + titleBox.height).toBe(true);
-  expect(titleBox && discussionBox && Math.abs(titleBox.x - discussionBox.x) < 1).toBe(true);
+  const card = page.locator('[data-slot="card"]').filter({ has: link });
+  const alignedWith =
+    testInfo.project.use.viewport?.width === 320
+      ? card.locator('[data-slot="task-schedule"]')
+      : title;
+  const alignmentBox = await alignedWith.boundingBox();
+  expect(alignmentBox && discussionBox && Math.abs(alignmentBox.x - discussionBox.x) < 1).toBe(
+    true,
+  );
   const metadataBox = await metadataRow.locator('[data-slot="task-metadata"]').boundingBox();
   expect(metadataBox && discussionBox && Math.abs(metadataBox.y - discussionBox.y) < 1).toBe(true);
   await page.screenshot({ path: testInfo.outputPath("task-comment-count.png"), fullPage: true });
