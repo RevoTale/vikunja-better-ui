@@ -57,7 +57,13 @@ function render(
   );
 }
 
-describe("overdue task schedule", () => {
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-08-14T08:00:00Z"));
+});
+afterEach(() => vi.useRealTimers());
+
+describe("task discussion metadata", () => {
   it("uses an inline placeholder while the count refreshes without presenting the old number as current", () => {
     const markup = render({ commentCount: 3 }, false, false, true);
     expect(markup).toContain('aria-label="Updating comment count"');
@@ -91,12 +97,9 @@ describe("overdue task schedule", () => {
     expect(discussion).toBeGreaterThan(markup.indexOf('data-slot="task-metadata-row"'));
     expect(discussion).toBeLessThan(markup.indexOf('data-slot="task-metadata"'));
   });
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-08-14T08:00:00Z"));
-  });
-  afterEach(() => vi.useRealTimers());
+});
 
+describe("overdue task presentation", () => {
   it("replaces overdue date and time with one priority badge", () => {
     const markup = render();
     expect(markup).not.toContain("14 Aug");

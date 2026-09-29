@@ -29,8 +29,9 @@ func TestLoginCreatesAuthenticatedSession(t *testing.T) {
 	}}
 	root := New(Dependencies{
 		Credentials: auth.NewCredentials("app-user", "app-password"),
-		Sessions:    sessions, Cookies: auth.NewSessionCookies(false), Limiter: auth.NewLoginLimiter(func() time.Time { return now }),
-		Users: reader, Projects: reader, Now: func() time.Time { return now },
+		Sessions:    sessions, Cookies: auth.NewSessionCookies(false),
+		Limiter: auth.NewLoginLimiter(func() time.Time { return now }),
+		Users:   reader, Projects: reader, Now: func() time.Time { return now },
 	})
 
 	recorder := httptest.NewRecorder()
@@ -39,7 +40,9 @@ func TestLoginCreatesAuthenticatedSession(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Login() error = %v", err)
 		}
-		if !payload.Session.Authenticated || payload.Session.CsrfToken == nil || payload.Session.VikunjaUser.Timezone != "Europe/Kyiv" {
+		if !payload.Session.Authenticated ||
+			payload.Session.CsrfToken == nil ||
+			payload.Session.VikunjaUser.Timezone != "Europe/Kyiv" {
 			t.Fatalf("Login() = %#v", payload)
 		}
 	})
@@ -59,8 +62,9 @@ func TestLoginReturnsGenericAuthenticationError(t *testing.T) {
 	reader := &resolverReaderStub{}
 	root := New(Dependencies{
 		Credentials: auth.NewCredentials("app-user", "app-password"),
-		Sessions:    sessions, Cookies: auth.NewSessionCookies(false), Limiter: auth.NewLoginLimiter(func() time.Time { return now }),
-		Users: reader, Projects: reader,
+		Sessions:    sessions, Cookies: auth.NewSessionCookies(false),
+		Limiter: auth.NewLoginLimiter(func() time.Time { return now }),
+		Users:   reader, Projects: reader,
 	})
 
 	withRequestContext(t, sessions, auth.NewSessionCookies(false), httptest.NewRecorder(), nil, func(ctx context.Context) {
@@ -94,15 +98,18 @@ func TestProjectsRequireSessionAndMarkAccessibleDefault(t *testing.T) {
 		Name: "vbu_session", Value: token, Secure: true,
 		HttpOnly: true, SameSite: http.SameSiteLaxMode,
 	}
-	withRequestContext(t, sessions, auth.NewSessionCookies(false), httptest.NewRecorder(), cookie, func(ctx context.Context) {
-		result, queryErr := (&queryResolver{root}).Projects(ctx)
-		if queryErr != nil {
-			t.Fatalf("Projects() error = %v", queryErr)
-		}
-		if len(result.Items) != 2 || result.Items[0].IsDefault || !result.Items[1].IsDefault {
-			t.Fatalf("Projects() = %#v", result)
-		}
-	})
+	withRequestContext(
+		t, sessions, auth.NewSessionCookies(false), httptest.NewRecorder(), cookie,
+		func(ctx context.Context) {
+			result, queryErr := (&queryResolver{root}).Projects(ctx)
+			if queryErr != nil {
+				t.Fatalf("Projects() error = %v", queryErr)
+			}
+			if len(result.Items) != 2 || result.Items[0].IsDefault || !result.Items[1].IsDefault {
+				t.Fatalf("Projects() = %#v", result)
+			}
+		},
+	)
 }
 
 type resolverReaderStub struct {

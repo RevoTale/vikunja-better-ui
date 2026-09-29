@@ -40,7 +40,7 @@ func (group *inflightGroup[T]) join(ctx context.Context, read func(context.Conte
 		group.call = &inflightCall[T]{done: make(chan struct{}), cancel: cancel}
 		go func(operation *inflightCall[T]) {
 			defer cancel()
-			group.run(operation, sharedContext, read)
+			group.run(sharedContext, operation, read)
 		}(group.call)
 	}
 	group.call.waiters++
@@ -48,8 +48,8 @@ func (group *inflightGroup[T]) join(ctx context.Context, read func(context.Conte
 }
 
 func (group *inflightGroup[T]) run(
-	operation *inflightCall[T],
 	ctx context.Context,
+	operation *inflightCall[T],
 	read func(context.Context) (T, error),
 ) {
 	operation.value, operation.err = read(ctx)

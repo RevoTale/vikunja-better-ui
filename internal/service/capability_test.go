@@ -25,7 +25,9 @@ func TestUndoCapabilityRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseUndo() error = %v", err)
 	}
-	if grant.TaskID != 9 || grant.Kind != TaskKindJob || grant.ETag != `"v2"` || !grant.DoneAt.Equal(now.Add(-time.Second)) {
+	if grant.TaskID != 9 || grant.Kind != TaskKindJob ||
+		grant.ETag != `"v2"` ||
+		!grant.DoneAt.Equal(now.Add(-time.Second)) {
 		t.Fatalf("ParseUndo() = %#v", grant)
 	}
 }

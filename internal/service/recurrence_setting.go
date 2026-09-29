@@ -14,6 +14,7 @@ type recurrenceSettingClient interface {
 	DetachLabel(context.Context, int64, int64) error
 }
 
+// SetFixedDueTime changes the internal marker only when the recurrence supports it.
 func SetFixedDueTime(
 	ctx context.Context,
 	client recurrenceSettingClient,

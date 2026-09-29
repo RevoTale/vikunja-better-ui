@@ -19,7 +19,11 @@ func TestMediaRequiresSessionCSRFAndValidFileBeforeUpstream(t *testing.T) {
 		_, err := (&mutationResolver{root}).UploadTaskMedia(ctx, model.UploadTaskMediaInput{TaskID: "42"})
 		assertErrorCode(t, err, "CSRF_INVALID")
 		_, err = (&mutationResolver{root}).UploadTaskMedia(ctx, model.UploadTaskMediaInput{
-			TaskID: "42", CsrfToken: sessions.CSRFToken(session), File: graphql.Upload{File: strings.NewReader("<script/>"), Filename: "photo.png", Size: 9},
+			TaskID: "42", CsrfToken: sessions.CSRFToken(session), File: graphql.Upload{
+				File:     strings.NewReader("<script/>"),
+				Filename: "photo.png",
+				Size:     9,
+			},
 		})
 		assertErrorCode(t, err, "VALIDATION_FAILED")
 		_, err = (&queryResolver{root}).TaskAttachments(ctx, "42", 0)
@@ -39,7 +43,11 @@ func TestAttachmentModelKeepsAudioClassificationForReuse(t *testing.T) {
 		{"image/png", "spoofed.weba", "image/png"},
 		{"text/html", "spoofed.m4a", "text/html"},
 	} {
-		attachment := attachmentModel(vikunja.TaskAttachment{ID: 8, TaskID: 42, File: vikunja.AttachmentFile{MIME: test.mime, Name: test.filename}})
+		attachment := attachmentModel(vikunja.TaskAttachment{
+			ID:     8,
+			TaskID: 42,
+			File:   vikunja.AttachmentFile{MIME: test.mime, Name: test.filename},
+		})
 		if attachment.MimeType != test.want {
 			t.Fatalf("%s %s: type = %q, want %q", test.mime, test.filename, attachment.MimeType, test.want)
 		}

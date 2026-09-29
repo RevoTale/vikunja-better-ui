@@ -23,9 +23,15 @@ func TestDiscussionRequiresSessionAndCSRFBeforeUpstream(t *testing.T) {
 			_, err := (&queryResolver{root}).TaskComment(ctx, ids[0], ids[1])
 			assertErrorCode(t, err, "VALIDATION_FAILED")
 		}
-		_, err := (&mutationResolver{root}).CreateTaskComment(ctx, model.CreateTaskCommentInput{TaskID: "1", BodyHTML: "hello"})
+		_, err := (&mutationResolver{root}).CreateTaskComment(
+			ctx,
+			model.CreateTaskCommentInput{TaskID: "1", BodyHTML: "hello"},
+		)
 		assertErrorCode(t, err, "CSRF_INVALID")
-		_, err = (&mutationResolver{root}).UpdateTaskComment(ctx, model.UpdateTaskCommentInput{TaskID: "1", CommentID: "2", BodyHTML: "hello"})
+		_, err = (&mutationResolver{root}).UpdateTaskComment(
+			ctx,
+			model.UpdateTaskCommentInput{TaskID: "1", CommentID: "2", BodyHTML: "hello"},
+		)
 		assertErrorCode(t, err, "CSRF_INVALID")
 		_, err = (&mutationResolver{root}).DeleteTaskComment(ctx, model.DeleteTaskCommentInput{TaskID: "1", CommentID: "2"})
 		assertErrorCode(t, err, "CSRF_INVALID")
@@ -71,6 +77,7 @@ func TestDiscussionReadsOriginalCommentWithoutLoadingPages(t *testing.T) {
 
 type originalCommentStub struct {
 	commentClient
+
 	test *testing.T
 }
 

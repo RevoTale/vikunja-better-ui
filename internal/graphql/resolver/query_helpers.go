@@ -224,7 +224,7 @@ func weekMappingError(resolver *Resolver, err error) error {
 	return clientError("UPSTREAM_REJECTED", "A Vikunja task uses fields this client cannot represent.")
 }
 
-func diagnosticsModel(task vikunja.Task, timezone string) (*model.TaskDiagnostics, error) {
+func diagnosticsModel(task vikunja.Task) (*model.TaskDiagnostics, error) {
 	priority, err := priorityModel(task.Priority)
 	if err != nil {
 		return nil, clientError("UPSTREAM_REJECTED", "The task priority is unsupported.")
@@ -259,16 +259,11 @@ func diagnosticsModel(task vikunja.Task, timezone string) (*model.TaskDiagnostic
 }
 
 func permissionName(value int) string {
-	switch value {
-	case 0:
-		return "READ"
-	case 1:
-		return "WRITE"
-	case 2:
-		return "ADMIN"
-	default:
+	permissions := [...]string{"READ", "WRITE", "ADMIN"}
+	if value < 0 || value >= len(permissions) {
 		return "UNKNOWN"
 	}
+	return permissions[value]
 }
 
 func isUpstreamStatus(err error, status int) bool {

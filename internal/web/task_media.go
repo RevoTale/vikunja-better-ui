@@ -21,6 +21,7 @@ type attachmentReader interface {
 
 var singleByteRange = regexp.MustCompile(`^bytes=(\d+-\d*|-\d+)$`)
 
+// NewTaskMediaHandler streams validated attachments to authenticated app sessions.
 func NewTaskMediaHandler(client attachmentReader, logger *slog.Logger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "private, no-store")
@@ -33,7 +34,11 @@ func NewTaskMediaHandler(client attachmentReader, logger *slog.Logger) http.Hand
 		taskID, taskErr := strconv.ParseInt(r.PathValue("task"), 10, 64)
 		attachmentID, fileErr := strconv.ParseInt(r.PathValue("attachment"), 10, 64)
 		byteRange := r.Header.Get("Range")
-		if taskErr != nil || fileErr != nil || taskID <= 0 || attachmentID <= 0 || r.URL.RawQuery != "" || (byteRange != "" && (len(byteRange) > 64 || !singleByteRange.MatchString(byteRange))) {
+		if taskErr != nil || fileErr != nil || taskID <= 0 ||
+			attachmentID <= 0 ||
+			r.URL.RawQuery != "" ||
+			(byteRange != "" &&
+				(len(byteRange) > 64 || !singleByteRange.MatchString(byteRange))) {
 			http.Error(w, "Invalid media request.", http.StatusBadRequest)
 			return
 		}
@@ -75,7 +80,8 @@ func streamMedia(w http.ResponseWriter, r *http.Request, response *http.Response
 	}
 	body := bufio.NewReader(response.Body)
 	if response.StatusCode == http.StatusOK {
-		head, err := body.Peek(512)
+		const signatureBytes = 512
+		head, err := body.Peek(signatureBytes)
 		if err != nil && !errors.Is(err, io.EOF) {
 			http.Error(w, "Media could not be read.", http.StatusBadGateway)
 			return err

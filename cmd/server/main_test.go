@@ -40,7 +40,10 @@ func TestReadinessHandlerReflectsVikunjaAvailability(t *testing.T) {
 			t.Parallel()
 			recorder := httptest.NewRecorder()
 			handler := readinessHandler(readinessStub{err: testCase.err}, slog.New(slog.DiscardHandler))
-			handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://app.test/readyz", nil))
+			handler.ServeHTTP(
+				recorder,
+				httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://app.test/readyz", nil),
+			)
 			if recorder.Code != testCase.wantStatus {
 				t.Fatalf("status = %d, want %d", recorder.Code, testCase.wantStatus)
 			}

@@ -22,7 +22,12 @@ func TestGraphQLBoundaryAcceptsExactOriginJSONPost(t *testing.T) {
 	handler := GraphQLBoundary(origin, nil)(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusNoContent)
 	}))
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "https://tasks.example.test/graphql", strings.NewReader(`{"query":"{ session { authenticated } }"}`))
+	request := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"https://tasks.example.test/graphql",
+		strings.NewReader(`{"query":"{ session { authenticated } }"}`),
+	)
 	request.Header.Set("Origin", origin.String())
 	request.Header.Set("Content-Type", "application/json; charset=utf-8")
 	recorder := httptest.NewRecorder()
@@ -60,12 +65,16 @@ func TestGraphQLBoundaryAuthenticatesMultipartBeforeReadingBody(t *testing.T) {
 		{"valid", sessions.CSRFToken(session), true, 5, http.StatusNoContent},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			handler := auth.HTTPContext(sessions, cookies)(GraphQLBoundary(origin, sessions)(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })))
+			t.Parallel()
+			next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(http.StatusNoContent)
+			})
+			handler := auth.HTTPContext(sessions, cookies)(GraphQLBoundary(origin, sessions)(next))
 			r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/graphql", strings.NewReader("bytes"))
 			r.ContentLength = test.size
 			r.Header.Set("Content-Type", "multipart/form-data; boundary=test")
 			r.Header.Set("Origin", origin.String())
-			r.Header.Set("X-CSRF-Token", test.csrf)
+			r.Header.Set("X-Csrf-Token", test.csrf)
 			if test.signed {
 				r.AddCookie(cookie)
 			}
@@ -96,11 +105,31 @@ func TestGraphQLBoundaryRejectsUnsafeRequests(t *testing.T) {
 		bodySize    int
 		wantStatus  int
 	}{
-		{name: "get", method: http.MethodGet, origin: origin.String(), contentType: "application/json", wantStatus: http.StatusMethodNotAllowed},
+		{
+			name: "get", method: http.MethodGet, origin: origin.String(), contentType: "application/json",
+			wantStatus: http.StatusMethodNotAllowed,
+		},
 		{name: "missing origin", method: http.MethodPost, contentType: "application/json", wantStatus: http.StatusForbidden},
-		{name: "cross origin", method: http.MethodPost, origin: "https://evil.example", contentType: "application/json", wantStatus: http.StatusForbidden},
-		{name: "form content", method: http.MethodPost, origin: origin.String(), contentType: "text/plain", wantStatus: http.StatusUnsupportedMediaType},
-		{name: "oversized", method: http.MethodPost, origin: origin.String(), contentType: "application/json", bodySize: int(maxGraphQLBodyBytes + 1), wantStatus: http.StatusRequestEntityTooLarge},
+		{
+			name: "cross origin", method: http.MethodPost, origin: "https://evil.example",
+			contentType: "application/json",
+			wantStatus:  http.StatusForbidden,
+		},
+		{
+			name:        "form content",
+			method:      http.MethodPost,
+			origin:      origin.String(),
+			contentType: "text/plain",
+			wantStatus:  http.StatusUnsupportedMediaType,
+		},
+		{
+			name:        "oversized",
+			method:      http.MethodPost,
+			origin:      origin.String(),
+			contentType: "application/json",
+			bodySize:    int(maxGraphQLBodyBytes + 1),
+			wantStatus:  http.StatusRequestEntityTooLarge,
+		},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {

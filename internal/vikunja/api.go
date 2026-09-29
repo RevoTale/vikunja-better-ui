@@ -12,13 +12,19 @@ const (
 	maxUpstreamPageSize = 1000
 	maxProjectCount     = 10000
 	maxLabelCount       = 10000
+	pageQueryKey        = "page"
+	pageSizeQueryKey    = "per_page"
+	taskCheckFieldCount = 12
+	taskPatchFieldCount = 10
 )
 
+// Response and conditional-write errors preserve upstream integrity failures.
 var (
 	ErrRejectedResponse = errors.New("vikunja returned an inconsistent response")
 	ErrConditionFailed  = errors.New("vikunja task state check failed")
 )
 
+// CurrentUser returns the API token owner, coalescing concurrent requests without caching.
 func (client *Client) CurrentUser(ctx context.Context) (User, error) {
 	return client.currentUserRequests.do(ctx, client.fetchCurrentUser)
 }
@@ -34,6 +40,7 @@ func (client *Client) fetchCurrentUser(ctx context.Context) (User, error) {
 	return user, nil
 }
 
+// Projects reads all accessible projects within the configured response limit.
 func (client *Client) Projects(ctx context.Context) ([]Project, error) {
 	return client.projectRequests.do(ctx, client.fetchProjects)
 }
@@ -42,17 +49,30 @@ func (client *Client) fetchProjects(ctx context.Context) ([]Project, error) {
 	projects := make([]Project, 0)
 	for pageNumber := int64(1); ; pageNumber++ {
 		query := url.Values{
-			"page":     []string{strconv.FormatInt(pageNumber, 10)},
-			"per_page": []string{strconv.Itoa(maxUpstreamPageSize)},
+			pageQueryKey:     []string{strconv.FormatInt(pageNumber, 10)},
+			pageSizeQueryKey: []string{strconv.Itoa(maxUpstreamPageSize)},
 		}
 		var response page[Project]
 		if _, err := client.doJSONWithQuery(ctx, http.MethodGet, "projects", query, nil, "", &response); err != nil {
 			return nil, err
 		}
-		if err := validatePage(response.Page, response.PerPage, response.Total, response.TotalPages, pageNumber, maxUpstreamPageSize); err != nil {
+		if err := validatePage(
+			response.Page,
+			response.PerPage,
+			response.Total,
+			response.TotalPages,
+			pageNumber,
+			maxUpstreamPageSize,
+		); err != nil {
 			return nil, err
 		}
-		if err := validatePageItemCount(len(response.Items), response.Page, response.PerPage, response.Total, response.TotalPages); err != nil {
+		if err := validatePageItemCount(
+			len(response.Items),
+			response.Page,
+			response.PerPage,
+			response.Total,
+			response.TotalPages,
+		); err != nil {
 			return nil, err
 		}
 		if response.Total > maxProjectCount || int64(len(projects)+len(response.Items)) > response.Total {
@@ -69,14 +89,15 @@ func (client *Client) fetchProjects(ctx context.Context) ([]Project, error) {
 	return projects, nil
 }
 
+// TasksPage fetches one filtered page and validates its pagination metadata.
 func (client *Client) TasksPage(ctx context.Context, input TaskQuery) (TaskPage, error) {
 	if err := validateTaskQuery(input); err != nil {
 		return TaskPage{}, err
 	}
 
 	query := url.Values{
-		"page":     []string{strconv.FormatInt(input.Page, 10)},
-		"per_page": []string{strconv.FormatInt(input.PerPage, 10)},
+		pageQueryKey:     []string{strconv.FormatInt(input.Page, 10)},
+		pageSizeQueryKey: []string{strconv.FormatInt(input.PerPage, 10)},
 	}
 	setOptionalQuery(query, "q", input.Search)
 	if input.IncludeCommentCount {
@@ -98,10 +119,23 @@ func (client *Client) TasksPage(ctx context.Context, input TaskQuery) (TaskPage,
 	if _, err := client.doJSONWithQuery(ctx, http.MethodGet, "tasks", query, nil, "", &response); err != nil {
 		return TaskPage{}, err
 	}
-	if err := validatePage(response.Page, response.PerPage, response.Total, response.TotalPages, input.Page, input.PerPage); err != nil {
+	if err := validatePage(
+		response.Page,
+		response.PerPage,
+		response.Total,
+		response.TotalPages,
+		input.Page,
+		input.PerPage,
+	); err != nil {
 		return TaskPage{}, err
 	}
-	if err := validatePageItemCount(len(response.Items), response.Page, response.PerPage, response.Total, response.TotalPages); err != nil {
+	if err := validatePageItemCount(
+		len(response.Items),
+		response.Page,
+		response.PerPage,
+		response.Total,
+		response.TotalPages,
+	); err != nil {
 		return TaskPage{}, ErrRejectedResponse
 	}
 	return response, nil
@@ -131,6 +165,7 @@ func setOptionalQuery(query url.Values, key string, value string) {
 	}
 }
 
+// Labels reads all accessible labels within the configured response limit.
 func (client *Client) Labels(ctx context.Context) ([]Label, error) {
 	return client.labelRequests.do(ctx, client.fetchLabels)
 }
@@ -139,17 +174,30 @@ func (client *Client) fetchLabels(ctx context.Context) ([]Label, error) {
 	labels := make([]Label, 0)
 	for pageNumber := int64(1); ; pageNumber++ {
 		query := url.Values{
-			"page":     []string{strconv.FormatInt(pageNumber, 10)},
-			"per_page": []string{strconv.Itoa(maxUpstreamPageSize)},
+			pageQueryKey:     []string{strconv.FormatInt(pageNumber, 10)},
+			pageSizeQueryKey: []string{strconv.Itoa(maxUpstreamPageSize)},
 		}
 		var response page[Label]
 		if _, err := client.doJSONWithQuery(ctx, http.MethodGet, "labels", query, nil, "", &response); err != nil {
 			return nil, err
 		}
-		if err := validatePage(response.Page, response.PerPage, response.Total, response.TotalPages, pageNumber, maxUpstreamPageSize); err != nil {
+		if err := validatePage(
+			response.Page,
+			response.PerPage,
+			response.Total,
+			response.TotalPages,
+			pageNumber,
+			maxUpstreamPageSize,
+		); err != nil {
 			return nil, err
 		}
-		if err := validatePageItemCount(len(response.Items), response.Page, response.PerPage, response.Total, response.TotalPages); err != nil {
+		if err := validatePageItemCount(
+			len(response.Items),
+			response.Page,
+			response.PerPage,
+			response.Total,
+			response.TotalPages,
+		); err != nil {
 			return nil, err
 		}
 		if response.Total > maxLabelCount || int64(len(labels)+len(response.Items)) > response.Total {
@@ -163,6 +211,7 @@ func (client *Client) fetchLabels(ctx context.Context) ([]Label, error) {
 	return labels, nil
 }
 
+// CreateLabel creates a label and validates the returned identity.
 func (client *Client) CreateLabel(ctx context.Context, input LabelWrite) (Label, error) {
 	if input.Title == "" {
 		return Label{}, errors.New("label title is required")
@@ -177,6 +226,7 @@ func (client *Client) CreateLabel(ctx context.Context, input LabelWrite) (Label,
 	return label, nil
 }
 
+// AttachLabel associates an existing label with a task.
 func (client *Client) AttachLabel(ctx context.Context, taskID int64, labelID int64) error {
 	if taskID <= 0 || labelID <= 0 {
 		return errors.New("task ID and label ID must be positive")
@@ -193,6 +243,7 @@ func (client *Client) AttachLabel(ctx context.Context, taskID int64, labelID int
 	return nil
 }
 
+// DetachLabel removes an association without deleting the label itself.
 func (client *Client) DetachLabel(ctx context.Context, taskID int64, labelID int64) error {
 	if taskID <= 0 || labelID <= 0 {
 		return errors.New("task ID and label ID must be positive")
@@ -202,6 +253,7 @@ func (client *Client) DetachLabel(ctx context.Context, taskID int64, labelID int
 	return err
 }
 
+// Task reads the current task and concurrency metadata, validating its identity.
 func (client *Client) Task(ctx context.Context, taskID int64) (Task, ResponseMetadata, error) {
 	if taskID <= 0 {
 		return Task{}, ResponseMetadata{}, errors.New("task ID must be positive")
@@ -218,6 +270,7 @@ func (client *Client) Task(ctx context.Context, taskID int64) (Task, ResponseMet
 	return task, metadata, nil
 }
 
+// DeleteTask deletes an identified task using the upstream token's permissions.
 func (client *Client) DeleteTask(ctx context.Context, taskID int64) error {
 	if taskID <= 0 {
 		return errors.New("task ID must be positive")
@@ -228,6 +281,7 @@ func (client *Client) DeleteTask(ctx context.Context, taskID int64) error {
 	return err
 }
 
+// CreateTask creates a task using the upstream Markdown conversion path.
 func (client *Client) CreateTask(ctx context.Context, projectID int64, input TaskWrite) (Task, error) {
 	return client.createTask(ctx, projectID, input, markdownQuery())
 }
@@ -239,7 +293,12 @@ func (client *Client) CreateTaskHTML(ctx context.Context, projectID int64, input
 	return client.createTask(ctx, projectID, input, nil)
 }
 
-func (client *Client) createTask(ctx context.Context, projectID int64, input TaskWrite, query url.Values) (Task, error) {
+func (client *Client) createTask(
+	ctx context.Context,
+	projectID int64,
+	input TaskWrite,
+	query url.Values,
+) (Task, error) {
 	if projectID <= 0 {
 		return Task{}, errors.New("project ID must be positive")
 	}
@@ -255,6 +314,7 @@ func (client *Client) createTask(ctx context.Context, projectID int64, input Tas
 	return task, nil
 }
 
+// PatchTask applies a replacement guarded by the upstream ETag.
 func (client *Client) PatchTask(ctx context.Context, taskID int64, patch TaskPatch, etag string) (Task, error) {
 	if taskID <= 0 || etag == "" {
 		return Task{}, errors.New("task ID and ETag are required")
@@ -277,7 +337,13 @@ type jsonPatchOperation struct {
 	Value     any    `json:"value"`
 }
 
-func (client *Client) PatchTaskChecked(ctx context.Context, taskID int64, patch TaskPatch, check TaskCheck) (Task, error) {
+// PatchTaskChecked applies atomic field preconditions before replacement operations.
+func (client *Client) PatchTaskChecked(
+	ctx context.Context,
+	taskID int64,
+	patch TaskPatch,
+	check TaskCheck,
+) (Task, error) {
 	if taskID <= 0 {
 		return Task{}, errors.New("task ID must be positive")
 	}
@@ -313,7 +379,7 @@ func (client *Client) PatchTaskChecked(ctx context.Context, taskID int64, patch 
 }
 
 func taskCheckOperations(check TaskCheck) []jsonPatchOperation {
-	operations := make([]jsonPatchOperation, 0, 7)
+	operations := make([]jsonPatchOperation, 0, taskCheckFieldCount)
 	operations = appendJSONPatchValue(operations, "test", "/updated", check.Updated)
 	operations = appendJSONPatchValue(operations, "test", "/title", check.Title)
 	operations = appendJSONPatchValue(operations, "test", "/description", check.Description)
@@ -330,7 +396,7 @@ func taskCheckOperations(check TaskCheck) []jsonPatchOperation {
 }
 
 func taskPatchOperations(patch TaskPatch) []jsonPatchOperation {
-	operations := make([]jsonPatchOperation, 0, 6)
+	operations := make([]jsonPatchOperation, 0, taskPatchFieldCount)
 	operations = appendJSONPatchValue(operations, "replace", "/title", patch.Title)
 	operations = appendJSONPatchValue(operations, "replace", "/description", patch.Description)
 	operations = appendJSONPatchValue(operations, "replace", "/project_id", patch.ProjectID)
@@ -344,14 +410,26 @@ func taskPatchOperations(patch TaskPatch) []jsonPatchOperation {
 	return operations
 }
 
-func appendJSONPatchValue[T any](operations []jsonPatchOperation, operation string, path string, value *T) []jsonPatchOperation {
+func appendJSONPatchValue[T any](
+	operations []jsonPatchOperation,
+	operation string,
+	path string,
+	value *T,
+) []jsonPatchOperation {
 	if value == nil {
 		return operations
 	}
 	return append(operations, jsonPatchOperation{Operation: operation, Path: path, Value: *value})
 }
 
-func validatePage(pageNumber int64, perPage int64, total int64, totalPages int64, expectedPage int64, expectedPerPage int64) error {
+func validatePage(
+	pageNumber int64,
+	perPage int64,
+	total int64,
+	totalPages int64,
+	expectedPage int64,
+	expectedPerPage int64,
+) error {
 	if pageNumber != expectedPage || perPage != expectedPerPage || total < 0 || totalPages < 0 {
 		return ErrRejectedResponse
 	}

@@ -1,5 +1,4 @@
 import { $createCodeNode } from "@lexical/code-core";
-import { $isLinkNode } from "@lexical/link";
 import {
   INSERT_CHECK_LIST_COMMAND,
   INSERT_ORDERED_LIST_COMMAND,
@@ -11,7 +10,6 @@ import { $createHeadingNode, $createQuoteNode } from "@lexical/rich-text";
 import { $setBlocksType } from "@lexical/selection";
 import {
   $createParagraphNode,
-  $getNearestNodeFromDOMNode,
   $getSelection,
   FORMAT_TEXT_COMMAND,
   REDO_COMMAND,
@@ -42,6 +40,7 @@ import {
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EditorCodeTools } from "./editor-code-tools";
+import { registerLinkEvents } from "./editor-link-events";
 import { EditorLinkTools } from "./editor-link-tools";
 import { EditorTableTools, InsertTable } from "./editor-table-tools";
 import { EditorToolButton } from "./editor-tool-button";
@@ -61,39 +60,7 @@ const textTools = [
 export function EditorToolbar() {
   const { editor, state, run, canUndo, canRedo } = useEditorToolbar();
   const [showLink, setShowLink] = useState(false);
-  useEffect(
-    () =>
-      editor.registerRootListener((root) => {
-        if (!root) return;
-        const click = (event: MouseEvent) => {
-          if (!(event.target instanceof Element) || !event.target.closest("a[href]")) return;
-          event.preventDefault();
-          const target = event.target.closest("a[href]");
-          if (!target) return;
-          editor.update(
-            () => {
-              const link = $getNearestNodeFromDOMNode(target);
-              if ($isLinkNode(link)) link.selectEnd();
-            },
-            { discrete: true },
-          );
-          setShowLink(true);
-        };
-        const shortcut = (event: KeyboardEvent) => {
-          if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-            event.preventDefault();
-            setShowLink(true);
-          }
-        };
-        root.addEventListener("click", click);
-        root.addEventListener("keydown", shortcut);
-        return () => {
-          root.removeEventListener("click", click);
-          root.removeEventListener("keydown", shortcut);
-        };
-      }),
-    [editor],
-  );
+  useEffect(() => registerLinkEvents(editor, () => setShowLink(true)), [editor]);
   function textButtons(extended: boolean) {
     return textTools
       .slice(extended ? 3 : 0, extended ? undefined : 3)
@@ -113,44 +80,8 @@ export function EditorToolbar() {
     if (state.list) editor.dispatchCommand(REMOVE_LIST_COMMAND, undefined);
     else $setBlocksType($getSelection(), $createParagraphNode);
   }
-  const blocks = [
-    {
-      label: "Code block",
-      icon: SquareCodeIcon,
-      active: state.block === "code",
-      apply: () => $setBlocksType($getSelection(), () => $createCodeNode("plain")),
-    },
-    {
-      label: "Heading",
-      icon: HeadingIcon,
-      active: state.block === "heading",
-      apply: () => $setBlocksType($getSelection(), () => $createHeadingNode("h3")),
-    },
-    {
-      label: "Quote",
-      icon: QuoteIcon,
-      active: state.block === "quote",
-      apply: () => $setBlocksType($getSelection(), $createQuoteNode),
-    },
-    {
-      label: "Bullets",
-      icon: ListIcon,
-      active: state.list === "bullet",
-      apply: () => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined),
-    },
-    {
-      label: "Numbered list",
-      icon: ListOrderedIcon,
-      active: state.list === "number",
-      apply: () => editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined),
-    },
-    {
-      label: "Checklist",
-      icon: ListTodoIcon,
-      active: state.list === "check",
-      apply: () => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined),
-    },
-  ];
+  const blocks = blockTools(editor, state);
+
   return (
     <div className="border-b p-1">
       <fieldset className="flex flex-wrap gap-1" aria-label="Text formatting">
@@ -227,4 +158,48 @@ export function EditorToolbar() {
       ) : null}
     </div>
   );
+}
+
+function blockTools(
+  editor: ReturnType<typeof useEditorToolbar>["editor"],
+  state: ReturnType<typeof useEditorToolbar>["state"],
+) {
+  return [
+    {
+      label: "Code block",
+      icon: SquareCodeIcon,
+      active: state.block === "code",
+      apply: () => $setBlocksType($getSelection(), () => $createCodeNode("plain")),
+    },
+    {
+      label: "Heading",
+      icon: HeadingIcon,
+      active: state.block === "heading",
+      apply: () => $setBlocksType($getSelection(), () => $createHeadingNode("h3")),
+    },
+    {
+      label: "Quote",
+      icon: QuoteIcon,
+      active: state.block === "quote",
+      apply: () => $setBlocksType($getSelection(), $createQuoteNode),
+    },
+    {
+      label: "Bullets",
+      icon: ListIcon,
+      active: state.list === "bullet",
+      apply: () => editor.dispatchCommand(INSERT_UNORDERED_LIST_COMMAND, undefined),
+    },
+    {
+      label: "Numbered list",
+      icon: ListOrderedIcon,
+      active: state.list === "number",
+      apply: () => editor.dispatchCommand(INSERT_ORDERED_LIST_COMMAND, undefined),
+    },
+    {
+      label: "Checklist",
+      icon: ListTodoIcon,
+      active: state.list === "check",
+      apply: () => editor.dispatchCommand(INSERT_CHECK_LIST_COMMAND, undefined),
+    },
+  ];
 }

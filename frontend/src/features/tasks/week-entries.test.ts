@@ -58,7 +58,9 @@ describe("mergeWeekEntries", () => {
       ),
     ).toEqual(["first", "second"]);
   });
+});
 
+describe("active weekly schedule ordering", () => {
   it("uses start, otherwise end, otherwise due as each active task's sort time", () => {
     const entries = mergeWeekEntries(
       [

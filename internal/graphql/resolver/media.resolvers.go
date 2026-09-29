@@ -14,7 +14,9 @@ import (
 )
 
 // UploadTaskMedia is the resolver for the uploadTaskMedia field.
-func (r *mutationResolver) UploadTaskMedia(ctx context.Context, input model.UploadTaskMediaInput) (*model.TaskAttachment, error) {
+func (r *mutationResolver) UploadTaskMedia(
+	ctx context.Context, input model.UploadTaskMediaInput,
+) (*model.TaskAttachment, error) {
 	if _, err := r.requireCSRF(ctx, input.CsrfToken); err != nil {
 		return nil, err
 	}
@@ -22,7 +24,15 @@ func (r *mutationResolver) UploadTaskMedia(ctx context.Context, input model.Uplo
 	if err != nil {
 		return nil, clientError("VALIDATION_FAILED", "Task ID is invalid.")
 	}
-	attachment, err := service.UploadTaskMedia(ctx, r.attachments, taskID, input.File.Filename, input.File.ContentType, input.File.Size, input.File.File)
+	attachment, err := service.UploadTaskMedia(
+		ctx,
+		r.attachments,
+		taskID,
+		input.File.Filename,
+		input.File.ContentType,
+		input.File.Size,
+		input.File.File,
+	)
 	if err != nil {
 		return nil, r.mediaError(err, true)
 	}
@@ -30,7 +40,9 @@ func (r *mutationResolver) UploadTaskMedia(ctx context.Context, input model.Uplo
 }
 
 // TaskAttachments is the resolver for the taskAttachments field.
-func (r *queryResolver) TaskAttachments(ctx context.Context, taskID string, page int) (*model.TaskAttachmentPage, error) {
+func (r *queryResolver) TaskAttachments(
+	ctx context.Context, taskID string, page int,
+) (*model.TaskAttachmentPage, error) {
 	if _, err := requireSession(ctx); err != nil {
 		return nil, err
 	}
@@ -49,5 +61,10 @@ func (r *queryResolver) TaskAttachments(ctx context.Context, taskID string, page
 	for _, attachment := range result.Items {
 		items = append(items, attachmentModel(attachment))
 	}
-	return &model.TaskAttachmentPage{Items: items, Page: page, TotalPages: int(result.TotalPages), HasMore: int64(page) < result.TotalPages}, nil
+	return &model.TaskAttachmentPage{
+		Items:      items,
+		Page:       page,
+		TotalPages: int(result.TotalPages),
+		HasMore:    int64(page) < result.TotalPages,
+	}, nil
 }

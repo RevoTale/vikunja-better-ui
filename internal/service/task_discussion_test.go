@@ -17,7 +17,12 @@ func TestLoadTaskDiscussionPreservesUpstreamOrder(t *testing.T) {
 		{ID: 1, TaskID: 42, Comment: "earlier", Created: createdEarlier, Author: &vikunja.User{ID: 8, Username: "author"}},
 	}}
 
-	discussion, err := LoadTaskDiscussion(context.Background(), reader, 42, vikunja.CommentQuery{Page: 1, PerPage: 50, Order: "desc"})
+	discussion, err := LoadTaskDiscussion(
+		context.Background(),
+		reader,
+		42,
+		vikunja.CommentQuery{Page: 1, PerPage: 50, Order: "desc"},
+	)
 	if err != nil {
 		t.Fatalf("LoadTaskDiscussion() error = %v", err)
 	}
@@ -31,7 +36,12 @@ func TestLoadTaskDiscussionRejectsInvalidComment(t *testing.T) {
 		ID: 1, TaskID: 42, Comment: "body", Author: nil,
 	}}}
 
-	_, err := LoadTaskDiscussion(context.Background(), reader, 42, vikunja.CommentQuery{Page: 1, PerPage: 50, Order: "asc"})
+	_, err := LoadTaskDiscussion(
+		context.Background(),
+		reader,
+		42,
+		vikunja.CommentQuery{Page: 1, PerPage: 50, Order: "asc"},
+	)
 	if !errors.Is(err, ErrInvalidComment) {
 		t.Fatalf("LoadTaskDiscussion() error = %v, want ErrInvalidComment", err)
 	}
@@ -41,6 +51,8 @@ type discussionReaderStub struct {
 	comments []vikunja.TaskComment
 }
 
-func (stub discussionReaderStub) TaskComments(context.Context, int64, vikunja.CommentQuery) (vikunja.CommentPage, error) {
+func (stub discussionReaderStub) TaskComments(
+	context.Context, int64, vikunja.CommentQuery,
+) (vikunja.CommentPage, error) {
 	return vikunja.CommentPage{Items: stub.comments, Page: 1, PerPage: 50, TotalPages: 1}, nil
 }

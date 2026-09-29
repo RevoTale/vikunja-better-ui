@@ -57,26 +57,29 @@ func TestLatestCreationPropagatesFailure(t *testing.T) {
 }
 
 func TestLatestCreationSeparatesVariants(t *testing.T) {
-	for _, job := range []bool{false, true} {
-		for _, recurring := range []bool{false, true} {
-			task := vikunja.Task{ID: 9, CreatedBy: vikunja.User{ID: 3}}
-			if job {
-				task.Labels = []vikunja.Label{{ID: 4, Title: jobLabel}}
-			}
-			if recurring {
-				task.RepeatAfter = 86400
-			}
-			client := &reuseClient{items: []vikunja.Task{task}}
-			result, err := LatestCreatedTask(t.Context(), client, 3, job, recurring)
-			if err != nil || result == nil || result.ID != 9 {
-				t.Fatalf("result = %v, %v", result, err)
-			}
-			if !strings.Contains(client.query.Filter, "created_by_id = 3") || !strings.Contains(client.query.Filter, "labels not in 5") {
-				t.Fatalf("unsafe filter: %s", client.query.Filter)
-			}
-			if client.query.SortBy[0] != "created" || client.query.OrderBy[0] != "desc" {
-				t.Fatal("not newest first")
-			}
+	variants := []struct{ job, recurring bool }{
+		{false, false}, {false, true}, {true, false}, {true, true},
+	}
+	for _, variant := range variants {
+		job, recurring := variant.job, variant.recurring
+		task := vikunja.Task{ID: 9, CreatedBy: vikunja.User{ID: 3}}
+		if job {
+			task.Labels = []vikunja.Label{{ID: 4, Title: jobLabel}}
+		}
+		if recurring {
+			task.RepeatAfter = 86400
+		}
+		client := &reuseClient{items: []vikunja.Task{task}}
+		result, err := LatestCreatedTask(t.Context(), client, 3, job, recurring)
+		if err != nil || result == nil || result.ID != 9 {
+			t.Fatalf("result = %v, %v", result, err)
+		}
+		if !strings.Contains(client.query.Filter, "created_by_id = 3") ||
+			!strings.Contains(client.query.Filter, "labels not in 5") {
+			t.Fatalf("unsafe filter: %s", client.query.Filter)
+		}
+		if client.query.SortBy[0] != "created" || client.query.OrderBy[0] != "desc" {
+			t.Fatal("not newest first")
 		}
 	}
 }

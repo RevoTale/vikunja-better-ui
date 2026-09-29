@@ -12,6 +12,7 @@ type markerRepairClient interface {
 	AttachLabel(context.Context, int64, int64) error
 }
 
+// MarkerRepairResult retains the task and retry capability when marker repair is incomplete.
 type MarkerRepairResult struct {
 	Task       vikunja.Task
 	Complete   bool
@@ -19,6 +20,7 @@ type MarkerRepairResult struct {
 	Cause      error
 }
 
+// RepairMarker reconciles only the missing markers authorized by an unchanged task grant.
 func RepairMarker(
 	ctx context.Context,
 	client markerRepairClient,

@@ -18,19 +18,35 @@ import (
 	"unicode/utf8"
 )
 
+// ErrInvalidAvatarUsername rejects names that cannot safely address an avatar.
 var ErrInvalidAvatarUsername = errors.New("invalid avatar username")
 
 const maxAvatarBytes = 128 * 1024
+const avatarTimeout = 5 * time.Second
 
+// Avatar returns a bounded raster data URL after validating the username and image dimensions.
 func (client *Client) Avatar(ctx context.Context, username string) (result string, requestErr error) {
-	if len(username) > 255 || strings.TrimSpace(username) == "" || username == "." || username == ".." || strings.ContainsAny(username, "/\\?#%") || !utf8.ValidString(username) || strings.IndexFunc(username, unicode.IsControl) >= 0 {
+	if len(username) > 255 || strings.TrimSpace(username) == "" ||
+		username == "." ||
+		username == ".." ||
+		strings.ContainsAny(username, "/\\?#%") ||
+		!utf8.ValidString(username) ||
+		strings.IndexFunc(username, unicode.IsControl) >= 0 {
 		return "", ErrInvalidAvatarUsername
 	}
 	started := time.Now()
 	defer func() { client.logRequest(ctx, http.MethodGet, "avatar", time.Since(started), requestErr) }()
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, avatarTimeout)
 	defer cancel()
-	request, err := client.newJSONRequest(ctx, http.MethodGet, "avatar/"+url.PathEscape(username), url.Values{"size": {"64"}}, nil, "", "")
+	request, err := client.newJSONRequest(
+		ctx,
+		http.MethodGet,
+		"avatar/"+url.PathEscape(username),
+		url.Values{"size": {"64"}},
+		nil,
+		"",
+		"",
+	)
 	if err != nil {
 		return "", err
 	}
@@ -41,7 +57,7 @@ func (client *Client) Avatar(ctx context.Context, username string) (result strin
 	}
 	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode != http.StatusOK {
-		return "", &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
+		return "", &Error{Status: response.StatusCode, Code: upstreamRejected}
 	}
 	body, err := io.ReadAll(io.LimitReader(response.Body, maxAvatarBytes+1))
 	if err != nil {

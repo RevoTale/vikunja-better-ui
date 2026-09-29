@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { discussionGraphQL } from "./discussion-fixture";
 
 test("task labels support explicit reuse without overwriting typed fields", async ({ page }) => {
@@ -17,61 +17,7 @@ test("task labels support explicit reuse without overwriting typed fields", asyn
   );
   const label = taskLabels.find((item) => item.title === "work");
   expect(label).toBeDefined();
-  for (const recurring of [false, true]) {
-    const mutation = recurring
-      ? "mutation($input: CreateRecurringTaskInput!){createRecurringTask(input:$input){task{id}}}"
-      : "mutation($input: CreateOneTimeTaskInput!){createOneTimeTask(input:$input){task{id}}}";
-    const title = recurring ? "Last recurring task" : "Last ordinary task";
-    await discussionGraphQL(
-      page,
-      mutation,
-      {
-        input: {
-          csrfToken: session.csrfToken,
-          title,
-          projectId: process.env["E2E_PROJECT_ID"],
-          priority: "LOW",
-          ...(recurring
-            ? {
-                firstDueDate: "2026-10-06",
-                dueTime: "09:00",
-                interval: 1,
-                unit: "DAY",
-                mode: "FROM_COMPLETION",
-                keepDueTime: false,
-              }
-            : {}),
-        },
-      },
-      session.csrfToken,
-    );
-    const previous = await discussionGraphQL<{ taskReuseValues: { title: string } | null }>(
-      page,
-      "query($recurring:Boolean!){taskReuseValues(job:false,recurring:$recurring){title}}",
-      { recurring },
-    );
-    expect(previous.taskReuseValues?.title).toBe(title);
-    await discussionGraphQL(
-      page,
-      "mutation($input: CreateJobInput!){createJob(input:$input){task{id}}}",
-      {
-        input: {
-          csrfToken: session.csrfToken,
-          title: recurring ? "Last recurring shift" : "Last work shift",
-          projectId: process.env["E2E_PROJECT_ID"],
-          priority: "HIGH",
-          labelIds: [label?.id],
-          startAt: "2026-10-06T09:00",
-          durationMinutes: 240,
-          completionWindowMinutes: 30,
-          recurrence: recurring
-            ? { interval: 2, unit: "DAY", mode: "FROM_COMPLETION", keepDueTime: false }
-            : null,
-        },
-      },
-      session.csrfToken,
-    );
-  }
+  await seedReuseChoices(page, session.csrfToken, label?.id);
   await page.goto("/tasks/new?type=job&date=2026-10-08");
   const reused = await discussionGraphQL<{ taskReuseValues: { title: string } | null }>(
     page,
@@ -218,3 +164,61 @@ test("task reuse cancels the pending request for the previous type", async ({ pa
   await reuse.click();
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Recurring suggestion");
 });
+
+async function seedReuseChoices(page: Page, csrfToken: string, labelId: string | undefined) {
+  for (const recurring of [false, true]) {
+    const mutation = recurring
+      ? "mutation($input: CreateRecurringTaskInput!){createRecurringTask(input:$input){task{id}}}"
+      : "mutation($input: CreateOneTimeTaskInput!){createOneTimeTask(input:$input){task{id}}}";
+    const title = recurring ? "Last recurring task" : "Last ordinary task";
+    await discussionGraphQL(
+      page,
+      mutation,
+      {
+        input: {
+          csrfToken: csrfToken,
+          title,
+          projectId: process.env["E2E_PROJECT_ID"],
+          priority: "LOW",
+          ...(recurring
+            ? {
+                firstDueDate: "2026-10-06",
+                dueTime: "09:00",
+                interval: 1,
+                unit: "DAY",
+                mode: "FROM_COMPLETION",
+                keepDueTime: false,
+              }
+            : {}),
+        },
+      },
+      csrfToken,
+    );
+    const previous = await discussionGraphQL<{ taskReuseValues: { title: string } | null }>(
+      page,
+      "query($recurring:Boolean!){taskReuseValues(job:false,recurring:$recurring){title}}",
+      { recurring },
+    );
+    expect(previous.taskReuseValues?.title).toBe(title);
+    await discussionGraphQL(
+      page,
+      "mutation($input: CreateJobInput!){createJob(input:$input){task{id}}}",
+      {
+        input: {
+          csrfToken: csrfToken,
+          title: recurring ? "Last recurring shift" : "Last work shift",
+          projectId: process.env["E2E_PROJECT_ID"],
+          priority: "HIGH",
+          labelIds: [labelId],
+          startAt: "2026-10-06T09:00",
+          durationMinutes: 240,
+          completionWindowMinutes: 30,
+          recurrence: recurring
+            ? { interval: 2, unit: "DAY", mode: "FROM_COMPLETION", keepDueTime: false }
+            : null,
+        },
+      },
+      csrfToken,
+    );
+  }
+}

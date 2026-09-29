@@ -2,72 +2,13 @@ package integration
 
 import (
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
-	"slices"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 )
-
-func TestJobsHandlerRejectsUnsafeRequests(t *testing.T) {
-	t.Parallel()
-
-	handler := newTestJobsHandler(
-		t,
-		"https://vikunja.example.test",
-		func() time.Time { return time.Date(2026, time.August, 16, 12, 0, 0, 0, time.UTC) },
-	)
-	testCases := []struct {
-		name          string
-		method        string
-		target        string
-		authorization string
-		wantStatus    int
-	}{
-		{name: "post", method: http.MethodPost, target: "/integrations/v1/jobs", authorization: "Bearer tk_valid", wantStatus: http.StatusMethodNotAllowed},
-		{name: "missing token", method: http.MethodGet, target: "/integrations/v1/jobs", wantStatus: http.StatusUnauthorized},
-		{name: "wrong scheme", method: http.MethodGet, target: "/integrations/v1/jobs", authorization: "Basic abc", wantStatus: http.StatusUnauthorized},
-		{name: "empty bearer", method: http.MethodGet, target: "/integrations/v1/jobs", authorization: "Bearer ", wantStatus: http.StatusUnauthorized},
-		{name: "invalid page", method: http.MethodGet, target: "/integrations/v1/jobs?page=0", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "oversized page", method: http.MethodGet, target: "/integrations/v1/jobs?pageSize=101", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "empty label", method: http.MethodGet, target: "/integrations/v1/jobs?label=", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "malformed query", method: http.MethodGet, target: "/integrations/v1/jobs?page=1;pageSize=2", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "unknown parameter", method: http.MethodGet, target: "/integrations/v1/jobs?scope=week", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "invalid status", method: http.MethodGet, target: "/integrations/v1/jobs?status=done", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "duplicate status", method: http.MethodGet, target: "/integrations/v1/jobs?status=active&status=completed", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "active completion boundary", method: http.MethodGet, target: "/integrations/v1/jobs?completedFrom=2026-08-24T00%3A00%3A00Z", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "completed without boundaries", method: http.MethodGet, target: "/integrations/v1/jobs?status=completed", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "completed without upper boundary", method: http.MethodGet, target: "/integrations/v1/jobs?status=completed&completedFrom=2026-08-24T00%3A00%3A00Z", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "malformed completion boundary", method: http.MethodGet, target: "/integrations/v1/jobs?status=completed&completedFrom=yesterday&completedBefore=2026-08-31T00%3A00%3A00Z", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "equal completion boundaries", method: http.MethodGet, target: "/integrations/v1/jobs?status=completed&completedFrom=2026-08-24T00%3A00%3A00Z&completedBefore=2026-08-24T00%3A00%3A00Z", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "reversed completion boundaries", method: http.MethodGet, target: "/integrations/v1/jobs?status=completed&completedFrom=2026-08-31T00%3A00%3A00Z&completedBefore=2026-08-24T00%3A00%3A00Z", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "all without boundaries", method: http.MethodGet, target: "/integrations/v1/jobs?status=all", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "all invalid sort", method: http.MethodGet, target: "/integrations/v1/jobs?status=all&completedFrom=2026-08-24T00%3A00%3A00Z&completedBefore=2026-08-31T00%3A00%3A00Z&sortBy=dueAt", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "all invalid order", method: http.MethodGet, target: "/integrations/v1/jobs?status=all&completedFrom=2026-08-24T00%3A00%3A00Z&completedBefore=2026-08-31T00%3A00%3A00Z&sortOrder=newest", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "active sort", method: http.MethodGet, target: "/integrations/v1/jobs?sortBy=startAt", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-		{name: "completed sort", method: http.MethodGet, target: "/integrations/v1/jobs?status=completed&completedFrom=2026-08-24T00%3A00%3A00Z&completedBefore=2026-08-31T00%3A00%3A00Z&sortOrder=asc", authorization: "Bearer tk_valid", wantStatus: http.StatusBadRequest},
-	}
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			request := httptest.NewRequestWithContext(t.Context(), testCase.method, testCase.target, nil)
-			request.Header.Set("Authorization", testCase.authorization)
-			recorder := httptest.NewRecorder()
-			handler.ServeHTTP(recorder, request)
-			if recorder.Code != testCase.wantStatus {
-				t.Fatalf("status = %d, want %d; body = %q", recorder.Code, testCase.wantStatus, recorder.Body.String())
-			}
-			if recorder.Header().Get("Content-Type") != "application/json; charset=utf-8" {
-				t.Fatalf("content type = %q", recorder.Header().Get("Content-Type"))
-			}
-		})
-	}
-}
 
 func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 	t.Parallel()
@@ -75,7 +16,78 @@ func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 	now := time.Date(2026, time.August, 16, 12, 0, 0, 0, time.UTC)
 	dueAt := now.Add(2 * time.Hour)
 	var requestCount atomic.Int64
-	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	upstream := httptest.NewServer(filteredJobsUpstream(t, now, dueAt, &requestCount))
+	defer upstream.Close()
+	handler := newTestJobsHandler(t, upstream.URL, func() time.Time { return now })
+	request := httptest.NewRequestWithContext(
+		t.Context(), http.MethodGet, "/integrations/v1/jobs?label=dashboard&page=1&pageSize=1", nil,
+	)
+	request.Header.Set("Authorization", "Bearer tk_glance")
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d; body = %q", recorder.Code, recorder.Body.String())
+	}
+	var response struct {
+		Items      []jobSummary `json:"items"`
+		Page       int          `json:"page"`
+		PageSize   int          `json:"pageSize"`
+		TotalItems int          `json:"totalItems"`
+		TotalPages int          `json:"totalPages"`
+		HasMore    bool         `json:"hasMore"`
+		IsComplete bool         `json:"isComplete"`
+		Issues     []any        `json:"issues"`
+	}
+	body := recorder.Body.Bytes()
+	if err := json.Unmarshal(body, &response); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(body), "\"doneAt\":null") {
+		t.Fatalf("active response does not contain nullable doneAt: %q", body)
+	}
+	if len(response.Items) != 1 {
+		t.Fatalf("items = %#v", response.Items)
+	}
+	assertVisibleJob(t, response.Items[0], dueAt)
+	if response.Page != 1 || response.PageSize != 1 || response.TotalItems != 1 || response.TotalPages != 1 ||
+		response.HasMore || !response.IsComplete || len(response.Issues) != 0 {
+		t.Fatalf("page = %#v", response)
+	}
+	if got := requestCount.Load(); got != 4 {
+		t.Fatalf("upstream requests = %d, want 4", got)
+	}
+	if cacheControl := recorder.Header().Get("Cache-Control"); cacheControl != "private, no-store" {
+		t.Fatalf("cache control = %q", cacheControl)
+	}
+}
+
+type jobSummary struct {
+	ID         string     `json:"id"`
+	Title      string     `json:"title"`
+	Priority   string     `json:"priority"`
+	DueAt      *time.Time `json:"dueAt"`
+	HasDueTime bool       `json:"hasDueTime"`
+	IsOverdue  bool       `json:"isOverdue"`
+	Timezone   string     `json:"timezone"`
+	URL        string     `json:"url"`
+	Project    struct {
+		ID    string `json:"id"`
+		Title string `json:"title"`
+	} `json:"project"`
+}
+
+func assertVisibleJob(t *testing.T, item jobSummary, dueAt time.Time) {
+	t.Helper()
+	if item.ID != "2" || item.Title != "Visible job" || item.Priority != "HIGH" || item.DueAt == nil ||
+		!item.DueAt.Equal(dueAt) || !item.HasDueTime || item.IsOverdue || item.Timezone != "UTC" ||
+		item.URL != "https://tasks.example.test/tasks/2" || item.Project.ID != "7" || item.Project.Title != "Home" {
+		t.Fatalf("item = %#v", item)
+	}
+}
+
+func filteredJobsUpstream(t *testing.T, now, dueAt time.Time, requestCount *atomic.Int64) http.Handler {
+	t.Helper()
+	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		requestCount.Add(1)
 		if got := request.Header.Get("Authorization"); got != "Bearer tk_glance" {
 			t.Errorf("authorization = %q", got)
@@ -120,435 +132,5 @@ func TestJobsHandlerReturnsFilteredJobsUsingCallerToken(t *testing.T) {
 			t.Errorf("unexpected upstream path %q", request.URL.Path)
 			http.NotFound(writer, request)
 		}
-	}))
-	defer upstream.Close()
-	handler := newTestJobsHandler(t, upstream.URL, func() time.Time { return now })
-	request := httptest.NewRequestWithContext(
-		t.Context(), http.MethodGet, "/integrations/v1/jobs?label=dashboard&page=1&pageSize=1", nil,
-	)
-	request.Header.Set("Authorization", "Bearer tk_glance")
-	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, request)
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d; body = %q", recorder.Code, recorder.Body.String())
-	}
-	var response struct {
-		Items []struct {
-			ID         string     `json:"id"`
-			Title      string     `json:"title"`
-			Priority   string     `json:"priority"`
-			DueAt      *time.Time `json:"dueAt"`
-			HasDueTime bool       `json:"hasDueTime"`
-			IsOverdue  bool       `json:"isOverdue"`
-			Timezone   string     `json:"timezone"`
-			URL        string     `json:"url"`
-			Project    struct {
-				ID    string `json:"id"`
-				Title string `json:"title"`
-			} `json:"project"`
-		} `json:"items"`
-		Page       int   `json:"page"`
-		PageSize   int   `json:"pageSize"`
-		TotalItems int   `json:"totalItems"`
-		TotalPages int   `json:"totalPages"`
-		HasMore    bool  `json:"hasMore"`
-		IsComplete bool  `json:"isComplete"`
-		Issues     []any `json:"issues"`
-	}
-	body := recorder.Body.Bytes()
-	if err := json.Unmarshal(body, &response); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(body), "\"doneAt\":null") {
-		t.Fatalf("active response does not contain nullable doneAt: %q", body)
-	}
-	if len(response.Items) != 1 {
-		t.Fatalf("items = %#v", response.Items)
-	}
-	item := response.Items[0]
-	if item.ID != "2" || item.Title != "Visible job" || item.Priority != "HIGH" || item.DueAt == nil ||
-		!item.DueAt.Equal(dueAt) || !item.HasDueTime || item.IsOverdue || item.Timezone != "UTC" ||
-		item.URL != "https://tasks.example.test/tasks/2" || item.Project.ID != "7" || item.Project.Title != "Home" {
-		t.Fatalf("item = %#v", item)
-	}
-	if response.Page != 1 || response.PageSize != 1 || response.TotalItems != 1 || response.TotalPages != 1 ||
-		response.HasMore || !response.IsComplete || len(response.Issues) != 0 {
-		t.Fatalf("page = %#v", response)
-	}
-	if got := requestCount.Load(); got != 4 {
-		t.Fatalf("upstream requests = %d, want 4", got)
-	}
-	if cacheControl := recorder.Header().Get("Cache-Control"); cacheControl != "private, no-store" {
-		t.Fatalf("cache control = %q", cacheControl)
-	}
-}
-
-func TestParseJobsRequestAcceptsExplicitActiveStatus(t *testing.T) {
-	t.Parallel()
-
-	request := httptest.NewRequestWithContext(
-		t.Context(), http.MethodGet, "/integrations/v1/jobs?status=active", nil,
-	)
-	request.Header.Set("Authorization", "Bearer tk_glance")
-	input, err := parseJobsRequest(request)
-	if err != nil {
-		t.Fatalf("parseJobsRequest() error = %v", err)
-	}
-	if input.status != jobsStatusActive || !input.completedFrom.IsZero() || !input.completedBefore.IsZero() {
-		t.Fatalf("input = %#v", input)
-	}
-}
-
-func TestParseJobsRequestDefaultsUnifiedSort(t *testing.T) {
-	t.Parallel()
-
-	request := httptest.NewRequestWithContext(
-		t.Context(), http.MethodGet,
-		"/integrations/v1/jobs?status=all&completedFrom=2026-08-24T00%3A00%3A00%2B03%3A00&completedBefore=2026-08-31T00%3A00%3A00%2B03%3A00",
-		nil,
-	)
-	request.Header.Set("Authorization", "Bearer tk_glance")
-	input, err := parseJobsRequest(request)
-	if err != nil {
-		t.Fatalf("parseJobsRequest() error = %v", err)
-	}
-	if input.status != jobsStatusAll || input.sortBy != jobsSortStartAt || input.sortOrder != jobsSortAscending {
-		t.Fatalf("input = %#v", input)
-	}
-}
-
-func TestJobsHandlerReturnsCompletedJobsByCompletionTime(t *testing.T) {
-	t.Parallel()
-
-	completedAt := time.Date(2026, time.August, 28, 18, 30, 0, 0, time.FixedZone("EEST", 3*60*60))
-	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		writer.Header().Set("Content-Type", "application/json")
-		switch request.URL.Path {
-		case "/api/v2/user":
-			writeTestJSON(t, writer, map[string]any{
-				"id": 1, "username": "dashboard", "settings": map[string]any{
-					"timezone": "Europe/Kyiv", "week_start": 1, "default_project_id": 7,
-				},
-			})
-		case "/api/v2/projects":
-			writeTestPage(t, writer, []map[string]any{{"id": 7, "title": "Home"}})
-		case "/api/v2/labels":
-			writeTestPage(t, writer, []map[string]any{
-				{"id": 4, "title": "vbu:job"},
-				{"id": 8, "title": "dashboard"},
-			})
-		case "/api/v2/tasks":
-			wantFilter := "done = true && done_at >= '2026-08-24T00:00:00+03:00' && done_at < '2026-08-31T00:00:00+03:00' && labels in 4 && repeat_after = 0"
-			if filter := request.URL.Query().Get("filter"); filter != wantFilter {
-				t.Errorf("filter = %q", filter)
-			}
-			if got := request.URL.Query()["sort_by"]; !slices.Equal(got, []string{"done_at", "id"}) {
-				t.Errorf("sort_by = %v", got)
-			}
-			if got := request.URL.Query()["order_by"]; !slices.Equal(got, []string{"desc", "desc"}) {
-				t.Errorf("order_by = %v", got)
-			}
-			writeTestPage(t, writer, []map[string]any{{
-				"id": 12, "title": "Finished job", "project_id": 7, "done": true, "done_at": completedAt,
-				"labels": []map[string]any{{"id": 4, "title": "vbu:job"}, {"id": 8, "title": "dashboard"}},
-			}})
-		default:
-			t.Errorf("unexpected upstream path %q", request.URL.Path)
-			http.NotFound(writer, request)
-		}
-	}))
-	defer upstream.Close()
-
-	handler := newTestJobsHandler(t, upstream.URL, time.Now)
-	request := httptest.NewRequestWithContext(
-		t.Context(), http.MethodGet,
-		"/integrations/v1/jobs?status=completed&completedFrom=2026-08-24T00%3A00%3A00%2B03%3A00&completedBefore=2026-08-31T00%3A00%3A00%2B03%3A00&label=dashboard",
-		nil,
-	)
-	request.Header.Set("Authorization", "Bearer tk_glance")
-	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, request)
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d; body = %q", recorder.Code, recorder.Body.String())
-	}
-	var response struct {
-		Items []struct {
-			ID     string     `json:"id"`
-			DoneAt *time.Time `json:"doneAt"`
-		} `json:"items"`
-	}
-	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
-		t.Fatal(err)
-	}
-	if len(response.Items) != 1 || response.Items[0].ID != "12" || response.Items[0].DoneAt == nil ||
-		!response.Items[0].DoneAt.Equal(completedAt) {
-		t.Fatalf("items = %#v", response.Items)
-	}
-}
-
-func TestJobsHandlerReturnsUnifiedJobsWithDerivedFinishTime(t *testing.T) {
-	t.Parallel()
-
-	completedFrom := time.Date(2026, time.August, 24, 0, 0, 0, 0, time.UTC)
-	activeDueAt := completedFrom.Add(6 * 24 * time.Hour)
-	completedAt := completedFrom.Add(4 * 24 * time.Hour)
-	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		writer.Header().Set("Content-Type", "application/json")
-		switch request.URL.Path {
-		case "/api/v2/user":
-			writeTestJSON(t, writer, map[string]any{
-				"id": 1, "username": "dashboard", "settings": map[string]any{
-					"timezone": "UTC", "week_start": 1, "default_project_id": 7,
-				},
-			})
-		case "/api/v2/projects":
-			writeTestPage(t, writer, []map[string]any{{"id": 7, "title": "Home"}})
-		case "/api/v2/labels":
-			writeTestPage(t, writer, []map[string]any{{"id": 4, "title": "vbu:job"}})
-		case "/api/v2/tasks":
-			if strings.HasPrefix(request.URL.Query().Get("filter"), "done = true") {
-				writeTestPage(t, writer, []map[string]any{{
-					"id": 12, "title": "Completed", "project_id": 7, "done": true, "done_at": completedAt,
-					"due_date": completedFrom.Add(5 * 24 * time.Hour),
-					"labels":   []map[string]any{{"id": 4, "title": "vbu:job"}},
-				}})
-				return
-			}
-			writeTestPage(t, writer, []map[string]any{{
-				"id": 10, "title": "Active", "project_id": 7, "due_date": activeDueAt,
-				"labels": []map[string]any{{"id": 4, "title": "vbu:job"}},
-			}})
-		default:
-			http.NotFound(writer, request)
-		}
-	}))
-	defer upstream.Close()
-
-	handler := newTestJobsHandler(t, upstream.URL, func() time.Time { return completedFrom })
-	request := httptest.NewRequestWithContext(
-		t.Context(), http.MethodGet,
-		"/integrations/v1/jobs?status=all&completedFrom=2026-08-24T00%3A00%3A00Z&completedBefore=2026-08-31T00%3A00%3A00Z&sortBy=finishAt&sortOrder=desc",
-		nil,
-	)
-	request.Header.Set("Authorization", "Bearer tk_glance")
-	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, request)
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d; body = %q", recorder.Code, recorder.Body.String())
-	}
-	var response struct {
-		Items []struct {
-			ID       string     `json:"id"`
-			DueAt    *time.Time `json:"dueAt"`
-			DoneAt   *time.Time `json:"doneAt"`
-			FinishAt *time.Time `json:"finishAt"`
-		} `json:"items"`
-	}
-	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
-		t.Fatal(err)
-	}
-	if len(response.Items) != 2 || response.Items[0].ID != "10" || response.Items[1].ID != "12" {
-		t.Fatalf("items = %#v", response.Items)
-	}
-	if response.Items[0].FinishAt == nil || !response.Items[0].FinishAt.Equal(activeDueAt) ||
-		response.Items[1].FinishAt == nil || !response.Items[1].FinishAt.Equal(completedAt) {
-		t.Fatalf("items = %#v", response.Items)
-	}
-}
-
-func TestJobsHandlerDoesNotWaitForProjectsBeforeLoadingTasks(t *testing.T) {
-	t.Parallel()
-
-	started := make(chan string, 4)
-	releaseProjects := make(chan struct{})
-	var releaseOnce sync.Once
-	releaseCalls := func() { releaseOnce.Do(func() { close(releaseProjects) }) }
-	defer releaseCalls()
-
-	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		writer.Header().Set("Content-Type", "application/json")
-		switch request.URL.Path {
-		case "/api/v2/user":
-			started <- "user"
-			writeTestJSON(t, writer, map[string]any{
-				"id": 1, "username": "dashboard", "settings": map[string]any{"timezone": "UTC", "week_start": 1},
-			})
-		case "/api/v2/projects":
-			started <- "projects"
-			<-releaseProjects
-			writeTestPage(t, writer, []map[string]any{{"id": 7, "title": "Home"}})
-		case "/api/v2/labels":
-			started <- "labels"
-			writeTestPage(t, writer, []map[string]any{{"id": 4, "title": "vbu:job"}})
-		case "/api/v2/tasks":
-			started <- "tasks"
-			writeTestJSON(t, writer, map[string]any{
-				"items": []map[string]any{}, "total": 0, "page": 1, "per_page": 1000, "total_pages": 0,
-			})
-		default:
-			http.NotFound(writer, request)
-		}
-	}))
-	defer upstream.Close()
-
-	handler := newTestJobsHandler(t, upstream.URL, time.Now)
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/integrations/v1/jobs", nil)
-	request.Header.Set("Authorization", "Bearer tk_glance")
-	recorder := httptest.NewRecorder()
-	done := make(chan struct{})
-	go func() {
-		handler.ServeHTTP(recorder, request)
-		close(done)
-	}()
-
-	seen := make(map[string]bool, 4)
-	timer := time.NewTimer(200 * time.Millisecond)
-	for !seen["user"] || !seen["projects"] || !seen["labels"] {
-		select {
-		case name := <-started:
-			seen[name] = true
-		case <-timer.C:
-			releaseCalls()
-			<-done
-			t.Fatalf("metadata calls did not overlap: started = %v", seen)
-		}
-	}
-	if !timer.Stop() {
-		select {
-		case <-timer.C:
-		default:
-		}
-	}
-	if !seen["tasks"] {
-		select {
-		case name := <-started:
-			seen[name] = true
-		case <-time.After(200 * time.Millisecond):
-			releaseCalls()
-			<-done
-			t.Fatalf("tasks waited for projects: started = %v", seen)
-		}
-	}
-	releaseCalls()
-	<-done
-
-	if !seen["tasks"] {
-		t.Fatalf("tasks did not start while projects were loading: started = %v", seen)
-	}
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d; body = %q", recorder.Code, recorder.Body.String())
-	}
-}
-
-func TestJobsHandlerMapsVikunjaAuthorizationErrors(t *testing.T) {
-	t.Parallel()
-
-	testCases := []struct {
-		name           string
-		upstreamStatus int
-		wantStatus     int
-		wantCode       string
-	}{
-		{name: "invalid token", upstreamStatus: http.StatusUnauthorized, wantStatus: http.StatusUnauthorized, wantCode: "UNAUTHENTICATED"},
-		{name: "insufficient permissions", upstreamStatus: http.StatusForbidden, wantStatus: http.StatusForbidden, wantCode: "FORBIDDEN"},
-	}
-	for _, testCase := range testCases {
-		t.Run(testCase.name, func(t *testing.T) {
-			t.Parallel()
-			upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-				writer.WriteHeader(testCase.upstreamStatus)
-			}))
-			defer upstream.Close()
-			handler := newTestJobsHandler(t, upstream.URL, time.Now)
-			request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/integrations/v1/jobs", nil)
-			request.Header.Set("Authorization", "Bearer tk_not_in_response")
-			recorder := httptest.NewRecorder()
-			handler.ServeHTTP(recorder, request)
-			if recorder.Code != testCase.wantStatus {
-				t.Fatalf("status = %d, want %d", recorder.Code, testCase.wantStatus)
-			}
-			body := recorder.Body.String()
-			var response errorResponse
-			if err := json.Unmarshal([]byte(body), &response); err != nil {
-				t.Fatal(err)
-			}
-			if response.Error.Code != testCase.wantCode {
-				t.Fatalf("error = %#v", response.Error)
-			}
-			if strings.Contains(body, "tk_not_in_response") {
-				t.Fatal("response exposed the Vikunja token")
-			}
-		})
-	}
-}
-
-func TestJobsHandlerReturnsEmptyPageForUnknownLabel(t *testing.T) {
-	t.Parallel()
-
-	var requestCount atomic.Int64
-	upstream := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		requestCount.Add(1)
-		writer.Header().Set("Content-Type", "application/json")
-		switch request.URL.Path {
-		case "/api/v2/user":
-			writeTestJSON(t, writer, map[string]any{
-				"id": 1, "username": "dashboard",
-				"settings": map[string]any{"timezone": "UTC", "week_start": 1},
-			})
-		case "/api/v2/projects":
-			writeTestPage(t, writer, []map[string]any{{"id": 7, "title": "Home"}})
-		case "/api/v2/labels":
-			writeTestPage(t, writer, []map[string]any{{"id": 4, "title": "vbu:job"}})
-		default:
-			t.Errorf("unexpected upstream path %q", request.URL.Path)
-			http.NotFound(writer, request)
-		}
-	}))
-	defer upstream.Close()
-	handler := newTestJobsHandler(t, upstream.URL, time.Now)
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/integrations/v1/jobs?label=missing", nil)
-	request.Header.Set("Authorization", "Bearer tk_glance")
-	recorder := httptest.NewRecorder()
-	handler.ServeHTTP(recorder, request)
-	if recorder.Code != http.StatusOK {
-		t.Fatalf("status = %d; body = %q", recorder.Code, recorder.Body.String())
-	}
-	var response jobsResponse
-	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
-		t.Fatal(err)
-	}
-	if len(response.Items) != 0 || response.TotalItems != 0 || !response.IsComplete {
-		t.Fatalf("response = %#v", response)
-	}
-	if got := requestCount.Load(); got != 3 {
-		t.Fatalf("upstream requests = %d, want 3", got)
-	}
-}
-
-func writeTestPage(t *testing.T, writer http.ResponseWriter, items []map[string]any) {
-	t.Helper()
-	writeTestJSON(t, writer, map[string]any{
-		"items": items, "total": len(items), "page": 1, "per_page": 1000, "total_pages": 1,
 	})
-}
-
-func writeTestJSON(t *testing.T, writer http.ResponseWriter, value any) {
-	t.Helper()
-	if err := json.NewEncoder(writer).Encode(value); err != nil {
-		t.Error(err)
-	}
-}
-
-func newTestJobsHandler(t *testing.T, upstream string, now func() time.Time) http.Handler {
-	t.Helper()
-	upstreamURL, err := url.Parse(upstream)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return NewJobsHandler(
-		upstreamURL,
-		&url.URL{Scheme: "https", Host: "tasks.example.test"},
-		slog.New(slog.DiscardHandler),
-		now,
-	)
 }

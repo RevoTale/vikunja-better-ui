@@ -15,24 +15,45 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
+const (
+	audioMP4Type  = "audio/mp4"
+	audioWebMType = "audio/webm"
+	videoMP4Type  = "video/mp4"
+	videoWebMType = "video/webm"
+)
+
+// MaxMediaBytes bounds each accepted upload to 20 MiB.
 const MaxMediaBytes int64 = 20 << 20
 
+// ErrInvalidMedia rejects unsafe, unrecognized, oversized, or malformed uploads.
 var ErrInvalidMedia = errors.New("media must be a supported image, audio or video file, at most 20 MiB")
 
+// MediaUploader stores a validated file as a native task attachment.
 type MediaUploader interface {
 	UploadTaskAttachment(context.Context, int64, string, io.Reader) (vikunja.TaskAttachment, error)
 }
 
+// InlineMediaType accepts only the supported passive image/audio/video formats.
 func InlineMediaType(mime string) bool {
 	switch mime {
-	case "image/png", "image/jpeg", "image/gif", "image/webp", "audio/mpeg", "audio/wave", "audio/wav", "audio/x-wav", "audio/ogg", "application/ogg", "audio/flac", "audio/mp4", "audio/webm", "video/mp4", "video/webm", "video/ogg":
+	case "image/png", "image/jpeg", "image/gif", "image/webp",
+		"audio/mpeg", "audio/wave", "audio/wav", "audio/x-wav", "audio/ogg", "application/ogg",
+		"audio/flac", audioMP4Type, audioWebMType, videoMP4Type, videoWebMType, "video/ogg":
 		return true
 	default:
 		return false
 	}
 }
 
-func UploadTaskMedia(ctx context.Context, uploader MediaUploader, taskID int64, name, declaredType string, size int64, file io.ReadSeeker) (vikunja.TaskAttachment, error) {
+// UploadTaskMedia validates size, filename, and signature before streaming to Vikunja.
+func UploadTaskMedia(
+	ctx context.Context,
+	uploader MediaUploader,
+	taskID int64,
+	name, declaredType string,
+	size int64,
+	file io.ReadSeeker,
+) (vikunja.TaskAttachment, error) {
 	if taskID <= 0 || size <= 0 || size > MaxMediaBytes || !validMediaFilename(name) || file == nil {
 		return vikunja.TaskAttachment{}, ErrInvalidMedia
 	}
@@ -72,7 +93,7 @@ func MediaContentType(head []byte, declaredType string) string {
 	case mpegFrameHeader(head):
 		detected = "audio/mpeg"
 	case audioMP4Header(head):
-		detected = "audio/mp4"
+		detected = audioMP4Type
 	}
 	if !InlineMediaType(detected) {
 		return ""
@@ -93,14 +114,14 @@ func AttachmentMediaType(value, filename string) string {
 	}
 	switch mediaType {
 	case "audio/x-m4a", "audio/x-mp4a":
-		return "audio/mp4"
-	case "video/mp4":
+		return audioMP4Type
+	case videoMP4Type:
 		if strings.EqualFold(path.Ext(filename), ".m4a") {
-			return "audio/mp4"
+			return audioMP4Type
 		}
-	case "video/webm":
+	case videoWebMType:
 		if strings.EqualFold(path.Ext(filename), ".weba") {
-			return "audio/webm"
+			return audioWebMType
 		}
 	}
 	return mediaType
@@ -111,10 +132,10 @@ func compatibleMediaType(detected, declared string) bool {
 		return true
 	}
 	switch detected {
-	case "video/mp4":
-		return declared == "audio/mp4"
-	case "video/webm":
-		return declared == "audio/webm"
+	case videoMP4Type:
+		return declared == audioMP4Type
+	case videoWebMType:
+		return declared == audioWebMType
 	case "application/ogg":
 		return declared == "audio/ogg" || declared == "video/ogg"
 	case "audio/wave":
@@ -158,5 +179,7 @@ func audioMP4Header(head []byte) bool {
 }
 
 func validMediaFilename(name string) bool {
-	return name != "" && len(name) <= 255 && !strings.ContainsAny(name, "/\\") && strings.IndexFunc(name, unicode.IsControl) == -1
+	return name != "" && len(name) <= 255 &&
+		!strings.ContainsAny(name, "/\\") &&
+		strings.IndexFunc(name, unicode.IsControl) == -1
 }

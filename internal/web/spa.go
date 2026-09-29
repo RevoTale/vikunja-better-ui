@@ -20,6 +20,7 @@ const (
 //go:embed all:assets
 var embeddedAssets embed.FS
 
+// SPAHandler serves embedded assets and falls back to the app shell for client routes.
 func SPAHandler() http.Handler {
 	assets, err := fs.Sub(embeddedAssets, "assets/dist")
 	if err != nil {

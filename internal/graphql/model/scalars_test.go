@@ -26,19 +26,7 @@ func TestLocalDateUnmarshalGQL(t *testing.T) {
 
 			var got LocalDate
 			err := got.UnmarshalGQL(test.value)
-			if test.wantErr {
-				if err == nil {
-					t.Fatal("UnmarshalGQL() error = nil, want error")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("UnmarshalGQL() error = %v", err)
-			}
-			if got != test.want {
-				t.Fatalf("UnmarshalGQL() = %q, want %q", got, test.want)
-			}
+			assertLocalScalar(t, string(got), string(test.want), err, test.wantErr)
 		})
 	}
 }
@@ -64,19 +52,7 @@ func TestLocalTimeUnmarshalGQL(t *testing.T) {
 
 			var got LocalTime
 			err := got.UnmarshalGQL(test.value)
-			if test.wantErr {
-				if err == nil {
-					t.Fatal("UnmarshalGQL() error = nil, want error")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("UnmarshalGQL() error = %v", err)
-			}
-			if got != test.want {
-				t.Fatalf("UnmarshalGQL() = %q, want %q", got, test.want)
-			}
+			assertLocalScalar(t, string(got), string(test.want), err, test.wantErr)
 		})
 	}
 }
@@ -102,19 +78,7 @@ func TestLocalDateTimeUnmarshalGQL(t *testing.T) {
 
 			var got LocalDateTime
 			err := got.UnmarshalGQL(test.value)
-			if test.wantErr {
-				if err == nil {
-					t.Fatal("UnmarshalGQL() error = nil, want error")
-				}
-				return
-			}
-
-			if err != nil {
-				t.Fatalf("UnmarshalGQL() error = %v", err)
-			}
-			if got != test.want {
-				t.Fatalf("UnmarshalGQL() = %q, want %q", got, test.want)
-			}
+			assertLocalScalar(t, string(got), string(test.want), err, test.wantErr)
 		})
 	}
 }
@@ -160,5 +124,21 @@ func TestLocalScalarsMarshalGQL(t *testing.T) {
 				t.Fatalf("MarshalGQL() = %q, want %q", got, test.want)
 			}
 		})
+	}
+}
+
+func assertLocalScalar(t *testing.T, got, want string, err error, wantErr bool) {
+	t.Helper()
+	if wantErr {
+		if err == nil {
+			t.Fatal("UnmarshalGQL() error = nil, want error")
+		}
+		return
+	}
+	if err != nil {
+		t.Fatalf("UnmarshalGQL() error = %v", err)
+	}
+	if got != want {
+		t.Fatalf("UnmarshalGQL() = %q, want %q", got, want)
 	}
 }

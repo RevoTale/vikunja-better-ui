@@ -123,7 +123,7 @@ func withTaskActionContext(
 		},
 	))
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://app.test/graphql", nil)
-	request.Header.Set("X-CSRF-Token", sessions.CSRFToken(session))
+	request.Header.Set("X-Csrf-Token", sessions.CSRFToken(session))
 	request.AddCookie(cookie)
 	handler.ServeHTTP(httptest.NewRecorder(), request)
 }

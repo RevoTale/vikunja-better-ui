@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 
 test("discussion supports stable initial loading and retained comments during sorting", async ({
@@ -79,25 +79,7 @@ test("discussion supports stable initial loading and retained comments during so
   );
   await expect(page.getByRole("article")).toHaveCount(2);
   await page.getByRole("button", { name: "Restore draft", exact: true }).click();
-  await page.unrouteAll({ behavior: "wait" });
-  await page.route("**/graphql", async (route) => {
-    if (route.request().postDataJSON()?.operationName !== "DiscussionComments")
-      return route.continue();
-    await route.fulfill({ json: { data: null, errors: [{ message: "Fresh read failed" }] } });
-  });
-  await page.getByRole("button", { name: /^Refresh/ }).click();
-  await expect(page.getByRole("alert")).toContainText("previous successful load");
-  await expect(page.getByRole("article")).toHaveCount(2);
-  await expect(editor).toHaveText("Draft survives delayed reads");
-  await page.unrouteAll({ behavior: "wait" });
-  await page.getByRole("combobox", { name: "Sort comments" }).click();
-  await page.getByRole("option", { name: "Newest first", exact: true }).click();
-  await expect(page.getByRole("region", { name: "Comments", exact: true })).toHaveAttribute(
-    "aria-busy",
-    "false",
-  );
-  await expect(page.getByRole("alert")).toHaveCount(0);
-  await expect(editor).toHaveText("Draft survives delayed reads");
+  await expectDiscussionReadRecovery(page);
 });
 
 test("discussion supports a timezone skeleton without shifting the brand", async ({ page }) => {
@@ -121,3 +103,26 @@ test("discussion supports a timezone skeleton without shifting the brand", async
   expect(after?.height).toBe(before?.height);
   await expect(timezone.getByRole("status")).toHaveCount(0);
 });
+
+async function expectDiscussionReadRecovery(page: Page) {
+  const editor = page.getByRole("textbox", { name: "Comment", exact: true });
+  await page.unrouteAll({ behavior: "wait" });
+  await page.route("**/graphql", async (route) => {
+    if (route.request().postDataJSON()?.operationName !== "DiscussionComments")
+      return route.continue();
+    await route.fulfill({ json: { data: null, errors: [{ message: "Fresh read failed" }] } });
+  });
+  await page.getByRole("button", { name: /^Refresh/ }).click();
+  await expect(page.getByRole("alert")).toContainText("previous successful load");
+  await expect(page.getByRole("article")).toHaveCount(2);
+  await expect(editor).toHaveText("Draft survives delayed reads");
+  await page.unrouteAll({ behavior: "wait" });
+  await page.getByRole("combobox", { name: "Sort comments" }).click();
+  await page.getByRole("option", { name: "Newest first", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Comments", exact: true })).toHaveAttribute(
+    "aria-busy",
+    "false",
+  );
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(editor).toHaveText("Draft survives delayed reads");
+}

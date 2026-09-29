@@ -12,6 +12,7 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
+// WeekRequest selects a local calendar week and optional project filter.
 type WeekRequest struct {
 	Containing time.Time
 	Now        time.Time
@@ -21,6 +22,7 @@ type WeekRequest struct {
 	ProjectID  *int64
 }
 
+// WeekProjection is a computed occurrence, not a persisted upstream task.
 type WeekProjection struct {
 	Source     TaskListItem
 	StartAt    time.Time
@@ -29,12 +31,14 @@ type WeekProjection struct {
 	HasDueTime bool
 }
 
+// WeekDay separates real tasks from computed occurrences on one local date.
 type WeekDay struct {
 	Date        time.Time
 	Items       []TaskListItem
 	Projections []WeekProjection
 }
 
+// WeekResult retains calendar bounds even when loading cannot complete.
 type WeekResult struct {
 	Start      time.Time
 	End        time.Time
@@ -43,6 +47,7 @@ type WeekResult struct {
 	Issue      *ListIssue
 }
 
+// ListWeek fetches bounded fresh candidates before computing deterministic occurrences.
 func ListWeek(ctx context.Context, client taskListClient, request WeekRequest) (WeekResult, error) {
 	if request.Location == nil || request.Timezone == "" {
 		return WeekResult{}, errors.New("timezone is required")
@@ -76,6 +81,7 @@ func ListWeek(ctx context.Context, client taskListClient, request WeekRequest) (
 	return buildWeekView(request, taskGroups...), nil
 }
 
+// BuildWeekView groups supplied tasks and deterministic projections by local day.
 func BuildWeekView(tasks []vikunja.Task, request WeekRequest) WeekResult {
 	return buildWeekView(request, tasks)
 }
@@ -161,7 +167,7 @@ func weekTaskQuery(request WeekRequest, start time.Time, end time.Time) vikunja.
 	includeNulls := false
 	return vikunja.TaskQuery{
 		IncludeCommentCount: true,
-		Page:                1, PerPage: 1000, Filter: strings.Join(filterParts, " && "),
+		Page:                1, PerPage: upstreamTaskPageSize, Filter: strings.Join(filterParts, " && "),
 		FilterTimezone: request.Timezone, FilterIncludeNulls: &includeNulls,
 	}
 }
@@ -185,13 +191,13 @@ func weekRange(containing time.Time, location *time.Location, weekStart time.Wee
 	}
 	local := containing.In(location)
 	day := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, location)
-	daysSinceStart := (int(day.Weekday()) - int(weekStart) + 7) % 7
+	daysSinceStart := (int(day.Weekday()) - int(weekStart) + daysPerWeek) % daysPerWeek
 	start := day.AddDate(0, 0, -daysSinceStart)
-	return start, start.AddDate(0, 0, 7)
+	return start, start.AddDate(0, 0, daysPerWeek)
 }
 
 func makeWeekDays(start time.Time) []WeekDay {
-	days := make([]WeekDay, 7)
+	days := make([]WeekDay, daysPerWeek)
 	for index := range days {
 		days[index].Date = start.AddDate(0, 0, index)
 	}
@@ -210,7 +216,8 @@ func appendWeekProjections(
 		return
 	}
 
-	for due := firstProjectedDue(*task, result.Start); !due.IsZero() && due.Before(result.End); due = nextProjectedDue(*task, due) {
+	due := firstProjectedDue(*task, result.Start)
+	for ; !due.IsZero() && due.Before(result.End); due = nextProjectedDue(*task, due) {
 		if due.Before(now) {
 			continue
 		}

@@ -1,11 +1,11 @@
 import { SaveIcon, SendIcon, XIcon } from "lucide-react";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { CommentBody } from "./comment-body";
 import { EditorLoading } from "./discussion-loading";
-import { draftKey, draftStorage, loadDraft, saveDraft } from "./draft";
 import { DraftRecovery } from "./draft-recovery";
-import { cleanComment, hasCommentContent, maxCommentBytes, splitReply } from "./html";
+import { hasCommentContent, maxCommentBytes } from "./html";
+import { useCommentDraft } from "./use-comment-draft";
 import { useCommentSave } from "./use-comment-save";
 
 const DiscussionEditor = lazy(() =>
@@ -31,49 +31,20 @@ export function CommentComposer({
   onSaved: () => void;
   onCancel?: () => void;
 }) {
-  const key = draftKey(taskId, authorId, commentId);
-  const [recovered, setRecovered] = useState(() => loadDraft(draftStorage(), key));
-  const [content, setContent] = useState(() => splitReply(initialHtml));
-  const [editorInitial, setEditorInitial] = useState(content.body);
-  const [epoch, setEpoch] = useState(0);
-  const [dirty, setDirty] = useState(false);
+  const draft = useCommentDraft({ taskId, authorId, commentId, initialHtml, reply });
+  const { root, recovered, content, editorInitial, epoch, dirty, stored, bodyHtml } = draft;
   const [notice, setNotice] = useState("");
-  const [stored, setStored] = useState(true);
   const [uploading, setUploading] = useState(false);
   const { save, error, uncertain, pending, allowRetry } = useCommentSave();
-  const root = useRef<HTMLElement>(null);
-  const bodyHtml = cleanComment(content.quote + content.body);
   const tooLong = new TextEncoder().encode(bodyHtml).length > maxCommentBytes;
   const SubmitIcon = commentId ? SaveIcon : SendIcon;
   const submitLabel = commentId ? "Save comment" : "Post comment";
-
-  useEffect(() => {
-    if (!reply) return;
-    setContent((previous) => ({ ...previous, quote: reply.quote }));
-    setDirty(true);
-    root.current?.querySelector<HTMLElement>("[contenteditable=true]")?.focus();
-  }, [reply]);
-
-  useEffect(() => {
-    if (dirty)
-      setStored(saveDraft(draftStorage(), key, hasCommentContent(bodyHtml) ? bodyHtml : ""));
-  }, [bodyHtml, dirty, key]);
-
-  function reset(html: string) {
-    const next = splitReply(html);
-    setContent(next);
-    setEditorInitial(next.body);
-    setEpoch((value) => value + 1);
-  }
 
   async function submit() {
     if (uploading || tooLong || !hasCommentContent(content.body)) return;
     setNotice("");
     if (await save({ csrfToken, taskId, bodyHtml }, commentId)) {
-      saveDraft(draftStorage(), key, "");
-      setDirty(false);
-      setRecovered("");
-      reset("");
+      draft.clear();
       setNotice(commentId ? "Comment updated." : "Comment posted.");
       onSaved();
     }
@@ -90,16 +61,10 @@ export function CommentComposer({
           dirty={dirty}
           disabled={pending || uploading}
           onRestore={() => {
-            reset(recovered);
-            setDirty(true);
-            setRecovered("");
+            draft.restore();
             setNotice("Draft restored from this browser.");
           }}
-          onDismiss={() => {
-            if (!dirty && !saveDraft(draftStorage(), key, "")) return false;
-            setRecovered("");
-            return true;
-          }}
+          onDismiss={draft.dismiss}
         />
       ) : null}
       {content.quote ? (
@@ -110,10 +75,7 @@ export function CommentComposer({
             variant="ghost"
             className="min-h-11"
             disabled={pending}
-            onClick={() => {
-              setContent({ ...content, quote: "" });
-              setDirty(true);
-            }}
+            onClick={draft.cancelReply}
           >
             <XIcon aria-hidden="true" className="size-4" />
             Cancel reply
@@ -130,12 +92,59 @@ export function CommentComposer({
           label={commentId ? "Edit comment" : "Comment"}
           disabled={pending}
           focusOnMount={Boolean(commentId) || epoch > 0}
-          onChange={(body) => {
-            setContent((previous) => ({ ...previous, body }));
-            setDirty(true);
-          }}
+          onChange={draft.changeBody}
         />
       </Suspense>
+      <CommentSaveFeedback
+        tooLong={tooLong}
+        bodyHtml={bodyHtml}
+        stored={stored}
+        error={error}
+        uncertain={uncertain}
+        allowRetry={allowRetry}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button
+          className="min-h-11"
+          disabled={
+            pending || uploading || uncertain || tooLong || !hasCommentContent(content.body)
+          }
+          onClick={submit}
+        >
+          <SubmitIcon aria-hidden="true" className="size-4" />
+          {pending ? "Saving…" : submitLabel}
+        </Button>
+        {onCancel ? (
+          <Button variant="outline" className="min-h-11" disabled={pending} onClick={onCancel}>
+            <XIcon aria-hidden="true" className="size-4" />
+            Cancel edit
+          </Button>
+        ) : null}
+      </div>
+      <p role="status" className="text-sm text-muted-foreground">
+        {notice || (dirty && stored ? "Draft saved in this browser." : "")}
+      </p>
+    </section>
+  );
+}
+
+function CommentSaveFeedback({
+  tooLong,
+  bodyHtml,
+  stored,
+  error,
+  uncertain,
+  allowRetry,
+}: {
+  tooLong: boolean;
+  bodyHtml: string;
+  stored: boolean;
+  error: string;
+  uncertain: boolean;
+  allowRetry: () => void;
+}) {
+  return (
+    <>
       {tooLong ? (
         <p role="alert" className="text-sm text-destructive">
           Comment exceeds the 100 KB limit.
@@ -166,27 +175,6 @@ export function CommentComposer({
           </Button>
         </div>
       ) : null}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          className="min-h-11"
-          disabled={
-            pending || uploading || uncertain || tooLong || !hasCommentContent(content.body)
-          }
-          onClick={submit}
-        >
-          <SubmitIcon aria-hidden="true" className="size-4" />
-          {pending ? "Saving…" : submitLabel}
-        </Button>
-        {onCancel ? (
-          <Button variant="outline" className="min-h-11" disabled={pending} onClick={onCancel}>
-            <XIcon aria-hidden="true" className="size-4" />
-            Cancel edit
-          </Button>
-        ) : null}
-      </div>
-      <p role="status" className="text-sm text-muted-foreground">
-        {notice || (dirty && stored ? "Draft saved in this browser." : "")}
-      </p>
-    </section>
+    </>
   );
 }

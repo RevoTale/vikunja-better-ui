@@ -73,9 +73,15 @@ func editClientError(resolver *Resolver, err error) error {
 		return clientError("FORBIDDEN", "The task project is not accessible.")
 	case errors.Is(err, service.ErrEditPartial):
 		resolver.logError("edit task metadata", err)
-		return clientError("EDIT_PARTIAL", "Some changes may have been saved, but the update could not be confirmed. Reload the task before editing again.")
+		return clientError(
+			"EDIT_PARTIAL",
+			"Some changes may have been saved, but the update could not be confirmed. Reload the task before editing again.",
+		)
 	case errors.Is(err, vikunja.ErrConditionFailed):
-		return clientError("CONFLICT", "The task changed since you opened it. Your input is preserved. Reload the task before saving again.")
+		return clientError(
+			"CONFLICT",
+			"The task changed since you opened it. Your input is preserved. Reload the task before saving again.",
+		)
 	default:
 		resolver.logError("edit task", err)
 		return upstreamClientError(err, "The update could not be confirmed. Reload the task before retrying.")

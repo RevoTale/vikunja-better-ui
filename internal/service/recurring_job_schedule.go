@@ -69,7 +69,7 @@ func nextRecurringJobStart(
 			start = next
 		}
 		return start, nil
-	case 2:
+	case vikunja.RepeatModeFromCompletion:
 		if ClassifyTask(before).FixedDueTime {
 			return resolveCompletionDateDueTime(completedAt, before.StartDate, before.RepeatAfter, location)
 		}

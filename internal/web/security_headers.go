@@ -9,6 +9,7 @@ import (
 
 type cspNonceContextKey struct{}
 
+// SecurityHeaders installs a per-request CSP nonce and browser security policies.
 func SecurityHeaders(production bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -17,7 +18,11 @@ func SecurityHeaders(production bool) func(http.Handler) http.Handler {
 				http.Error(writer, "security policy unavailable", http.StatusInternalServerError)
 				return
 			}
-			writer.Header().Set("Content-Security-Policy", "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'nonce-"+nonce+"'; style-src-attr 'unsafe-inline'; script-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+			writer.Header().Set("Content-Security-Policy",
+				"default-src 'self'; connect-src 'self'; img-src 'self' data:; "+
+					"style-src 'self' 'unsafe-inline'; style-src-elem 'self' 'nonce-"+nonce+"'; "+
+					"style-src-attr 'unsafe-inline'; script-src 'self'; base-uri 'none'; "+
+					"form-action 'self'; frame-ancestors 'none'")
 			writer.Header().Set("Referrer-Policy", "no-referrer")
 			writer.Header().Set("X-Content-Type-Options", "nosniff")
 			writer.Header().Set("X-Frame-Options", "DENY")
@@ -30,7 +35,8 @@ func SecurityHeaders(production bool) func(http.Handler) http.Handler {
 }
 
 func newCSPNonce() (string, error) {
-	value := make([]byte, 16)
+	const nonceBytes = 16
+	value := make([]byte, nonceBytes)
 	if _, err := rand.Read(value); err != nil {
 		return "", err
 	}

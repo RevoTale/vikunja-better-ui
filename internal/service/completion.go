@@ -9,6 +9,7 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
+// Completion errors distinguish workflow changes from invalid or changed task state.
 var (
 	ErrTaskKindMismatch  = errors.New("task kind no longer matches the requested action")
 	ErrTaskStateChanged  = errors.New("task changed since the action was authorized")
@@ -20,12 +21,14 @@ type completionClient interface {
 	PatchTaskChecked(context.Context, int64, vikunja.TaskPatch, vikunja.TaskCheck) (vikunja.Task, error)
 }
 
+// NonRecurringCompletion includes a short-lived, state-bound undo capability.
 type NonRecurringCompletion struct {
 	Task           vikunja.Task
 	UndoCapability string
 	UndoUntil      time.Time
 }
 
+// CompleteNonRecurring checks the task kind and confirms completion before issuing Undo.
 func CompleteNonRecurring(
 	ctx context.Context,
 	client completionClient,
@@ -50,7 +53,12 @@ func CompleteNonRecurring(
 	}
 
 	done := true
-	if _, err := client.PatchTaskChecked(ctx, taskID, vikunja.TaskPatch{Done: &done}, vikunja.TaskCheck{Done: new(false)}); err != nil {
+	if _, err := client.PatchTaskChecked(
+		ctx,
+		taskID,
+		vikunja.TaskPatch{Done: &done},
+		vikunja.TaskCheck{Done: new(false)},
+	); err != nil {
 		return NonRecurringCompletion{}, taskPatchError(err)
 	}
 	completed, completedMetadata, err := client.Task(ctx, taskID)
@@ -71,6 +79,7 @@ func CompleteNonRecurring(
 	return NonRecurringCompletion{Task: completed, UndoCapability: capability, UndoUntil: undoUntil}, nil
 }
 
+// UndoNonRecurring reopens only the unchanged task authorized by the session-bound grant.
 func UndoNonRecurring(
 	ctx context.Context,
 	client completionClient,

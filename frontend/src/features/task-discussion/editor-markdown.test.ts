@@ -61,7 +61,9 @@ describe("discussion code fence normalization", () => {
       );
     },
   );
+});
 
+describe("code fence normalization safety", () => {
   it.each(["`inline`", "prefix ```", "```js more text", "not a fence"])(
     "leaves ordinary soft lines unchanged: %s",
     (value) => {

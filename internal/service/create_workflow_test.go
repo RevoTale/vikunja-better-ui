@@ -36,7 +36,13 @@ func TestCreateTaskWithMarkerReturnsCreatedTaskForRepair(t *testing.T) {
 		created:          vikunja.Task{ID: 11, ProjectID: 7, Title: "Pay bill"},
 		attachErrByLabel: map[int64]error{3: wantErr},
 	}
-	result, err := CreateTaskWithMarker(context.Background(), client, 7, vikunja.TaskWrite{Title: "Pay bill"}, dateOnlyLabel)
+	result, err := CreateTaskWithMarker(
+		context.Background(),
+		client,
+		7,
+		vikunja.TaskWrite{Title: "Pay bill"},
+		dateOnlyLabel,
+	)
 	if err != nil {
 		t.Fatalf("CreateTaskWithMarker() error = %v", err)
 	}

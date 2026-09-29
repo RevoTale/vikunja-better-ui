@@ -15,7 +15,9 @@ import (
 )
 
 // CreateTaskComment is the resolver for the createTaskComment field.
-func (r *mutationResolver) CreateTaskComment(ctx context.Context, input model.CreateTaskCommentInput) (*model.TaskComment, error) {
+func (r *mutationResolver) CreateTaskComment(
+	ctx context.Context, input model.CreateTaskCommentInput,
+) (*model.TaskComment, error) {
 	if _, err := r.requireCSRF(ctx, input.CsrfToken); err != nil {
 		return nil, err
 	}
@@ -29,13 +31,18 @@ func (r *mutationResolver) CreateTaskComment(ctx context.Context, input model.Cr
 	}
 	comment, err := r.comments.CreateTaskComment(ctx, taskID, write)
 	if err != nil {
-		return nil, r.discussionError(err, "The comment could not be confirmed. Refresh the discussion before retrying to avoid duplicates.")
+		return nil, r.discussionError(
+			err,
+			"The comment could not be confirmed. Refresh the discussion before retrying to avoid duplicates.",
+		)
 	}
 	return savedCommentModel(comment), nil
 }
 
 // UpdateTaskComment is the resolver for the updateTaskComment field.
-func (r *mutationResolver) UpdateTaskComment(ctx context.Context, input model.UpdateTaskCommentInput) (*model.TaskComment, error) {
+func (r *mutationResolver) UpdateTaskComment(
+	ctx context.Context, input model.UpdateTaskCommentInput,
+) (*model.TaskComment, error) {
 	if _, err := r.requireCSRF(ctx, input.CsrfToken); err != nil {
 		return nil, err
 	}
@@ -53,13 +60,18 @@ func (r *mutationResolver) UpdateTaskComment(ctx context.Context, input model.Up
 	}
 	comment, err := r.comments.UpdateTaskComment(ctx, taskID, commentID, write)
 	if err != nil {
-		return nil, r.discussionError(err, "The comment update could not be confirmed. Your text is preserved; refresh before retrying.")
+		return nil, r.discussionError(
+			err,
+			"The comment update could not be confirmed. Your text is preserved; refresh before retrying.",
+		)
 	}
 	return savedCommentModel(comment), nil
 }
 
 // DeleteTaskComment is the resolver for the deleteTaskComment field.
-func (r *mutationResolver) DeleteTaskComment(ctx context.Context, input model.DeleteTaskCommentInput) (*model.DeleteTaskCommentPayload, error) {
+func (r *mutationResolver) DeleteTaskComment(
+	ctx context.Context, input model.DeleteTaskCommentInput,
+) (*model.DeleteTaskCommentPayload, error) {
 	if _, err := r.requireCSRF(ctx, input.CsrfToken); err != nil {
 		return nil, err
 	}
@@ -98,7 +110,13 @@ func (r *queryResolver) TaskComment(ctx context.Context, taskID string, commentI
 }
 
 // TaskComments is the resolver for the taskComments field.
-func (r *queryResolver) TaskComments(ctx context.Context, taskID string, page int, pageSize int, order model.DiscussionOrder) (*model.TaskCommentPage, error) {
+func (r *queryResolver) TaskComments(
+	ctx context.Context,
+	taskID string,
+	page int,
+	pageSize int,
+	order model.DiscussionOrder,
+) (*model.TaskCommentPage, error) {
 	if _, err := requireSession(ctx); err != nil {
 		return nil, err
 	}
@@ -106,7 +124,12 @@ func (r *queryResolver) TaskComments(ctx context.Context, taskID string, page in
 	if err != nil || page < 1 || pageSize < 1 || pageSize > 100 || !order.IsValid() {
 		return nil, clientError("VALIDATION_FAILED", "Choose a valid task, page, order and page size (1–100).")
 	}
-	result, err := service.LoadTaskDiscussion(ctx, r.comments, id, vikunja.CommentQuery{Page: int64(page), PerPage: int64(pageSize), Order: strings.ToLower(string(order))})
+	result, err := service.LoadTaskDiscussion(
+		ctx,
+		r.comments,
+		id,
+		vikunja.CommentQuery{Page: int64(page), PerPage: int64(pageSize), Order: strings.ToLower(string(order))},
+	)
 	if err != nil {
 		return nil, r.discussionError(err, "Comments could not be loaded.")
 	}

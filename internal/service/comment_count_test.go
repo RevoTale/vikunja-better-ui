@@ -23,7 +23,8 @@ func TestCommentCountExpansionStaysScopedToUILists(t *testing.T) {
 	t.Parallel()
 	for _, include := range []bool{false, true} {
 		request := ListRequest{Scope: TaskScopeUnscheduled, IncludeCommentCount: include}
-		if candidateTaskQuery(request).IncludeCommentCount != include || historyTaskQuery(request).IncludeCommentCount != include {
+		if candidateTaskQuery(request).IncludeCommentCount != include ||
+			historyTaskQuery(request).IncludeCommentCount != include {
 			t.Fatal("list query lost the comment count preference")
 		}
 	}

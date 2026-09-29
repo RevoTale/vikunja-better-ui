@@ -1,3 +1,4 @@
+// Package web serves frontend assets and enforces HTTP security boundaries.
 package web
 
 import (
@@ -11,8 +12,11 @@ import (
 
 // Includes JSON escaping overhead for a 100,000-byte rich-text comment.
 const maxGraphQLBodyBytes int64 = 1 << 20
+
+// MaxGraphQLUploadBytes includes a media file and multipart/GraphQL envelope overhead.
 const MaxGraphQLUploadBytes = service.MaxMediaBytes + maxGraphQLBodyBytes
 
+// GraphQLBoundary restricts methods, origin, body size, and authenticated multipart uploads.
 func GraphQLBoundary(allowedOrigin *url.URL, sessions *auth.SessionManager) func(http.Handler) http.Handler {
 	expectedOrigin := allowedOrigin.Scheme + "://" + allowedOrigin.Host
 	return func(next http.Handler) http.Handler {
@@ -55,7 +59,7 @@ func graphQLBodyLimit(w http.ResponseWriter, r *http.Request, sessions *auth.Ses
 		http.Error(w, "authentication required", http.StatusUnauthorized)
 		return 0
 	}
-	if sessions == nil || !sessions.VerifyCSRF(session, r.Header.Get("X-CSRF-Token")) {
+	if sessions == nil || !sessions.VerifyCSRF(session, r.Header.Get("X-Csrf-Token")) {
 		http.Error(w, "invalid CSRF token", http.StatusForbidden)
 		return 0
 	}

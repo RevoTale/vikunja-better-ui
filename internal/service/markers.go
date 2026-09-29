@@ -13,6 +13,7 @@ type markerClient interface {
 	CreateLabel(context.Context, vikunja.LabelWrite) (vikunja.Label, error)
 }
 
+// ResolveMarker resolves the canonical lowest-ID internal marker, rereading after creation.
 func ResolveMarker(ctx context.Context, client markerClient, title string) (vikunja.Label, error) {
 	if !isMarkerTitle(title) {
 		return vikunja.Label{}, errors.New("unknown marker label")

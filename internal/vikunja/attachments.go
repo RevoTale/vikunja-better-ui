@@ -12,6 +12,7 @@ import (
 	"time"
 )
 
+// AttachmentFile describes the file associated with a task attachment.
 type AttachmentFile struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
@@ -19,6 +20,7 @@ type AttachmentFile struct {
 	Size int64  `json:"size"`
 }
 
+// TaskAttachment identifies a task-owned file and its native-client source URL.
 type TaskAttachment struct {
 	ID        int64          `json:"id"`
 	TaskID    int64          `json:"task_id"`
@@ -26,6 +28,7 @@ type TaskAttachment struct {
 	SourceURL string         `json:"-"`
 }
 
+// AttachmentPage carries one bounded page of attachment metadata.
 type AttachmentPage struct {
 	Items      []TaskAttachment `json:"items"`
 	Page       int64            `json:"page"`
@@ -33,22 +36,27 @@ type AttachmentPage struct {
 	TotalPages int64            `json:"total_pages"`
 }
 
+// ErrAttachmentUploadUnconfirmed signals an ambiguous or partial upload result.
 var ErrAttachmentUploadUnconfirmed = errors.New("attachment upload could not be confirmed")
 
 func attachmentPath(taskID int64) string {
 	return "tasks/" + strconv.FormatInt(taskID, 10) + "/attachments"
 }
 
+// TaskAttachments reads and validates metadata without downloading file bodies.
 func (client *Client) TaskAttachments(ctx context.Context, taskID, page int64) (AttachmentPage, error) {
 	if taskID <= 0 || page <= 0 {
 		return AttachmentPage{}, errors.New("task ID and page must be positive")
 	}
 	var result AttachmentPage
-	query := url.Values{"page": {strconv.FormatInt(page, 10)}, "per_page": {"50"}}
+	query := url.Values{pageQueryKey: {strconv.FormatInt(page, 10)}, pageSizeQueryKey: {"50"}}
 	if _, err := client.doJSONWithQuery(ctx, http.MethodGet, attachmentPath(taskID), query, nil, "", &result); err != nil {
 		return AttachmentPage{}, err
 	}
-	if result.Page != page || result.PerPage <= 0 || result.PerPage > 50 || result.TotalPages < 0 || int64(len(result.Items)) > result.PerPage {
+	if result.Page != page || result.PerPage <= 0 ||
+		result.PerPage > 50 ||
+		result.TotalPages < 0 ||
+		int64(len(result.Items)) > result.PerPage {
 		return AttachmentPage{}, ErrRejectedResponse
 	}
 	for index, item := range result.Items {
@@ -64,7 +72,10 @@ func validAttachment(item TaskAttachment, taskID int64) bool {
 	return item.ID > 0 && item.TaskID == taskID && item.File.ID > 0 && item.File.Size >= 0 && item.File.Name != ""
 }
 
-func (client *Client) UploadTaskAttachment(ctx context.Context, taskID int64, filename string, file io.Reader) (result TaskAttachment, requestErr error) {
+// UploadTaskAttachment streams one file and validates the upload's partial-failure envelope.
+func (client *Client) UploadTaskAttachment(
+	ctx context.Context, taskID int64, filename string, file io.Reader,
+) (result TaskAttachment, requestErr error) {
 	if taskID <= 0 || filename == "" || file == nil {
 		return TaskAttachment{}, errors.New("task ID and file are required")
 	}
@@ -120,7 +131,11 @@ func (client *Client) attachmentSourceURL(taskID, attachmentID int64) string {
 
 // AttachmentContent transfers ownership of the body to the caller on success.
 // Redirects are disabled by the client, and no caller-supplied URL is accepted.
-func (client *Client) AttachmentContent(ctx context.Context, taskID, attachmentID int64, byteRange string) (*http.Response, error) {
+func (client *Client) AttachmentContent(
+	ctx context.Context,
+	taskID, attachmentID int64,
+	byteRange string,
+) (*http.Response, error) {
 	if taskID <= 0 || attachmentID <= 0 {
 		return nil, errors.New("task and attachment IDs must be positive")
 	}
@@ -137,9 +152,11 @@ func (client *Client) AttachmentContent(ctx context.Context, taskID, attachmentI
 	if err != nil {
 		return nil, err
 	}
-	if response.StatusCode == http.StatusOK || response.StatusCode == http.StatusPartialContent || response.StatusCode == http.StatusRequestedRangeNotSatisfiable {
+	if response.StatusCode == http.StatusOK ||
+		response.StatusCode == http.StatusPartialContent ||
+		response.StatusCode == http.StatusRequestedRangeNotSatisfiable {
 		return response, nil
 	}
 	_ = response.Body.Close()
-	return nil, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
+	return nil, &Error{Status: response.StatusCode, Code: upstreamRejected}
 }

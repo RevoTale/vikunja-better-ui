@@ -641,12 +641,18 @@ Run all project commands inside that container:
 task gen        # regenerate gqlgen, GraphQL operations, routes, and build web assets
 task gen:check  # prove committed generated source is current
 task fix        # format Go and frontend files
-task validate   # lint, typecheck, vet, and build
-task test       # Go race tests and frontend unit tests
+task validate   # quality-gate tests, formatting/modernization, lint, types, vet, build
+task test       # Go race tests twice with shuffled order, plus frontend unit tests
 task e2e        # real browser tests against isolated Vikunja 2.5.0
 task demo       # run the complete isolated demo at http://localhost:4180
 task dev        # run the application
 ```
+
+The [quality contract](docs/quality-gates.md) defines file/function limits,
+complexity, Go documentation and architecture checks, generated-code exclusions,
+and how to reproduce shuffled failures. `task fix` applies Go formatting/imports
+and Biome fixes; apply Go modernization separately with `go fix ./...` and review
+the diff. CI uses the same `gen:check`, `validate`, `test`, and `e2e` entrypoints.
 
 ### Automated dependency updates
 

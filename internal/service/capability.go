@@ -1,3 +1,4 @@
+// Package service implements task workflows and stateless, session-bound recovery.
 package service
 
 import (
@@ -25,11 +26,13 @@ const (
 	recurringRepairPurpose = "recurring-repair"
 )
 
+// Capability validation errors distinguish invalid grants from expired grants.
 var (
 	ErrInvalidCapability = errors.New("invalid capability")
 	ErrExpiredCapability = errors.New("expired capability")
 )
 
+// UndoGrant binds reopening to one task's confirmed completion state.
 type UndoGrant struct {
 	TaskID int64
 	Kind   TaskKind
@@ -37,12 +40,14 @@ type UndoGrant struct {
 	ETag   string
 }
 
+// MarkerRepairGrant authorizes missing marker associations on an unchanged task.
 type MarkerRepairGrant struct {
 	TaskID       int64
 	MarkerTitles []string
 	ETag         string
 }
 
+// RecurringRepairGrant binds snapshot recovery to an occurrence and its renewed schedule.
 type RecurringRepairGrant struct {
 	TaskID        int64
 	ProjectID     int64
@@ -63,15 +68,18 @@ type RecurringRepairGrant struct {
 	RepeatMode    int
 }
 
+// CapabilityManager issues expiring signed or encrypted grants without persistence.
 type CapabilityManager struct {
 	secret []byte
 	now    func() time.Time
 }
 
+// NewCapabilityManager copies the secret and uses the supplied clock for expiry checks.
 func NewCapabilityManager(secret []byte, now func() time.Time) *CapabilityManager {
 	return &CapabilityManager{secret: append([]byte(nil), secret...), now: now}
 }
 
+// CompletionKey identifies one completion deterministically for snapshot reconciliation.
 func (manager *CapabilityManager) CompletionKey(taskID int64, completedAt time.Time, occurrenceDueAt time.Time) string {
 	message := fmt.Sprintf(
 		"vbu:completion:v1:%d:%s:%s",
@@ -84,6 +92,7 @@ func (manager *CapabilityManager) CompletionKey(taskID int64, completedAt time.T
 	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
+// IssueUndo signs a session-bound grant and returns its absolute expiry.
 func (manager *CapabilityManager) IssueUndo(sessionID string, grant UndoGrant) (string, time.Time, error) {
 	if !validUndoGrant(sessionID, grant) {
 		return "", time.Time{}, errors.New("undo grant is invalid")
@@ -101,6 +110,7 @@ func (manager *CapabilityManager) IssueUndo(sessionID string, grant UndoGrant) (
 	return token, expiresAt, nil
 }
 
+// ParseUndo verifies signature, purpose, session, shape, and expiry.
 func (manager *CapabilityManager) ParseUndo(sessionID string, token string) (UndoGrant, error) {
 	var payload undoCapabilityPayload
 	if err := manager.parsePayload(token, &payload); err != nil {
@@ -121,6 +131,7 @@ func (manager *CapabilityManager) ParseUndo(sessionID string, token string) (Und
 	return grant, nil
 }
 
+// IssueMarkerRepair signs a limited grant for missing internal markers.
 func (manager *CapabilityManager) IssueMarkerRepair(sessionID string, grant MarkerRepairGrant) (string, error) {
 	if !validMarkerRepairGrant(sessionID, grant) {
 		return "", errors.New("marker repair grant is invalid")
@@ -133,6 +144,7 @@ func (manager *CapabilityManager) IssueMarkerRepair(sessionID string, grant Mark
 	return manager.signPayload(payload)
 }
 
+// ParseMarkerRepair validates a session-bound marker-repair token.
 func (manager *CapabilityManager) ParseMarkerRepair(sessionID string, token string) (MarkerRepairGrant, error) {
 	var payload markerRepairCapabilityPayload
 	if err := manager.parsePayload(token, &payload); err != nil {
@@ -149,6 +161,7 @@ func (manager *CapabilityManager) ParseMarkerRepair(sessionID string, token stri
 	return grant, nil
 }
 
+// IssueRecurringRepair encrypts occurrence and schedule details in an expiring grant.
 func (manager *CapabilityManager) IssueRecurringRepair(sessionID string, grant RecurringRepairGrant) (string, error) {
 	if !validRecurringRepairGrant(sessionID, grant) {
 		return "", errors.New("recurring repair grant is invalid")
@@ -168,6 +181,7 @@ func (manager *CapabilityManager) IssueRecurringRepair(sessionID string, grant R
 	return manager.sealPayload(payload)
 }
 
+// ParseRecurringRepair authenticates and validates an encrypted recurrence-repair grant.
 func (manager *CapabilityManager) ParseRecurringRepair(sessionID string, token string) (RecurringRepairGrant, error) {
 	var payload recurringRepairCapabilityPayload
 	if err := manager.openPayload(token, &payload); err != nil {
@@ -192,7 +206,9 @@ func (manager *CapabilityManager) ParseRecurringRepair(sessionID string, token s
 	); err != nil {
 		return RecurringRepairGrant{}, ErrInvalidCapability
 	}
-	if payload.Version != capabilityVersion || payload.Purpose != recurringRepairPurpose || payload.SessionID != sessionID ||
+	if payload.Version != capabilityVersion ||
+		payload.Purpose != recurringRepairPurpose ||
+		payload.SessionID != sessionID ||
 		!validRecurringRepairGrant(sessionID, grant) {
 		return RecurringRepairGrant{}, ErrInvalidCapability
 	}
@@ -334,14 +350,17 @@ func validMarkerRepairGrant(sessionID string, grant MarkerRepairGrant) bool {
 
 func validRecurringRepairGrant(sessionID string, grant RecurringRepairGrant) bool {
 	validOutcome := grant.Outcome == CompletionOutcomeCompleted || grant.Outcome == CompletionOutcomeSkipped
-	legacy := grant.RenewedDoneAt.IsZero() && grant.NativeDueAt.IsZero() && grant.TargetDueAt.IsZero() &&
-		grant.NativeStartAt.IsZero() && grant.NativeEndAt.IsZero() &&
-		grant.TargetStartAt.IsZero() && grant.TargetEndAt.IsZero() &&
-		grant.RepeatAfter == 0 && grant.RepeatMode == 0
 	boundRenewal := !grant.RenewedDoneAt.IsZero() && !grant.NativeDueAt.IsZero() && grant.RepeatAfter > 0 &&
 		(grant.RepeatMode == 0 || grant.RepeatMode == 1 || grant.RepeatMode == 2)
 	return sessionID != "" && grant.TaskID > 0 && grant.ProjectID > 0 && grant.LiveETag != "" &&
-		grant.CompletionKey != "" && validOutcome && (legacy || boundRenewal)
+		grant.CompletionKey != "" && validOutcome && (legacyRecurringGrant(grant) || boundRenewal)
+}
+
+func legacyRecurringGrant(grant RecurringRepairGrant) bool {
+	return grant.RenewedDoneAt.IsZero() && grant.NativeDueAt.IsZero() && grant.TargetDueAt.IsZero() &&
+		grant.NativeStartAt.IsZero() && grant.NativeEndAt.IsZero() &&
+		grant.TargetStartAt.IsZero() && grant.TargetEndAt.IsZero() &&
+		grant.RepeatAfter == 0 && grant.RepeatMode == 0
 }
 
 func formatOptionalInstant(value time.Time) string {

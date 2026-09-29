@@ -8,12 +8,15 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
+// ErrInvalidComment rejects comments with inconsistent identity, author, or content.
 var ErrInvalidComment = errors.New("vikunja returned an invalid task comment")
 
+// CommentReader supplies task-scoped upstream comment pages.
 type CommentReader interface {
 	TaskComments(context.Context, int64, vikunja.CommentQuery) (vikunja.CommentPage, error)
 }
 
+// DiscussionComment retains the stored HTML and canonical author/timestamp metadata.
 type DiscussionComment struct {
 	ID        int64
 	BodyHTML  string
@@ -22,12 +25,14 @@ type DiscussionComment struct {
 	UpdatedAt time.Time
 }
 
+// DiscussionAuthor identifies the upstream author independently of their display name.
 type DiscussionAuthor struct {
 	ID       int64
 	Username string
 	Name     string
 }
 
+// TaskDiscussion is one validated comment page with current navigation bounds.
 type TaskDiscussion struct {
 	TaskID     int64
 	Comments   []DiscussionComment
@@ -36,7 +41,13 @@ type TaskDiscussion struct {
 	TotalPages int64
 }
 
-func LoadTaskDiscussion(ctx context.Context, reader CommentReader, taskID int64, query vikunja.CommentQuery) (TaskDiscussion, error) {
+// LoadTaskDiscussion rejects inconsistent comments rather than presenting a partial page.
+func LoadTaskDiscussion(
+	ctx context.Context,
+	reader CommentReader,
+	taskID int64,
+	query vikunja.CommentQuery,
+) (TaskDiscussion, error) {
 	if taskID <= 0 {
 		return TaskDiscussion{}, errors.New("task ID must be positive")
 	}
@@ -47,7 +58,10 @@ func LoadTaskDiscussion(ctx context.Context, reader CommentReader, taskID int64,
 
 	result := make([]DiscussionComment, 0, len(page.Items))
 	for _, comment := range page.Items {
-		if comment.ID <= 0 || comment.TaskID != taskID || comment.Comment == "" || comment.Author == nil || comment.Author.ID <= 0 {
+		if comment.ID <= 0 || comment.TaskID != taskID ||
+			comment.Comment == "" ||
+			comment.Author == nil ||
+			comment.Author.ID <= 0 {
 			return TaskDiscussion{}, ErrInvalidComment
 		}
 		result = append(result, DiscussionComment{
@@ -56,5 +70,11 @@ func LoadTaskDiscussion(ctx context.Context, reader CommentReader, taskID int64,
 			CreatedAt: comment.Created, UpdatedAt: comment.Updated,
 		})
 	}
-	return TaskDiscussion{TaskID: taskID, Comments: result, Page: page.Page, PageSize: page.PerPage, TotalPages: page.TotalPages}, nil
+	return TaskDiscussion{
+		TaskID:     taskID,
+		Comments:   result,
+		Page:       page.Page,
+		PageSize:   page.PerPage,
+		TotalPages: page.TotalPages,
+	}, nil
 }

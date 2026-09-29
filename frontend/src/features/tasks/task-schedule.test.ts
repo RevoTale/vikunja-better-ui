@@ -84,7 +84,9 @@ describe("taskSchedule", () => {
       completeBy: null,
     });
   });
+});
 
+describe("job schedule", () => {
   it("distinguishes a job work interval from its completion deadline", () => {
     expect(
       taskSchedule(
@@ -130,7 +132,9 @@ describe("taskSchedule", () => {
       completeBy: null,
     });
   });
+});
 
+describe("schedule timezone and absent deadlines", () => {
   it("formats all values in the authoritative timezone", () => {
     expect(
       taskSchedule(

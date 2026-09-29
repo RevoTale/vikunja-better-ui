@@ -7,18 +7,19 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
-func TestClassifyTask(t *testing.T) {
-	t.Parallel()
+type classificationCase struct {
+	name             string
+	task             vikunja.Task
+	wantKind         TaskKind
+	wantDateOnly     bool
+	wantFixedDueTime bool
+	wantRecurring    bool
+	wantOutcome      CompletionOutcome
+}
 
-	tests := []struct {
-		name             string
-		task             vikunja.Task
-		wantKind         TaskKind
-		wantDateOnly     bool
-		wantFixedDueTime bool
-		wantRecurring    bool
-		wantOutcome      CompletionOutcome
-	}{
+func TestClassifyTaskBasicMarkers(t *testing.T) {
+	t.Parallel()
+	assertClassifications(t, []classificationCase{
 		{name: "one time", task: vikunja.Task{}, wantKind: TaskKindOneTime},
 		{
 			name:        "completed one time",
@@ -34,6 +35,23 @@ func TestClassifyTask(t *testing.T) {
 			name: "recurring", task: vikunja.Task{RepeatAfter: 86400},
 			wantKind: TaskKindRecurring, wantRecurring: true,
 		},
+		{
+			name:         "date only is independent",
+			task:         taskWithLabels(dateOnlyLabel),
+			wantKind:     TaskKindOneTime,
+			wantDateOnly: true,
+		},
+		{
+			name:     "marker matching is exact and case sensitive",
+			task:     taskWithLabels("Job", " vbu:date-only "),
+			wantKind: TaskKindOneTime,
+		},
+	})
+}
+
+func TestClassifyTaskRecurringJobs(t *testing.T) {
+	t.Parallel()
+	assertClassifications(t, []classificationCase{
 		{
 			name: "recurring job",
 			task: vikunja.Task{
@@ -56,6 +74,18 @@ func TestClassifyTask(t *testing.T) {
 			},
 			wantKind: TaskKindJob, wantRecurring: true, wantFixedDueTime: true,
 		},
+		{
+			name:        "history snapshot job",
+			task:        taskWithDoneAndLabels(true, recurrenceHistoryLabel, jobLabel),
+			wantKind:    TaskKindJob,
+			wantOutcome: CompletionOutcomeCompleted,
+		},
+	})
+}
+
+func TestClassifyTaskFixedDueTime(t *testing.T) {
+	t.Parallel()
+	assertClassifications(t, []classificationCase{
 		{
 			name: "fixed due time recurrence",
 			task: vikunja.Task{
@@ -94,6 +124,12 @@ func TestClassifyTask(t *testing.T) {
 			},
 			wantKind: TaskKindInvalid, wantFixedDueTime: true,
 		},
+	})
+}
+
+func TestClassifyTaskHistory(t *testing.T) {
+	t.Parallel()
+	assertClassifications(t, []classificationCase{
 		{
 			name:        "completed recurrence snapshot",
 			task:        taskWithDoneAndLabels(true, recurrenceHistoryLabel),
@@ -107,12 +143,6 @@ func TestClassifyTask(t *testing.T) {
 			wantOutcome: CompletionOutcomeSkipped,
 		},
 		{
-			name:         "date only is independent",
-			task:         taskWithLabels(dateOnlyLabel),
-			wantKind:     TaskKindOneTime,
-			wantDateOnly: true,
-		},
-		{
 			name:     "incomplete history snapshot is invalid",
 			task:     taskWithLabels(recurrenceHistoryLabel),
 			wantKind: TaskKindInvalid,
@@ -121,12 +151,6 @@ func TestClassifyTask(t *testing.T) {
 			name:     "history snapshot with recurrence is invalid",
 			task:     recurringTaskWithDoneAndLabels(true, recurrenceHistoryLabel),
 			wantKind: TaskKindInvalid,
-		},
-		{
-			name:        "history snapshot job",
-			task:        taskWithDoneAndLabels(true, recurrenceHistoryLabel, jobLabel),
-			wantKind:    TaskKindJob,
-			wantOutcome: CompletionOutcomeCompleted,
 		},
 		{
 			name:     "active skipped marker is invalid",
@@ -148,13 +172,11 @@ func TestClassifyTask(t *testing.T) {
 			task:     recurringTaskWithDoneAndLabels(true, recurrenceHistoryLabel, skippedLabel),
 			wantKind: TaskKindInvalid,
 		},
-		{
-			name:     "marker matching is exact and case sensitive",
-			task:     taskWithLabels("Job", " vbu:date-only "),
-			wantKind: TaskKindOneTime,
-		},
-	}
+	})
+}
 
+func assertClassifications(t *testing.T, tests []classificationCase) {
+	t.Helper()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()

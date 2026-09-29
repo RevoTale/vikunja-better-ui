@@ -15,7 +15,9 @@ func TestClientTaskCommentsUsesVikunjaCommentEndpoints(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if request.Method != http.MethodGet || request.URL.Path != "/api/v2/tasks/42/comments" || request.URL.Query().Get("order_by") != "asc" {
+		if request.Method != http.MethodGet ||
+			request.URL.Path != "/api/v2/tasks/42/comments" ||
+			request.URL.Query().Get("order_by") != "asc" {
 			t.Errorf("request = %s %s, want GET /api/v2/tasks/42/comments", request.Method, request.URL.Path)
 		}
 		if request.Header.Get("Authorization") != "Bearer test-token" {
@@ -25,7 +27,10 @@ func TestClientTaskCommentsUsesVikunjaCommentEndpoints(t *testing.T) {
 		if request.URL.Query().Get("page") != "2" || request.URL.Query().Get("per_page") != "1" {
 			t.Errorf("pagination = %s", request.URL.RawQuery)
 		}
-		_, _ = writer.Write([]byte(`{"items":[{"id":7,"comment":"<p>Hello</p>","author":{"id":9,"username":"writer"}}],"page":2,"per_page":1,"total":2,"total_pages":2}`))
+		_, _ = writer.Write([]byte(`{
+			"items":[{"id":7,"comment":"<p>Hello</p>","author":{"id":9,"username":"writer"}}],
+			"page":2,"per_page":1,"total":2,"total_pages":2
+		}`))
 	}))
 	t.Cleanup(server.Close)
 
@@ -65,7 +70,12 @@ func TestClientCreateAndUpdateTaskCommentSendCommentBody(t *testing.T) {
 	if _, err := client.CreateTaskComment(context.Background(), 42, TaskCommentWrite{Comment: "<p>New</p>"}); err != nil {
 		t.Fatalf("CreateTaskComment() error = %v", err)
 	}
-	if _, err := client.UpdateTaskComment(context.Background(), 42, 7, TaskCommentWrite{Comment: "<p>Edit</p>"}); err != nil {
+	if _, err := client.UpdateTaskComment(
+		context.Background(),
+		42,
+		7,
+		TaskCommentWrite{Comment: "<p>Edit</p>"},
+	); err != nil {
 		t.Fatalf("UpdateTaskComment() error = %v", err)
 	}
 	want := []string{
@@ -108,20 +118,32 @@ func TestClientTaskCommentsRejectsWrongTaskOrMissingAuthor(t *testing.T) {
 		name string
 		body string
 	}{
-		{name: "wrong task", body: `{"items":[{"id":7,"comment":"body","task_id":41,"author":{"id":9}}],"page":1,"per_page":50,"total":1,"total_pages":1}`},
-		{name: "missing author", body: `{"items":[{"id":7,"comment":"body","author":null}],"page":1,"per_page":50,"total":1,"total_pages":1}`},
+		{
+			name: "wrong task",
+			body: `{"items":[{"id":7,"comment":"body","task_id":41,"author":{"id":9}}],
+				"page":1,"per_page":50,"total":1,"total_pages":1}`,
+		},
+		{
+			name: "missing author",
+			body: `{"items":[{"id":7,"comment":"body","author":null}],"page":1,"per_page":50,"total":1,"total_pages":1}`,
+		},
 		{name: "legacy array", body: `[]`},
 		{name: "missing page", body: `{}`},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 				writer.Header().Set("Content-Type", "application/json")
 				_, _ = writer.Write([]byte(test.body))
 			}))
 			t.Cleanup(server.Close)
 
-			_, err := testClient(t, server.URL, "test-token").TaskComments(context.Background(), 42, CommentQuery{Page: 1, PerPage: 50, Order: "asc"})
+			_, err := testClient(t, server.URL, "test-token").TaskComments(
+				context.Background(),
+				42,
+				CommentQuery{Page: 1, PerPage: 50, Order: "asc"},
+			)
 			var upstream *Error
 			if !errors.Is(err, ErrRejectedResponse) && (!errors.As(err, &upstream) || upstream.Code != "UPSTREAM_REJECTED") {
 				t.Fatalf("TaskComments() error = %v, want ErrRejectedResponse", err)
@@ -137,10 +159,15 @@ func TestCommentPaginationRespectsInstanceCap(t *testing.T) {
 			t.Error("descending order was not forwarded")
 		}
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write([]byte(`{"items":[{"id":7,"comment":"body","author":{"id":9}}],"page":1,"per_page":1,"total":2,"total_pages":2}`))
+		_, _ = writer.Write([]byte(`{"items":[{"id":7,"comment":"body","author":{"id":9}}],
+			"page":1,"per_page":1,"total":2,"total_pages":2}`))
 	}))
 	t.Cleanup(server.Close)
-	page, err := testClient(t, server.URL, "test-token").TaskComments(t.Context(), 42, CommentQuery{Page: 1, PerPage: 50, Order: "desc"})
+	page, err := testClient(t, server.URL, "test-token").TaskComments(
+		t.Context(),
+		42,
+		CommentQuery{Page: 1, PerPage: 50, Order: "desc"},
+	)
 	if err != nil || page.PerPage != 1 || page.TotalPages != 2 {
 		t.Fatalf("capped page = %#v, error = %v", page, err)
 	}
@@ -154,7 +181,9 @@ func TestCommentInvalidInputMakesNoRequest(t *testing.T) {
 	t.Cleanup(server.Close)
 	client := testClient(t, server.URL, "test-token")
 	for _, query := range []CommentQuery{
-		{Page: 0, PerPage: 50, Order: "asc"}, {Page: 1, PerPage: 1001, Order: "asc"}, {Page: 1, PerPage: 50, Order: "invalid"},
+		{Page: 0, PerPage: 50, Order: "asc"},
+		{Page: 1, PerPage: 1001, Order: "asc"},
+		{Page: 1, PerPage: 50, Order: "invalid"},
 	} {
 		if _, err := client.TaskComments(t.Context(), 42, query); err == nil {
 			t.Error("invalid query accepted")
@@ -201,7 +230,12 @@ func TestCommentUpdateReadbackFailureDoesNotRetryWrite(t *testing.T) {
 		writer.WriteHeader(http.StatusForbidden)
 	}))
 	t.Cleanup(server.Close)
-	_, err := testClient(t, server.URL, "test-token").UpdateTaskComment(t.Context(), 42, 7, TaskCommentWrite{Comment: "saved"})
+	_, err := testClient(t, server.URL, "test-token").UpdateTaskComment(
+		t.Context(),
+		42,
+		7,
+		TaskCommentWrite{Comment: "saved"},
+	)
 	if !errors.Is(err, ErrCommentUpdateUnconfirmed) || writes.Load() != 1 {
 		t.Fatalf("update confirmation = %v, writes = %d", err, writes.Load())
 	}
@@ -214,6 +248,7 @@ func TestTaskCommentRejectsMismatchedIdentity(t *testing.T) {
 		`{"id":7,"task_id":41,"comment":"body","author":{"id":9}}`,
 	} {
 		t.Run(body, func(t *testing.T) {
+			t.Parallel()
 			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				if request.Method != http.MethodGet || request.URL.Path != "/api/v2/tasks/42/comments/7" {
 					t.Errorf("wrong comment path: %s %s", request.Method, request.URL.Path)
@@ -237,12 +272,17 @@ func TestCommentPageAcceptsEmptyPageAfterDeletion(t *testing.T) {
 		`{"items":[],"page":2,"per_page":1,"total":0,"total_pages":0}`,
 	} {
 		t.Run(body, func(t *testing.T) {
+			t.Parallel()
 			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 				writer.Header().Set("Content-Type", "application/json")
 				_, _ = writer.Write([]byte(body))
 			}))
 			t.Cleanup(server.Close)
-			page, err := testClient(t, server.URL, "test-token").TaskComments(t.Context(), 42, CommentQuery{Page: 2, PerPage: 1, Order: "asc"})
+			page, err := testClient(t, server.URL, "test-token").TaskComments(
+				t.Context(),
+				42,
+				CommentQuery{Page: 2, PerPage: 1, Order: "asc"},
+			)
 			if err != nil || page.Page != 2 || len(page.Items) != 0 {
 				t.Fatalf("empty page after deletion = %#v, error = %v", page, err)
 			}

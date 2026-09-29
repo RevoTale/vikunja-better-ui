@@ -10,8 +10,10 @@ const (
 	fixedDueTimeLabel      = "vbu:fixed-due-time"
 )
 
+// TaskKind describes the supported workflow, independently of active recurrence.
 type TaskKind string
 
+// Supported task workflows; invalid marks contradictory internal metadata.
 const (
 	TaskKindOneTime   TaskKind = "ONE_TIME"
 	TaskKindRecurring TaskKind = "RECURRING"
@@ -19,6 +21,7 @@ const (
 	TaskKindInvalid   TaskKind = "INVALID"
 )
 
+// TaskClassification interprets Better UI markers without modifying upstream data.
 type TaskClassification struct {
 	Kind         TaskKind
 	DateOnly     bool
@@ -27,45 +30,30 @@ type TaskClassification struct {
 	Outcome      CompletionOutcome
 }
 
+// CompletionOutcome distinguishes completed work from a skipped occurrence.
 type CompletionOutcome string
 
+// Recorded outcomes for completed tasks and recurrence snapshots.
 const (
 	CompletionOutcomeCompleted CompletionOutcome = "COMPLETED"
 	CompletionOutcomeSkipped   CompletionOutcome = "SKIPPED"
 )
 
+// ClassifyTask rejects contradictory markers and keeps Job orthogonal to recurrence.
 func ClassifyTask(task vikunja.Task) TaskClassification {
-	hasJob := hasLabel(task.Labels, jobLabel)
 	hasDateOnly := hasLabel(task.Labels, dateOnlyLabel)
-	hasHistory := hasLabel(task.Labels, recurrenceHistoryLabel)
 	hasSkipped := hasLabel(task.Labels, skippedLabel)
 	hasFixedDueTime := hasLabel(task.Labels, fixedDueTimeLabel)
 	hasRecurrence := task.RepeatAfter > 0 || task.RepeatMode != 0
-	validHistory := hasHistory && task.Done && !hasRecurrence
-	validSkipped := hasSkipped && validHistory
-	validFixedDueTime := hasFixedDueTime && fixedDueTimeEligible(task)
-
-	kind := TaskKindOneTime
-	switch {
-	case hasSkipped && !validSkipped:
-		kind = TaskKindInvalid
-	case hasHistory && (hasRecurrence || !task.Done):
-		kind = TaskKindInvalid
-	case hasHistory && hasJob:
-		kind = TaskKindJob
-	case hasHistory || (hasRecurrence && !hasJob):
-		kind = TaskKindRecurring
-	case hasJob:
-		kind = TaskKindJob
-	}
-	if hasFixedDueTime && !validFixedDueTime {
+	kind := classifyWorkflow(task, hasRecurrence)
+	if hasFixedDueTime && !fixedDueTimeEligible(task) {
 		kind = TaskKindInvalid
 	}
 
 	var outcome CompletionOutcome
 	if task.Done && kind != TaskKindInvalid {
 		outcome = CompletionOutcomeCompleted
-		if validSkipped {
+		if hasSkipped {
 			outcome = CompletionOutcomeSkipped
 		}
 	}
@@ -76,9 +64,25 @@ func ClassifyTask(task vikunja.Task) TaskClassification {
 	}
 }
 
+func classifyWorkflow(task vikunja.Task, recurring bool) TaskKind {
+	history := hasLabel(task.Labels, recurrenceHistoryLabel)
+	skipped := hasLabel(task.Labels, skippedLabel)
+	// Both markers require a completed, non-recurring history snapshot.
+	if (history || skipped) && (!history || !task.Done || recurring) {
+		return TaskKindInvalid
+	}
+	if hasLabel(task.Labels, jobLabel) {
+		return TaskKindJob
+	}
+	if history || recurring {
+		return TaskKindRecurring
+	}
+	return TaskKindOneTime
+}
+
 func fixedDueTimeEligible(task vikunja.Task) bool {
 	return !task.Done && !task.DueDate.IsZero() && task.RepeatAfter > 0 &&
-		task.RepeatAfter%recurrenceDaySeconds == 0 && task.RepeatMode == 2 &&
+		task.RepeatAfter%recurrenceDaySeconds == 0 && task.RepeatMode == vikunja.RepeatModeFromCompletion &&
 		!hasLabel(task.Labels, dateOnlyLabel) && !hasLabel(task.Labels, recurrenceHistoryLabel) &&
 		!hasLabel(task.Labels, skippedLabel) && validFixedTimeSchedule(task)
 }

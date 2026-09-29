@@ -37,7 +37,8 @@ func TestDiscussionAvatarFallback(t *testing.T) {
 					assertErrorCode(t, err, test.code)
 					return
 				}
-				if err != nil || (test.value == "" && value != nil) || (test.value != "" && (value == nil || *value != test.value)) {
+				if err != nil || (test.value == "" && value != nil) ||
+					(test.value != "" && (value == nil || *value != test.value)) {
 					t.Fatalf("unexpected avatar result: %v, %v", value, err)
 				}
 			})

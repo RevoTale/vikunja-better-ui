@@ -1,3 +1,4 @@
+// Command server serves the authenticated Better UI application and integrations.
 package main
 
 import (
@@ -62,8 +63,14 @@ func run(configuration config.Config, logger *slog.Logger) error {
 
 	mux := http.NewServeMux()
 	graphQL := graphqlserver.NewHandler(root, production, logger)
-	mux.Handle("/graphql", auth.HTTPContext(sessions, cookies)(web.GraphQLBoundary(configuration.AllowedOrigin, sessions)(graphQL)))
-	mux.Handle("GET /media/tasks/{task}/attachments/{attachment}", auth.HTTPContext(sessions, cookies)(web.NewTaskMediaHandler(vikunjaClient, logger)))
+	mux.Handle(
+		"/graphql",
+		auth.HTTPContext(sessions, cookies)(web.GraphQLBoundary(configuration.AllowedOrigin, sessions)(graphQL)),
+	)
+	mux.Handle(
+		"GET /media/tasks/{task}/attachments/{attachment}",
+		auth.HTTPContext(sessions, cookies)(web.NewTaskMediaHandler(vikunjaClient, logger)),
+	)
 	mux.Handle(
 		"/integrations/v1/jobs",
 		integration.NewJobsHandler(configuration.VikunjaURL, configuration.AllowedOrigin, logger, now),
@@ -112,6 +119,7 @@ type readinessClient interface {
 }
 
 func readinessHandler(client readinessClient, logger *slog.Logger) http.Handler {
+	const readinessTimeout = 3 * time.Second
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Cache-Control", "no-store")
 		if request.Method != http.MethodGet {
@@ -119,7 +127,7 @@ func readinessHandler(client readinessClient, logger *slog.Logger) http.Handler 
 			http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		ctx, cancel := context.WithTimeout(request.Context(), 3*time.Second)
+		ctx, cancel := context.WithTimeout(request.Context(), readinessTimeout)
 		defer cancel()
 		if _, err := client.CurrentUser(ctx); err != nil {
 			logger.Warn("readiness check failed", "cause", err)

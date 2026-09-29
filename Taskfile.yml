@@ -23,13 +23,16 @@ tasks:
   fix:
     desc: Format project files
     cmds:
-      - find cmd internal -name '*.go' -type f -print0 | xargs -0 gofmt -w
+      - golangci-lint fmt ./...
       - pnpm --dir frontend exec biome check --write .
 
   validate:
     desc: Run non-mutating validation
     cmds:
-      - test -z "$(find cmd internal -name '*.go' -type f -print0 | xargs -0 gofmt -l)"
+      - task: quality:test
+      - task: go:format:check
+      - task: go:fix:check
+      - node tests/quality/go-file-size.mjs
       - go vet ./...
       - golangci-lint run ./...
       - pnpm --dir frontend run lint
@@ -44,8 +47,23 @@ tasks:
     desc: Run backend and frontend tests
     cmds:
       - pnpm --dir frontend run build
-      - go test ./... -race
+      - go test -race -count=2 -shuffle=on ./...
       - pnpm --dir frontend run test
+
+  quality:test:
+    desc: Verify quality gates reject invalid inputs
+    cmds:
+      - node --test tests/quality/*.test.mjs
+
+  go:format:check:
+    desc: Check Go formatting without modifying files
+    cmds:
+      - sh tests/quality/empty-output.sh golangci-lint fmt --diff
+
+  go:fix:check:
+    desc: Reject pending Go modernization changes
+    cmds:
+      - sh tests/quality/empty-output.sh go fix -diff ./...
 
   e2e:
     desc: Run Playwright against an isolated Vikunja 2.5.0 binary

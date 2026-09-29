@@ -20,7 +20,13 @@ func TestUpdateTaskRejectsInvalidCSRFAndStaleState(t *testing.T) {
 	client := &taskActionClientStub{task: vikunja.Task{ID: 9, ProjectID: 7, Title: "Before"}}
 	root, sessions, session, cookie := taskActionResolver(t, client)
 	withTaskActionContext(t, sessions, session, cookie, func(ctx context.Context) {
-		input := model.UpdateTaskInput{TaskID: "9", ProjectID: "7", Priority: model.TaskPriorityUnset, Title: "After", ExpectedVersion: "stale"}
+		input := model.UpdateTaskInput{
+			TaskID:          "9",
+			ProjectID:       "7",
+			Priority:        model.TaskPriorityUnset,
+			Title:           "After",
+			ExpectedVersion: "stale",
+		}
 		_, err := (&mutationResolver{root}).UpdateTask(ctx, input)
 		assertErrorCode(t, err, "CSRF_INVALID")
 		input.CsrfToken = sessions.CSRFToken(session)

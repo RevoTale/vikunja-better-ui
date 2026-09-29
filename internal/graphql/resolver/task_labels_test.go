@@ -20,9 +20,9 @@ func TestParseLabelIDsPreservesOmittedVersusClear(t *testing.T) {
 	if err != nil || omitted != nil {
 		t.Fatalf("omitted=%v err=%v", omitted, err)
 	}
-	clear, err := parseLabelIDs([]string{})
-	if err != nil || clear == nil || len(clear) != 0 {
-		t.Fatalf("clear=%v err=%v", clear, err)
+	cleared, err := parseLabelIDs([]string{})
+	if err != nil || cleared == nil || len(cleared) != 0 {
+		t.Fatalf("clear=%v err=%v", cleared, err)
 	}
 	for _, id := range []string{"0", "-1", "1 && done=true", "9223372036854775808"} {
 		if _, err := parseLabelIDs([]string{id}); err == nil {

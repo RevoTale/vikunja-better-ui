@@ -63,7 +63,9 @@ describe("validateTaskForm", () => {
       ),
     ).toMatchObject({ unit: "Keep due time supports days or weeks." });
   });
+});
 
+describe("job form validation", () => {
   it("validates all required job fields", () => {
     expect(
       validateTaskForm(
@@ -133,7 +135,9 @@ describe("validateTaskForm", () => {
       ),
     ).toEqual({ title: "Enter a title." });
   });
+});
 
+describe("server validation field mapping", () => {
   it("places rare timezone validation failures beside the responsible field", () => {
     expect(
       serverTaskFormErrors(

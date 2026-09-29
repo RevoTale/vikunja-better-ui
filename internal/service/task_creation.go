@@ -10,23 +10,29 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
+// RecurrenceUnit selects a fixed day/week interval or native monthly recurrence.
 type RecurrenceUnit string
 
+// Supported recurrence units.
 const (
 	RecurrenceUnitDay   RecurrenceUnit = "DAY"
 	RecurrenceUnitWeek  RecurrenceUnit = "WEEK"
 	RecurrenceUnitMonth RecurrenceUnit = "MONTH"
 )
 
+// RecurrenceMode selects a scheduled cycle or an interval after actual completion.
 type RecurrenceMode string
 
+// Supported recurrence anchors.
 const (
 	RecurrenceModeFromCompletion RecurrenceMode = "FROM_COMPLETION"
 	RecurrenceModeScheduled      RecurrenceMode = "SCHEDULED_CYCLE"
 )
 
+// ErrUnsupportedRecurrence rejects combinations that native Vikunja cannot preserve.
 var ErrUnsupportedRecurrence = errors.New("vikunja cannot represent this recurrence combination")
 
+// JobInput combines a timed work interval with an optional recurrence rule.
 type JobInput struct {
 	Title                   string
 	Description             string
@@ -40,6 +46,7 @@ type JobInput struct {
 	KeepDueTime             bool
 }
 
+// OneTimeInput describes a task with an optional local due date and time.
 type OneTimeInput struct {
 	Title       string
 	Description string
@@ -48,6 +55,7 @@ type OneTimeInput struct {
 	DueTime     string
 }
 
+// RecurringInput includes the initial occurrence and subsequent renewal rule.
 type RecurringInput struct {
 	Title        string
 	Description  string
@@ -60,11 +68,13 @@ type RecurringInput struct {
 	KeepDueTime  bool
 }
 
+// RecurrenceWrite is the validated native Vikunja repeat interval and mode.
 type RecurrenceWrite struct {
 	RepeatAfter int64
 	RepeatMode  int
 }
 
+// BuildOneTimeTask resolves local due fields and reports whether the date-only marker is needed.
 func BuildOneTimeTask(input OneTimeInput, location *time.Location) (vikunja.TaskWrite, bool, error) {
 	base, err := baseTaskWrite(input.Title, input.Description, input.Priority)
 	if err != nil {
@@ -78,6 +88,7 @@ func BuildOneTimeTask(input OneTimeInput, location *time.Location) (vikunja.Task
 	return base, dateOnly, nil
 }
 
+// BuildRecurringTask validates the first due date and a natively representable recurrence.
 func BuildRecurringTask(input RecurringInput, location *time.Location) (vikunja.TaskWrite, bool, error) {
 	if input.FirstDueDate == "" {
 		return vikunja.TaskWrite{}, false, errors.New("first due date is required")
@@ -104,6 +115,7 @@ func BuildRecurringTask(input RecurringInput, location *time.Location) (vikunja.
 	return base, dateOnly, nil
 }
 
+// BuildJobTask derives end and due instants from a local start and elapsed durations.
 func BuildJobTask(input JobInput, location *time.Location) (vikunja.TaskWrite, error) {
 	if input.DurationMinutes <= 0 || input.CompletionWindowMinutes <= 0 {
 		return vikunja.TaskWrite{}, errors.New("duration and completion window must be positive")
@@ -136,25 +148,34 @@ func BuildJobTask(input JobInput, location *time.Location) (vikunja.TaskWrite, e
 	base.StartDate = &start
 	base.EndDate = &end
 	base.DueDate = &due
-	if input.Interval == 0 {
-		if input.KeepDueTime {
-			return vikunja.TaskWrite{}, errors.New("keep time of day requires a recurring job")
-		}
-		return base, nil
-	}
-	rule, err := BuildIntervalRecurrence(input.Interval, input.Unit, input.Mode)
+	rule, err := buildJobRecurrence(input)
 	if err != nil {
 		return vikunja.TaskWrite{}, err
-	}
-	if input.KeepDueTime && (input.Mode != RecurrenceModeFromCompletion ||
-		(input.Unit != RecurrenceUnitDay && input.Unit != RecurrenceUnitWeek)) {
-		return vikunja.TaskWrite{}, errors.New("keep time of day requires a day or week recurrence from completion")
 	}
 	base.RepeatAfter = rule.RepeatAfter
 	base.RepeatMode = rule.RepeatMode
 	return base, nil
 }
 
+func buildJobRecurrence(input JobInput) (RecurrenceWrite, error) {
+	if input.Interval == 0 {
+		if input.KeepDueTime {
+			return RecurrenceWrite{}, errors.New("keep time of day requires a recurring job")
+		}
+		return RecurrenceWrite{}, nil
+	}
+	rule, err := BuildIntervalRecurrence(input.Interval, input.Unit, input.Mode)
+	if err != nil {
+		return RecurrenceWrite{}, err
+	}
+	if input.KeepDueTime && (input.Mode != RecurrenceModeFromCompletion ||
+		(input.Unit != RecurrenceUnitDay && input.Unit != RecurrenceUnitWeek)) {
+		return RecurrenceWrite{}, errors.New("keep time of day requires a day or week recurrence from completion")
+	}
+	return rule, nil
+}
+
+// BuildIntervalRecurrence validates representability and duration overflow before encoding the native rule.
 func BuildIntervalRecurrence(interval int, unit RecurrenceUnit, mode RecurrenceMode) (RecurrenceWrite, error) {
 	if interval <= 0 {
 		return RecurrenceWrite{}, errors.New("recurrence interval must be positive")
@@ -178,7 +199,7 @@ func BuildIntervalRecurrence(interval int, unit RecurrenceUnit, mode RecurrenceM
 	switch mode {
 	case RecurrenceModeScheduled:
 	case RecurrenceModeFromCompletion:
-		repeatMode = 2
+		repeatMode = vikunja.RepeatModeFromCompletion
 	default:
 		return RecurrenceWrite{}, errors.New("recurrence mode is invalid")
 	}

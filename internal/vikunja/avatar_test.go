@@ -19,7 +19,9 @@ func TestAvatarReturnsBoundedRasterData(t *testing.T) {
 		t.Fatal(err)
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/prefix/api/v2/avatar/John O'Connor" || r.URL.Query().Get("size") != "64" || r.Header.Get("Authorization") != "Bearer test-token" {
+		if r.URL.Path != "/prefix/api/v2/avatar/John O'Connor" ||
+			r.URL.Query().Get("size") != "64" ||
+			r.Header.Get("Authorization") != "Bearer test-token" {
 			t.Errorf("unexpected avatar request")
 		}
 		w.Header().Set("Content-Type", "image/png")
@@ -37,7 +39,11 @@ func TestAvatarReturnsBoundedRasterData(t *testing.T) {
 
 func TestAvatarRejectsUnsafeResponsesAndNames(t *testing.T) {
 	t.Parallel()
-	for _, body := range [][]byte{[]byte("<svg xmlns='http://www.w3.org/2000/svg'></svg>"), []byte("<html>error</html>"), bytes.Repeat([]byte{0}, 128*1024+1)} {
+	for _, body := range [][]byte{
+		[]byte("<svg xmlns='http://www.w3.org/2000/svg'></svg>"),
+		[]byte("<html>error</html>"),
+		bytes.Repeat([]byte{0}, 128*1024+1),
+	} {
 		t.Run(string(body[:4]), func(t *testing.T) {
 			t.Parallel()
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(body) }))
@@ -48,7 +54,18 @@ func TestAvatarRejectsUnsafeResponsesAndNames(t *testing.T) {
 			if _, err := client.Avatar(t.Context(), "user"); err == nil {
 				t.Fatal("unsafe avatar accepted")
 			}
-			for _, name := range []string{"", ".", "..", "../user", "a/b", "a\\b", "a?b", "a#b", "%2e%2e", strings.Repeat("a", 256)} {
+			for _, name := range []string{
+				"",
+				".",
+				"..",
+				"../user",
+				"a/b",
+				"a\\b",
+				"a?b",
+				"a#b",
+				"%2e%2e",
+				strings.Repeat("a", 256),
+			} {
 				if _, err := client.Avatar(t.Context(), name); err == nil {
 					t.Fatalf("unsafe name accepted: %q", name)
 				}

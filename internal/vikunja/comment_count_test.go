@@ -23,7 +23,10 @@ func TestTaskListCommentCountExpansion(t *testing.T) {
 				_, _ = w.Write([]byte(`{"items":[{"id":1,"comment_count":7}],"total":1,"page":1,"per_page":20,"total_pages":1}`))
 			}))
 			defer server.Close()
-			page, err := testClient(t, server.URL, "test-token").TasksPage(t.Context(), TaskQuery{Page: 1, PerPage: 20, IncludeCommentCount: include})
+			page, err := testClient(t, server.URL, "test-token").TasksPage(
+				t.Context(),
+				TaskQuery{Page: 1, PerPage: 20, IncludeCommentCount: include},
+			)
 			if err != nil {
 				t.Fatal(err)
 			}

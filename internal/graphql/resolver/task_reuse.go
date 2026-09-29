@@ -28,7 +28,13 @@ func (r *queryResolver) TaskReuseValues(ctx context.Context, job bool, recurring
 	if err != nil {
 		return nil, clientError("UPSTREAM_UNAVAILABLE", "Previous task has an unsupported priority.")
 	}
-	result := &model.TaskReuseValues{TaskID: strconv.FormatInt(task.ID, 10), Title: task.Title, ProjectID: strconv.FormatInt(task.ProjectID, 10), Priority: priority, Labels: []*model.Label{}}
+	result := &model.TaskReuseValues{
+		TaskID:    strconv.FormatInt(task.ID, 10),
+		Title:     task.Title,
+		ProjectID: strconv.FormatInt(task.ProjectID, 10),
+		Priority:  priority,
+		Labels:    []*model.Label{},
+	}
 	for _, label := range task.Labels {
 		if !service.IsInternalLabel(label.Title) {
 			result.Labels = append(result.Labels, &model.Label{ID: strconv.FormatInt(label.ID, 10), Title: label.Title})

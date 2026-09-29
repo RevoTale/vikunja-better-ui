@@ -39,5 +39,9 @@ func (resolver *Resolver) mediaError(err error, uploading bool) error {
 	if !uploading {
 		return upstreamClientError(err, "Attachments could not be loaded. Try refreshing the list.")
 	}
-	return clientError("UPLOAD_UNCONFIRMED", "The attachment could not be confirmed. Check the task attachments before retrying; the file may already be uploaded.")
+	return clientError(
+		"UPLOAD_UNCONFIRMED",
+		"The attachment could not be confirmed. "+
+			"Check the task attachments before retrying; the file may already be uploaded.",
+	)
 }

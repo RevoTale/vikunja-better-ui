@@ -1,3 +1,4 @@
+// Package graphql exposes the application's typed, authenticated request boundary.
 package graphql
 
 import (
@@ -19,12 +20,14 @@ import (
 const (
 	maxOperationComplexity = 200
 	maxOperationDepth      = 12
+	maxMultipartMemory     = 1 << 20
 )
 
+// NewHandler configures transports, operation limits, and safe panic responses.
 func NewHandler(root *resolver.Resolver, production bool, logger *slog.Logger) *handler.Server {
 	server := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: root}))
 	server.AddTransport(transport.POST{})
-	server.AddTransport(transport.MultipartForm{MaxUploadSize: web.MaxGraphQLUploadBytes, MaxMemory: 1 << 20})
+	server.AddTransport(transport.MultipartForm{MaxUploadSize: web.MaxGraphQLUploadBytes, MaxMemory: maxMultipartMemory})
 	server.Use(extension.FixedComplexityLimit(maxOperationComplexity))
 	server.AroundOperations(operationBoundary(production))
 	server.SetRecoverFunc(func(_ context.Context, recovered any) error {

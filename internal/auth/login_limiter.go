@@ -13,6 +13,7 @@ const (
 	loginBucketLimit   = 4096
 )
 
+// LoginLimiter bounds failed login attempts and retained client addresses in memory.
 type LoginLimiter struct {
 	mu         sync.Mutex
 	now        func() time.Time
@@ -28,6 +29,7 @@ type loginBucket struct {
 	recencyNode *list.Element
 }
 
+// NewLoginLimiter creates a concurrent limiter using the supplied clock.
 func NewLoginLimiter(now func() time.Time) *LoginLimiter {
 	return newLoginLimiter(now, loginBucketLimit)
 }
@@ -41,6 +43,7 @@ func newLoginLimiter(now func() time.Time, maxBuckets int) *LoginLimiter {
 	}
 }
 
+// Allow reports whether an address is below the rolling failure limit.
 func (limiter *LoginLimiter) Allow(address string) bool {
 	limiter.mu.Lock()
 	defer limiter.mu.Unlock()
@@ -57,6 +60,7 @@ func (limiter *LoginLimiter) Allow(address string) bool {
 	return len(bucket.failures) < loginFailureLimit
 }
 
+// RecordFailure records an attempt, evicting old addresses when capacity is reached.
 func (limiter *LoginLimiter) RecordFailure(address string) {
 	limiter.mu.Lock()
 	defer limiter.mu.Unlock()
@@ -76,6 +80,7 @@ func (limiter *LoginLimiter) RecordFailure(address string) {
 	bucket.failures = append(bucket.failures, now)
 }
 
+// RecordSuccess clears the address's failure history.
 func (limiter *LoginLimiter) RecordSuccess(address string) {
 	limiter.mu.Lock()
 	defer limiter.mu.Unlock()
@@ -91,6 +96,7 @@ func (limiter *LoginLimiter) touch(bucket *loginBucket, now time.Time) {
 func (limiter *LoginLimiter) expireIdle(now time.Time) {
 	for node := limiter.recency.Back(); node != nil; {
 		previous := node.Prev()
+		//nolint:forcetypeassert // Only RecordFailure inserts typed buckets into this private list.
 		bucket := node.Value.(*loginBucket)
 		if now.Sub(bucket.lastAccess) <= loginIdleExpiry {
 			break
@@ -109,6 +115,7 @@ func (limiter *LoginLimiter) makeRoom() {
 	if oldest == nil {
 		return
 	}
+	//nolint:forcetypeassert // Only RecordFailure inserts typed buckets into this private list.
 	limiter.remove(oldest.Value.(*loginBucket).address)
 }
 

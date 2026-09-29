@@ -8,6 +8,7 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
+// Task access errors distinguish inactive records from inaccessible projects.
 var (
 	ErrTaskNotActive     = errors.New("task is not active")
 	ErrTaskNotAccessible = errors.New("task project is not accessible")
@@ -18,7 +19,13 @@ type taskDeletionClient interface {
 	DeleteTask(context.Context, int64) error
 }
 
-func DeleteActiveTask(ctx context.Context, client taskDeletionClient, taskID int64, accessibleProjectIDs []int64) error {
+// DeleteActiveTask rejects history records and tasks outside accessible projects.
+func DeleteActiveTask(
+	ctx context.Context,
+	client taskDeletionClient,
+	taskID int64,
+	accessibleProjectIDs []int64,
+) error {
 	task, _, err := client.Task(ctx, taskID)
 	if err != nil {
 		return err

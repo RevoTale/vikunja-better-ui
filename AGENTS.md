@@ -222,6 +222,23 @@ errors.
 
 ## Workflow
 
+### Enforced quality limits
+
+- Handwritten Go files, including tests: at most 500 physical lines. Functions:
+  60 body lines including comments, 40 statements, cyclomatic complexity 15,
+  cognitive complexity 20. Line width is 120.
+- Handwritten frontend source and tests: Biome file limit 300, function limit
+  80, cognitive complexity 15. Blank lines count. Strict TypeScript includes E2E.
+- Document Go packages and exported declarations. Prefer useful contracts over
+  boilerplate comments on private helpers.
+- Keep `.golangci.yml` on `default: all`. Any disabled rule or `nolint` needs a
+  specific reason; never raise limits or exclude product directories to pass.
+- Split by responsibility, not arbitrary line ranges. Preserve test assertions,
+  shared setup and scenario ordering when splitting suites.
+- `task validate` also tests the gates themselves and fails on pending formatter
+  or `go fix` output. `task test` runs Go twice with race detection and shuffling.
+- See `docs/quality-gates.md` for scope, exceptions and failure reproduction.
+
 Use `Taskfile.yml` as the project workflow entrypoint. Run project commands in
 the already-running Dev Container, never directly on the macOS host.
 

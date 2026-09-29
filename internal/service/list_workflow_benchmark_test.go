@@ -9,9 +9,6 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
-var benchmarkListResult ListResult
-var benchmarkWeekResult WeekResult
-
 type benchmarkListClient struct {
 	pages []vikunja.TaskPage
 }
@@ -35,11 +32,10 @@ func BenchmarkListActiveTasks(b *testing.B) {
 
 	b.ReportAllocs()
 	for b.Loop() {
-		result, err := ListTasks(context.Background(), client, request)
+		_, err := ListTasks(context.Background(), client, request)
 		if err != nil {
 			b.Fatal(err)
 		}
-		benchmarkListResult = result
 	}
 }
 
@@ -53,11 +49,10 @@ func BenchmarkListWeek(b *testing.B) {
 
 	b.ReportAllocs()
 	for b.Loop() {
-		result, err := ListWeek(context.Background(), client, request)
+		_, err := ListWeek(context.Background(), client, request)
 		if err != nil {
 			b.Fatal(err)
 		}
-		benchmarkWeekResult = result
 	}
 }
 

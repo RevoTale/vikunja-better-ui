@@ -15,6 +15,7 @@ type taskCreateClient interface {
 	AttachLabel(context.Context, int64, int64) error
 }
 
+// CreationResult separates a created task from recoverable label or marker failures.
 type CreationResult struct {
 	LabelError     error
 	Task           vikunja.Task
@@ -23,7 +24,15 @@ type CreationResult struct {
 	RepairCause    error
 }
 
-func CreateLabeledTask(ctx context.Context, client taskCreateClient, projectID int64, input vikunja.TaskWrite, markers []string, labelIDs []int64) (CreationResult, error) {
+// CreateLabeledTask validates ordinary labels before creating the task and attaching them.
+func CreateLabeledTask(
+	ctx context.Context,
+	client taskCreateClient,
+	projectID int64,
+	input vikunja.TaskWrite,
+	markers []string,
+	labelIDs []int64,
+) (CreationResult, error) {
 	selected, err := loadTaskLabels(ctx, client, labelIDs)
 	if err != nil {
 		return CreationResult{}, err
@@ -41,6 +50,7 @@ func CreateLabeledTask(ctx context.Context, client taskCreateClient, projectID i
 	confirmed, _, readErr := client.Task(ctx, result.Task.ID)
 	if readErr != nil {
 		result.LabelError = readErr
+		//nolint:nilerr // The task exists; LabelError reports partial failure without inviting duplicate creation.
 		return result, nil
 	}
 	result.Task = confirmed
@@ -52,6 +62,7 @@ func CreateLabeledTask(ctx context.Context, client taskCreateClient, projectID i
 	return result, nil
 }
 
+// CreateTaskWithMarker creates a task with at most one internal workflow marker.
 func CreateTaskWithMarker(
 	ctx context.Context,
 	client taskCreateClient,
@@ -66,6 +77,7 @@ func CreateTaskWithMarker(
 	return CreateTaskWithMarkers(ctx, client, projectID, input, markers)
 }
 
+// CreateTaskWithMarkers resolves markers first and reports any post-creation repair needed.
 func CreateTaskWithMarkers(
 	ctx context.Context,
 	client taskCreateClient,

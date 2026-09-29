@@ -12,7 +12,9 @@ import (
 func TestAttachmentUploadUsesSingleMultipartFile(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost || r.URL.Path != "/api/v2/tasks/42/attachments" || r.Header.Get("Authorization") != "Bearer test-token" {
+		if r.Method != http.MethodPost ||
+			r.URL.Path != "/api/v2/tasks/42/attachments" ||
+			r.Header.Get("Authorization") != "Bearer test-token" {
 			t.Errorf("unexpected upload request %s %s", r.Method, r.URL.Path)
 		}
 		reader, err := r.MultipartReader()
@@ -34,10 +36,18 @@ func TestAttachmentUploadUsesSingleMultipartFile(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		_, _ = w.Write([]byte(`{"success":[{"id":8,"task_id":42,"file":{"id":10,"name":"clip.png","mime":"image/png","size":11}}],"errors":[]}`))
+		_, _ = w.Write([]byte(`{
+			"success":[{"id":8,"task_id":42,"file":{"id":10,"name":"clip.png","mime":"image/png","size":11}}],
+			"errors":[]
+		}`))
 	}))
 	t.Cleanup(server.Close)
-	file, err := testClient(t, server.URL, "test-token").UploadTaskAttachment(t.Context(), 42, "clip.png", strings.NewReader("image bytes"))
+	file, err := testClient(t, server.URL, "test-token").UploadTaskAttachment(
+		t.Context(),
+		42,
+		"clip.png",
+		strings.NewReader("image bytes"),
+	)
 	if err != nil || file.ID != 8 || file.File.MIME != "image/png" {
 		t.Fatalf("upload = %#v, %v", file, err)
 	}
@@ -59,7 +69,12 @@ func TestAttachmentUploadDoesNotTreatPartialFailureAsSuccess(t *testing.T) {
 				_, _ = w.Write([]byte(body))
 			}))
 			t.Cleanup(server.Close)
-			_, err := testClient(t, server.URL, "test-token").UploadTaskAttachment(t.Context(), 42, "file.png", strings.NewReader("file"))
+			_, err := testClient(t, server.URL, "test-token").UploadTaskAttachment(
+				t.Context(),
+				42,
+				"file.png",
+				strings.NewReader("file"),
+			)
 			if err == nil || strings.Contains(err.Error(), "secret") {
 				t.Fatalf("error = %v", err)
 			}
@@ -84,7 +99,11 @@ func TestAttachmentContentPreservesRangeAndRejectsRedirect(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer response.Body.Close()
+	t.Cleanup(func() {
+		if err := response.Body.Close(); err != nil {
+			t.Errorf("close attachment response: %v", err)
+		}
+	})
 	body, err := io.ReadAll(response.Body)
 	if err != nil || string(body) != "2345" || response.StatusCode != http.StatusPartialContent {
 		t.Fatalf("content = %q, %v", body, err)

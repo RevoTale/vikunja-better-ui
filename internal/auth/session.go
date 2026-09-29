@@ -14,17 +14,20 @@ import (
 )
 
 const (
-	sessionVersion  = 1
-	sessionLifetime = 30 * 24 * time.Hour
-	sessionIDBytes  = 16
-	csrfPurpose     = "vbu:csrf:v1"
+	sessionVersion    = 1
+	sessionLifetime   = 30 * 24 * time.Hour
+	sessionRefreshAge = sessionLifetime / 2
+	sessionIDBytes    = 16
+	csrfPurpose       = "vbu:csrf:v1"
 )
 
+// Session validation failures distinguish malformed tokens from expired sessions.
 var (
 	ErrInvalidSession = errors.New("invalid session")
 	ErrExpiredSession = errors.New("expired session")
 )
 
+// Session is the verified identity and lifetime carried by a signed cookie.
 type Session struct {
 	Version   int
 	ID        string
@@ -32,16 +35,19 @@ type Session struct {
 	ExpiresAt time.Time
 }
 
+// NeedsRefresh reports whether the session has reached its renewal age.
 func (session Session) NeedsRefresh(now time.Time) bool {
-	return !now.Before(session.IssuedAt.Add(sessionLifetime / 2))
+	return !now.Before(session.IssuedAt.Add(sessionRefreshAge))
 }
 
+// SessionManager signs and validates cookies without server-side persistence.
 type SessionManager struct {
 	secret []byte
 	now    func() time.Time
 	random io.Reader
 }
 
+// NewSessionManager copies the signing secret and uses the supplied clock and entropy.
 func NewSessionManager(secret []byte, now func() time.Time, random io.Reader) *SessionManager {
 	return &SessionManager{
 		secret: append([]byte(nil), secret...),
@@ -50,6 +56,7 @@ func NewSessionManager(secret []byte, now func() time.Time, random io.Reader) *S
 	}
 }
 
+// Issue creates a new identity and its signed session token.
 func (manager *SessionManager) Issue() (string, Session, error) {
 	idBytes := make([]byte, sessionIDBytes)
 	if _, err := io.ReadFull(manager.random, idBytes); err != nil {
@@ -66,6 +73,7 @@ func (manager *SessionManager) Issue() (string, Session, error) {
 	return manager.encode(session)
 }
 
+// Refresh extends a verified session's lifetime while retaining its identity.
 func (manager *SessionManager) Refresh(previous Session) (string, Session, error) {
 	if !validSessionShape(previous) {
 		return "", Session{}, ErrInvalidSession
@@ -93,6 +101,7 @@ func (manager *SessionManager) encode(session Session) (string, Session, error) 
 	return encodedPayload + "." + manager.signature(encodedPayload), session, nil
 }
 
+// Parse verifies the signature, payload shape, and expiry before returning a session.
 func (manager *SessionManager) Parse(token string) (Session, error) {
 	encodedPayload, encodedSignature, ok := strings.Cut(token, ".")
 	if !ok || encodedPayload == "" || encodedSignature == "" || strings.Contains(encodedSignature, ".") {
@@ -100,7 +109,7 @@ func (manager *SessionManager) Parse(token string) (Session, error) {
 	}
 
 	expectedSignature := manager.signature(encodedPayload)
-	if len(encodedSignature) != len(expectedSignature) || !hmac.Equal([]byte(encodedSignature), []byte(expectedSignature)) {
+	if !hmac.Equal([]byte(encodedSignature), []byte(expectedSignature)) {
 		return Session{}, ErrInvalidSession
 	}
 
@@ -132,11 +141,13 @@ func (manager *SessionManager) Parse(token string) (Session, error) {
 	return session, nil
 }
 
+// CSRFToken derives a token bound to this session identity and a separate signing purpose.
 func (manager *SessionManager) CSRFToken(session Session) string {
 	message := csrfPurpose + ":" + session.ID
 	return manager.signBytes([]byte(message))
 }
 
+// VerifyCSRF compares the supplied token with the session-bound signature.
 func (manager *SessionManager) VerifyCSRF(session Session, token string) bool {
 	expected := manager.CSRFToken(session)
 	return len(token) == len(expected) && hmac.Equal([]byte(token), []byte(expected))

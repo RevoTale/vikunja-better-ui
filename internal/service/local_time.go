@@ -10,17 +10,21 @@ const (
 	localDateLayout       = "2006-01-02"
 	localDateTimeLayout   = "2006-01-02T15:04"
 	localDateSecondLayout = "2006-01-02T15:04:05"
+	zoneOffsetSearchHours = 72
 )
 
+// Local-time errors reject ambiguous or nonexistent instants at timezone transitions.
 var (
 	ErrAmbiguousLocalTime   = errors.New("local time is ambiguous because of a timezone transition")
 	ErrNonexistentLocalTime = errors.New("local time does not exist because of a timezone transition")
 )
 
+// ResolveLocalDateTime resolves a minute-precision wall time without guessing across DST changes.
 func ResolveLocalDateTime(value string, location *time.Location) (time.Time, error) {
 	return resolveLocalWallTime(value, localDateTimeLayout, location)
 }
 
+// ResolveDateOnly resolves 23:59:59 on the requested local calendar day.
 func ResolveDateOnly(value string, location *time.Location) (time.Time, error) {
 	if _, err := time.Parse(localDateLayout, value); err != nil {
 		return time.Time{}, fmt.Errorf("date must use YYYY-MM-DD: %w", err)
@@ -50,7 +54,7 @@ func resolveLocalWallTime(value string, layout string, location *time.Location) 
 
 func localTimeCandidates(wallTime time.Time, value string, layout string, location *time.Location) []time.Time {
 	offsets := make(map[int]struct{})
-	for hour := -72; hour <= 72; hour += 6 {
+	for hour := -zoneOffsetSearchHours; hour <= zoneOffsetSearchHours; hour += 6 {
 		_, offset := wallTime.Add(time.Duration(hour) * time.Hour).In(location).Zone()
 		offsets[offset] = struct{}{}
 	}

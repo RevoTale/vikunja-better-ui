@@ -11,8 +11,10 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
+// ErrEditPartial prevents blind retries after fields were saved but metadata confirmation failed.
 var ErrEditPartial = errors.New("task fields saved but metadata could not be confirmed")
 
+// EditTaskInput is a complete editor submission tied to the loaded task version.
 type EditTaskInput struct {
 	LabelIDs        []int64
 	TaskID          int64
@@ -38,24 +40,29 @@ type taskEditClient interface {
 func TaskVersion(task vikunja.Task) string {
 	// Expanded discussion metadata is not part of the editable task state.
 	task.CommentCount = nil
-	encoded, _ := json.Marshal(task) // Task contains only JSON-safe scalar values.
+	encoded, err := json.Marshal(task)
+	if err != nil {
+		// An unrepresentable timestamp must not produce a shared, valid edit token.
+		return ""
+	}
 	digest := sha256.Sum256(encoded)
 	return hex.EncodeToString(digest[:])
 }
 
-func EditTask(ctx context.Context, client taskEditClient, input EditTaskInput, location *time.Location, projects []int64) (vikunja.Task, error) {
+// EditTask validates access and version, applies a checked patch, then confirms fields and labels.
+func EditTask(
+	ctx context.Context,
+	client taskEditClient,
+	input EditTaskInput,
+	location *time.Location,
+	projects []int64,
+) (vikunja.Task, error) {
 	before, _, err := client.Task(ctx, input.TaskID)
 	if err != nil {
 		return vikunja.Task{}, err
 	}
-	if before.Done || hasLabel(before.Labels, recurrenceHistoryLabel) || hasLabel(before.Labels, skippedLabel) {
-		return vikunja.Task{}, ErrTaskNotActive
-	}
-	if !containsID(projects, before.ProjectID) || !containsID(projects, input.ProjectID) {
-		return vikunja.Task{}, ErrTaskNotAccessible
-	}
-	if input.ExpectedVersion == "" || input.ExpectedVersion != TaskVersion(before) {
-		return vikunja.Task{}, vikunja.ErrConditionFailed
+	if err := validateEditTarget(before, input, projects); err != nil {
+		return vikunja.Task{}, err
 	}
 	selectedLabels, err := loadTaskLabels(ctx, client, input.LabelIDs)
 	if err != nil {
@@ -106,8 +113,28 @@ func EditTask(ctx context.Context, client taskEditClient, input EditTaskInput, l
 	return confirmed, nil
 }
 
-func confirmEditedTask(confirmed vikunja.Task, write vikunja.TaskWrite, projectID int64, markers map[string]bool) error {
-	if confirmed.Done || confirmed.Title != write.Title || confirmed.Description != write.Description || confirmed.ProjectID != projectID ||
+func validateEditTarget(before vikunja.Task, input EditTaskInput, projects []int64) error {
+	if before.Done || hasLabel(before.Labels, recurrenceHistoryLabel) || hasLabel(before.Labels, skippedLabel) {
+		return ErrTaskNotActive
+	}
+	if !containsID(projects, before.ProjectID) || !containsID(projects, input.ProjectID) {
+		return ErrTaskNotAccessible
+	}
+	if input.ExpectedVersion == "" || input.ExpectedVersion != TaskVersion(before) {
+		return vikunja.ErrConditionFailed
+	}
+	return nil
+}
+
+func confirmEditedTask(
+	confirmed vikunja.Task,
+	write vikunja.TaskWrite,
+	projectID int64,
+	markers map[string]bool,
+) error {
+	if confirmed.Done || confirmed.Title != write.Title ||
+		confirmed.Description != write.Description ||
+		confirmed.ProjectID != projectID ||
 		confirmed.Priority != write.Priority || confirmed.RepeatAfter != write.RepeatAfter ||
 		confirmed.RepeatMode != write.RepeatMode || !confirmed.DueDate.Equal(*write.DueDate) ||
 		!confirmed.StartDate.Equal(*write.StartDate) || !confirmed.EndDate.Equal(*write.EndDate) {
@@ -129,23 +156,23 @@ func preserveEditPrecision(next *time.Time, before time.Time) {
 
 func updateEditMarkers(ctx context.Context, client taskEditClient, before vikunja.Task, desired map[string]bool) error {
 	for _, title := range []string{jobLabel, dateOnlyLabel, fixedDueTimeLabel} {
-		if desired[title] {
-			if hasLabel(before.Labels, title) {
-				continue
-			}
-			label, err := ResolveMarker(ctx, client, title)
-			if err != nil {
-				return err
-			}
-			if err := client.AttachLabel(ctx, before.ID, label.ID); err != nil {
-				return err
-			}
-		} else {
+		if !desired[title] {
 			for _, label := range exactLabels(before.Labels, title) {
 				if err := client.DetachLabel(ctx, before.ID, label.ID); err != nil {
 					return err
 				}
 			}
+			continue
+		}
+		if hasLabel(before.Labels, title) {
+			continue
+		}
+		label, err := ResolveMarker(ctx, client, title)
+		if err != nil {
+			return err
+		}
+		if err := client.AttachLabel(ctx, before.ID, label.ID); err != nil {
+			return err
 		}
 	}
 	return nil

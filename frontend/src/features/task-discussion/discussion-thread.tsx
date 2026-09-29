@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   type DiscussionCommentFragment,
   DiscussionCommentsDocument,
+  type DiscussionCommentsQuery,
   type DiscussionOrder,
   SessionDocument,
 } from "@/graphql/graphql";
@@ -25,33 +26,11 @@ export function DiscussionThread({
   taskId: string;
   linkedCommentId?: string | undefined;
 }) {
-  const [page, setPage] = useState(1);
-  const [order, setOrder] = useState<DiscussionOrder>("ASC");
+  const { session, comments, access, list, page, setPage, order, setOrder, refresh } =
+    useDiscussionData(taskId);
   const [reply, setReply] = useState<{ quote: string } | null>(null);
-  const session = useQuery(SessionDocument);
-  const comments = useQuery(DiscussionCommentsDocument, {
-    variables: { taskId, page, order },
-    fetchPolicy: "cache-and-network",
-  });
-  const access =
-    session.data?.session.vikunjaUser && session.data.session.csrfToken
-      ? { authorId: session.data.session.vikunjaUser.id, csrfToken: session.data.session.csrfToken }
-      : undefined;
-  const list = comments.data?.taskComments ?? comments.previousData?.taskComments;
   const navigation = useReplyNavigation(linkedCommentId, Boolean(list));
   const current = navigation.current;
-
-  function refresh(revealNew = false) {
-    return comments
-      .refetch()
-      .then(({ data }) => {
-        const last = Math.max(1, data?.taskComments.totalPages ?? 1);
-        if (revealNew) setPage(order === "ASC" ? last : 1);
-        else if (page > last) setPage(last);
-        return true;
-      })
-      .catch(() => false);
-  }
 
   function startReply(comment: DiscussionCommentFragment) {
     setReply({ quote: replyQuote(comment.id, comment.bodyHtml) });
@@ -106,35 +85,15 @@ export function DiscussionThread({
           />
         ))}
       </section>
-      {list && (list.totalPages > 1 || page > 1) ? (
-        <nav aria-label="Comment pages" className="flex flex-wrap items-center gap-3">
-          <Button
-            variant="outline"
-            className="min-h-11"
-            disabled={list.page <= 1 || comments.loading}
-            onClick={() => {
-              navigation.reset();
-              setPage(list.page - 1);
-            }}
-          >
-            Previous comments
-          </Button>
-          <span className="text-sm">
-            Page {list.page} of {Math.max(1, list.totalPages)}
-          </span>
-          <Button
-            variant="outline"
-            className="min-h-11"
-            disabled={!list.hasMore || comments.loading}
-            onClick={() => {
-              navigation.reset();
-              setPage(list.page + 1);
-            }}
-          >
-            Next comments
-          </Button>
-        </nav>
-      ) : null}
+      <CommentPages
+        list={list}
+        page={page}
+        loading={comments.loading}
+        onPageChange={(next) => {
+          navigation.reset();
+          setPage(next);
+        }}
+      />
       <section id="discussion-composer" className="scroll-mt-28 space-y-3 pb-6">
         <h2 className="text-lg font-semibold">Add a comment</h2>
         {access ? (
@@ -193,5 +152,77 @@ function DiscussionError({ error, retained }: { error: unknown; retained: boolea
       {graphQLErrorMessage(error, "Comments could not be loaded. Your draft is unchanged.")}
       {retained ? " Displayed comments are from the previous successful load." : ""}
     </p>
+  );
+}
+
+function useDiscussionData(taskId: string) {
+  const [page, setPage] = useState(1);
+  const [order, setOrder] = useState<DiscussionOrder>("ASC");
+  const session = useQuery(SessionDocument);
+  const comments = useQuery(DiscussionCommentsDocument, {
+    variables: { taskId, page, order },
+    fetchPolicy: "cache-and-network",
+  });
+  const access =
+    session.data?.session.vikunjaUser && session.data.session.csrfToken
+      ? { authorId: session.data.session.vikunjaUser.id, csrfToken: session.data.session.csrfToken }
+      : undefined;
+  const list = comments.data?.taskComments ?? comments.previousData?.taskComments;
+  function refresh(revealNew = false) {
+    return comments
+      .refetch()
+      .then(({ data }) => {
+        const last = Math.max(1, data?.taskComments.totalPages ?? 1);
+        if (revealNew) setPage(order === "ASC" ? last : 1);
+        else if (page > last) setPage(last);
+        return true;
+      })
+      .catch(() => false);
+  }
+
+  return { session, comments, access, list, page, setPage, order, setOrder, refresh };
+}
+
+function CommentPages({
+  list,
+  page,
+  loading,
+  onPageChange,
+}: {
+  list: DiscussionCommentsQuery["taskComments"] | undefined;
+  page: number;
+  loading: boolean;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <>
+      {list && (list.totalPages > 1 || page > 1) ? (
+        <nav aria-label="Comment pages" className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="outline"
+            className="min-h-11"
+            disabled={list.page <= 1 || loading}
+            onClick={() => {
+              onPageChange(list.page - 1);
+            }}
+          >
+            Previous comments
+          </Button>
+          <span className="text-sm">
+            Page {list.page} of {Math.max(1, list.totalPages)}
+          </span>
+          <Button
+            variant="outline"
+            className="min-h-11"
+            disabled={!list.hasMore || loading}
+            onClick={() => {
+              onPageChange(list.page + 1);
+            }}
+          >
+            Next comments
+          </Button>
+        </nav>
+      ) : null}
+    </>
   );
 }

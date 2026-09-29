@@ -22,10 +22,20 @@
         "noExcessiveCognitiveComplexity": {
           "level": "error",
           "options": {
-            "maxAllowedComplexity": 20
+            "maxAllowedComplexity": 15
           }
         },
+        "noExcessiveLinesPerFunction": {
+          "level": "error",
+          "options": { "maxLines": 80, "skipBlankLines": false, "skipIifes": false }
+        },
         "useLiteralKeys": "off"
+      },
+      "style": {
+        "noExcessiveLinesPerFile": {
+          "level": "error",
+          "options": { "maxLines": 300, "skipBlankLines": false }
+        }
       }
     }
   },

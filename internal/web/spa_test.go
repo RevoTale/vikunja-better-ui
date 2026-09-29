@@ -14,15 +14,17 @@ var contentHashPattern = regexp.MustCompile(`-[A-Za-z0-9_-]{8,}\.[^.]+$`)
 func TestEmbeddedAssetsHaveContentHashedNames(t *testing.T) {
 	t.Parallel()
 
-	err := fs.WalkDir(embeddedAssets, "assets/dist/assets", func(assetPath string, entry fs.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			return walkErr
-		}
-		if !entry.IsDir() && !contentHashPattern.MatchString(entry.Name()) {
-			t.Errorf("asset %q has no content hash", assetPath)
-		}
-		return nil
-	})
+	err := fs.WalkDir(embeddedAssets, "assets/dist/assets",
+		func(assetPath string, entry fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if !entry.IsDir() && !contentHashPattern.MatchString(entry.Name()) {
+				t.Errorf("asset %q has no content hash", assetPath)
+			}
+			return nil
+		},
+	)
 	if err != nil {
 		t.Fatalf("walk embedded assets: %v", err)
 	}
@@ -32,7 +34,10 @@ func TestSPAHandlerServesIndexForSemanticRoute(t *testing.T) {
 	t.Parallel()
 
 	recorder := httptest.NewRecorder()
-	SPAHandler().ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://app.test/tasks/42", nil))
+	SPAHandler().ServeHTTP(
+		recorder,
+		httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://app.test/tasks/42", nil),
+	)
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Body.String(), `<div id="root"></div>`) {
 		t.Fatalf("response = %d %q", recorder.Code, recorder.Body.String())
 	}
@@ -58,7 +63,12 @@ func TestSPAHandlerServesNestedAsset(t *testing.T) {
 		httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://app.test/"+requestPath, nil),
 	)
 	if recorder.Code != http.StatusOK || !strings.Contains(recorder.Header().Get("Content-Type"), "javascript") {
-		t.Fatalf("response = %d, Content-Type = %q, body = %.40q", recorder.Code, recorder.Header().Get("Content-Type"), recorder.Body.String())
+		t.Fatalf(
+			"response = %d, Content-Type = %q, body = %.40q",
+			recorder.Code,
+			recorder.Header().Get("Content-Type"),
+			recorder.Body.String(),
+		)
 	}
 	if cacheControl := recorder.Header().Get("Cache-Control"); cacheControl != "public, max-age=31536000, immutable" {
 		t.Fatalf("Cache-Control = %q", cacheControl)
@@ -130,7 +140,8 @@ func TestSecurityHeaders(t *testing.T) {
 			t.Fatalf("CSP missing %q: %q", directive, csp)
 		}
 	}
-	if recorder.Header().Get("Strict-Transport-Security") == "" || recorder.Header().Get("X-Content-Type-Options") != "nosniff" {
+	if recorder.Header().Get("Strict-Transport-Security") == "" ||
+		recorder.Header().Get("X-Content-Type-Options") != "nosniff" {
 		t.Fatalf("security headers = %#v", recorder.Header())
 	}
 }

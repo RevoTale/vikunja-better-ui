@@ -4,19 +4,7 @@ import type { LinkMatcher } from "@lexical/link";
 export const matchDiscussionUrl: LinkMatcher = (text) => {
   for (const match of text.matchAll(/(?:https?:\/\/|www\.)[^\s<>"']+/giu)) {
     if (match.index > 0 && /[\p{L}\p{N}_@/]/u.test(text[match.index - 1] ?? "")) continue;
-    let value = match[0].replace(/[.,;:!?]+$/, "");
-    for (const [open, close] of [
-      ["(", ")"],
-      ["[", "]"],
-    ] as const) {
-      let balance =
-        [...value].filter((char) => char === open).length -
-        [...value].filter((char) => char === close).length;
-      while (balance < 0 && value.endsWith(close)) {
-        value = value.slice(0, -1);
-        balance++;
-      }
-    }
+    const value = trimUrlPunctuation(match[0]);
     const href = /^www\./i.test(value) ? `https://${value}` : value;
     try {
       const url = new URL(href);
@@ -34,6 +22,23 @@ export const matchDiscussionUrl: LinkMatcher = (text) => {
   }
   return null;
 };
+
+function trimUrlPunctuation(candidate: string): string {
+  let value = candidate.replace(/[.,;:!?]+$/, "");
+  for (const [open, close] of [
+    ["(", ")"],
+    ["[", "]"],
+  ] as const) {
+    let balance =
+      [...value].filter((char) => char === open).length -
+      [...value].filter((char) => char === close).length;
+    while (balance < 0 && value.endsWith(close)) {
+      value = value.slice(0, -1);
+      balance++;
+    }
+  }
+  return value;
+}
 
 export function discussionLinks(text: string): { text: string; href?: string }[] {
   const parts: { text: string; href?: string }[] = [];

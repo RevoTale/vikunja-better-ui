@@ -124,7 +124,12 @@ func graphQLRequest(t *testing.T, handler http.Handler, query string) *httptest.
 	if err != nil {
 		t.Fatal(err)
 	}
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://app.test/graphql", bytes.NewReader(body))
+	request := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodPost,
+		"http://app.test/graphql",
+		bytes.NewReader(body),
+	)
 	request.Header.Set("Content-Type", "application/json")
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)

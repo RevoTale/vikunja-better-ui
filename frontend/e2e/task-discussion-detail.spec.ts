@@ -38,9 +38,9 @@ test("discussion supports a description-first task page and shared draft recover
 }, testInfo) => {
   const { taskId } = await discussionFixture(page);
   const response = await page.request.patch(
-    `${process.env.E2E_VIKUNJA_URL}/api/v2/tasks/${taskId}`,
+    `${process.env["E2E_VIKUNJA_URL"]}/api/v2/tasks/${taskId}`,
     {
-      headers: { Authorization: `Bearer ${process.env.E2E_VIKUNJA_API_TOKEN}` },
+      headers: { Authorization: `Bearer ${process.env["E2E_VIKUNJA_API_TOKEN"]}` },
       data: {
         description:
           '<h2>A clear outcome</h2><p>Make the <strong>important details</strong> easy to read.</p><ul><li>Keep the context</li></ul><p><a href="https://example.com">Reference</a></p>',

@@ -97,6 +97,9 @@ describe("editor links", () => {
     await insert(href, PASTE_TAG);
     expect(links()).toEqual([]);
   });
+});
+
+describe("task link title resolution", () => {
   it("saves an optional title snapshot", async () => {
     const { insert, links } = setup(async () => "Referenced task");
     await insert(href, PASTE_TAG);

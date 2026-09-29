@@ -10,7 +10,11 @@ import (
 
 func TestCreateLabeledTaskKeepsCreatedIDOnAttachmentFailure(t *testing.T) {
 	t.Parallel()
-	client := &createClientStub{labels: []vikunja.Label{{ID: 4, Title: "work"}}, created: vikunja.Task{ID: 12}, attachErrByLabel: map[int64]error{4: errors.New("unavailable")}}
+	client := &createClientStub{
+		labels:           []vikunja.Label{{ID: 4, Title: "work"}},
+		created:          vikunja.Task{ID: 12},
+		attachErrByLabel: map[int64]error{4: errors.New("unavailable")},
+	}
 	result, err := CreateLabeledTask(context.Background(), client, 7, vikunja.TaskWrite{}, nil, []int64{4})
 	if err != nil || result.Task.ID != 12 || result.LabelError == nil || client.createTaskCalls != 1 {
 		t.Fatalf("result=%#v err=%v writes=%d", result, err, client.createTaskCalls)
@@ -47,7 +51,10 @@ func TestResolveUserLabelReusesExactTitleOnRetry(t *testing.T) {
 func TestOrdinaryLabelUpdatesPreserveMarkers(t *testing.T) {
 	t.Parallel()
 	client := &labelChangeStub{}
-	task := vikunja.Task{ID: 1, Labels: []vikunja.Label{{ID: 2, Title: "vbu:job"}, {ID: 3, Title: "vbu:future"}, {ID: 4, Title: "job"}}}
+	task := vikunja.Task{
+		ID:     1,
+		Labels: []vikunja.Label{{ID: 2, Title: "vbu:job"}, {ID: 3, Title: "vbu:future"}, {ID: 4, Title: "job"}},
+	}
 	want := []vikunja.Label{{ID: 5, Title: "new"}}
 	if err := updateOrdinaryLabels(t.Context(), client, task, want); err != nil {
 		t.Fatal(err)
@@ -73,7 +80,12 @@ func (c *labelChangeStub) DetachLabel(_ context.Context, _ int64, id int64) erro
 
 func TestOrdinaryLabelsRejectReservedAndUnknownIDs(t *testing.T) {
 	t.Parallel()
-	available := []vikunja.Label{{ID: 1, Title: "work"}, {ID: 2, Title: "job"}, {ID: 3, Title: "vbu:future-marker"}, {ID: 4, Title: "work"}}
+	available := []vikunja.Label{
+		{ID: 1, Title: "work"},
+		{ID: 2, Title: "job"},
+		{ID: 3, Title: "vbu:future-marker"},
+		{ID: 4, Title: "work"},
+	}
 	for _, ids := range [][]int64{{3}, {9}, {0}, {-1}} {
 		if _, err := SelectTaskLabels(available, ids); !errors.Is(err, ErrInvalidLabels) {
 			t.Fatalf("ids %v: %v", ids, err)

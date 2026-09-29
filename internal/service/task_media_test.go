@@ -33,7 +33,15 @@ func TestUploadMediaRewindsFileAfterSniffing(t *testing.T) {
 	t.Parallel()
 	data := "\x89PNG\r\n\x1a\nimage payload"
 	upstream := mediaUploadStub{t: t, want: data}
-	attachment, err := UploadTaskMedia(t.Context(), upstream, 42, "image.png", "image/png", int64(len(data)), strings.NewReader(data))
+	attachment, err := UploadTaskMedia(
+		t.Context(),
+		upstream,
+		42,
+		"image.png",
+		"image/png",
+		int64(len(data)),
+		strings.NewReader(data),
+	)
 	if err != nil || attachment.File.MIME != "image/png" {
 		t.Fatalf("upload = %#v, %v", attachment, err)
 	}
@@ -90,7 +98,15 @@ func TestUploadMediaRetainsCompatibleUpstreamTypes(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			stub := mediaCountingStub{mime: test.upstream}
-			got, err := UploadTaskMedia(t.Context(), &stub, 42, "media.bin", test.declared, int64(len(test.body)), strings.NewReader(test.body))
+			got, err := UploadTaskMedia(
+				t.Context(),
+				&stub,
+				42,
+				"media.bin",
+				test.declared,
+				int64(len(test.body)),
+				strings.NewReader(test.body),
+			)
 			if err != nil || got.File.MIME != test.want || stub.bytes != int64(len(test.body)) {
 				t.Fatalf("upload = %#v, bytes %d, error %v", got, stub.bytes, err)
 			}
@@ -117,10 +133,16 @@ type mediaCountingStub struct {
 	bytes int64
 }
 
-func (stub *mediaCountingStub) UploadTaskAttachment(_ context.Context, taskID int64, name string, file io.Reader) (vikunja.TaskAttachment, error) {
+func (stub *mediaCountingStub) UploadTaskAttachment(
+	_ context.Context, taskID int64, name string, file io.Reader,
+) (vikunja.TaskAttachment, error) {
 	n, err := io.Copy(io.Discard, file)
 	stub.bytes = n
-	return vikunja.TaskAttachment{ID: 8, TaskID: taskID, File: vikunja.AttachmentFile{ID: 9, Name: name, MIME: stub.mime, Size: n}}, err
+	return vikunja.TaskAttachment{
+		ID:     8,
+		TaskID: taskID,
+		File:   vikunja.AttachmentFile{ID: 9, Name: name, MIME: stub.mime, Size: n},
+	}, err
 }
 
 type mediaUploadStub struct {
@@ -128,11 +150,17 @@ type mediaUploadStub struct {
 	want string
 }
 
-func (stub mediaUploadStub) UploadTaskAttachment(_ context.Context, id int64, name string, file io.Reader) (vikunja.TaskAttachment, error) {
+func (stub mediaUploadStub) UploadTaskAttachment(
+	_ context.Context, id int64, name string, file io.Reader,
+) (vikunja.TaskAttachment, error) {
 	stub.t.Helper()
 	body, err := io.ReadAll(file)
 	if err != nil || string(body) != stub.want || id != 42 || name != "image.png" {
 		stub.t.Fatalf("upstream received wrong file %q, %v", body, err)
 	}
-	return vikunja.TaskAttachment{ID: 8, TaskID: 42, File: vikunja.AttachmentFile{ID: 9, Name: name, Size: int64(len(body))}}, nil
+	return vikunja.TaskAttachment{
+		ID:     8,
+		TaskID: 42,
+		File:   vikunja.AttachmentFile{ID: 9, Name: name, Size: int64(len(body))},
+	}, nil
 }

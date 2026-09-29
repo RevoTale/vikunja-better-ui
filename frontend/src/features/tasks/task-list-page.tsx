@@ -20,7 +20,7 @@ import {
 } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import type { ListSearch } from "./list-search";
-import { IssueList, ListMessage } from "./list-state";
+import { IssueList, ListMessage, ListSettingsError } from "./list-state";
 import { paginationRange } from "./pagination-range";
 import { TaskActionFeedback } from "./task-action-feedback";
 import { TaskLabelFilter } from "./task-label-filter";
@@ -100,14 +100,12 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
         />
       ) : null}
       <div className="mt-4 sm:mt-6" aria-busy={loading}>
-        {!error && (sessionError || projectError) ? (
-          <ListMessage tone="error">
-            {graphQLErrorMessage(
-              sessionError ?? projectError,
-              "Task settings could not be loaded. Refresh the page and try again.",
-            )}
-          </ListMessage>
-        ) : null}
+        <ListSettingsError
+          taskError={error}
+          sessionError={sessionError}
+          projectError={projectError}
+          message="Task settings could not be loaded. Refresh the page and try again."
+        />
         <TaskListContent
           dataLoaded={Boolean(data)}
           error={error}

@@ -55,7 +55,8 @@ func parseLabelIDs(values []string) ([]int64, error) {
 	if values == nil {
 		return nil, nil
 	}
-	if len(values) > 50 {
+	const maxSelectedLabels = 50
+	if len(values) > maxSelectedLabels {
 		return nil, labelClientError(service.ErrInvalidLabels)
 	}
 	ids := make([]int64, 0, len(values))

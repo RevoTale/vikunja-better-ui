@@ -13,23 +13,29 @@ import (
 )
 
 const (
-	maxCandidateTasks  int64 = 10000
-	maxPageConcurrency int   = 4
+	maxCandidateTasks    int64 = 10000
+	maxPageConcurrency   int   = 4
+	upstreamTaskPageSize       = 1000
+	firstRemainingPage   int64 = 2
 )
 
+// ListIssueCode explains why a result cannot be presented as a complete list.
 type ListIssueCode string
 
+// Incomplete list reasons distinguish a safety bound from an upstream failure.
 const (
 	ListIssueTooLarge        ListIssueCode = "RESULT_SET_TOO_LARGE"
 	ListIssueUpstreamPartial ListIssueCode = "UPSTREAM_PARTIAL"
 )
 
+// ListIssue retains a diagnostic cause while exposing a safe result classification.
 type ListIssue struct {
 	Code      ListIssueCode
 	ProjectID *int64
 	Cause     error
 }
 
+// ListRequest defines a fresh task query with caller-resolved timezone and project context.
 type ListRequest struct {
 	IncludeCommentCount bool
 	Scope               TaskScope
@@ -49,20 +55,25 @@ type ListRequest struct {
 	SortOrder           SortOrder
 }
 
+// JobSort selects a chronological key for unified active and completed jobs.
 type JobSort string
 
+// Supported unified job sort keys.
 const (
 	JobSortStartAt  JobSort = "startAt"
 	JobSortFinishAt JobSort = "finishAt"
 )
 
+// SortOrder specifies the direction of chronological job ordering.
 type SortOrder string
 
+// Supported sort directions use the upstream wire spelling.
 const (
 	SortAscending  SortOrder = "asc"
 	SortDescending SortOrder = "desc"
 )
 
+// ListResult distinguishes complete pagination from a partial upstream response.
 type ListResult struct {
 	Items      []TaskListItem
 	Page       int
@@ -84,6 +95,7 @@ type candidatePageSet struct {
 	pages []vikunja.TaskPage
 }
 
+// ListTasks loads fresh candidates, classifies them, and returns a bounded ordered page.
 func ListTasks(ctx context.Context, client taskListClient, request ListRequest) (ListResult, error) {
 	if err := validateListRequest(request); err != nil {
 		return ListResult{}, err
@@ -207,8 +219,8 @@ func loadRemainingCandidatePages(
 	group.SetLimit(maxPageConcurrency)
 	for setIndex := range sets {
 		sets[setIndex].pages = make([]vikunja.TaskPage, max(sets[setIndex].first.TotalPages-1, 0))
-		for pageNumber := int64(2); pageNumber <= sets[setIndex].first.TotalPages; pageNumber++ {
-			pageIndex := pageNumber - 2
+		for pageNumber := firstRemainingPage; pageNumber <= sets[setIndex].first.TotalPages; pageNumber++ {
+			pageIndex := pageNumber - firstRemainingPage
 			group.Go(func() error {
 				query := sets[setIndex].query
 				query.Page = pageNumber
@@ -337,12 +349,12 @@ func candidateTaskQuery(request ListRequest) vikunja.TaskQuery {
 	}
 	query := vikunja.TaskQuery{
 		IncludeCommentCount: request.IncludeCommentCount,
-		Page:                1, PerPage: 1000, Filter: strings.Join(filterParts, " && "),
+		Page:                1, PerPage: upstreamTaskPageSize, Filter: strings.Join(filterParts, " && "),
 		FilterTimezone: request.Timezone, FilterIncludeNulls: &includeNulls,
 	}
 	if request.Scope == TaskScopeCompletedJobs {
 		query.SortBy = []string{"done_at", "id"}
-		query.OrderBy = []string{"desc", "desc"}
+		query.OrderBy = []string{string(SortDescending), string(SortDescending)}
 	}
 	return query
 }
@@ -360,7 +372,8 @@ func historyTaskQuery(request ListRequest) vikunja.TaskQuery {
 	return vikunja.TaskQuery{
 		IncludeCommentCount: request.IncludeCommentCount,
 		Page:                1, PerPage: int64(request.PageSize), Filter: strings.Join(filterParts, " && "),
-		FilterTimezone: request.Timezone, SortBy: []string{"done_at", "id"}, OrderBy: []string{"desc", "desc"},
+		FilterTimezone: request.Timezone, SortBy: []string{"done_at", "id"},
+		OrderBy: []string{string(SortDescending), string(SortDescending)},
 	}
 }
 
@@ -418,6 +431,10 @@ func validateListRequest(request ListRequest) error {
 			return errors.New("filter label ID must be positive")
 		}
 	}
+	return validateListScope(request)
+}
+
+func validateListScope(request ListRequest) error {
 	switch request.Scope {
 	case TaskScopeCompletedJobs, TaskScopeAllJobs:
 		if request.CompletedFrom.IsZero() || request.CompletedBefore.IsZero() ||

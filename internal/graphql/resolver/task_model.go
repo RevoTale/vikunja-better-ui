@@ -97,7 +97,7 @@ func recurrenceRuleModel(task vikunja.Task) (*model.RecurrenceRule, error) {
 		return nil, errors.New("task recurrence interval is unsupported")
 	}
 	mode := model.RecurrenceModeScheduledCycle
-	if task.RepeatMode == 2 {
+	if task.RepeatMode == vikunja.RepeatModeFromCompletion {
 		mode = model.RecurrenceModeFromCompletion
 	}
 	return &model.RecurrenceRule{
@@ -137,6 +137,5 @@ func optionalTime(value time.Time) *time.Time {
 	if value.IsZero() {
 		return nil
 	}
-	copy := value
-	return &copy
+	return new(value)
 }

@@ -190,11 +190,13 @@ test("discussion supports pasted images, dropped audio and media-only comments",
   await expect(audio).toHaveAttribute("controls", "");
   await expect(audio).not.toHaveAttribute("autoplay");
   await expect
-    .poll(() => audio.evaluate((element) => element.readyState))
+    .poll(() => audio.evaluate((element: HTMLAudioElement) => element.readyState))
     .toBeGreaterThanOrEqual(1);
-  await audio.evaluate((element) => element.play());
-  await expect.poll(() => audio.evaluate((element) => element.currentTime)).toBeGreaterThan(0);
-  await audio.evaluate((element) => element.pause());
+  await audio.evaluate((element: HTMLAudioElement) => element.play());
+  await expect
+    .poll(() => audio.evaluate((element: HTMLAudioElement) => element.currentTime))
+    .toBeGreaterThan(0);
+  await audio.evaluate((element: HTMLAudioElement) => element.pause());
   await page.getByRole("button", { name: "Post comment", exact: true }).click();
   const article = page.getByRole("article");
   await expect(article.getByAltText("Pasted image")).toBeVisible();
@@ -234,11 +236,13 @@ test("discussion plays an uploaded video with native controls and no autoplay", 
   await expect(video).toHaveAttribute("controls", "");
   await expect(video).not.toHaveAttribute("autoplay");
   await expect
-    .poll(() => video.evaluate((element) => element.readyState))
+    .poll(() => video.evaluate((element: HTMLVideoElement) => element.readyState))
     .toBeGreaterThanOrEqual(1);
-  await video.evaluate((element) => element.play());
-  await expect.poll(() => video.evaluate((element) => element.currentTime)).toBeGreaterThan(0);
-  await video.evaluate((element) => element.pause());
+  await video.evaluate((element: HTMLVideoElement) => element.play());
+  await expect
+    .poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime))
+    .toBeGreaterThan(0);
+  await video.evaluate((element: HTMLVideoElement) => element.pause());
   await page.getByRole("button", { name: "Post comment", exact: true }).click();
   await expect(page.getByRole("article").locator("video")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("video-comment.png"), fullPage: true });

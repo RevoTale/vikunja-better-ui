@@ -6,19 +6,28 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/graphql/model"
 )
 
+const (
+	priorityUnset int64 = iota
+	priorityLow
+	priorityMedium
+	priorityHigh
+	priorityUrgent
+	priorityDoNow
+)
+
 func priorityModel(value int64) (model.TaskPriority, error) {
 	switch value {
-	case 0:
+	case priorityUnset:
 		return model.TaskPriorityUnset, nil
-	case 1:
+	case priorityLow:
 		return model.TaskPriorityLow, nil
-	case 2:
+	case priorityMedium:
 		return model.TaskPriorityMedium, nil
-	case 3:
+	case priorityHigh:
 		return model.TaskPriorityHigh, nil
-	case 4:
+	case priorityUrgent:
 		return model.TaskPriorityUrgent, nil
-	case 5:
+	case priorityDoNow:
 		return model.TaskPriorityDoNow, nil
 	default:
 		return "", fmt.Errorf("unsupported Vikunja priority %d", value)
@@ -28,17 +37,17 @@ func priorityModel(value int64) (model.TaskPriority, error) {
 func priorityValue(priority model.TaskPriority) (int64, error) {
 	switch priority {
 	case model.TaskPriorityLow:
-		return 1, nil
+		return priorityLow, nil
 	case model.TaskPriorityMedium:
-		return 2, nil
+		return priorityMedium, nil
 	case model.TaskPriorityHigh:
-		return 3, nil
+		return priorityHigh, nil
 	case model.TaskPriorityUrgent:
-		return 4, nil
+		return priorityUrgent, nil
 	case model.TaskPriorityDoNow:
-		return 5, nil
+		return priorityDoNow, nil
 	case model.TaskPriorityUnset:
-		return 0, nil
+		return priorityUnset, nil
 	}
 	return 0, fmt.Errorf("unsupported GraphQL priority %q", priority)
 }

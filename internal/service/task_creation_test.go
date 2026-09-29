@@ -199,8 +199,22 @@ func TestBuildIntervalRecurrence(t *testing.T) {
 		wantAfter int64
 		wantMode  int
 	}{
-		{name: "three days scheduled", interval: 3, unit: RecurrenceUnitDay, mode: RecurrenceModeScheduled, wantAfter: 3 * 24 * 60 * 60, wantMode: 0},
-		{name: "two weeks from completion", interval: 2, unit: RecurrenceUnitWeek, mode: RecurrenceModeFromCompletion, wantAfter: 2 * 7 * 24 * 60 * 60, wantMode: 2},
+		{
+			name:      "three days scheduled",
+			interval:  3,
+			unit:      RecurrenceUnitDay,
+			mode:      RecurrenceModeScheduled,
+			wantAfter: 3 * 24 * 60 * 60,
+			wantMode:  0,
+		},
+		{
+			name:      "two weeks from completion",
+			interval:  2,
+			unit:      RecurrenceUnitWeek,
+			mode:      RecurrenceModeFromCompletion,
+			wantAfter: 2 * 7 * 24 * 60 * 60,
+			wantMode:  2,
+		},
 	}
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {

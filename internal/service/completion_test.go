@@ -16,7 +16,12 @@ func TestCompleteNonRecurringIssuesBoundUndo(t *testing.T) {
 	client := &completionClientStub{
 		reads: []taskRead{
 			{task: vikunja.Task{ID: 9, Title: "Deploy", Labels: []vikunja.Label{{ID: 2, Title: jobLabel}}}, etag: `"v1"`},
-			{task: vikunja.Task{ID: 9, Title: "Deploy", Done: true, DoneAt: now, Labels: []vikunja.Label{{ID: 2, Title: jobLabel}}}, etag: `"v2"`},
+			{
+				task: vikunja.Task{
+					ID: 9, Title: "Deploy", Done: true, DoneAt: now, Labels: []vikunja.Label{{ID: 2, Title: jobLabel}},
+				},
+				etag: `"v2"`,
+			},
 		},
 	}
 	capabilities := NewCapabilityManager([]byte("01234567890123456789012345678901"), func() time.Time { return now })
@@ -27,7 +32,10 @@ func TestCompleteNonRecurringIssuesBoundUndo(t *testing.T) {
 	if !result.Task.Done || result.UndoCapability == "" || !result.UndoUntil.Equal(now.Add(30*time.Second)) {
 		t.Fatalf("CompleteNonRecurring() = %#v", result)
 	}
-	if client.patchCalls != 1 || client.patchCheck.Done == nil || *client.patchCheck.Done || client.patchDone == nil || !*client.patchDone {
+	if client.patchCalls != 1 || client.patchCheck.Done == nil ||
+		*client.patchCheck.Done ||
+		client.patchDone == nil ||
+		!*client.patchDone {
 		t.Fatalf("patch calls=%d check=%#v done=%v", client.patchCalls, client.patchCheck, client.patchDone)
 	}
 	grant, err := capabilities.ParseUndo("session-1", result.UndoCapability)
@@ -130,7 +138,12 @@ func (client *completionClientStub) Task(_ context.Context, _ int64) (vikunja.Ta
 	return read.task, vikunja.ResponseMetadata{ETag: read.etag}, nil
 }
 
-func (client *completionClientStub) PatchTaskChecked(_ context.Context, _ int64, patch vikunja.TaskPatch, check vikunja.TaskCheck) (vikunja.Task, error) {
+func (client *completionClientStub) PatchTaskChecked(
+	_ context.Context,
+	_ int64,
+	patch vikunja.TaskPatch,
+	check vikunja.TaskCheck,
+) (vikunja.Task, error) {
 	client.patchCalls++
 	client.patchDone = patch.Done
 	if patch.DueDate != nil {

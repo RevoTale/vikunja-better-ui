@@ -25,13 +25,14 @@ export function mergeWeekEntries<
     // The server owns priority/due/title/ID ordering. Do not reorder overdue
     // tasks by start time while merging the future computed occurrences.
     if (leftOverdue && rightOverdue) return 0;
-    const leftTimes = weekEntryTimes(left);
-    const rightTimes = weekEntryTimes(right);
-    const timeOrder =
-      leftTimes[0] - rightTimes[0] || leftTimes[1] - rightTimes[1] || leftTimes[2] - rightTimes[2];
+    const timeOrder = compareTimes(weekEntryTimes(left), weekEntryTimes(right));
     if (timeOrder !== 0 || left.kind === right.kind) return timeOrder;
     return left.kind === "task" ? -1 : 1;
   });
+}
+
+function compareTimes(left: [number, number, number], right: [number, number, number]): number {
+  return left[0] - right[0] || left[1] - right[1] || left[2] - right[2];
 }
 
 function weekEntryTimes<Task extends WeekTaskSchedule, Projection extends { dueAt: string }>(

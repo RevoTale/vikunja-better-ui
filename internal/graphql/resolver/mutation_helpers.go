@@ -94,7 +94,8 @@ func recurringRepairSteps(
 	normalizeDue bool,
 	normalizeJobSchedule bool,
 ) []model.RepairStep {
-	steps := make([]model.RepairStep, 0, 4)
+	const maxRepairSteps = 4
+	steps := make([]model.RepairStep, 0, maxRepairSteps)
 	if normalizeJobSchedule {
 		steps = append(steps, model.RepairStepNormalizeJobSchedule)
 	} else if normalizeDue {
@@ -187,19 +188,29 @@ func (resolver *Resolver) createTaskPayloadWithMarkers(
 	}
 	if result.LabelError != nil {
 		resolver.logError("attach created task labels", result.LabelError)
-		message := "The task was created, but its labels could not be confirmed. Open the created task to review its labels; do not create it again."
+		message := "The task was created, but its labels could not be confirmed. " +
+			"Open the created task to review its labels; do not create it again."
 		payload.LabelError = &message
 	}
 	if !result.RepairRequired {
 		return payload, nil
 	}
+	return resolver.authorizeCreatedTaskRepair(ctx, session, result, payload)
+}
+
+func (resolver *Resolver) authorizeCreatedTaskRepair(
+	ctx context.Context, session auth.Session, result service.CreationResult, payload *model.TaskMutationPayload,
+) (*model.TaskMutationPayload, error) {
 	if resolver.capabilities == nil {
 		return nil, clientError("INTERNAL", "Task metadata repair is unavailable.")
 	}
 	_, metadata, readErr := resolver.tasks.Task(ctx, result.Task.ID)
 	if readErr != nil || metadata.ETag == "" {
 		resolver.logError("read created task for repair", readErr)
-		return nil, clientError("REPAIR_REQUIRED", "The task was created, but its marker could not be attached. Open it in Vikunja to repair it.")
+		return nil, clientError(
+			"REPAIR_REQUIRED",
+			"The task was created, but its marker could not be attached. Open it in Vikunja to repair it.",
+		)
 	}
 	capability, capabilityErr := resolver.capabilities.IssueMarkerRepair(session.ID, service.MarkerRepairGrant{
 		TaskID: result.Task.ID, MarkerTitles: result.MissingMarkers, ETag: metadata.ETag,

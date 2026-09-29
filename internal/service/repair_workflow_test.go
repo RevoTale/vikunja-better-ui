@@ -24,7 +24,10 @@ func TestRepairMarkerAttachesAndProvesMarker(t *testing.T) {
 		labels: []vikunja.Label{{ID: 3, Title: dateOnlyLabel}},
 		reads: []taskRead{
 			{task: vikunja.Task{ID: 11, Title: "Pay bill"}, etag: `"v1"`},
-			{task: vikunja.Task{ID: 11, Title: "Pay bill", Labels: []vikunja.Label{{ID: 3, Title: dateOnlyLabel}}}, etag: `"v2"`},
+			{
+				task: vikunja.Task{ID: 11, Title: "Pay bill", Labels: []vikunja.Label{{ID: 3, Title: dateOnlyLabel}}},
+				etag: `"v2"`,
+			},
 		},
 	}
 	result, err := RepairMarker(context.Background(), client, capabilities, "session-1", token)

@@ -30,5 +30,12 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "codegen.ts", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"]
+  "include": [
+    "src",
+    "e2e",
+    "codegen.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts"
+  ]
 }

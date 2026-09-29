@@ -9,8 +9,12 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
+const maxTaskLabels = 50
+
+// ErrInvalidLabels rejects inaccessible labels and the internal namespace.
 var ErrInvalidLabels = errors.New("choose accessible ordinary labels; vbu: labels are reserved")
 
+// IsInternalLabel reserves the normalized vbu: namespace, not the ordinary job label.
 func IsInternalLabel(title string) bool {
 	title = strings.ToLower(strings.TrimSpace(title))
 	return strings.HasPrefix(title, "vbu:")
@@ -27,8 +31,9 @@ func loadTaskLabels(ctx context.Context, client markerClient, ids []int64) ([]vi
 	return SelectTaskLabels(available, ids)
 }
 
+// SelectTaskLabels validates accessible ordinary IDs and deduplicates the selection.
 func SelectTaskLabels(available []vikunja.Label, ids []int64) ([]vikunja.Label, error) {
-	if len(ids) > 50 {
+	if len(ids) > maxTaskLabels {
 		return nil, ErrInvalidLabels
 	}
 	selected := make([]vikunja.Label, 0, len(ids))
@@ -54,6 +59,7 @@ func SelectTaskLabels(available []vikunja.Label, ids []int64) ([]vikunja.Label, 
 	return selected, nil
 }
 
+// ResolveUserLabel reuses the smallest matching ID or creates an ordinary label.
 func ResolveUserLabel(ctx context.Context, client markerClient, title string) (vikunja.Label, error) {
 	title = strings.TrimSpace(title)
 	if title == "" || utf8.RuneCountInString(title) > 250 || IsInternalLabel(title) {
@@ -81,7 +87,12 @@ type taskLabelClient interface {
 	DetachLabel(context.Context, int64, int64) error
 }
 
-func updateOrdinaryLabels(ctx context.Context, client taskLabelClient, task vikunja.Task, desired []vikunja.Label) error {
+func updateOrdinaryLabels(
+	ctx context.Context,
+	client taskLabelClient,
+	task vikunja.Task,
+	desired []vikunja.Label,
+) error {
 	for _, label := range desired {
 		if !hasLabelID(task.Labels, label.ID) {
 			if err := client.AttachLabel(ctx, task.ID, label.ID); err != nil {

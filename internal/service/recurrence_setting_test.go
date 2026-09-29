@@ -111,7 +111,9 @@ type recurrenceSettingClientStub struct {
 	detachedLabels []int64
 }
 
-func (client *recurrenceSettingClientStub) Task(context.Context, int64) (vikunja.Task, vikunja.ResponseMetadata, error) {
+func (client *recurrenceSettingClientStub) Task(
+	context.Context, int64,
+) (vikunja.Task, vikunja.ResponseMetadata, error) {
 	read := client.reads[client.readCalls]
 	client.readCalls++
 	return read.task, vikunja.ResponseMetadata{ETag: read.etag}, nil
@@ -121,7 +123,9 @@ func (client *recurrenceSettingClientStub) Labels(context.Context) ([]vikunja.La
 	return client.labels, nil
 }
 
-func (client *recurrenceSettingClientStub) CreateLabel(_ context.Context, input vikunja.LabelWrite) (vikunja.Label, error) {
+func (client *recurrenceSettingClientStub) CreateLabel(
+	_ context.Context, input vikunja.LabelWrite,
+) (vikunja.Label, error) {
 	label := vikunja.Label{ID: 10, Title: input.Title}
 	client.labels = append(client.labels, label)
 	return label, nil

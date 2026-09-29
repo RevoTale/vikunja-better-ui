@@ -8,8 +8,18 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
+const daysPerWeek = 7
+
+const (
+	todayOverdue = iota
+	todayTimed
+	todayDateOnly
+)
+
+// TaskScope selects a list's filtering and ordering policy.
 type TaskScope string
 
+// Supported task scopes include integration-only unified/completed job views.
 const (
 	TaskScopeToday         TaskScope = "TODAY"
 	TaskScopeWeek          TaskScope = "WEEK"
@@ -21,6 +31,7 @@ const (
 	TaskScopeHistory       TaskScope = "HISTORY"
 )
 
+// TaskListItem pairs upstream state with workflow classification and a project title.
 type TaskListItem struct {
 	Task           vikunja.Task
 	Classification TaskClassification
@@ -33,6 +44,7 @@ type taskListCandidate struct {
 	ProjectTitle   string
 }
 
+// BuildTaskList classifies, filters, and sorts supplied tasks without upstream requests.
 func BuildTaskList(
 	tasks []vikunja.Task,
 	projectTitles map[int64]string,
@@ -131,8 +143,8 @@ func nextWeekBoundary(now time.Time, location *time.Location, weekStart time.Wee
 	}
 	localNow := now.In(location)
 	today := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 0, 0, 0, location)
-	daysSinceStart := (int(localNow.Weekday()) - int(weekStart) + 7) % 7
-	return today.AddDate(0, 0, 7-daysSinceStart)
+	daysSinceStart := (int(localNow.Weekday()) - int(weekStart) + daysPerWeek) % daysPerWeek
+	return today.AddDate(0, 0, daysPerWeek-daysSinceStart)
 }
 
 func nextMonthBoundary(now time.Time, location *time.Location) time.Time {
@@ -223,12 +235,12 @@ func compareToday(left taskListCandidate, right taskListCandidate, now time.Time
 
 func todayGroup(item taskListCandidate, now time.Time) int {
 	if item.Task.DueDate.Before(now) {
-		return 0
+		return todayOverdue
 	}
 	if !item.Classification.DateOnly {
-		return 1
+		return todayTimed
 	}
-	return 2
+	return todayDateOnly
 }
 
 func compareDateScope(left taskListCandidate, right taskListCandidate, now time.Time) int {

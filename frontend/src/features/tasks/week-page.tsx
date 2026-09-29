@@ -7,7 +7,7 @@ import { AppSelect } from "@/components/app-select";
 import { Button } from "@/components/ui/button";
 import { ProjectsDocument, SessionDocument, WeekDocument, type WeekQuery } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
-import { ListMessage } from "./list-state";
+import { ListSettingsError } from "./list-state";
 import { currentDateInTimeZone } from "./local-date-time";
 import { TaskActionFeedback } from "./task-action-feedback";
 import { useTaskListActions } from "./use-task-list-actions";
@@ -23,7 +23,6 @@ type WeekPageProps = {
 
 export function WeekPage({ search, setSearch }: WeekPageProps) {
   const location = useLocation();
-  const hasAutoScrolledToToday = useRef(false);
   const {
     data: sessionData,
     error: sessionError,
@@ -56,20 +55,7 @@ export function WeekPage({ search, setSearch }: WeekPageProps) {
   const contentLoading = loading || timezonePending;
   useTaskRefreshFeedback({ refreshing: loading && Boolean(week), errorMessage: backgroundError });
 
-  useEffect(() => {
-    if (!today || !week) return;
-    if (!week.days.some((day) => day.date === today)) {
-      hasAutoScrolledToToday.current = false;
-      return;
-    }
-    if (hasAutoScrolledToToday.current) return;
-
-    const frame = requestAnimationFrame(() => {
-      hasAutoScrolledToToday.current = true;
-      scrollToToday();
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [today, week]);
+  useScrollToToday(today, week);
 
   const navigateToWeek = (week?: string) => {
     setSearch(week ? { project: search.project, week } : { project: search.project });
@@ -127,14 +113,12 @@ export function WeekPage({ search, setSearch }: WeekPageProps) {
       </div>
 
       <div className="mt-5" aria-busy={contentLoading}>
-        {!error && (sessionError || projectError) ? (
-          <ListMessage tone="error">
-            {graphQLErrorMessage(
-              sessionError ?? projectError,
-              "Week settings could not be loaded. Refresh the page and try again.",
-            )}
-          </ListMessage>
-        ) : null}
+        <ListSettingsError
+          taskError={error}
+          sessionError={sessionError}
+          projectError={projectError}
+          message="Week settings could not be loaded. Refresh the page and try again."
+        />
         <WeekContent
           dataLoaded={Boolean(data) && !timezonePending}
           error={error}
@@ -188,4 +172,22 @@ function WeekNavigation({
 
 function scrollToToday(): void {
   document.getElementById("week-today")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function useScrollToToday(today: string | undefined, week: WeekQuery["week"] | undefined) {
+  const hasAutoScrolledToToday = useRef(false);
+  useEffect(() => {
+    if (!today || !week) return;
+    if (!week.days.some((day) => day.date === today)) {
+      hasAutoScrolledToToday.current = false;
+      return;
+    }
+    if (hasAutoScrolledToToday.current) return;
+
+    const frame = requestAnimationFrame(() => {
+      hasAutoScrolledToToday.current = true;
+      scrollToToday();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [today, week]);
 }

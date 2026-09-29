@@ -1,3 +1,4 @@
+// Package config parses and validates the application's environment configuration.
 package config
 
 import (
@@ -9,16 +10,26 @@ import (
 	"strings"
 )
 
+const (
+	httpScheme                = "http"
+	httpsScheme               = "https"
+	minimumSessionSecretBytes = 32
+)
+
+// Environment selects production security requirements or isolated local operation.
 type Environment string
 
+// Supported application environments.
 const (
 	EnvironmentProduction  Environment = "production"
 	EnvironmentDevelopment Environment = "development"
 	EnvironmentTest        Environment = "test"
 )
 
+// LogLevel is a validated structured logging threshold.
 type LogLevel string
 
+// Supported logging thresholds, from most to least verbose.
 const (
 	LogLevelDebug LogLevel = "debug"
 	LogLevelInfo  LogLevel = "info"
@@ -26,6 +37,7 @@ const (
 	LogLevelError LogLevel = "error"
 )
 
+// Config contains validated server settings and backend-only credentials.
 type Config struct {
 	VikunjaURL      *url.URL
 	VikunjaAPIToken string
@@ -38,8 +50,10 @@ type Config struct {
 	AllowedOrigin   *url.URL
 }
 
+// LookupFunc reads an environment variable without coupling validation to the process.
 type LookupFunc func(string) (string, bool)
 
+// Load validates configuration, returning safe errors that never include secret values.
 func Load(lookup LookupFunc) (Config, error) {
 	environment, err := parseEnvironment(valueOrDefault(lookup, "APP_ENV", string(EnvironmentProduction)))
 	if err != nil {
@@ -151,10 +165,10 @@ func parseVikunjaURL(value string, environment Environment) (*url.URL, error) {
 	if err != nil || !parsed.IsAbs() || parsed.Host == "" {
 		return nil, errors.New("APP_VIKUNJA_URL must be an absolute HTTP(S) URL")
 	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+	if parsed.Scheme != httpScheme && parsed.Scheme != httpsScheme {
 		return nil, errors.New("APP_VIKUNJA_URL must use HTTP or HTTPS")
 	}
-	if environment == EnvironmentProduction && parsed.Scheme != "https" {
+	if environment == EnvironmentProduction && parsed.Scheme != httpsScheme {
 		return nil, errors.New("APP_VIKUNJA_URL must use HTTPS in production")
 	}
 	if parsed.User != nil {
@@ -184,17 +198,22 @@ func parseAllowedOrigin(lookup LookupFunc, environment Environment) (*url.URL, e
 	if err != nil || !parsed.IsAbs() || parsed.Host == "" {
 		return nil, errors.New("APP_ALLOWED_ORIGIN must be an absolute HTTP(S) origin")
 	}
-	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+	if parsed.Scheme != httpScheme && parsed.Scheme != httpsScheme {
 		return nil, errors.New("APP_ALLOWED_ORIGIN must be an HTTP(S) origin")
 	}
-	if environment == EnvironmentProduction && parsed.Scheme != "https" {
+	if environment == EnvironmentProduction && parsed.Scheme != httpsScheme {
 		return nil, errors.New("APP_ALLOWED_ORIGIN must use HTTPS in production")
 	}
-	if parsed.User != nil || parsed.Path != "" || parsed.RawPath != "" || parsed.RawQuery != "" || parsed.Fragment != "" {
+	if !isOriginOnly(parsed) {
 		return nil, errors.New("APP_ALLOWED_ORIGIN must contain only an origin")
 	}
 
 	return parsed, nil
+}
+
+func isOriginOnly(parsed *url.URL) bool {
+	return parsed.User == nil && parsed.Path == "" && parsed.RawPath == "" &&
+		parsed.RawQuery == "" && parsed.Fragment == ""
 }
 
 func parseSessionSecret(value string) ([]byte, error) {
@@ -206,7 +225,7 @@ func parseSessionSecret(value string) ([]byte, error) {
 	if err != nil {
 		return nil, errors.New("APP_SESSION_SECRET must be valid base64")
 	}
-	if len(decoded) < 32 {
+	if len(decoded) < minimumSessionSecretBytes {
 		return nil, errors.New("APP_SESSION_SECRET must decode to at least 32 bytes")
 	}
 

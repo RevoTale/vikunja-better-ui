@@ -2,12 +2,21 @@ package vikunja
 
 import "time"
 
+// Native Vikunja recurrence modes are stable wire values.
+const (
+	RepeatModeScheduled      = 0
+	RepeatModeMonthly        = 1
+	RepeatModeFromCompletion = 2
+)
+
+// UserSettings contains scheduling preferences owned by the Vikunja user.
 type UserSettings struct {
 	Timezone         string `json:"timezone"`
 	WeekStart        int    `json:"week_start"`
 	DefaultProjectID int64  `json:"default_project_id"`
 }
 
+// User identifies an upstream user and their scheduling preferences.
 type User struct {
 	ID       int64        `json:"id"`
 	Username string       `json:"username"`
@@ -15,6 +24,7 @@ type User struct {
 	Settings UserSettings `json:"settings"`
 }
 
+// Project is an accessible upstream project with optional effective permissions.
 type Project struct {
 	ID            int64  `json:"id"`
 	Title         string `json:"title"`
@@ -22,6 +32,7 @@ type Project struct {
 	MaxPermission *int   `json:"max_permission"`
 }
 
+// Label is an upstream tag; its ID, not its title, identifies it uniquely.
 type Label struct {
 	ID          int64     `json:"id"`
 	Title       string    `json:"title"`
@@ -31,12 +42,14 @@ type Label struct {
 	Updated     time.Time `json:"updated"`
 }
 
+// LabelWrite contains fields accepted when creating an upstream label.
 type LabelWrite struct {
 	Title       string `json:"title"`
 	Description string `json:"description,omitempty"`
 	HexColor    string `json:"hex_color,omitempty"`
 }
 
+// Task preserves upstream scheduling, recurrence, ownership, and permission fields.
 type Task struct {
 	CommentCount  *int64    `json:"comment_count,omitempty"`
 	ID            int64     `json:"id"`
@@ -69,18 +82,22 @@ type TaskComment struct {
 	Updated time.Time `json:"updated"`
 }
 
+// TaskCommentWrite carries the comment HTML accepted by Vikunja.
 type TaskCommentWrite struct {
 	Comment string `json:"comment"`
 }
 
+// CommentQuery selects a bounded, ordered page of task comments.
 type CommentQuery struct {
 	Page    int64
 	PerPage int64
 	Order   string
 }
 
+// CommentPage includes comment items and upstream pagination metadata.
 type CommentPage = page[TaskComment]
 
+// TaskWrite contains task creation fields; absent timestamps retain upstream defaults.
 type TaskWrite struct {
 	Title       string     `json:"title"`
 	Description string     `json:"description,omitempty"`
@@ -93,6 +110,7 @@ type TaskWrite struct {
 	EndDate     *time.Time `json:"end_date,omitempty"`
 }
 
+// TaskPatch distinguishes omitted fields from explicit zero-value replacements.
 type TaskPatch struct {
 	Title       *string    `json:"title,omitempty"`
 	Description *string    `json:"description,omitempty"`
@@ -106,6 +124,7 @@ type TaskPatch struct {
 	RepeatMode  *int       `json:"repeat_mode,omitempty"`
 }
 
+// TaskCheck supplies expected values for atomic JSON Patch preconditions.
 type TaskCheck struct {
 	Updated     *time.Time
 	Title       *string
@@ -121,6 +140,7 @@ type TaskCheck struct {
 	RepeatMode  *int
 }
 
+// TaskQuery specifies upstream filtering, sorting, pagination, and optional expansions.
 type TaskQuery struct {
 	IncludeCommentCount bool
 	Page                int64
@@ -141,6 +161,7 @@ type page[T any] struct {
 	TotalPages int64 `json:"total_pages"`
 }
 
+// TaskPage includes task items and upstream pagination metadata.
 type TaskPage = page[Task]
 
 type labelTask struct {

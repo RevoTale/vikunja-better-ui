@@ -15,7 +15,11 @@ import (
 func discussionCommentModel(comment service.DiscussionComment) *model.TaskComment {
 	return &model.TaskComment{
 		ID: strconv.FormatInt(comment.ID, 10), BodyHTML: comment.BodyHTML,
-		Author:    &model.DiscussionAuthor{ID: strconv.FormatInt(comment.Author.ID, 10), Username: comment.Author.Username, Name: comment.Author.Name},
+		Author: &model.DiscussionAuthor{
+			ID:       strconv.FormatInt(comment.Author.ID, 10),
+			Username: comment.Author.Username,
+			Name:     comment.Author.Name,
+		},
 		CreatedAt: comment.CreatedAt, UpdatedAt: comment.UpdatedAt,
 	}
 }
@@ -28,7 +32,13 @@ func discussionPageModel(result service.TaskDiscussion) (*model.TaskCommentPage,
 	for _, comment := range result.Comments {
 		items = append(items, discussionCommentModel(comment))
 	}
-	return &model.TaskCommentPage{Items: items, Page: int(result.Page), PageSize: int(result.PageSize), TotalPages: int(result.TotalPages), HasMore: result.Page < result.TotalPages}, nil
+	return &model.TaskCommentPage{
+		Items:      items,
+		Page:       int(result.Page),
+		PageSize:   int(result.PageSize),
+		TotalPages: int(result.TotalPages),
+		HasMore:    result.Page < result.TotalPages,
+	}, nil
 }
 
 func commentWrite(body string) (vikunja.TaskCommentWrite, error) {

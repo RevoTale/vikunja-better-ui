@@ -40,79 +40,20 @@ func TestLoadRejectsInvalidConfiguration(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		change     func(map[string]string)
+		key        string
+		value      string
 		wantDetail string
 	}{
-		{
-			name: "missing token",
-			change: func(values map[string]string) {
-				delete(values, "APP_VIKUNJA_API_TOKEN")
-			},
-			wantDetail: "APP_VIKUNJA_API_TOKEN",
-		},
-		{
-			name: "short secret",
-			change: func(values map[string]string) {
-				values["APP_SESSION_SECRET"] = base64.StdEncoding.EncodeToString([]byte("too short"))
-			},
-			wantDetail: "APP_SESSION_SECRET",
-		},
-		{
-			name: "invalid base64 secret",
-			change: func(values map[string]string) {
-				values["APP_SESSION_SECRET"] = "not base64!"
-			},
-			wantDetail: "APP_SESSION_SECRET",
-		},
-		{
-			name: "production Vikunja requires https",
-			change: func(values map[string]string) {
-				values["APP_VIKUNJA_URL"] = "http://vikunja.example.test"
-			},
-			wantDetail: "HTTPS",
-		},
-		{
-			name: "Vikunja URL rejects credentials",
-			change: func(values map[string]string) {
-				values["APP_VIKUNJA_URL"] = "https://user:pass@vikunja.example.test"
-			},
-			wantDetail: "user information",
-		},
-		{
-			name: "Vikunja URL rejects query",
-			change: func(values map[string]string) {
-				values["APP_VIKUNJA_URL"] = "https://vikunja.example.test?secret=value"
-			},
-			wantDetail: "query",
-		},
-		{
-			name: "origin rejects path",
-			change: func(values map[string]string) {
-				values["APP_ALLOWED_ORIGIN"] = "https://tasks.example.test/graphql"
-			},
-			wantDetail: "origin",
-		},
-		{
-			name: "production origin required",
-			change: func(values map[string]string) {
-				delete(values, "APP_ALLOWED_ORIGIN")
-			},
-			wantDetail: "APP_ALLOWED_ORIGIN",
-		},
-		{
-			name: "unknown environment",
-			change: func(values map[string]string) {
-				values["APP_ENV"] = "staging"
-			},
-			wantDetail: "APP_ENV",
-		},
-		{
-			name: "unknown log level",
-			change: func(values map[string]string) {
-				values["APP_LOG_LEVEL"] = "verbose"
-			},
-			wantDetail: "APP_LOG_LEVEL",
-		},
+		{"missing token", "APP_VIKUNJA_API_TOKEN", "", "APP_VIKUNJA_API_TOKEN"},
+		{"short secret", "APP_SESSION_SECRET", base64.StdEncoding.EncodeToString([]byte("short")), "APP_SESSION_SECRET"},
+		{"invalid base64 secret", "APP_SESSION_SECRET", "not base64!", "APP_SESSION_SECRET"},
+		{"production Vikunja requires https", "APP_VIKUNJA_URL", "http://vikunja.example.test", "HTTPS"},
+		{"Vikunja URL rejects credentials", "APP_VIKUNJA_URL", "https://user:pass@vikunja.example.test", "user information"},
+		{"Vikunja URL rejects query", "APP_VIKUNJA_URL", "https://vikunja.example.test?secret=value", "query"},
+		{"origin rejects path", "APP_ALLOWED_ORIGIN", "https://tasks.example.test/graphql", "origin"},
+		{"production origin required", "APP_ALLOWED_ORIGIN", "", "APP_ALLOWED_ORIGIN"},
+		{"unknown environment", "APP_ENV", "staging", "APP_ENV"},
+		{"unknown log level", "APP_LOG_LEVEL", "verbose", "APP_LOG_LEVEL"},
 	}
 
 	for _, test := range tests {
@@ -120,7 +61,11 @@ func TestLoadRejectsInvalidConfiguration(t *testing.T) {
 			t.Parallel()
 
 			values := validValues()
-			test.change(values)
+			if test.value == "" {
+				delete(values, test.key)
+			} else {
+				values[test.key] = test.value
+			}
 			_, err := Load(lookup(values))
 			if err == nil {
 				t.Fatal("Load() error = nil, want error")

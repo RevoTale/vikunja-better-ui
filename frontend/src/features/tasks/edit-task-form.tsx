@@ -1,4 +1,4 @@
-import { type FormEvent, useState } from "react";
+import { type Dispatch, type FormEvent, type SetStateAction, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type {
   ProjectsQuery,
@@ -105,25 +105,13 @@ export function EditTaskForm({
             Recurring
           </label>
         </div>
-        <ScheduleShift fields={schedule} timezone={task.timezone} onChange={setSchedule} />
-        {(["start", "end", "due"] as const).map((field) => (
-          <EditDateTimeField
-            key={field}
-            name={field}
-            label={{ start: "Start", end: "End", due: "Due" }[field]}
-            value={schedule[field] ?? ""}
-            defaultDate={today}
-            onChange={(value) => setSchedule((current) => ({ ...current, [field]: value }))}
-          />
-        ))}
-        {values.job ? (
-          <EditJobDuration
-            key={`${schedule.start}:${schedule.end}:${schedule.due}`}
-            fields={schedule}
-            timezone={task.timezone}
-            onChange={setSchedule}
-          />
-        ) : null}
+        <EditTaskSchedule
+          schedule={schedule}
+          setSchedule={setSchedule}
+          timezone={task.timezone}
+          today={today}
+          job={values.job}
+        />
         {recurring ? (
           <RecurrenceFields
             errors={{}}
@@ -148,4 +136,42 @@ export function EditTaskForm({
 
 function local(value: string | null, timezone: string): string {
   return value ? formatLocalInstant(Date.parse(value), timezone) : "";
+}
+
+function EditTaskSchedule({
+  schedule,
+  setSchedule,
+  timezone,
+  today,
+  job,
+}: {
+  schedule: ScheduleFields;
+  setSchedule: Dispatch<SetStateAction<ScheduleFields>>;
+  timezone: string;
+  today: string;
+  job: boolean;
+}) {
+  return (
+    <>
+      <ScheduleShift fields={schedule} timezone={timezone} onChange={setSchedule} />
+      {(["start", "end", "due"] as const).map((field) => (
+        <EditDateTimeField
+          key={field}
+          name={field}
+          label={{ start: "Start", end: "End", due: "Due" }[field]}
+          value={schedule[field] ?? ""}
+          defaultDate={today}
+          onChange={(value) => setSchedule((current) => ({ ...current, [field]: value }))}
+        />
+      ))}
+      {job ? (
+        <EditJobDuration
+          key={`${schedule.start}:${schedule.end}:${schedule.due}`}
+          fields={schedule}
+          timezone={timezone}
+          onChange={setSchedule}
+        />
+      ) : null}
+    </>
+  );
 }

@@ -5,46 +5,97 @@ run:
   tests: true
 
 linters:
-  default: standard
-  enable:
-    - bodyclose
-    - contextcheck
-    - durationcheck
-    - errname
-    - errorlint
-    - exhaustive
-    - funlen
-    - gocritic
-    - gosec
-    - misspell
-    - modernize
-    - noctx
-    - perfsprint
-    - prealloc
-    - revive
-    - sloglint
-    - unconvert
-    - wastedassign
-    - whitespace
+  default: all
+  disable:
+    # Deprecated predecessors of the enabled v2/v5 rules.
+    - gomodguard
+    - wsl
+    # Zero values and small interface-returning constructors are intentional.
+    - exhaustruct
+    - exhaustruct_v5
+    - ireturn
+    # Prefer idiomatic inline error checks and named results where they clarify ownership.
+    - noinlineerr
+    - nonamedreturns
+    # Basic whitespace checks own spacing; gocyclo owns cyclomatic complexity.
+    - nlreturn
+    # Mandatory blank-line placement conflicts with compact, readable Go control flow.
+    - wsl_v5
+    - cyclop
+    # Names and declaration order are reviewed semantically, not by character count/order.
+    - varnamelen
+    - inamedparam
+    - funcorder
+    # Tests deliberately cover private contracts and shared HTTP fixtures.
+    - testpackage
+    - paralleltest
+    # Wire JSON names must match Vikunja, not a local casing convention.
+    - tagliatelle
+    # Safe transport errors and nullable lookups intentionally preserve error/nil contracts.
+    - err113
+    - wrapcheck
+    - nilnil
   exclusions:
     generated: strict
-    presets:
-      - common-false-positives
-      - std-error-handling
     rules:
       - path: _test\.go
         linters:
-          - funlen
+          # Repeated expected literals keep tests independently readable.
+          - goconst
+          - mnd
   settings:
     funlen:
       lines: 60
       statements: 40
+      ignore-comments: false
+    gocyclo:
+      min-complexity: 15
+    gocognit:
+      min-complexity: 20
+    lll:
+      line-length: 120
+      tab-width: 1
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    depguard:
+      rules:
+        entrypoints:
+          list-mode: strict
+          files: ["**/cmd/**/*.go"]
+          allow:
+            - $gostd
+            - github.com/RevoTale/vikunja-better-ui/internal/
+        foundations:
+          files: ["**/internal/config/*.go", "**/internal/auth/*.go"]
+          deny:
+            - pkg: github.com/RevoTale/vikunja-better-ui/internal/service
+              desc: Configuration and authentication must not depend on task workflows.
+            - pkg: github.com/RevoTale/vikunja-better-ui/internal/graphql
+              desc: Foundation packages must not depend on GraphQL transport.
+            - pkg: github.com/RevoTale/vikunja-better-ui/internal/web
+              desc: Foundation packages must not depend on web composition.
+        service:
+          files: ["**/internal/service/*.go"]
+          deny:
+            - pkg: github.com/RevoTale/vikunja-better-ui/internal/graphql
+              desc: Service workflows must not depend on GraphQL transport.
+            - pkg: github.com/RevoTale/vikunja-better-ui/internal/web
+              desc: Service workflows must not depend on HTTP presentation.
+        vikunja:
+          files: ["**/internal/vikunja/*.go"]
+          deny:
+            - pkg: github.com/RevoTale/vikunja-better-ui/internal/service
+              desc: The upstream client must not depend on application workflows.
+            - pkg: github.com/RevoTale/vikunja-better-ui/internal/graphql
+              desc: The upstream client must not depend on GraphQL transport.
+            - pkg: github.com/RevoTale/vikunja-better-ui/internal/web
+              desc: The upstream client must not depend on HTTP presentation.
     revive:
+      enable-default-rules: true
       rules:
         - name: exported
-          disabled: true
         - name: package-comments
-          disabled: true
 
 formatters:
   enable:

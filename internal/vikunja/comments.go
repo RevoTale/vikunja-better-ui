@@ -8,8 +8,10 @@ import (
 	"strconv"
 )
 
+// ErrCommentUpdateUnconfirmed prevents retrying a write whose readback failed.
 var ErrCommentUpdateUnconfirmed = errors.New("comment update succeeded but its confirmation failed")
 
+// TaskComments reads a validated page of comments belonging to the specified task.
 func (client *Client) TaskComments(ctx context.Context, taskID int64, input CommentQuery) (CommentPage, error) {
 	if taskID <= 0 || input.Page < 1 || input.PerPage < 1 || input.PerPage > maxUpstreamPageSize {
 		return CommentPage{}, errors.New("task ID or comment pagination is invalid")
@@ -19,7 +21,11 @@ func (client *Client) TaskComments(ctx context.Context, taskID int64, input Comm
 	}
 	var response CommentPage
 	path := "tasks/" + strconv.FormatInt(taskID, 10) + "/comments"
-	query := url.Values{"order_by": {input.Order}, "page": {strconv.FormatInt(input.Page, 10)}, "per_page": {strconv.FormatInt(input.PerPage, 10)}}
+	query := url.Values{
+		"order_by":       {input.Order},
+		pageQueryKey:     {strconv.FormatInt(input.Page, 10)},
+		pageSizeQueryKey: {strconv.FormatInt(input.PerPage, 10)},
+	}
 	if _, err := client.doJSONWithQuery(ctx, http.MethodGet, path, query, nil, "", &response); err != nil {
 		return CommentPage{}, err
 	}
@@ -58,7 +64,10 @@ func validateCommentPage(page CommentPage, input CommentQuery) error {
 	return validatePageItemCount(len(page.Items), page.Page, page.PerPage, page.Total, page.TotalPages)
 }
 
-func (client *Client) CreateTaskComment(ctx context.Context, taskID int64, input TaskCommentWrite) (TaskComment, error) {
+// CreateTaskComment posts HTML once and validates the resulting comment identity.
+func (client *Client) CreateTaskComment(
+	ctx context.Context, taskID int64, input TaskCommentWrite,
+) (TaskComment, error) {
 	if taskID <= 0 {
 		return TaskComment{}, errors.New("task ID must be positive")
 	}
@@ -78,7 +87,10 @@ func (client *Client) CreateTaskComment(ctx context.Context, taskID int64, input
 	return comment, nil
 }
 
-func (client *Client) UpdateTaskComment(ctx context.Context, taskID int64, commentID int64, input TaskCommentWrite) (TaskComment, error) {
+// UpdateTaskComment writes once, then reads canonical author and timestamp metadata.
+func (client *Client) UpdateTaskComment(
+	ctx context.Context, taskID int64, commentID int64, input TaskCommentWrite,
+) (TaskComment, error) {
 	if taskID <= 0 || commentID <= 0 {
 		return TaskComment{}, errors.New("task and comment IDs must be positive")
 	}
@@ -99,6 +111,7 @@ func (client *Client) UpdateTaskComment(ctx context.Context, taskID int64, comme
 	return comment, nil
 }
 
+// TaskComment rejects mismatched task or comment identities in the upstream response.
 func (client *Client) TaskComment(ctx context.Context, taskID int64, commentID int64) (TaskComment, error) {
 	if taskID <= 0 || commentID <= 0 {
 		return TaskComment{}, errors.New("task and comment IDs must be positive")
@@ -128,6 +141,7 @@ func validateTaskComment(comment TaskComment, taskID int64, expectedID int64) er
 	return nil
 }
 
+// DeleteTaskComment removes the identified comment using upstream authorization.
 func (client *Client) DeleteTaskComment(ctx context.Context, taskID int64, commentID int64) error {
 	if taskID <= 0 || commentID <= 0 {
 		return errors.New("task and comment IDs must be positive")

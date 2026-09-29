@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 
 test("discussion supports stable comment dimensions when focused", async ({ page }, testInfo) => {
@@ -53,29 +53,7 @@ test("discussion supports a compact source author header above the quote text", 
   page,
 }, testInfo) => {
   const { taskId, csrfToken } = await discussionFixture(page);
-  const upstream = process.env.E2E_VIKUNJA_URL;
-  if (!upstream) throw new Error("Missing isolated Vikunja URL");
-  const login = await page.request.post(`${upstream}/api/v2/login`, {
-    data: { username: "e2e-user", password: "e2e-password-strong" },
-  });
-  expect(login.ok()).toBe(true);
-  const { token } = await login.json();
-  const png = await page.evaluate(() => {
-    const canvas = document.createElement("canvas");
-    canvas.width = canvas.height = 16;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Missing canvas context");
-    context.fillStyle = "#2874a6";
-    context.fillRect(0, 0, 16, 16);
-    return canvas.toDataURL("image/png").split(",")[1] ?? "";
-  });
-  const upload = await page.request.put(`${upstream}/api/v2/user/settings/avatar`, {
-    headers: { Authorization: `Bearer ${token}` },
-    multipart: {
-      avatar: { name: "avatar.png", mimeType: "image/png", buffer: Buffer.from(png, "base64") },
-    },
-  });
-  expect(upload.ok()).toBe(true);
+  await uploadProfileAvatar(page);
   const original = await discussionGraphQL<{
     createTaskComment: { id: string; author: { name: string; username: string } };
   }>(
@@ -188,3 +166,29 @@ test("discussion supports initials when an avatar is unavailable", async ({ page
   await header.getByRole("button", { name: "View original" }).click();
   await expect(page.locator(`#comment-${original.createTaskComment.id}`)).toBeFocused();
 });
+
+async function uploadProfileAvatar(page: Page) {
+  const upstream = process.env["E2E_VIKUNJA_URL"];
+  if (!upstream) throw new Error("Missing isolated Vikunja URL");
+  const login = await page.request.post(`${upstream}/api/v2/login`, {
+    data: { username: "e2e-user", password: "e2e-password-strong" },
+  });
+  expect(login.ok()).toBe(true);
+  const { token } = await login.json();
+  const png = await page.evaluate(() => {
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 16;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Missing canvas context");
+    context.fillStyle = "#2874a6";
+    context.fillRect(0, 0, 16, 16);
+    return canvas.toDataURL("image/png").split(",")[1] ?? "";
+  });
+  const upload = await page.request.put(`${upstream}/api/v2/user/settings/avatar`, {
+    headers: { Authorization: `Bearer ${token}` },
+    multipart: {
+      avatar: { name: "avatar.png", mimeType: "image/png", buffer: Buffer.from(png, "base64") },
+    },
+  });
+  expect(upload.ok()).toBe(true);
+}

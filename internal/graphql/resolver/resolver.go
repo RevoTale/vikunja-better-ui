@@ -1,3 +1,4 @@
+// Package resolver adapts GraphQL inputs and application workflows without storing server state.
 package resolver
 
 import (
@@ -38,6 +39,11 @@ type avatarReader interface {
 }
 
 type taskClient interface {
+	taskReaderWriter
+	labelClient
+}
+
+type taskReaderWriter interface {
 	TasksPage(context.Context, vikunja.TaskQuery) (vikunja.TaskPage, error)
 	Task(context.Context, int64) (vikunja.Task, vikunja.ResponseMetadata, error)
 	CreateTask(context.Context, int64, vikunja.TaskWrite) (vikunja.Task, error)
@@ -45,12 +51,16 @@ type taskClient interface {
 	PatchTask(context.Context, int64, vikunja.TaskPatch, string) (vikunja.Task, error)
 	PatchTaskChecked(context.Context, int64, vikunja.TaskPatch, vikunja.TaskCheck) (vikunja.Task, error)
 	DeleteTask(context.Context, int64) error
+}
+
+type labelClient interface {
 	Labels(context.Context) ([]vikunja.Label, error)
 	CreateLabel(context.Context, vikunja.LabelWrite) (vikunja.Label, error)
 	AttachLabel(context.Context, int64, int64) error
 	DetachLabel(context.Context, int64, int64) error
 }
 
+// Dependencies supplies the authenticated transports and stateless workflow services.
 type Dependencies struct {
 	Credentials  auth.Credentials
 	Sessions     *auth.SessionManager
@@ -67,6 +77,7 @@ type Dependencies struct {
 	Now          func() time.Time
 }
 
+// Resolver wires GraphQL operations to application services.
 type Resolver struct {
 	credentials  auth.Credentials
 	sessions     *auth.SessionManager
@@ -83,6 +94,7 @@ type Resolver struct {
 	now          func() time.Time
 }
 
+// New constructs a resolver with the supplied request dependencies.
 func New(dependencies Dependencies) *Resolver {
 	return &Resolver{
 		credentials:  dependencies.Credentials,

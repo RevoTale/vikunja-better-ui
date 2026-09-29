@@ -12,7 +12,7 @@ import (
 func TestBuildWeekViewKeepsCurrentOverdueTasksInTheirDueDateDay(t *testing.T) {
 	t.Parallel()
 
-	location := mustLocation(t, "Europe/Kyiv")
+	location := kyivLocation(t)
 	now := localTime(location, 2026, time.August, 12, 10, 0) // Wednesday.
 	tasks := []vikunja.Task{
 		{ID: 1, Title: "Before this week", DueDate: localTime(location, 2026, time.August, 9, 9, 0)},
@@ -52,7 +52,7 @@ func TestNextProjectedDueRejectsAnOverflowingUpstreamInterval(t *testing.T) {
 func TestListWeekLoadsAllCandidatesThroughTheSelectedWeek(t *testing.T) {
 	t.Parallel()
 
-	location := mustLocation(t, "Europe/Kyiv")
+	location := kyivLocation(t)
 	now := localTime(location, 2026, time.August, 12, 10, 0)
 	selected := localTime(location, 2026, time.August, 25, 0, 0)
 	projectID := int64(7)
@@ -81,7 +81,7 @@ func TestListWeekLoadsAllCandidatesThroughTheSelectedWeek(t *testing.T) {
 func TestWeekTaskQueryNarrowsPastAndFutureWeeksUpstream(t *testing.T) {
 	t.Parallel()
 
-	location := mustLocation(t, "Europe/Kyiv")
+	location := kyivLocation(t)
 	now := localTime(location, 2026, time.August, 12, 10, 0)
 	tests := []struct {
 		name       string
@@ -126,7 +126,7 @@ func TestWeekTaskQueryNarrowsPastAndFutureWeeksUpstream(t *testing.T) {
 func TestBuildWeekViewIgnoresTasksOutsideTheSelectedWeek(t *testing.T) {
 	t.Parallel()
 
-	location := mustLocation(t, "Europe/Kyiv")
+	location := kyivLocation(t)
 	now := localTime(location, 2026, time.August, 12, 10, 0)
 	selected := localTime(location, 2026, time.August, 25, 0, 0)
 	tasks := []vikunja.Task{
@@ -144,7 +144,7 @@ func TestBuildWeekViewIgnoresTasksOutsideTheSelectedWeek(t *testing.T) {
 func TestBuildWeekViewProjectsOnlyDeterministicFutureScheduledCycles(t *testing.T) {
 	t.Parallel()
 
-	location := mustLocation(t, "Europe/Kyiv")
+	location := kyivLocation(t)
 	now := localTime(location, 2026, time.August, 12, 10, 0)
 	tasks := []vikunja.Task{
 		{
@@ -183,6 +183,11 @@ func TestBuildWeekViewProjectsOnlyDeterministicFutureScheduledCycles(t *testing.
 		got[1].Source.Task.ID != 1 {
 		t.Fatalf("Sunday projections = %#v", got)
 	}
+	assertFutureScheduledProjections(t, view, now)
+}
+
+func assertFutureScheduledProjections(t *testing.T, view WeekResult, now time.Time) {
+	t.Helper()
 	for _, day := range view.Days {
 		for _, projection := range day.Projections {
 			if projection.Source.Task.ID == 2 || projection.Source.Task.ID == 4 ||
@@ -196,7 +201,7 @@ func TestBuildWeekViewProjectsOnlyDeterministicFutureScheduledCycles(t *testing.
 func TestBuildWeekViewProjectsWholeRecurringJobSchedule(t *testing.T) {
 	t.Parallel()
 
-	location := mustLocation(t, "Europe/Kyiv")
+	location := kyivLocation(t)
 	now := localTime(location, 2026, time.August, 12, 10, 0)
 	start := localTime(location, 2026, time.August, 12, 18, 0)
 	task := recurringJobAt(start, 2*recurrenceDaySeconds, 0)

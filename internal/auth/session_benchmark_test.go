@@ -6,8 +6,6 @@ import (
 	"time"
 )
 
-var benchmarkSession Session
-
 func BenchmarkSessionParse(b *testing.B) {
 	now := time.Date(2026, time.August, 15, 12, 0, 0, 0, time.UTC)
 	manager := NewSessionManager(
@@ -22,10 +20,9 @@ func BenchmarkSessionParse(b *testing.B) {
 
 	b.ReportAllocs()
 	for b.Loop() {
-		session, err := manager.Parse(token)
+		_, err := manager.Parse(token)
 		if err != nil {
 			b.Fatal(err)
 		}
-		benchmarkSession = session
 	}
 }

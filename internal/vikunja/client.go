@@ -1,3 +1,4 @@
+// Package vikunja provides bounded, authenticated access to the Vikunja REST API.
 package vikunja
 
 import (
@@ -16,12 +17,21 @@ import (
 )
 
 const (
-	apiVersionPath       = "api/v2"
-	maxResponseBodyBytes = 4 << 20
-	userAgent            = "vikunja-better-ui"
-	slowRequestThreshold = 500 * time.Millisecond
+	apiVersionPath            = "api/v2"
+	maxResponseBodyBytes      = 4 << 20
+	userAgent                 = "vikunja-better-ui"
+	slowRequestThreshold      = 500 * time.Millisecond
+	upstreamRejected          = "UPSTREAM_REJECTED"
+	requestTimeout            = 30 * time.Second
+	connectTimeout            = 5 * time.Second
+	keepAliveInterval         = 30 * time.Second
+	maxIdleConnections        = 32
+	maxIdleConnectionsPerHost = 8
+	idleConnectionTimeout     = 90 * time.Second
+	responseHeaderTimeout     = 10 * time.Second
 )
 
+// Client owns upstream credentials and coalesces only concurrent metadata reads.
 type Client struct {
 	baseURL             *url.URL
 	apiToken            string
@@ -32,18 +42,22 @@ type Client struct {
 	labelRequests       inflightGroup[[]Label]
 }
 
+// Option customizes client construction without exposing its credentials.
 type Option func(*Client)
 
+// WithLogger enables safe upstream timing diagnostics.
 func WithLogger(logger *slog.Logger) Option {
 	return func(client *Client) {
 		client.logger = logger
 	}
 }
 
+// ResponseMetadata carries the upstream concurrency token for conditional writes.
 type ResponseMetadata struct {
 	ETag string
 }
 
+// Error exposes status and a safe classification, never the upstream response body.
 type Error struct {
 	Status int
 	Code   string
@@ -53,25 +67,26 @@ func (err *Error) Error() string {
 	return fmt.Sprintf("Vikunja request failed with status %d", err.Status)
 }
 
+// NewClient creates a timeout-bounded client that never follows redirects with credentials.
 func NewClient(baseURL *url.URL, apiToken string, options ...Option) *Client {
 	clonedURL := *baseURL
 	client := &Client{
 		baseURL:  &clonedURL,
 		apiToken: apiToken,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: requestTimeout,
 			Transport: &http.Transport{
 				Proxy: http.ProxyFromEnvironment,
 				DialContext: (&net.Dialer{
-					Timeout:   5 * time.Second,
-					KeepAlive: 30 * time.Second,
+					Timeout:   connectTimeout,
+					KeepAlive: keepAliveInterval,
 				}).DialContext,
 				ForceAttemptHTTP2:     true,
-				MaxIdleConns:          32,
-				MaxIdleConnsPerHost:   8,
-				IdleConnTimeout:       90 * time.Second,
-				TLSHandshakeTimeout:   5 * time.Second,
-				ResponseHeaderTimeout: 10 * time.Second,
+				MaxIdleConns:          maxIdleConnections,
+				MaxIdleConnsPerHost:   maxIdleConnectionsPerHost,
+				IdleConnTimeout:       idleConnectionTimeout,
+				TLSHandshakeTimeout:   connectTimeout,
+				ResponseHeaderTimeout: responseHeaderTimeout,
 				ExpectContinueTimeout: time.Second,
 			},
 			CheckRedirect: func(*http.Request, []*http.Request) error {
@@ -186,25 +201,25 @@ func decodeJSONResponse(response *http.Response, output any) (ResponseMetadata, 
 	metadata := ResponseMetadata{ETag: response.Header.Get("ETag")}
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, maxResponseBodyBytes+1))
-		return metadata, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
+		return metadata, &Error{Status: response.StatusCode, Code: upstreamRejected}
 	}
 	if response.StatusCode == http.StatusNoContent || output == nil {
 		return metadata, nil
 	}
 	if !isJSONContentType(response.Header.Get("Content-Type")) {
-		return metadata, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
+		return metadata, &Error{Status: response.StatusCode, Code: upstreamRejected}
 	}
 
 	limitedBody := &io.LimitedReader{R: response.Body, N: maxResponseBodyBytes + 1}
 	decoder := json.NewDecoder(limitedBody)
 	if err := decoder.Decode(output); err != nil {
-		return metadata, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
+		return metadata, &Error{Status: response.StatusCode, Code: upstreamRejected}
 	}
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
-		return metadata, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
+		return metadata, &Error{Status: response.StatusCode, Code: upstreamRejected}
 	}
 	if limitedBody.N == 0 {
-		return metadata, &Error{Status: response.StatusCode, Code: "UPSTREAM_REJECTED"}
+		return metadata, &Error{Status: response.StatusCode, Code: upstreamRejected}
 	}
 
 	return metadata, nil
@@ -224,10 +239,11 @@ func (client *Client) logRequest(
 	if err != nil || duration >= slowRequestThreshold {
 		level = slog.LevelWarn
 	}
+	resource, _, _ := strings.Cut(strings.Trim(path, "/"), "/")
 	client.logger.Log(
 		ctx, level, "Vikunja request completed",
 		"method", method,
-		"resource", strings.SplitN(strings.Trim(path, "/"), "/", 2)[0],
+		"resource", resource,
 		"duration_ms", duration.Milliseconds(),
 		"failed", err != nil,
 	)

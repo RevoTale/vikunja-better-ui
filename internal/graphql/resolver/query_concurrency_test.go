@@ -30,15 +30,7 @@ func TestJobsQueryLoadsIndependentMetadataConcurrently(t *testing.T) {
 		release:              release,
 	}
 	now := time.Date(2026, time.August, 17, 12, 0, 0, 0, time.UTC)
-	sessions := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"),
-		func() time.Time { return now },
-		bytes.NewReader([]byte("0123456789abcdef")),
-	)
-	token, _, err := sessions.Issue()
-	if err != nil {
-		t.Fatal(err)
-	}
+	sessions, token := concurrencySession(t, now)
 	root := New(Dependencies{
 		Sessions: sessions, Users: reader, Projects: reader, Tasks: tasks,
 		Now: func() time.Time { return now },
@@ -48,11 +40,7 @@ func TestJobsQueryLoadsIndependentMetadataConcurrently(t *testing.T) {
 	}
 	done := make(chan error, 1)
 	go withRequestContext(
-		t,
-		sessions,
-		auth.NewSessionCookies(false),
-		httptest.NewRecorder(),
-		cookie,
+		t, sessions, auth.NewSessionCookies(false), httptest.NewRecorder(), cookie,
 		func(ctx context.Context) {
 			_, queryErr := (&queryResolver{root}).Tasks(ctx, model.TaskListInput{
 				Scope: model.TaskScopeJobs, Page: 1, PageSize: 30,
@@ -102,15 +90,7 @@ func TestTaskQueryDoesNotWaitForProjectsWithoutProjectFilter(t *testing.T) {
 		started:              taskStarted,
 	}
 	now := time.Date(2026, time.August, 21, 12, 0, 0, 0, time.UTC)
-	sessions := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"),
-		func() time.Time { return now },
-		bytes.NewReader([]byte("0123456789abcdef")),
-	)
-	token, _, err := sessions.Issue()
-	if err != nil {
-		t.Fatal(err)
-	}
+	sessions, token := concurrencySession(t, now)
 	root := New(Dependencies{
 		Sessions: sessions, Users: reader, Projects: reader, Tasks: tasks,
 		Now: func() time.Time { return now },
@@ -175,6 +155,7 @@ func (reader *blockingResolverReader) Projects(context.Context) ([]vikunja.Proje
 
 type blockingTaskClient struct {
 	taskActionClientStub
+
 	started chan<- string
 	release <-chan struct{}
 }
@@ -204,10 +185,25 @@ func (reader *overlapResolverReader) Projects(context.Context) ([]vikunja.Projec
 
 type overlapTaskClient struct {
 	taskActionClientStub
+
 	started chan<- struct{}
 }
 
 func (client *overlapTaskClient) TasksPage(context.Context, vikunja.TaskQuery) (vikunja.TaskPage, error) {
 	client.started <- struct{}{}
 	return vikunja.TaskPage{Page: 1, PerPage: 1000}, nil
+}
+
+func concurrencySession(t *testing.T, now time.Time) (*auth.SessionManager, string) {
+	t.Helper()
+	sessions := auth.NewSessionManager(
+		[]byte("01234567890123456789012345678901"),
+		func() time.Time { return now },
+		bytes.NewReader([]byte("0123456789abcdef")),
+	)
+	token, _, err := sessions.Issue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sessions, token
 }

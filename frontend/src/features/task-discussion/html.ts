@@ -57,16 +57,21 @@ function unsupportedElement(element: Element): boolean {
     return true;
   if (element.tagName === "IMG" && element.getAttribute("title")) return true;
   if (!(element instanceof HTMLElement)) return false;
+  if (unsupportedStyle(element)) return true;
+  if (element.tagName === "COL" && element.hasAttribute("width")) return true;
+  return (
+    element.tagName === "IMG" && (element.hasAttribute("width") || element.hasAttribute("height"))
+  );
+}
+
+function unsupportedStyle(element: HTMLElement): boolean {
   // Lexical's whitespace declaration is representational, not extra formatting.
   // Everything else (colors, alignment, sizing, etc.) must not disappear on save.
   for (const property of Array.from(element.style)) {
     if (property === "min-width" && neutralTableWidth(element)) continue;
     if (property !== "white-space" || element.style.whiteSpace !== "pre-wrap") return true;
   }
-  if (element.tagName === "COL" && element.hasAttribute("width")) return true;
-  return (
-    element.tagName === "IMG" && (element.hasAttribute("width") || element.hasAttribute("height"))
-  );
+  return false;
 }
 
 function neutralTableWidth(element: HTMLElement): boolean {

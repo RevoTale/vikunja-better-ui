@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { commentMenu } from "./comment-menu-fixture";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 
@@ -6,22 +6,7 @@ test("discussion supports pagination, lazy reply chains, and recovery of an empt
   page,
 }) => {
   const { taskId, csrfToken } = await discussionFixture(page);
-  let source = "";
-  let parent = "";
-  for (let index = 0; index < 51; index++) {
-    const bodyHtml =
-      index === 50
-        ? `<blockquote data-comment-id="${parent}">Journal 1</blockquote><p>Last reply</p>`
-        : `${index === 1 ? `<blockquote data-comment-id="${source}">Journal 0</blockquote>` : ""}<p>Journal ${index}</p>`;
-    const result = await discussionGraphQL<{ createTaskComment: { id: string } }>(
-      page,
-      "mutation($input: CreateTaskCommentInput!) { createTaskComment(input: $input) { id } }",
-      { input: { taskId, csrfToken, bodyHtml } },
-      csrfToken,
-    );
-    if (index === 0) source = result.createTaskComment.id;
-    if (index === 1) parent = result.createTaskComment.id;
-  }
+  const source = await seedReplyChain(page, taskId, csrfToken);
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.getByRole("article")).toHaveCount(50);
   await page.getByRole("button", { name: "Next comments", exact: true }).click();
@@ -90,6 +75,13 @@ test("discussion supports pagination, lazy reply chains, and recovery of an empt
     .getByRole("button", { name: "Delete comment", exact: true })
     .click();
   await expect(page.getByRole("article")).toHaveCount(49);
+  await expectDescendingComments(page);
+  await expect(page.getByRole("textbox", { name: "Comment", exact: true })).toHaveText(
+    "Keep draft across pagination",
+  );
+});
+
+async function expectDescendingComments(page: Page) {
   const descending = page.waitForResponse(
     (response) =>
       response.url().endsWith("/graphql") &&
@@ -106,7 +98,24 @@ test("discussion supports pagination, lazy reply chains, and recovery of an empt
       elements.map((element) => Date.parse(element.getAttribute("datetime") ?? "")),
     );
   expect(timestamps).toEqual([...timestamps].sort((left, right) => right - left));
-  await expect(page.getByRole("textbox", { name: "Comment", exact: true })).toHaveText(
-    "Keep draft across pagination",
-  );
-});
+}
+
+async function seedReplyChain(page: Page, taskId: string, csrfToken: string) {
+  let source = "";
+  let parent = "";
+  for (let index = 0; index < 51; index++) {
+    const bodyHtml =
+      index === 50
+        ? `<blockquote data-comment-id="${parent}">Journal 1</blockquote><p>Last reply</p>`
+        : `${index === 1 ? `<blockquote data-comment-id="${source}">Journal 0</blockquote>` : ""}<p>Journal ${index}</p>`;
+    const result = await discussionGraphQL<{ createTaskComment: { id: string } }>(
+      page,
+      "mutation($input: CreateTaskCommentInput!) { createTaskComment(input: $input) { id } }",
+      { input: { taskId, csrfToken, bodyHtml } },
+      csrfToken,
+    );
+    if (index === 0) source = result.createTaskComment.id;
+    if (index === 1) parent = result.createTaskComment.id;
+  }
+  return source;
+}

@@ -93,7 +93,13 @@ function renderNode(node: ChildNode, key: number): ReactNode {
         <table>{Array.from(node.childNodes, renderNode)}</table>
       </section>
     );
-  const props: Record<string, string | number> = { key };
+  const props = { key, ...elementProps(node) };
+  if (tag === "br" || tag === "hr") return createElement(tag, props);
+  return createElement(tag, props, ...Array.from(node.childNodes, renderNode));
+}
+
+function elementProps(node: HTMLElement): Record<string, string | number> {
+  const props: Record<string, string | number> = {};
   for (const attribute of [
     "href",
     "target",
@@ -116,8 +122,7 @@ function renderNode(node: ChildNode, key: number): ReactNode {
     const value = node.getAttribute(attr);
     if (value) props[prop] = Number(value);
   }
-  if (tag === "br" || tag === "hr") return createElement(tag, props);
-  return createElement(tag, props, ...Array.from(node.childNodes, renderNode));
+  return props;
 }
 
 function renderText(node: ChildNode): ReactNode {
