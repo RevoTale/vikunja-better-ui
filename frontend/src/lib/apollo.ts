@@ -1,5 +1,6 @@
 import { ApolloClient, HttpLink, InMemoryCache } from "@apollo/client";
 import { SetContextLink } from "@apollo/client/link/context";
+import { taskCountRefreshLink } from "@/features/tasks/task-count-refresh";
 import { uploadLink } from "./upload-link";
 
 let csrfToken: string | undefined;
@@ -17,7 +18,7 @@ const httpLink = new HttpLink({
 });
 
 export const apolloClient = new ApolloClient({
-  link: csrfLink.concat(uploadLink).concat(httpLink),
+  link: taskCountRefreshLink.concat(csrfLink).concat(uploadLink).concat(httpLink),
   defaultOptions: {
     watchQuery: { fetchPolicy: "cache-and-network" },
   },

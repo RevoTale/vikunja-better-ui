@@ -345,6 +345,8 @@ type TaskReuseValues {
 }
 
 type Query {
+  "Unfinished tasks that are overdue or have reached their explicit start, across all projects."
+  actionableTaskCount: Int!
   "Newest task by the token owner matching both flags; null when none exists."
   taskReuseValues(job: Boolean!, recurring: Boolean!): TaskReuseValues
   taskLabels: [Label!]!

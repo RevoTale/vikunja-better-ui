@@ -105,6 +105,28 @@ Implementation uses Apollo's existing query results and `previousData`, not a
 second application cache. See [Apollo query results](https://www.apollographql.com/docs/react/data/queries)
 and [React Suspense fallbacks](https://react.dev/reference/react/Suspense).
 
+### Today navigation count
+
+The Today navigation count uses the independent authenticated
+`actionableTaskCount` GraphQL query. One Vikunja task-list request with
+`per_page=1` and `filter_include_nulls=false` applies
+`done = false && (due_date < <now> || start_date <= <now>)`, using an absolute UTC
+instant. The count comes from validated pagination metadata, not a page length.
+No user, project, label, comment-count or per-task reads are needed. Filtering
+and counting remain upstream; the app does not scan or retain all matching tasks.
+The existing [Vikunja filter contract](https://vikunja.io/docs/filters/) excludes
+unset date fields. Real-fixture regressions exercise each side of the union.
+
+Desktop and mobile share one query observer in the shell. Its reads overlap
+page loading, use no backend TTL cache, and never gate a task mutation's success.
+Task-changing mutations trigger a background refresh on success and uncertain
+failure; comment and label creation alone do not. Count reads are serialized:
+invalidation during a pending read queues one trailing read, and the badge remains
+pending until that read finishes. An older response cannot restore a stale count.
+Hidden tabs skip the one-minute poll. Focus and navigation
+refresh the count; failed reads render an unavailable marker instead of a stale
+number. This is periodic freshness, not a real-time subscription.
+
 ### Verification expected when implementing
 
 Use controlled response timing in browser E2E tests on mobile and desktop:

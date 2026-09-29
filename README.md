@@ -127,6 +127,23 @@ No task-creation values are saved in localStorage and there is no Reset autosave
 Old task-creation localStorage records are ignored; they are not read, updated,
 or used to change a form. Discussion draft recovery is separate and unchanged.
 
+### Today: tasks ready now
+
+The Today navigation badge counts unfinished tasks across all accessible
+projects whose deadline has passed **or** whose explicit **Start from** has
+arrived. A task meeting both conditions counts once. Without Start from, a task
+does not count until it is overdue—even when its deadline is today. Completed
+tasks and computed future occurrences do not count.
+
+This is an action signal, not a duration estimate or the total number of rows in
+Today. The Today list and its project/label filters are unchanged.
+
+The badge loads independently of the page. It refreshes after task mutations,
+page navigation, returning to the browser tab, and every minute while visible.
+External edits and time boundaries can therefore take up to one minute to appear
+in a continuously visible tab. During a read, an inline placeholder replaces the
+number; `?` means the count is unavailable, not zero. A confirmed zero is hidden.
+
 ### Editing tasks and adjusting dates
 
 Week is the default landing page and the logo's destination. Signing in keeps
@@ -783,6 +800,11 @@ Pull requests and `main` run one reusable required-checks job covering generated
 drift, validation, unit/integration tests, real Playwright E2E, and the
 production image smoke test. Configure the GitHub branch rule for `main` to
 require the `Required checks` status before merge.
+
+CI starts automatically on pull-request updates. A newer run cancels the older
+run for the same PR; different PRs run independently. Checks on `main` run
+through the Release workflow and are not cancelled by PR updates. No custom
+approval gate or manual dispatch is configured.
 
 After checks pass on `main`, release-please creates or updates the release pull
 request. Merging that pull request creates the release, and the pinned RevoTale

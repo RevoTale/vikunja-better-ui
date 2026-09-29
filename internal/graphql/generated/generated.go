@@ -112,18 +112,19 @@ type ComplexityRoot struct {
 	}
 
 	Query struct {
-		DiscussionAvatar func(childComplexity int, username string) int
-		Projects         func(childComplexity int) int
-		Session          func(childComplexity int) int
-		Task             func(childComplexity int, id string) int
-		TaskAttachments  func(childComplexity int, taskID string, page int) int
-		TaskComment      func(childComplexity int, taskID string, commentID string) int
-		TaskComments     func(childComplexity int, taskID string, page int, pageSize int, order model.DiscussionOrder) int
-		TaskDiagnostics  func(childComplexity int, id string) int
-		TaskLabels       func(childComplexity int) int
-		TaskReuseValues  func(childComplexity int, job bool, recurring bool) int
-		Tasks            func(childComplexity int, input model.TaskListInput) int
-		Week             func(childComplexity int, input model.WeekInput) int
+		ActionableTaskCount func(childComplexity int) int
+		DiscussionAvatar    func(childComplexity int, username string) int
+		Projects            func(childComplexity int) int
+		Session             func(childComplexity int) int
+		Task                func(childComplexity int, id string) int
+		TaskAttachments     func(childComplexity int, taskID string, page int) int
+		TaskComment         func(childComplexity int, taskID string, commentID string) int
+		TaskComments        func(childComplexity int, taskID string, page int, pageSize int, order model.DiscussionOrder) int
+		TaskDiagnostics     func(childComplexity int, id string) int
+		TaskLabels          func(childComplexity int) int
+		TaskReuseValues     func(childComplexity int, job bool, recurring bool) int
+		Tasks               func(childComplexity int, input model.TaskListInput) int
+		Week                func(childComplexity int, input model.WeekInput) int
 	}
 
 	RecurrenceRule struct {
@@ -305,6 +306,7 @@ type MutationResolver interface {
 	UploadTaskMedia(ctx context.Context, input model.UploadTaskMediaInput) (*model.TaskAttachment, error)
 }
 type QueryResolver interface {
+	ActionableTaskCount(ctx context.Context) (int, error)
 	TaskReuseValues(ctx context.Context, job bool, recurring bool) (*model.TaskReuseValues, error)
 	TaskLabels(ctx context.Context) ([]*model.Label, error)
 	Session(ctx context.Context) (*model.Session, error)
@@ -679,6 +681,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.ProjectResult.Items(childComplexity), true
 
+	case "Query.actionableTaskCount":
+		if e.ComplexityRoot.Query.ActionableTaskCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.ActionableTaskCount(childComplexity), true
 	case "Query.discussionAvatar":
 		if e.ComplexityRoot.Query.DiscussionAvatar == nil {
 			break
@@ -1997,6 +2005,8 @@ type TaskReuseValues {
 }
 
 type Query {
+  "Unfinished tasks that are overdue or have reached their explicit start, across all projects."
+  actionableTaskCount: Int!
   "Newest task by the token owner matching both flags; null when none exists."
   taskReuseValues(job: Boolean!, recurring: Boolean!): TaskReuseValues
   taskLabels: [Label!]!
@@ -4408,6 +4418,29 @@ func (ec *executionContext) fieldContext_ProjectResult_items(_ context.Context, 
 		},
 	}
 	return fc, nil
+}
+
+func (ec *executionContext) _Query_actionableTaskCount(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_actionableTaskCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().ActionableTaskCount(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_actionableTaskCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Query", field, true, true, errors.New("field of type Int does not have child fields"))
 }
 
 func (ec *executionContext) _Query_taskReuseValues(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
@@ -10336,6 +10369,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Query")
+		case "actionableTaskCount":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_actionableTaskCount(ctx, field)
+				if res == graphql.Null {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
 		case "taskReuseValues":
 			field := field
 

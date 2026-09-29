@@ -14,7 +14,12 @@ import { useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
 import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  ActionableCountBadge,
+  type ActionableCountState,
+} from "@/features/tasks/actionable-count-badge";
 import { createActionForPath } from "@/features/tasks/create-action";
+import { useActionableCount } from "@/features/tasks/use-actionable-count";
 import { LogoutDocument, SessionDocument } from "@/graphql/graphql";
 import { setCSRFToken } from "@/lib/apollo";
 import { graphQLErrorMessage } from "@/lib/user-error";
@@ -32,6 +37,7 @@ export function AppShell() {
   const apollo = useApolloClient();
   const navigate = useNavigate();
   const location = useLocation();
+  const actionableCount = useActionableCount();
   const { data, loading: sessionLoading, error: sessionError } = useQuery(SessionDocument);
   const [logout, { loading }] = useMutation(LogoutDocument);
   const [signOutError, setSignOutError] = useState("");
@@ -75,7 +81,7 @@ export function AppShell() {
         <Brand timezone={data?.session.vikunjaUser?.timezone} loading={sessionLoading} />
         <nav className="mt-8 grid gap-1" aria-label="Main navigation">
           {navigation.map((item) => (
-            <NavigationLink key={item.to} {...item} />
+            <NavigationLink key={item.to} {...item} count={actionableCount} />
           ))}
         </nav>
         <div className="mt-auto grid gap-2">
@@ -114,7 +120,7 @@ export function AppShell() {
         aria-label="Main navigation"
       >
         {navigation.map((item) => (
-          <NavigationLink key={item.to} {...item} compact />
+          <NavigationLink key={item.to} {...item} count={actionableCount} compact />
         ))}
       </nav>
     </div>
@@ -158,7 +164,8 @@ function NavigationLink({
   mobileLabel,
   icon: Icon,
   compact = false,
-}: (typeof navigation)[number] & { compact?: boolean }) {
+  count,
+}: (typeof navigation)[number] & { compact?: boolean; count: ActionableCountState }) {
   return (
     <Link
       to={to}
@@ -169,8 +176,20 @@ function NavigationLink({
       )}
       activeProps={{ className: "bg-sidebar-accent text-sidebar-accent-foreground" }}
     >
-      <Icon className="size-5" aria-hidden="true" />
+      <span className="relative">
+        <Icon className="size-5" aria-hidden="true" />
+        {compact && to === "/today" ? (
+          <span className="absolute -top-2 left-3">
+            <ActionableCountBadge {...count} />
+          </span>
+        ) : null}
+      </span>
       <span className={cn(compact && "whitespace-nowrap")}>{compact ? mobileLabel : label}</span>
+      {!compact && to === "/today" ? (
+        <span className="ml-auto">
+          <ActionableCountBadge {...count} />
+        </span>
+      ) : null}
     </Link>
   );
 }
