@@ -19,7 +19,7 @@
     "e2e": "playwright test"
   },
   "dependencies": {
-    "@apollo/client": "4.3.0",
+    "@apollo/client": "4.3.1",
     "@base-ui/react": "^1.8.0",
     "@daypicker/react": "10.0.1",
     "@graphql-typed-document-node/core": "3.2.0",
