@@ -109,7 +109,7 @@ async function expectUnclippedRows(rows: Locator) {
   for (const row of await rows.all()) {
     const count = row.locator('[data-slot="task-discussion"]');
     const countBox = await count.boundingBox();
-    expect(countBox?.width).toBe(56);
+    expect(countBox?.width).toBe(64);
     expect(countBox?.height).toBe(24);
     const geometry = await count.evaluate((element) => ({
       text: element.textContent,
