@@ -10,6 +10,7 @@ import { PriorityBadge } from "./priority-badge";
 import { recurrenceHint } from "./recurrence-hint";
 import { TaskDiscussionLink } from "./task-discussion-link";
 import { taskKindLabels } from "./task-kind-label";
+import { taskRowContentClassName } from "./task-row-layout";
 import { type TaskUrgency, taskSchedule } from "./task-schedule";
 import { visibleTaskLabels } from "./visible-task-labels";
 
@@ -50,7 +51,7 @@ export function TaskRow({
       )}
       data-projection={projection || undefined}
     >
-      <CardContent className="grid grid-cols-[5rem_minmax(0,1fr)] items-start gap-x-3 gap-y-2 px-3 py-2 sm:grid-cols-[8rem_minmax(0,1fr)] sm:px-4 sm:py-3">
+      <CardContent className={taskRowContentClassName}>
         <Schedule
           schedule={schedule}
           dayGrouped={dayGrouped}

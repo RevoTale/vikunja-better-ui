@@ -82,12 +82,21 @@ test("Today count supports independent loading, failure and focus retry", async 
   await expect(page.getByRole("heading", { name: "This week", exact: true })).toBeVisible();
   const badge = page.locator('[data-slot="actionable-count"]:visible');
   await expect(badge).toHaveAttribute("aria-busy", "true");
+  const pendingBox = await badge.boundingBox();
   expect(requests).toBe(1);
   release?.();
   await expect(badge).toHaveText("7");
+  expect(await badge.boundingBox()).toMatchObject({
+    width: pendingBox?.width,
+    height: pendingBox?.height,
+  });
   fail = true;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await expect(badge).toHaveText("?");
+  expect(await badge.boundingBox()).toMatchObject({
+    width: pendingBox?.width,
+    height: pendingBox?.height,
+  });
   await expect(badge).toHaveAttribute("aria-label", "Task count unavailable");
   fail = false;
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
@@ -122,7 +131,8 @@ test("Today count supports a trailing refresh after an overlapping mutation", as
     await expect.poll(() => requests).toBe(2);
     const badge = page.locator('[data-slot="actionable-count"]:visible');
     await expect(badge).toHaveAttribute("aria-busy", "true");
-    await expect(badge).not.toHaveText("9");
+    await expect(badge).toHaveText("9");
+    await expect(badge).toHaveAttribute("aria-label", /last known count: 9/);
     newRead.resolve();
     await expect(badge).toHaveText("8");
   } finally {

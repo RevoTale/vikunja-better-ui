@@ -12,7 +12,7 @@ export function useActionableCount() {
   const [resolvedVersion, setResolvedVersion] = useState("");
   const inFlight = useRef(false);
   const [execute, { data, error }] = useLazyQuery(ActionableTaskCountDocument, {
-    fetchPolicy: "network-only",
+    fetchPolicy: "cache-and-network",
   });
 
   useEffect(() => {

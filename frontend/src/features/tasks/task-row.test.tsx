@@ -64,11 +64,12 @@ beforeEach(() => {
 afterEach(() => vi.useRealTimers());
 
 describe("task discussion metadata", () => {
-  it("uses an inline placeholder while the count refreshes without presenting the old number as current", () => {
+  it("retains known counts while refreshing and uses a placeholder only for unknown counts", () => {
     const markup = render({ commentCount: 3 }, false, false, true);
-    expect(markup).toContain('aria-label="Updating comment count"');
+    expect(markup).toContain("updating count");
     expect(markup).not.toContain('aria-label="3 comments on Read a book"');
-    expect(markup).not.toContain(">3</span>");
+    expect(markup).toContain(">3</span>");
+    expect(markup).not.toContain('aria-label="Updating comment count"');
     expect(render({ commentCount: null }, false, false, true)).toContain(
       'aria-label="Updating comment count"',
     );

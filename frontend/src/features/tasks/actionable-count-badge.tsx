@@ -9,11 +9,7 @@ export type ActionableCountState = {
 
 export function ActionableCountBadge({ count, loading, error }: ActionableCountState) {
   const pending = loading || (count === undefined && !error);
-  const label = pending
-    ? "Updating tasks ready now"
-    : error
-      ? "Task count unavailable"
-      : `${count} tasks ready now`;
+  const label = countLabel(count, pending, error);
   return (
     <span
       role="img"
@@ -22,17 +18,25 @@ export function ActionableCountBadge({ count, loading, error }: ActionableCountS
       aria-busy={pending}
       title={`${label}. Unfinished tasks that are overdue or have reached Start from. All projects.`}
       className={cn(
-        "inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-muted px-1 text-[0.625rem] font-semibold text-foreground tabular-nums",
-        !pending && !error && count === 0 && "invisible",
+        "flex h-5 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-[0.625rem] font-semibold text-foreground tabular-nums",
+        pending && count !== undefined && "text-muted-foreground",
+        !error && count === 0 && "invisible",
       )}
     >
-      {pending ? (
+      {pending && count === undefined ? (
         <LoadingPlaceholder className="h-2.5 w-3 bg-muted-foreground/30" />
-      ) : error ? (
+      ) : error && !pending ? (
         "?"
       ) : (
-        count
+        count !== undefined && (count > 999 ? "999+" : count)
       )}
     </span>
   );
+}
+
+function countLabel(count: number | undefined, pending: boolean, error: unknown) {
+  if (pending) {
+    return `Updating tasks ready now${count === undefined ? "" : `; last known count: ${count}`}`;
+  }
+  return error ? "Task count unavailable" : `${count} tasks ready now`;
 }

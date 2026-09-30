@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, test } from "@playwright/test";
 import type { TaskListQuery } from "../src/graphql/graphql";
 import { discussionFixture } from "./discussion-fixture";
 
@@ -28,7 +28,7 @@ for (const projectTitle of ["Daily", "Daily tasks"]) {
         kind: "ONE_TIME",
         recurrenceRule: null,
         completionOutcome: null,
-        commentCount: 2,
+        commentCount: [2, 42, 1234][index] ?? 2,
         dueAt: null,
         startAt: null,
         endAt: null,
@@ -46,6 +46,10 @@ for (const projectTitle of ["Daily", "Daily tasks"]) {
     await expect(skeletons).toHaveCount(3);
     await expect(skeletons.first().locator('[data-slot="task-loading-badge"]')).toHaveCount(3);
     const pending = await skeletons.first().boundingBox();
+    const pendingCount = await skeletons
+      .first()
+      .locator('[data-slot="task-count-placeholder"]')
+      .boundingBox();
     expect(pending).not.toBeNull();
     await page.screenshot({ path: testInfo.outputPath("list-skeleton.png") });
     release();
@@ -54,6 +58,9 @@ for (const projectTitle of ["Daily", "Daily tasks"]) {
       .filter({ has: page.locator('[data-slot="task-content"]') });
     await expect(rows).toHaveCount(3);
     const loaded = await rows.first().boundingBox();
+    const loadedCount = await rows.first().locator('[data-slot="task-discussion"]').boundingBox();
+    expect(loadedCount?.width).toBe(pendingCount?.width);
+    expect(loadedCount?.height).toBe(pendingCount?.height);
     expect(loaded).not.toBeNull();
     if (!pending || !loaded) throw new Error("Task geometry is unavailable");
     expect(loaded.x).toBe(pending.x);
@@ -77,20 +84,27 @@ for (const projectTitle of ["Daily", "Daily tasks"]) {
       gap: Number.parseFloat(getComputedStyle(element).rowGap),
     }));
     expect(badgeRows.height).toBeLessThanOrEqual(badgeRows.rowHeight * 2 + badgeRows.gap + 1);
-    // Allow one additional title line and badge row, not unrelated spacing changes.
-    expect(Math.abs(loaded.height - pending.height)).toBeLessThanOrEqual(
-      titleHeight.lineHeight + badgeRows.rowHeight + badgeRows.gap + 1,
-    );
-    for (const row of await rows.all()) {
-      expect(await row.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
-        true,
-      );
-      for (const badge of await row.locator('[data-slot="badge"]').all()) {
-        expect(
-          await badge.evaluate((element) => element.scrollHeight <= element.clientHeight),
-        ).toBe(true);
-      }
-    }
+    // The baseline also accommodates this two-line title and two mobile badge rows.
+    expect(loaded.height).toBe(pending.height);
+    await expectUnclippedRows(rows);
     await page.screenshot({ path: testInfo.outputPath("list-loaded.png") });
   });
+}
+
+async function expectUnclippedRows(rows: Locator) {
+  for (const row of await rows.all()) {
+    const count = row.locator('[data-slot="task-discussion"]');
+    const countBox = await count.boundingBox();
+    expect(countBox?.width).toBe(48);
+    expect(countBox?.height).toBe(24);
+    expect(await count.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+      true,
+    );
+    expect(await row.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    for (const badge of await row.locator('[data-slot="badge"]').all()) {
+      expect(await badge.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(
+        true,
+      );
+    }
+  }
 }

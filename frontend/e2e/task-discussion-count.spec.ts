@@ -1,5 +1,5 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 
 test("discussion supports task-list counts and direct navigation", async ({ page }, testInfo) => {
@@ -20,16 +20,7 @@ test("discussion supports task-list counts and direct navigation", async ({ page
   await expect(
     page.getByRole("button", { name: "Complete Discussion journal" }).first(),
   ).toBeVisible();
-  // The shared fixture accumulates tasks across the full responsive suite.
-  // Find this task through pagination instead of assuming it remains on page 1.
-  for (let currentPage = 1; currentPage < 100 && (await link.count()) === 0; currentPage++) {
-    const next = page.getByRole("button", { name: "Go to next page", exact: true });
-    await expect(next).toBeEnabled();
-    await next.click();
-    await expect(
-      page.getByRole("button", { name: `Go to page ${currentPage + 1}`, exact: true }),
-    ).toHaveAttribute("aria-current", "page");
-  }
+  await findTaskPage(page, link);
   await expect(link).toHaveAccessibleName("2 comments on Discussion journal");
   await expect(link).toBeVisible();
   await expect(link).toHaveText("2");
@@ -73,11 +64,14 @@ test("discussion supports task-list counts and direct navigation", async ({ page
     await route.continue();
   });
   await page.goBack();
-  await expect(link.getByRole("status", { name: "Updating comment count" })).toBeVisible();
+  await expect(link).toHaveAttribute("aria-busy", "true");
+  await expect(link).toHaveText("2");
+  await expect(link.getByRole("status", { name: "Updating comment count" })).toHaveCount(0);
   const pendingBox = await discussion.boundingBox();
   release();
   await expect(link).toHaveAccessibleName("1 comment on Discussion journal");
   expect((await discussion.boundingBox())?.height).toBe(pendingBox?.height);
+  expect((await discussion.boundingBox())?.width).toBe(pendingBox?.width);
   await discussionGraphQL(
     page,
     "mutation($input: DeleteTaskCommentInput!) { deleteTaskComment(input: $input) { deletedCommentId } }",
@@ -90,3 +84,16 @@ test("discussion supports task-list counts and direct navigation", async ({ page
   ).toBeVisible();
   await expect(link).toHaveCount(0);
 });
+
+async function findTaskPage(page: Page, link: Locator) {
+  // The shared fixture accumulates tasks across the full responsive suite.
+  // Find this task through pagination instead of assuming it remains on page 1.
+  for (let currentPage = 1; currentPage < 100 && (await link.count()) === 0; currentPage++) {
+    const next = page.getByRole("button", { name: "Go to next page", exact: true });
+    await expect(next).toBeEnabled();
+    await next.click();
+    await expect(
+      page.getByRole("button", { name: `Go to page ${currentPage + 1}`, exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+  }
+}

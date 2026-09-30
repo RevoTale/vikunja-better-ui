@@ -6,13 +6,21 @@ describe("actionable count badge", () => {
   it("shows the exact count with an accessible meaning", () => {
     const html = renderToStaticMarkup(<ActionableCountBadge count={1234} loading={false} />);
     expect(html).toContain("1234 tasks ready now");
-    expect(html).toContain(">1234</span>");
+    expect(html).toContain(">999+</span>");
   });
 
-  it("never presents stale counts or unknown values as zero", () => {
+  it("retains cached counts while explicitly revalidating", () => {
     const html = renderToStaticMarkup(<ActionableCountBadge count={4} loading />);
     expect(html).toContain("Updating tasks ready now");
-    expect(html).not.toContain(">4<");
+    expect(html).toContain(">4<");
+    expect(html).toContain('aria-busy="true"');
+    expect(html).not.toContain('aria-hidden="true"');
+    expect(html).not.toContain(">0<");
+  });
+
+  it("uses a skeleton only before a count is known", () => {
+    const html = renderToStaticMarkup(<ActionableCountBadge count={undefined} loading />);
+    expect(html).toContain('aria-hidden="true"');
     expect(html).not.toContain(">0<");
   });
 

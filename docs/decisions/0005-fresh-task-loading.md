@@ -68,11 +68,14 @@ confirmation that every existing loading state implements it.
 - Use content-shaped placeholders for the initial task list, task details,
   discussion context, comments, and lazy editor. No artificial wait is added.
 - Task-list placeholders use the same card padding, schedule column, and action
-  size as loaded rows, with three badge placeholders per row. Titles and badges
+  size as loaded rows, with three badge placeholders per row. A shared grid
+  reserves a 3rem title/schedule row and a 3.5rem metadata row on phones (1.5rem
+  at `sm` and above). Short active, overdue, and completed tasks therefore have
+  exactly the same row dimensions as their skeletons, even without a completion
+  button or comment count. These are minimums, not fixed heights. Titles and badges
   may wrap to two lines or grow further for longer content; never clip text to
-  force an exact skeleton height. Responsive regression tests compare row width,
-  position, and height, allowing one extra title line and badge row in the
-  controlled two-line fixture.
+  force an exact skeleton height. Responsive regression tests require equal row
+  width, position, and height for short content and the controlled two-line fixture.
 - Place the comment count at the left of the metadata row, with flexible space
   before the right-aligned badges. On phones this row spans the full card content
   width, rather than leaving the schedule column empty and squeezing badges into
@@ -81,11 +84,18 @@ confirmation that every existing loading state implements it.
   content remains unrestricted. Keep the count separate from the semantic list
   of task labels. Test both compact and wider project names so font-dependent
   wrapping does not hide an overly constrained mobile layout.
-- Comment counts arrive with task data, not through per-task requests. Initial
-  task placeholders include a short inline count placeholder. During a fresh
-  list read, existing positive counts become inline skeletons; unresolved
-  counts use the same treatment. Known zero counts remain hidden. Null counts
-  after loading are unavailable, not permanently loading.
+- Comment counts arrive with the existing `cache-and-network` task queries,
+  not through per-task requests. Retain known counts during revalidation, with
+  `aria-busy` and an updating accessible label/tooltip. Only unknown counts use
+  inline skeletons. Initial placeholders and loaded links share a 3rem by 1.5rem
+  slot. Zero/unavailable counts reserve that space without a link, so badges do
+  not move. Null counts after loading are unavailable, not permanently loading.
+- The Today badge also uses `cache-and-network`, retaining the last known value
+  while fetching. Its skeleton, number, and unavailable marker share a 2rem by
+  1.25rem slot. Both count displays use tabular digits and show `999+` above 999;
+  accessible labels and tooltips retain the exact count. These are bounded
+  display slots, not truncated API values. Cached counts are never a substitute
+  for the network read or an error state.
 - Keep the discussion composer mounted during comment reads. Retain the last
   successful comment page while sorting, paging, or refreshing. Show “Updating
   comments…” in reserved space and expose `aria-busy` on the comments region.
@@ -127,7 +137,8 @@ page loading, use no backend TTL cache, and never gate a task mutation's success
 Task-changing mutations trigger a background refresh on success and uncertain
 failure; comment and label creation alone do not. Count reads are serialized:
 invalidation during a pending read queues one trailing read, and the badge remains
-pending until that read finishes. An older response cannot restore a stale count.
+marked as updating until that read finishes. A preceding response may be displayed
+as the last known value, never as a confirmed current count.
 Hidden tabs skip the one-minute poll. Focus and navigation
 refresh the count; failed reads render an unavailable marker instead of a stale
 number. This is periodic freshness, not a real-time subscription.
