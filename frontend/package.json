@@ -41,7 +41,7 @@
     "dompurify": "3.4.16",
     "graphql": "17.0.2",
     "lexical": "0.51.0",
-    "lucide-react": "1.46.0",
+    "lucide-react": "1.47.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "rxjs": "7.8.2",
