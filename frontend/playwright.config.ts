@@ -14,6 +14,9 @@ export default defineConfig({
   expect: { timeout: 8_000 },
   reporter: [["line"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
+    // Network-mocking tests need direct interception; PWA specs explicitly allow workers.
+    // https://playwright.dev/docs/network#missing-network-events-and-service-workers
+    serviceWorkers: "block",
     baseURL,
     timezoneId: "Pacific/Honolulu",
     trace: "retain-on-failure",
@@ -24,7 +27,7 @@ export default defineConfig({
   projects: [
     {
       name: "phone-320",
-      grep: /login restores|discussion supports|task labels support|Today count supports/,
+      grep: /login restores|discussion supports|task labels support|Today count supports|PWA/,
       use: {
         browserName: "chromium",
         launchOptions: chromiumLaunchOptions,
@@ -35,7 +38,7 @@ export default defineConfig({
     },
     {
       name: "phone-webkit",
-      grep: /login restores|discussion supports|discussion plays|task labels support|Today count supports/,
+      grep: /login restores|discussion supports|discussion plays|task labels support|Today count supports|PWA/,
       use: {
         browserName: "webkit",
         viewport: { width: 320, height: 800 },

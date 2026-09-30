@@ -95,8 +95,8 @@ export function AppShell() {
           ) : null}
         </div>
       </aside>
-      <div className="min-w-0 pb-20 lg:pb-0">
-        <header className="sticky top-0 z-10 flex min-h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur lg:px-8">
+      <div className="min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
+        <header className="app-safe-header sticky top-0 z-10 flex min-h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur lg:px-8">
           <div className="lg:hidden">
             <Brand timezone={data?.session.vikunjaUser?.timezone} loading={sessionLoading} />
           </div>
@@ -111,12 +111,12 @@ export function AppShell() {
             <Plus /> {createAction.label}
           </Link>
         </header>
-        <main className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+        <main className="app-safe-content mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
           <Outlet />
         </main>
       </div>
       <nav
-        className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t bg-background lg:hidden"
+        className="app-safe-navigation fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t bg-background lg:hidden"
         aria-label="Main navigation"
       >
         {navigation.map((item) => (

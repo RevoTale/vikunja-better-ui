@@ -141,8 +141,10 @@ Today. The Today list and its project/label filters are unchanged.
 The badge loads independently of the page. It refreshes after task mutations,
 page navigation, returning to the browser tab, and every minute while visible.
 External edits and time boundaries can therefore take up to one minute to appear
-in a continuously visible tab. During a read, an inline placeholder replaces the
-number; `?` means the count is unavailable, not zero. A confirmed zero is hidden.
+in a continuously visible tab. `cache-and-network` keeps the last known number
+visible while updating; only the first uncached read shows a skeleton. The badge
+marks revalidation as busy and its tooltip identifies the last known count.
+`?` means unavailable, not zero. A confirmed zero is hidden with space reserved.
 
 ### Editing tasks and adjusting dates
 
@@ -266,7 +268,10 @@ becomes an error toast on failure while cached rows remain visible. Initial
 loading and initial errors stay in the page because no cached list exists.
 Initial task and discussion loading uses content-shaped skeletons instead of
 flashing loading text. The header reserves its timezone line. Comment counts
-use inline placeholders during refresh; no extra per-task request is made.
+keep cached values during refresh, using inline placeholders only when unknown;
+no extra per-task request is made. Count slots have identical skeleton/value
+dimensions. Counts above 999 display `999+`, with exact values in accessible labels
+and tooltips.
 Each task-list skeleton includes three badge placeholders. Comment counts sit
 at the left of the badge row; badges wrap on mobile without clipping titles or labels.
 Discussions keep the editor and previous comments visible while a fresh page
@@ -280,8 +285,18 @@ Static responses use URL-safe cache boundaries: content-hashed `/assets/*`
 files are public and immutable for one year; the favicon and web manifest are
 public for ten minutes; HTML routes are private and revalidated. GraphQL,
 integration, health, and readiness responses are not stored. The application
-does not add a service-worker or server-side task cache. Configure Brotli or
-gzip at the production reverse proxy.
+does not add a persistent task cache or server-side task cache. Configure Brotli
+or gzip at the production reverse proxy.
+
+### Home-screen installation and offline launch
+
+Install Better Vikunja from your browser (on iOS, Share → Add to Home Screen).
+It opens on Week with platform-specific icons and safe-area-aware navigation.
+A production service worker caches only the interface and static build files
+for faster repeat loads. Offline launch shows a connection message and Retry;
+tasks, sessions, attachments and mutations are never cached or queued.
+Downloaded updates wait until existing app tabs close, preserving open editors.
+See [PWA behavior and limitations](docs/pwa.md).
 
 ## Configuration
 

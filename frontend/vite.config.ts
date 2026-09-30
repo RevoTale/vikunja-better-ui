@@ -3,6 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { offlineShellPlugin } from "./src/app/pwa/build-plugin.ts";
 
 export default defineConfig({
   plugins: [
@@ -13,6 +14,7 @@ export default defineConfig({
     }),
     react(),
     tailwindcss(),
+    offlineShellPlugin(),
   ],
   resolve: {
     alias: {

@@ -61,7 +61,8 @@ Response caching is intentionally explicit:
 - GraphQL and caller-authenticated Jobs integration: `private, no-store`;
 - health and readiness: `no-store`.
 
-There is no service-worker cache or server-side task-data cache. The Go server
+The service worker caches only public build files, never task data or API
+responses. See [PWA cache boundaries](pwa.md). There is no server-side task-data cache. The Go server
 does not dynamically compress static files; enable Brotli or gzip in the
 production reverse proxy and verify the resulting `Content-Encoding` header.
 
