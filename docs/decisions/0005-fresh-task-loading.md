@@ -87,8 +87,9 @@ confirmation that every existing loading state implements it.
 - Comment counts arrive with the existing `cache-and-network` task queries,
   not through per-task requests. Retain known counts during revalidation, with
   `aria-busy` and an updating accessible label/tooltip. Only unknown counts use
-  inline skeletons. Initial placeholders and loaded links share a 3rem by 1.5rem
-  slot. Zero/unavailable counts reserve that space without a link, so badges do
+  inline skeletons. Initial placeholders and loaded links share a 3.5rem by 1.5rem
+  slot, with room for `999+` across fallback fonts. Zero/unavailable counts reserve
+  that space without a link, so badges do
   not move. Null counts after loading are unavailable, not permanently loading.
 - The Today badge also uses `cache-and-network`, retaining the last known value
   while fetching. Its skeleton, number, and unavailable marker share a 2rem by

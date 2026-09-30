@@ -87,7 +87,21 @@ for (const projectTitle of ["Daily", "Daily tasks"]) {
     // The baseline also accommodates this two-line title and two mobile badge rows.
     expect(loaded.height).toBe(pending.height);
     await expectUnclippedRows(rows);
+    await widenCountTypography(rows);
+    await expectUnclippedRows(rows);
     await page.screenshot({ path: testInfo.outputPath("list-loaded.png") });
+  });
+}
+
+async function widenCountTypography(rows: Locator) {
+  // Fallback font metrics and increased tracking must not clip the capped count.
+  await rows.locator('[data-slot="task-discussion"] a').evaluateAll((links) => {
+    for (const link of links) {
+      if (link instanceof HTMLElement) {
+        link.style.fontFamily = "monospace";
+        link.style.letterSpacing = "3px";
+      }
+    }
   });
 }
 
@@ -95,11 +109,14 @@ async function expectUnclippedRows(rows: Locator) {
   for (const row of await rows.all()) {
     const count = row.locator('[data-slot="task-discussion"]');
     const countBox = await count.boundingBox();
-    expect(countBox?.width).toBe(48);
+    expect(countBox?.width).toBe(56);
     expect(countBox?.height).toBe(24);
-    expect(await count.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
-      true,
-    );
+    const geometry = await count.evaluate((element) => ({
+      text: element.textContent,
+      scroll: element.scrollWidth,
+      client: element.clientWidth,
+    }));
+    expect(geometry.scroll, JSON.stringify(geometry)).toBeLessThanOrEqual(geometry.client);
     expect(await row.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     for (const badge of await row.locator('[data-slot="badge"]').all()) {
       expect(await badge.evaluate((element) => element.scrollHeight <= element.clientHeight)).toBe(
