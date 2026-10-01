@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.1.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.0.0...v2.1.0) (2026-10-01)
+
+
+### Features
+
+* **pwa:** add install icons and a cached offline shell ([7c5516c](https://github.com/RevoTale/vikunja-better-ui/commit/7c5516ca6670460ae3281928a21e9dd97d195edb))
+* trigger the release and Change copyright holder to Liakhovskyi Vladyslav ([046203b](https://github.com/RevoTale/vikunja-better-ui/commit/046203b370508e5c2d8a0c7e887af3e8d5bec858))
+
+
+### Bug Fixes
+
+* **deps:** update dependency lucide-react to v1.47.0 ([5f0f58d](https://github.com/RevoTale/vikunja-better-ui/commit/5f0f58d2e68baa850f834c86ce455d793e2c770b))
+* **deps:** update dependency lucide-react to v1.47.0 ([4c2201c](https://github.com/RevoTale/vikunja-better-ui/commit/4c2201c6314d2d43128d9d6e2866bfadf979e04b))
+* **deps:** update tanstack-router monorepo ([ecc0199](https://github.com/RevoTale/vikunja-better-ui/commit/ecc0199e9032f2a4d3909a1e24e25946d2d1e4c7))
+* **deps:** update tanstack-router monorepo ([b8aa4d6](https://github.com/RevoTale/vikunja-better-ui/commit/b8aa4d6add64933066757527a45ff6976bd3e4df))
+* **quality:** enforce lint warnings and prevent count overflow ([9563056](https://github.com/RevoTale/vikunja-better-ui/commit/95630569cd6b2a97ab89097970d1c127c7e0f57c))
+* **tasks:** allow wider fonts in discussion counts ([dd76126](https://github.com/RevoTale/vikunja-better-ui/commit/dd7612618ac8aa96669e2d8427b393eb8228c326))
+* **tasks:** preserve counts and match skeleton geometry ([8d15283](https://github.com/RevoTale/vikunja-better-ui/commit/8d15283101a7db3c25394ece639a1184ecad4ead))
+* **tasks:** reserve count space for increased text spacing ([24c0dff](https://github.com/RevoTale/vikunja-better-ui/commit/24c0dff795fcadcb4234930af35c4be5a093c4af))
+
 ## [2.0.0](https://github.com/RevoTale/vikunja-better-ui/compare/v1.7.0...v2.0.0) (2026-09-29)
 
 
