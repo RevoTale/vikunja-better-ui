@@ -138,7 +138,7 @@ export async function expectBrandTimezone(page: Page) {
   const timezone = page
     .getByText(`Timezone ${vikunjaTimezone}`, { exact: true })
     .filter({ visible: true });
-  await expect(brand).toHaveAttribute("href", "/week?project=all");
+  await expect(brand).toHaveAttribute("href", "/today?project=all&page=1");
   await expect(timezone).toBeVisible();
   const brandBox = await brand.boundingBox();
   const timezoneBox = await timezone.boundingBox();

@@ -4,7 +4,16 @@ Audit: 2026-10-01. This index distinguishes current work from historical
 checklists. An unchecked box in an old plan is not by itself a missing feature.
 Do not restore superseded behavior to satisfy an old checklist.
 
-## Completed in the current working tree
+## Completed in this update
+
+- [Daily navigation and loading](daily-navigation-plan.md): Today default,
+  explicit Week scrolling, Long term, daily projections and measured loading.
+  Generation, strict validation, Go race/shuffle tests, 283 frontend tests and
+  381 browser scenarios passed locally on 2026-10-01. Review/simplification and
+  re-review found no remaining required changes. No active slices remain in
+  this plan. These results are separate from the historical evidence below.
+
+## Previously completed
 
 - [Task relationships](task-relationships-todo.md): native related tasks,
   parent/child workflows, automatic relations from confirmed content saves,
@@ -14,7 +23,7 @@ Do not restore superseded behavior to satisfy an old checklist.
   missing/stale/replayed requests and partial failures now have service,
   resolver and browser regression coverage.
 
-No active implementation slices remain. On 2026-10-01, generation, strict
+Before daily navigation work, on 2026-10-01, generation, strict
 validation, Go race/shuffle tests, 277 frontend tests and 369 browser scenarios
 passed locally in the existing Dev Container. Chromium used the approved
 156.0.8075.0 executable override; WebKit used the bundled runtime. The known

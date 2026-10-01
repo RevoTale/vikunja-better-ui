@@ -29,7 +29,7 @@ const navigation = [
   { to: "/today", label: "Today", mobileLabel: "Today", icon: CheckCircle2 },
   { to: "/week", label: "Week", mobileLabel: "Week", icon: CalendarDays },
   { to: "/jobs", label: "Jobs", mobileLabel: "Jobs", icon: BriefcaseBusiness },
-  { to: "/unscheduled", label: "No deadline", mobileLabel: "No date", icon: TimerOff },
+  { to: "/unscheduled", label: "Long term", mobileLabel: "Long term", icon: TimerOff },
   { to: "/history", label: "History", mobileLabel: "History", icon: History },
 ] as const;
 
@@ -64,7 +64,7 @@ export function AppShell() {
     setCSRFToken(undefined);
     try {
       await apollo.clearStore();
-      await navigate({ to: "/login", search: { returnTo: "/week" }, replace: true });
+      await navigate({ to: "/login", search: { returnTo: "/today" }, replace: true });
     } catch {
       setSignOutError(
         "You are signed out, but the login page could not be opened. Refresh the page.",
@@ -130,8 +130,8 @@ export function AppShell() {
 function Brand({ timezone, loading }: { timezone: string | undefined; loading: boolean }) {
   return (
     <Link
-      to="/week"
-      search={{ project: "all" }}
+      to="/today"
+      search={{ project: "all", page: 1 }}
       className="flex w-fit items-center gap-2.5 rounded-sm leading-tight outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <BrandMark className="size-8" />

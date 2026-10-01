@@ -27,7 +27,7 @@ export default defineConfig({
   projects: [
     {
       name: "phone-320",
-      grep: /login restores|discussion supports|task labels support|task relationships support|Today count supports|PWA/,
+      grep: /login restores|discussion supports|task labels support|task relationships support|Today count supports|daily navigation|PWA/,
       use: {
         browserName: "chromium",
         launchOptions: chromiumLaunchOptions,
@@ -38,7 +38,7 @@ export default defineConfig({
     },
     {
       name: "phone-webkit",
-      grep: /login restores|discussion supports|discussion plays|task labels support|task relationships support|Today count supports|PWA/,
+      grep: /login restores|discussion supports|discussion plays|task labels support|task relationships support|Today count supports|daily navigation|PWA/,
       use: {
         browserName: "webkit",
         viewport: { width: 320, height: 800 },

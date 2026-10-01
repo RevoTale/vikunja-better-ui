@@ -7,7 +7,7 @@ test("label creation retries preserve newer input and prevent concurrent submiss
   await page.getByLabel("Username").fill("app-user");
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL(/\/today/);
   await page.goto("/tasks/new?type=one-time");
   await page.getByLabel("Title", { exact: true }).fill("Keep my task draft");
   let release: () => void = () => undefined;
@@ -60,7 +60,7 @@ test("partial label save shows the created task instead of a duplicate submissio
   await page.getByLabel("Username").fill("app-user");
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL(/\/today/);
   await page.goto("/tasks/new?type=one-time");
   await page.getByLabel("Title", { exact: true }).fill("Created only once");
   let writes = 0;

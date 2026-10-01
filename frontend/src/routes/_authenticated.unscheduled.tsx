@@ -10,9 +10,9 @@ function Page() {
   const navigate = useNavigate({ from: Route.fullPath });
   return (
     <TaskListPage
-      title="Tasks without deadline"
-      description="Long-running work grouped by project."
-      scope="UNSCHEDULED"
+      title="Long term"
+      description="Work due more than a week from now, and work without a deadline."
+      scope="LONG_TERM"
       search={search}
       setSearch={(next) => navigate({ search: next })}
     />

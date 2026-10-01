@@ -1,6 +1,8 @@
 # Installed app and offline shell
 
-Better Vikunja opens on **Week** when installed. The manifest includes PNG icons
+Better Vikunja opens on **Today** when installed. Existing installations may keep
+their previous launch URL until the platform refreshes installed metadata.
+The manifest includes PNG icons
 at 192 and 512 pixels, a separate padded maskable icon, and the shared SVG icon.
 iOS uses the opaque 180-pixel Apple touch icon. All derive from the same logo.
 The navigation and main content respect device safe-area insets.

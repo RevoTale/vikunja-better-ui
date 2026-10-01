@@ -148,8 +148,25 @@ marks revalidation as busy and its tooltip identifies the last known count.
 
 ### Editing tasks and adjusting dates
 
-Week is the default landing page and the logo's destination. Signing in keeps
-an explicitly requested page, including Today; otherwise it opens Week.
+Today is the default landing page, the logo's destination and the PWA start page.
+Signing in preserves an explicitly requested page; otherwise it opens Today.
+
+**Previous day**, **Next day**, and **Today** navigate by calendar date in the
+Vikunja user's timezone. Today keeps its overdue queue. Other dates show only
+that day's real tasks and read-only **Computed** scheduled cycles, assuming
+earlier cycles are completed. Completion-relative recurrence is not predicted.
+Project and label filters remain selected; **Add task** prefills the selected
+date. No occurrences are created by browsing future dates.
+
+Week starts at the top and never auto-scrolls on entry or refresh. Its **Today**
+button explicitly returns to the current week and scrolls to today's heading.
+
+**Long term** replaces **No date** and includes both **Later** (active tasks due
+strictly after now plus seven calendar days) and **No deadline** tasks. The
+cutoff uses the Vikunja timezone, including DST. Later tasks sort by due time;
+undated tasks follow. These sections share pagination and project/label filters.
+Existing `/unscheduled` links open Long term; GraphQL `UNSCHEDULED` retains its
+original no-deadline behavior. The additive `LONG_TERM` scope provides both.
 
 Open an active task and select **Edit**. Change its title, description, project,
 priority, Job mode, recurrence, start, end, and due dates. **Save changes** is the
@@ -194,7 +211,7 @@ Enter a title and choose **Create or reuse label** to create one and select it.
 Saving the task applies the selection; unchecking a label removes only its
 association with that task, not the label itself. Completed history stays read-only.
 
-**Today** and **No date** have a single **Filter by label** control. It includes
+**Today**, selected days and **Long term** have a single **Filter by label** control. It includes
 tasks with that label and combines with the project filter. **All labels** clears
 the filter. The label ID is stored in the URL and retained through pagination and
 return navigation. Duplicate titles show their IDs; titles are not identifiers.
@@ -224,12 +241,25 @@ again. An uncertain edit requires reloading before retrying. Existing GraphQL
 clients may omit `labelIds` to preserve labels on edit; an empty list clears only
 ordinary labels. `taskLabels` and `createTaskLabel` use the app session, with CSRF
 protection for creation. `tasks(input: {labelId: ...})` accepts label filters only
-for `TODAY` and `UNSCHEDULED`; creation payloads expose nullable `labelError`.
+for `TODAY`, `UNSCHEDULED` and `LONG_TERM`; creation payloads expose nullable `labelError`.
 
 The Week view combines real tasks with clearly marked, non-actionable computed
 scheduled cycles. It never assigns an estimated day to From completion
 recurrence. See the [weekly ledger specification](docs/specs/weekly-ledger.md)
 for navigation, projection, responsive-layout, and GraphQL behavior.
+
+`day(input: {date, projectId, labelId})` reuses that server-side projection engine
+for one local date, within ten years of today. It returns `day`, `isComplete`
+and `issues`. Calendar reads are bounded by the existing candidate limit and
+10,000 computed occurrences per response. Exceeding either limit reports an
+incomplete result instead of silently truncating the schedule. The browser
+never calculates recurrence or calls Vikunja directly.
+
+List/calendar operations omit full task descriptions; details and editing still
+load them. Independent session/project/list reads run concurrently. The backend
+waits for timezone and selected-project authorization where necessary, coalesces
+in-flight metadata reads, and loads remaining task pages with bounded concurrency.
+There is no stale server result cache added by these views.
 
 ## Architecture and security boundaries
 
@@ -291,7 +321,7 @@ or gzip at the production reverse proxy.
 ### Home-screen installation and offline launch
 
 Install Better Vikunja from your browser (on iOS, Share → Add to Home Screen).
-It opens on Week with platform-specific icons and safe-area-aware navigation.
+It opens on Today with platform-specific icons and safe-area-aware navigation.
 A production service worker caches only the interface and static build files
 for faster repeat loads. Offline launch shows a connection message and Retry;
 tasks, sessions, attachments and mutations are never cached or queued.

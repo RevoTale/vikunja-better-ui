@@ -5,7 +5,7 @@ export async function discussionFixture(page: Page) {
   await page.getByLabel("Username").fill("app-user");
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL(/\/today/);
   const {
     session: { csrfToken },
   } = await discussionGraphQL<{ session: { csrfToken: string } }>(

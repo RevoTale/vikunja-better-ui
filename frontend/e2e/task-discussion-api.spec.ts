@@ -7,7 +7,7 @@ test("discussion API creates, paginates, updates and deletes native Vikunja comm
   await page.getByLabel("Username").fill("app-user");
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL(/\/today/);
   const session = await graphql<{ session: { csrfToken: string } }>(
     page,
     "{ session { csrfToken } }",

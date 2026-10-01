@@ -81,8 +81,8 @@ func (r *queryResolver) selectedTaskLabel(ctx context.Context, id *string, scope
 	if id == nil {
 		return nil, nil
 	}
-	if scope != model.TaskScopeToday && scope != model.TaskScopeUnscheduled {
-		return nil, clientError("VALIDATION_FAILED", "Label filtering is supported on Today and No date.")
+	if scope != model.TaskScopeToday && scope != model.TaskScopeUnscheduled && scope != model.TaskScopeLongTerm {
+		return nil, clientError("VALIDATION_FAILED", "Label filtering is supported on Today and Long term.")
 	}
 	ids, err := parseLabelIDs([]string{*id})
 	if err != nil {

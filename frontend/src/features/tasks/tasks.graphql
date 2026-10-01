@@ -36,11 +36,36 @@ query Week($input: WeekInput!) {
   }
 }
 
+query Day($input: DayInput!) {
+  day(input: $input) {
+    day {
+      date
+      tasks {
+        ...WeekTask
+      }
+      projections {
+        startAt
+        endAt
+        dueAt
+        hasDueTime
+        sourceTask {
+          ...WeekTask
+        }
+      }
+    }
+    isComplete
+    issues {
+      code
+      message
+      projectId
+    }
+  }
+}
+
 fragment WeekTask on Task {
   commentCount
   id
   title
-  description
   kind
   isDone
   doneAt
@@ -75,7 +100,6 @@ query TaskList($input: TaskListInput!) {
       commentCount
       id
       title
-      description
       kind
       isDone
       doneAt

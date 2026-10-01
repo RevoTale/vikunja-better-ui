@@ -10,16 +10,16 @@ import {
   expectUnclippedLines,
 } from "./app-layout";
 
-test("Week is the default landing page and logo destination", async ({ page }) => {
+test("Today is the default landing page and logo destination", async ({ page }) => {
   await page.goto("/");
-  await expect(page).toHaveURL(/\/login\?returnTo=%2Fweek/);
+  await expect(page).toHaveURL(/\/login\?returnTo=%2Ftoday/);
   await login(page);
-  await expect(page).toHaveURL(/\/week/);
-  await page.goto("/today");
+  await expect(page).toHaveURL(/\/today/);
+  await page.goto("/week");
   await page.getByRole("link", { name: /Better Vikunja/ }).click();
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL(/\/today/);
   await page.goto("/");
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL(/\/today/);
 });
 
 test("login restores the requested route and core navigation is accessible", async ({ page }) => {
@@ -44,7 +44,7 @@ test("login restores the requested route and core navigation is accessible", asy
   await expectCreationControlSizes(page);
   if (test.info().project.name === "phone-320") {
     await expect(
-      page.getByRole("navigation", { name: "Main navigation" }).getByText("No date"),
+      page.getByRole("navigation", { name: "Main navigation" }).getByText("Long term"),
     ).toBeVisible();
   }
   if (test.info().project.name.startsWith("phone-")) {

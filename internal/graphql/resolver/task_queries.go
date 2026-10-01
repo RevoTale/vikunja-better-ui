@@ -39,7 +39,8 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 	}
 
 	var projects []vikunja.Project
-	needsProjectsBeforeTasks := input.ProjectID != nil || input.Scope == model.TaskScopeUnscheduled
+	needsProjectsBeforeTasks := input.ProjectID != nil || input.Scope == model.TaskScopeUnscheduled ||
+		input.Scope == model.TaskScopeLongTerm
 	if needsProjectsBeforeTasks {
 		projects, err = r.waitForTaskProjects(projectsRead)
 		if err != nil {

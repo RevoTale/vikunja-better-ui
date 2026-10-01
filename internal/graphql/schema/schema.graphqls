@@ -25,6 +25,7 @@ enum TaskScope {
   MONTH
   JOBS
   UNSCHEDULED
+  LONG_TERM
   HISTORY
 }
 
@@ -243,6 +244,18 @@ input WeekInput {
   projectId: ID
 }
 
+input DayInput {
+  date: LocalDate!
+  projectId: ID
+  labelId: ID
+}
+
+type DayView {
+  day: WeekDay!
+  isComplete: Boolean!
+  issues: [TaskPageIssue!]!
+}
+
 input LoginInput {
   username: String!
   password: String!
@@ -362,6 +375,7 @@ type Query {
   projects: ProjectResult!
   tasks(input: TaskListInput!): TaskPage!
   week(input: WeekInput!): WeekView!
+  day(input: DayInput!): DayView!
   task(id: ID!): Task
   taskDiagnostics(id: ID!): TaskDiagnostics
 }

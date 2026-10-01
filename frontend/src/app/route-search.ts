@@ -2,18 +2,18 @@ import { isValidLocalDate } from "@/features/tasks/local-date-time";
 
 export function safeReturnTo(value: unknown): string {
   if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//")) {
-    return "/week";
+    return "/today";
   }
 
   try {
     decodeURI(value);
     const url = new URL(value, "https://app.invalid");
     if (url.origin !== "https://app.invalid" || url.hash || !isApplicationPath(url.pathname)) {
-      return "/week";
+      return "/today";
     }
     return `${url.pathname}${url.search}`;
   } catch {
-    return "/week";
+    return "/today";
   }
 }
 

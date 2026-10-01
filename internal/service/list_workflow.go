@@ -336,6 +336,10 @@ func candidateTaskQuery(request ListRequest) vikunja.TaskQuery {
 	case TaskScopeUnscheduled:
 		filterParts = append(filterParts, "due_date < 0001-01-01")
 		includeNulls = true
+	case TaskScopeLongTerm:
+		boundary := request.Now.In(request.Location).AddDate(0, 0, daysPerWeek)
+		filterParts = append(filterParts, "due_date > '"+boundary.Format(time.RFC3339Nano)+"'")
+		includeNulls = true
 	case TaskScopeJobs, TaskScopeCompletedJobs, TaskScopeAllJobs:
 		filterParts = append(filterParts, "labels in "+joinIDs(request.JobLabelIDs))
 		if request.Scope == TaskScopeCompletedJobs {
@@ -344,7 +348,8 @@ func candidateTaskQuery(request ListRequest) vikunja.TaskQuery {
 	case TaskScopeHistory:
 	}
 	filterParts = appendProjectFilter(filterParts, request.ProjectID)
-	if len(request.FilterLabelIDs) > 0 && (request.Scope == TaskScopeToday || request.Scope == TaskScopeUnscheduled) {
+	if len(request.FilterLabelIDs) > 0 &&
+		(request.Scope == TaskScopeToday || request.Scope == TaskScopeUnscheduled || request.Scope == TaskScopeLongTerm) {
 		filterParts = append(filterParts, "labels in "+joinIDs(request.FilterLabelIDs))
 	}
 	query := vikunja.TaskQuery{
@@ -450,7 +455,8 @@ func validateListScope(request ListRequest) error {
 			return errors.New("sort order is invalid")
 		}
 		return nil
-	case TaskScopeToday, TaskScopeWeek, TaskScopeMonth, TaskScopeJobs, TaskScopeUnscheduled, TaskScopeHistory:
+	case TaskScopeToday, TaskScopeWeek, TaskScopeMonth, TaskScopeJobs,
+		TaskScopeUnscheduled, TaskScopeLongTerm, TaskScopeHistory:
 		if !request.CompletedFrom.IsZero() || !request.CompletedBefore.IsZero() {
 			return errors.New("completion range is only valid for completed jobs")
 		}

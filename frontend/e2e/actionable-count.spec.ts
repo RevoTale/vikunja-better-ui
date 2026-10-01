@@ -79,7 +79,7 @@ test("Today count supports independent loading, failure and focus retry", async 
     });
   });
   await login(page);
-  await expect(page.getByRole("heading", { name: "This week", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
   const badge = page.locator('[data-slot="actionable-count"]:visible');
   await expect(badge).toHaveAttribute("aria-busy", "true");
   const pendingBox = await badge.boundingBox();
@@ -173,7 +173,7 @@ async function login(page: Page) {
   await page.getByLabel("Username").fill("app-user");
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL(/\/today/);
 }
 
 function readGate() {
