@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.1.1](https://github.com/RevoTale/vikunja-better-ui/compare/v2.1.0...v2.1.1) (2026-10-01)
+
+
+### Bug Fixes
+
+* **deps:** update dependency lucide-react to v1.48.0 ([0c315e5](https://github.com/RevoTale/vikunja-better-ui/commit/0c315e5f6cdd59759ffc4bc5c045e06f0c750c85))
+* **deps:** update module github.com/vektah/gqlparser/v2 to v2.5.58 ([65b374c](https://github.com/RevoTale/vikunja-better-ui/commit/65b374c2c019b5df1d42b6bb7cce5837b31ae782))
+
 ## [2.1.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.0.0...v2.1.0) (2026-10-01)
 
 
