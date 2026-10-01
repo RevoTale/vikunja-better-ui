@@ -51,6 +51,30 @@ async function biome(t, source) {
   });
 }
 
+test("frontend lint script rejects warning-only diagnostics", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "vbu-biome-warnings-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await writeFile(path.join(directory, "biome.json"), JSON.stringify({
+    formatter: { enabled: false },
+    assist: { enabled: false },
+    linter: { rules: { preset: "recommended", correctness: { noUnusedVariables: "warn" } } },
+  }));
+  const filename = path.join(directory, "probe.ts");
+  const { scripts } = JSON.parse(await readFile(path.join(root, "frontend/package.json"), "utf8"));
+  const command = scripts.lint.split(" ");
+  assert.equal(command.pop(), ".", "lint must validate the entire frontend");
+  const lint = () => spawnSync("pnpm", ["exec", ...command, "--config-path", directory, directory], {
+    cwd: path.join(root, "frontend"), encoding: "utf8",
+  });
+  await writeFile(filename, "export const value = 1;\n");
+  const valid = lint();
+  assert.equal(valid.status, 0, valid.stdout + valid.stderr);
+  await writeFile(filename, "const unused = 1;\nexport {};\n");
+  const invalid = lint();
+  assert.match(invalid.stdout + invalid.stderr, /noUnusedVariables/);
+  assert.equal(invalid.status, 1, invalid.stdout + invalid.stderr);
+});
+
 test("Biome rejects oversized files and functions while accepting small code", async (t) => {
   const small = await biome(t, "export const value = 1;\n");
   assert.equal(small.status, 0, small.stderr);

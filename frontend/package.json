@@ -13,7 +13,7 @@
     "dev": "vite --host 0.0.0.0",
     "generate": "pnpm run generate:graphql && vite build",
     "generate:graphql": "graphql-codegen --config codegen.ts",
-    "lint": "biome ci .",
+    "lint": "biome ci --error-on-warnings .",
     "test": "vitest run",
     "typecheck": "tsc --noEmit && tsc --project tsconfig.worker.json --noEmit",
     "e2e": "playwright test"

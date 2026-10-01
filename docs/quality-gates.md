@@ -83,6 +83,8 @@ alone can otherwise exit successfully despite suggesting changes.
 - `task gen:check`: regenerate and reject generated-source drift.
 - `task validate`: gate fixtures, formatting, modernization, Go file size,
   vet, golangci, Biome, strict TypeScript and both builds.
+  Biome uses `--error-on-warnings`: warnings fail local validation and CI,
+  not only errors. A warning-only fixture tests the actual lint script.
 - `task test`: `go test -race -count=2 -shuffle=on ./...` and frontend unit tests.
 - `task e2e`: existing isolated Vikunja fixture, mobile/desktop Chromium and WebKit.
 

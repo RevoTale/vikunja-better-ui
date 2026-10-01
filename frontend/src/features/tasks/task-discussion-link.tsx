@@ -5,7 +5,7 @@ import type { TaskItem } from "./task-row";
 
 export function TaskDiscussionPlaceholder() {
   return (
-    <div className="mr-auto flex h-6 w-12 shrink-0 items-center" data-slot="task-count-placeholder">
+    <div className="mr-auto flex h-6 w-16 shrink-0 items-center" data-slot="task-count-placeholder">
       <LoadingPlaceholder className="h-3 w-full" />
     </div>
   );
@@ -22,7 +22,7 @@ export function TaskDiscussionLink({
 }) {
   const count = task.commentCount;
   if (count === 0 || (count == null && !loading)) {
-    return <div className="mr-auto h-6 w-12 shrink-0" aria-hidden="true" />;
+    return <div className="mr-auto h-6 w-16 shrink-0" aria-hidden="true" />;
   }
   const label =
     count == null
@@ -34,18 +34,18 @@ export function TaskDiscussionLink({
         to="/tasks/$taskId/discussion"
         params={{ taskId: task.id }}
         search={{ returnTo }}
-        className="inline-flex h-6 w-12 items-center justify-between rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+        className="inline-flex h-6 w-16 items-center justify-between rounded-sm text-xs text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
         aria-label={label}
         aria-busy={loading}
         title={label}
       >
-        <MessageSquare className="size-3.5" aria-hidden="true" />
+        <MessageSquare className="size-3.5 shrink-0" aria-hidden="true" />
         {count == null ? (
           <span role="status" aria-label="Updating comment count">
-            <LoadingPlaceholder className="h-3 w-8" />
+            <LoadingPlaceholder className="h-3 w-12" />
           </span>
         ) : (
-          <span className="w-8 text-center tabular-nums">{count > 999 ? "999+" : count}</span>
+          <span className="w-12 text-center tabular-nums">{count > 999 ? "999+" : count}</span>
         )}
       </Link>
     </div>
