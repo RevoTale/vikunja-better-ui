@@ -2,6 +2,11 @@
 
 ## Status
 
+2026-10-01 audit: implemented; unchecked design-era criteria below are historical,
+not a new backlog. See [the implementation checklist](task-discussion-todo.md)
+and [current plan status](README.md). Physical-device/production acceptance remains
+separate from automated CI verification.
+
 Reply navigation follow-up complete: quote-leading arrows, an in-memory return
 trail and one lazy original-comment dialog preserve snapshots, source IDs and
 drafts. Ten focused responsive cases, gen:check, validate, Go race tests,

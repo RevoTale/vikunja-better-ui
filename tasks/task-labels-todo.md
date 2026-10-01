@@ -1,5 +1,8 @@
 # Task labels checklist
 
+Implemented. Reset autosave references below describe historical verification;
+that feature was subsequently removed. See [current plan status](README.md).
+
 - [x] Protected labels: reject marker titles/IDs; list/create ordinary labels;
   verify authorization, CSRF, duplicate names and retry behavior.
 - [x] Create/edit assignment: validate before writing, preserve markers, report

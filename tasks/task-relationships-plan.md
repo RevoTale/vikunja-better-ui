@@ -2,8 +2,13 @@
 
 ## Status and scope
 
-2026-09-29: the namespaced Job marker is being implemented and verified separately.
-Subtasks, relations and emoji remain planned, not implemented. The user explicitly
+2026-10-01 audit: the namespaced Job marker is implemented and verified.
+Manual subtasks, relations, automatic linking from confirmed content saves,
+and the shared Lexical description editor with Unicode emoji are implemented.
+The HTML parser and description migration were explicitly approved. Final
+verification is recorded in [the checklist](task-relationships-todo.md), separately
+from physical-device and production acceptance.
+The user explicitly
 approved the breaking change from `job` to `vbu:job` and excluded data migration.
 
 This plan uses the recommended refinement defaults: automatic linking on Better
@@ -11,10 +16,9 @@ UI saves only; Unicode emoji picker/shortcodes, without reactions; independent
 parent/child completion. Copy project, priority and ordinary labels when creating
 a child. Ordinary-label inheritance is a Better UI choice, not Linear parity.
 
-Existing working-tree changes include labels, loading and discussion work.
-Preserve them. These feature-specific files follow the existing `tasks/task-*-*`
+These feature-specific files follow the existing `tasks/task-*-*`
 convention and do not replace other plans. The marker contract here supersedes
-the legacy `job` reservation in the labels plan when this change is implemented.
+the legacy `job` reservation in the labels plan.
 
 ## Product contract
 
@@ -29,11 +33,9 @@ the legacy `job` reservation in the labels plan when this change is implemented.
   names, creation variants or existing route parameters named `job`.
 - Update classification, creation/editing, completion/history, marker lookup,
   label controls, fixtures and current documentation together.
-- Rollout requires explicit relabeling of existing intended Jobs, including
-  completed/history Jobs. Without it they lose Job classification. Audit label
-  IDs and collisions first; do not globally rename a shared label without
-  checking all affected tasks. Document rollback and existing `vbu:job`
-  collisions. No startup migration or production data mutation is authorized.
+- Existing tasks with only `job` are no longer classified as Jobs. The user
+  explicitly excluded migration; do not add relabeling, inventory or rollback
+  tooling, a compatibility alias, or production data mutation.
 
 ### 2. Subtask experience
 
@@ -60,9 +62,9 @@ composer. Preserve drafts on failure. Show inherited values before submission.
 | Assignees | Not copied; no new assignment feature in this scope |
 | Other relations | Not copied |
 
-Copy once at creation; later parent edits do not propagate. Parent creation
-context overrides remembered form state, including remembered title, Job mode
-and dates. User edits always win; delayed loads cannot overwrite them. Attaching
+Copy once at creation; later parent edits do not propagate. Automatic remembered
+form values were removed; do not reintroduce them. User edits always win;
+delayed loads cannot overwrite them. Attaching
 an existing task changes only the relation, never its properties.
 
 Create at most one parent per child through Better UI and prevent self-links
@@ -128,12 +130,16 @@ database, historical scan, notification or automatic comment posting is added.
 
 ### 6. Emoji
 
-Extend the shared Lexical editor used by descriptions and comments with a
+Extend the Lexical editor with a
 searchable picker and `:shortcode:` suggestions. Insert Unicode text, including
 skin-tone and joined sequences. Store normal HTML/text compatible with Vikunja.
 Do not rewrite existing text, unknown shortcodes, code or URLs automatically.
 Insertion must preserve selection, undo, keyboard navigation, mobile usability
 and draft recovery. Plain pasted emoji continue to work.
+
+The comment editor integration is implemented. Description migration is approved:
+preserve untouched HTML exactly, protect unsupported content from lossy editing,
+and cover descriptions separately rather than relying on comment tests.
 
 Assess existing dependencies first. A maintained emoji dataset/picker may remove
 complexity; document bundle size, license and accessible integration, and obtain
@@ -146,7 +152,7 @@ No application database. Enforce session/CSRF and upstream permissions.
 
 Relevant current paths:
 
-- `internal/service/task_kind.go`: legacy Job marker and classification.
+- `internal/service/task_kind.go`: canonical Job marker and classification.
 - `internal/service/task_labels.go`: ordinary/reserved label policy.
 - `frontend/src/features/tasks/visible-task-labels.ts` and
   `task-label-picker.tsx`: frontend marker policies.
@@ -155,7 +161,7 @@ Relevant current paths:
 - `internal/service/recurring_completion.go`: renewal and history snapshots.
 - `internal/graphql/resolver/discussion.resolvers.go`: comment save entrypoints.
 - `frontend/src/features/tasks/task-detail-page.tsx`: parent/child/related UI.
-- `frontend/src/features/tasks/autofill/`: remembered creation values.
+- `frontend/src/features/tasks/`: explicit last-task reuse; no automatic autofill.
 - `frontend/src/features/task-discussion/editor-extension.ts`: shared rich editor.
 
 Add focused Vikunja transport methods and typed relation summaries. Avoid recursive
@@ -172,7 +178,7 @@ documentation establishes capabilities, not verified behavior of that fixture.
 ## Order and verification
 
 Follow the [task checklist](task-relationships-todo.md): pinned-contract check ->
-marker change -> manual relations -> subtask creation -> link automation. Emoji
+manual relations -> subtask creation -> link automation. The marker change is done. Emoji
 can follow independently once its dependency choice is settled. Each slice
 includes tests and UI integration before moving to the next product capability.
 
@@ -204,10 +210,41 @@ recurrence. Browser checks cover keyboard, mobile, loading and draft preservatio
 
 1. Verify pinned API behavior and token scopes; record incompatibilities before
    relying on them.
-2. Select emoji data/picker and request approval if a dependency is needed.
-3. Determine public Vikunja URL configuration and additive partial-success API.
-4. Review the legacy-label inventory/runbook before deployment; no data migration
-   is performed by this planning task.
+2. Emoji dependency approved: `emojibase-data@17.0.0`, MIT. Only English compact
+   data and shortcodes are lazily bundled, not the full multilingual package.
+3. Implemented: optional `APP_VIKUNJA_PUBLIC_URL`, defaulting to the configured
+   API URL, and additive `referenceLinking` results plus `repairTaskReferences`.
+
+### Source inspection, 2026-10-01
+
+The pinned [frontend router](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.5.0/frontend/src/router/index.ts)
+defines `/tasks/:id` under its configured base path. Only Better UI supports
+the additional `/discussion` and `/edit` task suffixes. HTML5 parsing uses
+[`golang.org/x/net/html`](https://pkg.go.dev/golang.org/x/net/html), not regex
+for element nesting. Regex only finds URL candidates inside visible text nodes.
+The parser is not a sanitizer. Existing DOMPurify rendering remains the boundary
+for displaying content.
+
+Rich task creation opts into `descriptionFormat: HTML`; omission remains Markdown
+for existing GraphQL callers. Pinned-fixture E2E exposed HTML loss through the
+Markdown path and verifies the explicit HTML path. Editing retains untouched
+original HTML; unsupported native formatting is locked against lossy edits.
+
+The pinned [relation model](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.5.0/pkg/models/task_relation.go)
+creates inverse relations, rejects duplicates/self-links and checks hierarchical
+cycles. These source checks do not prove single-parent enforcement or concurrent
+write safety. The pinned
+[task deletion implementation](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.5.0/pkg/models/tasks.go)
+soft-deletes the selected task. Still verify child survival and accessible
+relation results with the isolated fixture before exposing these workflows.
+
+The pinned [API v2 routes](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.5.0/pkg/routes/api/v2/task_relations.go)
+use `POST /tasks/{task}/relations` with `other_task_id` and `relation_kind`,
+and `DELETE /tasks/{task}/relations/{relationKind}/{otherTask}`. Do not copy
+the legacy PUT method from the model's v1 Swagger comment. Native permissions
+require write access to the base task and read access to the target for creation;
+removal requires write access to the base task. See the pinned
+[permission implementation](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.5.0/pkg/models/task_relation_permissions.go).
 
 ## Sources
 
@@ -218,5 +255,9 @@ recurrence. Browser checks cover keyboard, mobile, loading and draft preservatio
 - [Vikunja API v2](https://try.vikunja.io/api/v2/docs): current reference; verify
   the repository's pinned version rather than assuming current-doc parity.
 
-No implementation, runtime qualification, dependency installation or production
-migration has been performed as part of this plan.
+The isolated fixture confirms inverse add/remove, duplicate/self/cycle rejection,
+independent child completion/deletion, and native acceptance of multiple parents.
+Better UI guards single-parent creation explicitly. Desktop and 320px Chromium/
+WebKit tests cover create, attach, navigate and detach; emoji picker, shortcode
+and Unicode save/reload passed five viewport/browser configurations. No production
+migration has been performed. Full-suite results must be recorded after final edits.
