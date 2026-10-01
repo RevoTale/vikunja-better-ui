@@ -3,6 +3,9 @@ mutation CreateOneTimeTask($input: CreateOneTimeTaskInput!) {
     labelError
     status
     task {
+      referenceLinking {
+        ...ReferenceLinkingResult
+      }
       id
       title
       kind
@@ -33,6 +36,9 @@ mutation CreateRecurringTask($input: CreateRecurringTaskInput!) {
     labelError
     status
     task {
+      referenceLinking {
+        ...ReferenceLinkingResult
+      }
       id
       title
       kind
@@ -69,6 +75,9 @@ mutation CreateJob($input: CreateJobInput!) {
     labelError
     status
     task {
+      referenceLinking {
+        ...ReferenceLinkingResult
+      }
       id
       title
       kind

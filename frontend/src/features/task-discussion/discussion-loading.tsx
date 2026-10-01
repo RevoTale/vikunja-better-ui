@@ -18,7 +18,7 @@ export function CommentsLoading() {
   );
 }
 
-export function EditorLoading() {
+export function EditorLoading({ media = true }: { media?: boolean }) {
   return (
     <div role="status" aria-label="Loading editor" className="rounded-lg border bg-background">
       <span className="sr-only">Loading editor…</span>
@@ -32,11 +32,13 @@ export function EditorLoading() {
           <LoadingPlaceholder className="h-5 w-40" />
         </div>
       </div>
-      <div className="border-b p-2">
-        <div className="flex h-11 items-center px-2">
-          <LoadingPlaceholder className="h-4 w-40" />
+      {media ? (
+        <div className="border-b p-2">
+          <div className="flex h-11 items-center px-2">
+            <LoadingPlaceholder className="h-4 w-40" />
+          </div>
         </div>
-      </div>
+      ) : null}
       <div className="min-h-32 p-3">
         <LoadingPlaceholder className="h-4 w-1/3" />
       </div>

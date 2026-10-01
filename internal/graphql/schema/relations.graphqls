@@ -1,0 +1,83 @@
+enum TaskRelationKind {
+  RELATED
+  SUBTASK
+  PARENT
+}
+
+type RelatedTask {
+  id: ID!
+  title: String!
+  isDone: Boolean!
+}
+
+type TaskRelationships {
+  taskId: ID!
+  parents: [RelatedTask!]!
+  children: [RelatedTask!]!
+  related: [RelatedTask!]!
+  canEdit: Boolean!
+}
+
+type RelationCandidatePage {
+  items: [RelatedTask!]!
+  page: Int!
+  hasMore: Boolean!
+}
+
+input SetTaskRelationInput {
+  csrfToken: String!
+  taskId: ID!
+  otherTaskId: ID!
+  kind: TaskRelationKind!
+  remove: Boolean! = false
+}
+
+extend type Query {
+  taskRelationships(taskId: ID!): TaskRelationships!
+  relationCandidates(taskId: ID!, search: String!, page: Int! = 1): RelationCandidatePage!
+}
+
+extend type Mutation {
+  repairTaskReferences(input: RepairTaskReferencesInput!): TaskReferenceResult!
+  setTaskRelation(input: SetTaskRelationInput!): TaskRelationships!
+  createSubtask(input: CreateSubtaskInput!): CreateSubtaskPayload!
+}
+
+"Relation failures do not roll back the confirmed saved content. Null on ordinary reads."
+type TaskReferenceResult {
+  taskId: ID!
+  commentId: ID
+  failedTargetIds: [ID!]!
+  linkedCount: Int!
+  limited: Boolean!
+}
+
+input RepairTaskReferencesInput {
+  csrfToken: String!
+  taskId: ID!
+  commentId: ID
+  targetIds: [ID!]!
+}
+
+extend type Task {
+  referenceLinking: TaskReferenceResult
+}
+
+extend type TaskComment {
+  referenceLinking: TaskReferenceResult
+}
+
+input CreateSubtaskInput {
+  csrfToken: String!
+  parentTaskId: ID!
+  title: String!
+  projectId: ID
+  priority: TaskPriority
+  labelIds: [ID!]
+}
+
+type CreateSubtaskPayload {
+  task: RelatedTask!
+  relationError: String
+  labelError: String
+}

@@ -173,6 +173,7 @@ function ReadyCreateTaskForm({
       </div>
       <TaskReuseProvider job={values.job} recurring={type === "recurring"}>
         <SharedFields
+          disabled={loading}
           projects={projects}
           errors={fieldErrors}
           type={type}

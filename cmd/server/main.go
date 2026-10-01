@@ -56,8 +56,12 @@ func run(configuration config.Config, logger *slog.Logger) error {
 		Credentials: auth.NewCredentials(configuration.AuthUsername, configuration.AuthPassword),
 		Sessions:    sessions, Cookies: cookies, Limiter: auth.NewLoginLimiter(now),
 		Users: vikunjaClient, Projects: vikunjaClient, Tasks: vikunjaClient, Comments: vikunjaClient,
-		Attachments:  vikunjaClient,
-		Avatars:      vikunjaClient,
+		Attachments: vikunjaClient,
+		Avatars:     vikunjaClient,
+		Relations:   vikunjaClient,
+		ReferencePolicy: service.TaskReferencePolicy{
+			BetterUI: configuration.AllowedOrigin, Vikunja: configuration.VikunjaPublicURL,
+		},
 		Capabilities: capabilities, Logger: logger, Now: now,
 	})
 

@@ -4,6 +4,7 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { offlineShellPlugin } from "./src/app/pwa/build-plugin.ts";
+import { emojiDataPlugin } from "./src/features/task-discussion/emoji-build-plugin.ts";
 
 export default defineConfig({
   plugins: [
@@ -15,6 +16,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     offlineShellPlugin(),
+    emojiDataPlugin(),
   ],
   resolve: {
     alias: {

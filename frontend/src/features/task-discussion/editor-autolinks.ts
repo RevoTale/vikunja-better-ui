@@ -88,7 +88,8 @@ export function registerDiscussionLinks(
     }),
     editor.registerNodeTransform(LinkNode, (link) => {
       const key = link.getKey();
-      if ($hasUpdateTag(HISTORIC_TAG) || attempted.has(key)) return;
+      if ($hasUpdateTag("vbu:initial-content") || $hasUpdateTag(HISTORIC_TAG) || attempted.has(key))
+        return;
       const href = link.getURL();
       const text = link.getTextContent();
       const id = taskLinkId(href, origin);

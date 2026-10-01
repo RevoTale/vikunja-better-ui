@@ -4,12 +4,14 @@ import { useState } from "react";
 import { RepairTaskMetadataDocument } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import type { CreatePayload } from "./use-create-task-mutation";
+import { useReferenceFeedback } from "./use-reference-feedback";
 
 export type CreationRepair = { capability: string; taskId: string; steps: readonly string[] };
 export type CreationLabelWarning = { taskId: string; message: string };
 
 export function useCreatedTaskResult(csrfToken: string | null | undefined, returnTo: string) {
   const navigate = useNavigate();
+  const referenceFeedback = useReferenceFeedback();
   const [repair, repairState] = useMutation(RepairTaskMetadataDocument);
   const [error, setError] = useState("");
   const [labelWarning, setLabelWarning] = useState<CreationLabelWarning>();
@@ -24,6 +26,7 @@ export function useCreatedTaskResult(csrfToken: string | null | undefined, retur
   }
 
   async function acceptCreated(payload: CreatePayload) {
+    referenceFeedback(payload.task.referenceLinking, csrfToken);
     if (payload.labelError)
       setLabelWarning({ taskId: payload.task.id, message: payload.labelError });
     if (payload.status === "REPAIR_REQUIRED" && payload.repairCapability) {

@@ -40,6 +40,7 @@ import {
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EditorCodeTools } from "./editor-code-tools";
+import { EditorEmojiPicker } from "./editor-emoji-picker";
 import { registerLinkEvents } from "./editor-link-events";
 import { EditorLinkTools } from "./editor-link-tools";
 import { EditorTableTools, InsertTable } from "./editor-table-tools";
@@ -69,7 +70,7 @@ export function EditorToolbar() {
           key={format}
           label={label}
           icon={icon}
-          compact={!extended && format !== "code"}
+          compact={!extended}
           active={state.formats.has(format)}
           disabled={state.block === "code"}
           onClick={() => run(() => editor.dispatchCommand(FORMAT_TEXT_COMMAND, format))}
@@ -86,6 +87,10 @@ export function EditorToolbar() {
     <div className="border-b p-1">
       <fieldset className="flex flex-wrap gap-1" aria-label="Text formatting">
         {textButtons(false)}
+        <EditorEmojiPicker
+          run={run}
+          disabled={state.block === "code" || state.formats.has("code")}
+        />
         <Button
           type="button"
           variant={state.link ? "secondary" : "ghost"}

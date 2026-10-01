@@ -31,6 +31,7 @@ export function useCreateTaskMutation(baseType: CreationBaseType) {
       priority: text(form, "priority") as TaskPriority,
       labelIds: form.getAll("labelIds").map(String),
       description: optional(form, "description"),
+      descriptionFormat: "HTML" as const,
     };
     if (text(form, "job") === "on") {
       return (

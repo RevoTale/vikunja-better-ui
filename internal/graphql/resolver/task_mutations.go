@@ -39,6 +39,7 @@ func (r *mutationResolver) CreateOneTimeTask(
 	if dateOnly {
 		marker = "vbu:date-only"
 	}
+	write.DescriptionHTML = input.DescriptionFormat == model.TaskDescriptionFormatHTML
 	return r.createTaskPayload(ctx, session, user, projects, projectID, write, marker, input.LabelIds)
 }
 
@@ -77,6 +78,7 @@ func (r *mutationResolver) CreateRecurringTask(
 	} else if input.KeepDueTime {
 		marker = "vbu:fixed-due-time"
 	}
+	write.DescriptionHTML = input.DescriptionFormat == model.TaskDescriptionFormatHTML
 	return r.createTaskPayload(ctx, session, user, projects, projectID, write, marker, input.LabelIds)
 }
 
@@ -114,6 +116,7 @@ func (r *mutationResolver) CreateJob(
 	if input.Recurrence != nil && input.Recurrence.KeepDueTime {
 		markers = append(markers, "vbu:fixed-due-time")
 	}
+	write.DescriptionHTML = input.DescriptionFormat == model.TaskDescriptionFormatHTML
 	return r.createTaskPayloadWithMarkers(ctx, session, user, projects, projectID, write, markers, input.LabelIds)
 }
 

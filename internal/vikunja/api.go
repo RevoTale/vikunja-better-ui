@@ -281,8 +281,11 @@ func (client *Client) DeleteTask(ctx context.Context, taskID int64) error {
 	return err
 }
 
-// CreateTask creates a task using the upstream Markdown conversion path.
+// CreateTask defaults to upstream Markdown conversion; rich editors explicitly opt into HTML.
 func (client *Client) CreateTask(ctx context.Context, projectID int64, input TaskWrite) (Task, error) {
+	if input.DescriptionHTML {
+		return client.CreateTaskHTML(ctx, projectID, input)
+	}
 	return client.createTask(ctx, projectID, input, markdownQuery())
 }
 

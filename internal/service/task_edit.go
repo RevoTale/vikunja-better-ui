@@ -61,6 +61,13 @@ func EditTask(
 	if err != nil {
 		return vikunja.Task{}, err
 	}
+	return editLoadedTask(ctx, client, input, location, projects, before)
+}
+
+func editLoadedTask(
+	ctx context.Context, client taskEditClient, input EditTaskInput,
+	location *time.Location, projects []int64, before vikunja.Task,
+) (vikunja.Task, error) {
 	if err := validateEditTarget(before, input, projects); err != nil {
 		return vikunja.Task{}, err
 	}

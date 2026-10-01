@@ -119,7 +119,7 @@ func CreateTaskWithMarkers(
 		if attachErr == nil {
 			return CreationResult{}, err
 		}
-		confirmed = vikunja.Task{ID: created.ID, ProjectID: projectID, Title: input.Title}
+		confirmed = created
 	}
 	missing := missingMarkerTitles(confirmed.Labels, markerTitles)
 	if len(missing) > 0 {

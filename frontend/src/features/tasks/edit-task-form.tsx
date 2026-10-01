@@ -78,6 +78,7 @@ export function EditTaskForm({
       <fieldset disabled={pending} className="grid min-w-0 gap-5">
         <legend className="sr-only">Edit task fields</legend>
         <SharedFields
+          disabled={pending}
           projects={projects}
           errors={{}}
           type={recurring ? "recurring" : "one-time"}

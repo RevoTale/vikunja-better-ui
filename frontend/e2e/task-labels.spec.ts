@@ -6,7 +6,8 @@ test("task labels support create, deselect, edit and inclusion filtering", async
   await page.getByLabel("Username").fill("app-user");
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL((url) => url.pathname === "/week");
+  await expect(page.getByRole("heading", { name: "This week", exact: true })).toBeVisible();
   const { session } = await discussionGraphQL<{ session: { csrfToken: string } }>(
     page,
     "{ session { csrfToken } }",

@@ -99,15 +99,17 @@ type CommentPage = page[TaskComment]
 
 // TaskWrite contains task creation fields; absent timestamps retain upstream defaults.
 type TaskWrite struct {
-	Title       string     `json:"title"`
-	Description string     `json:"description,omitempty"`
-	Done        bool       `json:"done,omitempty"`
-	DueDate     *time.Time `json:"due_date,omitempty"`
-	RepeatAfter int64      `json:"repeat_after,omitempty"`
-	RepeatMode  int        `json:"repeat_mode,omitempty"`
-	Priority    int64      `json:"priority,omitempty"`
-	StartDate   *time.Time `json:"start_date,omitempty"`
-	EndDate     *time.Time `json:"end_date,omitempty"`
+	// DescriptionHTML opts out of Markdown conversion; it is a transport option, not an API body field.
+	DescriptionHTML bool       `json:"-"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description,omitempty"`
+	Done            bool       `json:"done,omitempty"`
+	DueDate         *time.Time `json:"due_date,omitempty"`
+	RepeatAfter     int64      `json:"repeat_after,omitempty"`
+	RepeatMode      int        `json:"repeat_mode,omitempty"`
+	Priority        int64      `json:"priority,omitempty"`
+	StartDate       *time.Time `json:"start_date,omitempty"`
+	EndDate         *time.Time `json:"end_date,omitempty"`
 }
 
 // TaskPatch distinguishes omitted fields from explicit zero-value replacements.

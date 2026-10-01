@@ -11,9 +11,11 @@ import {
 } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import { EditTaskForm } from "./edit-task-form";
+import { useReferenceFeedback } from "./use-reference-feedback";
 
 export function EditTaskPage({ taskId, returnTo }: { taskId: string; returnTo: string }) {
   const client = useApolloClient();
+  const referenceFeedback = useReferenceFeedback();
   const navigate = useNavigate();
   const taskQuery = useQuery(TaskDetailsDocument, {
     variables: { id: taskId },
@@ -37,6 +39,7 @@ export function EditTaskPage({ taskId, returnTo }: { taskId: string; returnTo: s
     try {
       const result = await update({ variables: { input: { ...input, csrfToken } } });
       if (!result.data?.updateTask) throw new Error("Update was not confirmed.");
+      referenceFeedback(result.data.updateTask.referenceLinking, csrfToken);
     } catch (caught) {
       setError(
         graphQLErrorMessage(

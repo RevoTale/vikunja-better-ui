@@ -186,6 +186,8 @@ func (resolver *Resolver) createTaskPayloadWithMarkers(
 		Task: mapped, Status: model.TaskMutationStatusConfirmed,
 		MissingMarkers: []model.MarkerKind{}, RemainingRepairSteps: []model.RepairStep{},
 	}
+	mapped.ReferenceLinking = referenceResult(result.Task.ID, 0,
+		resolver.referenceLinker().Saved(ctx, result.Task.ID, "", result.Task.Description))
 	if result.LabelError != nil {
 		resolver.logError("attach created task labels", result.LabelError)
 		message := "The task was created, but its labels could not be confirmed. " +

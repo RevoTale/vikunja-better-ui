@@ -50,11 +50,10 @@ const supportedTags = [
 function unsupportedElement(element: Element): boolean {
   if (!supportedTags.includes(element.tagName.toLowerCase())) return true;
   if (element.hasAttribute("data-background-color")) return true;
-  if (
-    element.tagName === "A" &&
-    /^(?:ftp|git|obsidian|notion|message):/i.test(element.getAttribute("href") ?? "")
-  )
-    return true;
+  if (element.tagName === "A") {
+    const href = element.getAttribute("href");
+    if (href && !safeLink(href) && !mediaReference(href)) return true;
+  }
   if (element.tagName === "IMG" && element.getAttribute("title")) return true;
   if (!(element instanceof HTMLElement)) return false;
   if (unsupportedStyle(element)) return true;
@@ -112,6 +111,7 @@ export function hasUnsupportedContent(html: string): boolean {
 }
 
 export function safeLink(value: string): boolean {
+  if (/^\/tasks\/[1-9]\d*(?:\/(?:discussion|edit))?\/?(?:[?#][^\s\\]*)?$/u.test(value)) return true;
   try {
     const url = new URL(value);
     return ["https:", "http:", "mailto:"].includes(url.protocol);

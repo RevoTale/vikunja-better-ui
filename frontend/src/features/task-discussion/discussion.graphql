@@ -37,12 +37,18 @@ query DiscussionOriginal($taskId: ID!, $commentId: ID!) {
 
 mutation CreateDiscussionComment($input: CreateTaskCommentInput!) {
   createTaskComment(input: $input) {
+    referenceLinking {
+      ...ReferenceLinkingResult
+    }
     ...DiscussionComment
   }
 }
 
 mutation UpdateDiscussionComment($input: UpdateTaskCommentInput!) {
   updateTaskComment(input: $input) {
+    referenceLinking {
+      ...ReferenceLinkingResult
+    }
     ...DiscussionComment
   }
 }

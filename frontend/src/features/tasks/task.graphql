@@ -35,6 +35,9 @@ query TaskDetails($id: ID!) {
 
 mutation UpdateTask($input: UpdateTaskInput!) {
   updateTask(input: $input) {
+    referenceLinking {
+      ...ReferenceLinkingResult
+    }
     id
     version
   }
