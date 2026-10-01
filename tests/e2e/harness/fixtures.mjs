@@ -329,6 +329,7 @@ const permissions = {
   tasks_labels: selectPermissions(routes, "tasks_labels", ["create", "read_all", "delete"]),
   tasks_comments: selectPermissions(routes, "tasks_comments", ["create", "read_all", "read_one", "update", "delete"]),
   tasks_attachments: selectPermissions(routes, "tasks_attachments", ["create", "read_all", "read_one"]),
+  tasks_relations: selectPermissions(routes, "tasks_relations", ["create", "delete"]),
 };
 
 const apiToken = await request("/tokens", {

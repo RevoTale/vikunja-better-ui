@@ -306,6 +306,7 @@ secret.
 | Variable | Required | Meaning |
 | --- | --- | --- |
 | `APP_VIKUNJA_URL` | Yes | Absolute Vikunja base URL. HTTPS is required in production. |
+| `APP_VIKUNJA_PUBLIC_URL` | No | Public native Vikunja frontend URL, including its base path, for recognizing task references. Defaults to `APP_VIKUNJA_URL`; set it when the API uses an internal address. HTTPS is required in production. |
 | `APP_VIKUNJA_API_TOKEN` | Yes | Vikunja token used only by the Go backend. |
 | `APP_AUTH_USERNAME` | Yes | Username accepted by this app. |
 | `APP_AUTH_PASSWORD` | Yes | Password accepted by this app. |
@@ -327,6 +328,7 @@ Use a dedicated Vikunja API token with these permissions:
 | `tasks_labels` | `create`, `read_all`, `delete` |
 | `tasks_comments` (Discussion) | `create`, `read_all`, `read_one`, `update`, `delete` |
 | `tasks_attachments` (Discussion media) | `create`, `read_all`, `read_one` |
+| `tasks_relations` (subtasks and related tasks) | `create`, `delete` |
 
 This is the minimum permission set exercised by the app's end-to-end tests.
 Missing permissions can make login or task operations fail because the backend
@@ -334,13 +336,72 @@ validates the token by reading the current Vikunja user immediately after app
 authentication. Store the generated token value as `APP_VIKUNJA_API_TOKEN`.
 Do not use the app username or password to authenticate with Vikunja.
 
+### Subtasks and related tasks
+
+Open a task, then use **New subtask** to create a child or **Link subtask** to
+attach an existing task. **Link task** in Related tasks adds a symmetric native
+Vikunja relation. Search by title or ID; results are paginated. Open a child to
+navigate back to its parent. Unlinking asks for confirmation and deletes neither
+task.
+
+New children copy only project, priority and ordinary labels, once. Expand
+**Properties** to change those values before creating. Dates, Job, recurrence,
+description and internal `vbu:*` labels are not copied. Creation leaves the form
+open for another child. Escape closes it. If linking fails after creation,
+**Retry linking created task** reuses the created ID without creating another task.
+An unconfirmed creation keeps the draft and blocks resubmission: check the task
+list, then explicitly confirm no task was created to unlock that same draft.
+Validation or access rejections leave the draft editable.
+
+Better UI rejects self-links, cycles and adding another parent. Multiple parents
+created elsewhere are displayed for explicit cleanup. Checks cannot lock out
+concurrent edits from another Vikunja client. Completing or deleting a parent
+does not complete or delete its children. Relations belong to the live task,
+not completion-history snapshots. History snapshots cannot be linked here.
+
+Relations load independently, with one upstream task read for the section.
+Each response is limited to 1,000 supported related-task summaries; hierarchy
+checks stop after 1,000 distinct ancestors or ten seconds. Larger graphs report
+an error rather than silently returning a partial successful result.
+
+Saving a description or comment through Better UI adds **Related tasks** for new
+task references. Both HTML links and visible plain URLs are recognized. Better UI
+trusts `APP_ALLOWED_ORIGIN` and `APP_VIKUNJA_PUBLIC_URL` (or `APP_VIKUNJA_URL`),
+including the configured native base path. Supported paths are `/tasks/{id}`,
+Better UI's `/discussion` and `/edit` suffixes, and relative `/tasks/{id}` links.
+Queries and fragments do not change the target. External origins, self-links,
+code, generated reply quotations and hidden metadata are ignored. Ordinary
+blockquotes are content, not generated replies. No pasted URL is fetched.
+
+Edits consider only newly introduced targets. Removing text never unlinks tasks,
+and unrelated text edits do not recreate a manually removed link. Native-client
+edits and old content are not scanned in the background. The workflow processes
+at most 20 unique targets and 512 KiB of content, with a five-second linking budget.
+Oversized or incomplete previous content is not rescanned; a warning requests
+manual review. Same-task writes run sequentially; target/access reads use the
+existing bounded relation workflow.
+
+Content remains saved if linking fails. A persistent **Saved; some task links need
+attention** notice offers **Retry links** for failed targets only. Repair rereads
+the persisted description/comment and checks access; it never reposts the comment
+or recreates the task. Reloading/dismissing the notice does not store a repair
+queue; links can still be added manually. Existing `tasks_relations:create`
+permission is sufficient for automatic linking.
+
 ### Task discussion
 
 Open a task to read its formatted description, inspect its properties and join
 the discussion below. On wide screens, properties sit beside the description;
 on phones, they appear between the description and discussion. **Edit** keeps
-the existing task editing workflow. Unsupported description content is flagged,
-not silently treated as fully displayed.
+the existing task editing workflow. Creation and editing use the shared rich-text
+editor for descriptions, including emoji, code, tables and formatting. An untouched
+description is submitted exactly as loaded, not reserialized on focus. Unsupported
+native formatting is read-only here so other field edits cannot discard it; edit
+that description in Vikunja. Media uploads remain in Discussion after creation.
+
+The creation mutations accept `descriptionFormat: HTML` for rich descriptions.
+Omitting it keeps the existing `MARKDOWN` conversion behavior for API callers.
+Task updates continue to use Vikunja's stored HTML representation.
 
 Choose **Discussion** for the separate conversation page. Both views share the
 same **Sort comments** selector: **Oldest first** reads the conversation in
@@ -354,6 +415,14 @@ A failed refresh shows an error, never a success confirmation.
 Comments use separate, subtly bordered cards with a contrasting surface and a
 divided action row, in both light and dark themes. Loading placeholders follow
 the same card outline; keyboard focus adds a ring without resizing the comment.
+
+Use **Insert emoji** to search Unicode emoji, including skin tones and joined
+sequences. Typing a shortcode such as `:thumbsup` offers suggestions: choose one
+with arrow keys and Enter, or click it. Escape dismisses suggestions without
+changing the text. Code and URLs stay literal. Emoji are normal text in saved
+HTML, not reactions or externally hosted images. The English Emojibase dataset
+is a separate on-demand editor chunk; the PWA may pre-cache it in the background.
+No third-party CDN is contacted.
 
 Discussion links are underlined and colored in both themes. Pasted HTTP(S) and
 `www.` URLs become links immediately; typed URLs convert after Space or Enter.

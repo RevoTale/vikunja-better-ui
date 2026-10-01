@@ -272,38 +272,48 @@ outputs plus any final documentation correction.
 
 ## Task 10: Bind Skip to the displayed occurrence
 
+2026-10-01 audit: the guard is already implemented. Added service regressions in
+`internal/service/recurring_occurrence_test.go` and a real-Vikunja replay test in
+`frontend/e2e/skip-replay.spec.ts`. Resolver/schema tests and browser feedback
+regressions also pass. Final local generation, validation, Go race/shuffle tests,
+277 frontend tests and 369 E2E scenarios passed on 2026-10-01 after the last
+implementation edit. These tests do not change recurrence semantics.
+
 **Description:** Prevent a lost Skip response and its retry from advancing the
 next occurrence of the same in-place recurring Vikunja task.
 
 **Acceptance criteria:**
 
-- [ ] `SkipRecurringTaskInput` requires `expectedDueAt: DateTime!`; one-time and
+- [x] `SkipRecurringTaskInput` requires `expectedDueAt: DateTime!`; one-time and
   job completion and Delete keep their existing inputs.
-- [ ] The service fetches the authoritative task and compares its due date with
+- [x] The service fetches the authoritative task and compares its due date with
   `expectedDueAt` as the same absolute instant before native renewal.
-- [ ] A missing or changed due date returns stable `CONFLICT` and performs no
+- [x] A missing or changed due date returns stable `CONFLICT` and performs no
   completion, snapshot, label, or repair write.
-- [ ] Replaying the same `(taskId, expectedDueAt)` after a successful Skip
+- [x] Replaying the same `(taskId, expectedDueAt)` after a successful Skip
   cannot advance the next occurrence or create a second skipped snapshot.
-- [ ] The task page sends the loaded `dueAt`, refetches on a stale-occurrence
+- [x] The task page sends the loaded `dueAt`, refetches on a stale-occurrence
   conflict, and explains that the occurrence changed without automatic retry.
-- [ ] If the first request stopped after renewal but before archival, the UI
+- [x] If the first request stopped after renewal but before archival, the UI
   does not claim confirmed History. A missing or incomplete skipped snapshot is
   an accepted MVP limitation and is not reconstructed automatically.
 
 **Verification:**
 
-- [ ] Focused service tests cover matching, missing, changed, and replayed due
+- [x] Focused service tests cover matching, missing, changed, and replayed due
   instants and assert whether the Vikunja completion call occurred.
-- [ ] Resolver tests cover the required input and stable `CONFLICT` mapping.
-- [ ] Playwright and direct Vikunja v2 assertions prove one renewal and one
+- [x] Resolver tests cover the required input and stable `CONFLICT` mapping.
+- [x] Playwright and direct Vikunja v2 assertions prove one renewal and one
   skipped snapshot after replaying a fully completed Skip.
-- [ ] A partial-failure test interrupts after renewal and proves that replay
+- [x] A partial-failure test interrupts after renewal and proves that replay
   does not renew again; at most one snapshot candidate exists in total and may
   be absent, incomplete, or completed. The UI reports archival as ambiguous
   unless the completed snapshot is proven.
-- [ ] `task gen:check`, `task validate`, `task test`, and `task e2e` pass after
-  the final edit.
+  Service failure/replay is covered by `recurring_occurrence_test.go`; browser
+  feedback contracts are covered by `skip-feedback.spec.ts` using injected
+  GraphQL responses, not upstream fault injection.
+- [x] `task gen:check`, `task validate`, `task test`, and `task e2e` pass after
+  the final implementation edit.
 
 **Dependencies:** Existing Tasks 1-9.
 
@@ -321,7 +331,7 @@ generated outputs.
 
 ## Completion audit
 
-- [ ] Every task's acceptance criteria are met, including retry-safe Skip.
+- [x] Every task's acceptance criteria are met, including retry-safe Skip.
 - [x] Runtime behavior is verified against an isolated Vikunja 2.5.0 instance.
 - [x] The active-only DELETE race limitation remains documented.
 - [ ] Human review approves the implementation before commit or merge.

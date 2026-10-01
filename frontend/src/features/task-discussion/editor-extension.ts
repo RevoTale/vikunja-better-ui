@@ -7,6 +7,7 @@ import { HorizontalRuleNode } from "@lexical/react/LexicalHorizontalRuleNode";
 import { RichTextExtension } from "@lexical/rich-text";
 import { TableExtension } from "@lexical/table";
 import {
+  $addUpdateTag,
   $createParagraphNode,
   $getRoot,
   $insertNodes,
@@ -64,6 +65,7 @@ export function createDiscussionExtension(
       tableScrollableWrapper: "discussion-table-scroll",
     },
     $initialEditorState: (editor) => {
+      $addUpdateTag("vbu:initial-content");
       const nodes = $generateNodesFromDOM(editor, editorDocument(initialHtml));
       $getRoot().select();
       $insertNodes(nodes);

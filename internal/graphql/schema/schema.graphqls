@@ -248,7 +248,13 @@ input LoginInput {
   password: String!
 }
 
+enum TaskDescriptionFormat {
+  MARKDOWN
+  HTML
+}
+
 input CreateOneTimeTaskInput {
+  descriptionFormat: TaskDescriptionFormat! = MARKDOWN
   labelIds: [ID!]
   csrfToken: String!
   title: String!
@@ -260,6 +266,7 @@ input CreateOneTimeTaskInput {
 }
 
 input CreateRecurringTaskInput {
+  descriptionFormat: TaskDescriptionFormat! = MARKDOWN
   labelIds: [ID!]
   csrfToken: String!
   title: String!
@@ -275,6 +282,7 @@ input CreateRecurringTaskInput {
 }
 
 input CreateJobInput {
+  descriptionFormat: TaskDescriptionFormat! = MARKDOWN
   labelIds: [ID!]
   csrfToken: String!
   title: String

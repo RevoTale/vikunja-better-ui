@@ -1,5 +1,9 @@
 # Implementation Plan: Keep Due Time for Completion-Based Recurrence
 
+2026-10-01 audit: implemented. This document preserves the original implementation
+plan; the [current specification](../docs/specs/keep-due-time.md) takes precedence,
+including support for eligible recurring Jobs. See [plan status](README.md).
+
 ## Outcome
 
 Implement the approved behavior in `docs/specs/keep-due-time.md` without

@@ -54,11 +54,15 @@ func (r *mutationResolver) UpdateTask(ctx context.Context, input model.UpdateTas
 	for _, project := range projects {
 		ids = append(ids, project.ID)
 	}
-	task, err := service.EditTask(ctx, r.tasks, edit, location, ids)
+	task, links, err := service.EditTaskWithReferences(ctx, r.tasks, edit, location, ids, r.referenceLinker())
 	if err != nil {
 		return nil, editClientError(r.Resolver, err)
 	}
-	return taskModel(task, projectMap(projects), user.Settings.Timezone, r.now(), user.Settings.DefaultProjectID)
+	mapped, err := taskModel(task, projectMap(projects), user.Settings.Timezone, r.now(), user.Settings.DefaultProjectID)
+	if mapped != nil {
+		mapped.ReferenceLinking = referenceResult(task.ID, 0, links)
+	}
+	return mapped, err
 }
 
 func editClientError(resolver *Resolver, err error) error {

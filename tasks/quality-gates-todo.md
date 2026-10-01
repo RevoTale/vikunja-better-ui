@@ -95,7 +95,8 @@ Dependencies: 2-5. Files: Taskfile, workflow, AGENTS, README.
 - [x] Run full `task e2e`: 275 passed, 1 browser-runtime failure.
 - [x] Confirm no unintended API/UX behavior changes or broad exclusions.
 - [x] Record exact results and any external blockers; never claim unverified completion.
-- [ ] Full green E2E acceptance: blocked by Chromium runtime.
+- [x] Full green E2E acceptance: CI run 36789208186 passed all 320 tests at
+  `24c0dff`; see [the status index](README.md). The runtime notes below are historical.
 
 Acceptance: all agreed hard gates pass, or outstanding blockers are explicit and
 the work remains incomplete. Dependencies: all preceding slices.

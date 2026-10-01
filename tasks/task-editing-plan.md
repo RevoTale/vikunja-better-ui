@@ -1,5 +1,10 @@
 # Task editing and schedule controls
 
+2026-10-01 audit: editing, duration controls, schedule shifts and Month removal
+are implemented. Reset autosave and automatic remembered creation values below
+are historical and superseded by their removal. See [current plan status](README.md)
+and [explicit reuse](../docs/specs/task-value-reuse.md); do not restore autofill.
+
 Approved scope: remove Month navigation (redirect old links to Week), edit
 existing active tasks, Reset autosave, relative schedule adjustments, and a
 reusable duration input. Recurring edits affect the live task and future

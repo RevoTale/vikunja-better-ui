@@ -32,42 +32,60 @@ type CompletionPayload struct {
 }
 
 type CreateJobInput struct {
-	LabelIds                []string         `json:"labelIds,omitempty"`
-	CsrfToken               string           `json:"csrfToken"`
-	Title                   *string          `json:"title,omitempty"`
-	Description             *string          `json:"description,omitempty"`
-	ProjectID               string           `json:"projectId"`
-	Priority                TaskPriority     `json:"priority"`
-	StartAt                 LocalDateTime    `json:"startAt"`
-	DurationMinutes         int              `json:"durationMinutes"`
-	CompletionWindowMinutes int              `json:"completionWindowMinutes"`
-	Recurrence              *RecurrenceInput `json:"recurrence,omitempty"`
+	DescriptionFormat       TaskDescriptionFormat `json:"descriptionFormat"`
+	LabelIds                []string              `json:"labelIds,omitempty"`
+	CsrfToken               string                `json:"csrfToken"`
+	Title                   *string               `json:"title,omitempty"`
+	Description             *string               `json:"description,omitempty"`
+	ProjectID               string                `json:"projectId"`
+	Priority                TaskPriority          `json:"priority"`
+	StartAt                 LocalDateTime         `json:"startAt"`
+	DurationMinutes         int                   `json:"durationMinutes"`
+	CompletionWindowMinutes int                   `json:"completionWindowMinutes"`
+	Recurrence              *RecurrenceInput      `json:"recurrence,omitempty"`
 }
 
 type CreateOneTimeTaskInput struct {
-	LabelIds    []string     `json:"labelIds,omitempty"`
-	CsrfToken   string       `json:"csrfToken"`
-	Title       string       `json:"title"`
-	Description *string      `json:"description,omitempty"`
-	ProjectID   string       `json:"projectId"`
-	Priority    TaskPriority `json:"priority"`
-	DueDate     *LocalDate   `json:"dueDate,omitempty"`
-	DueTime     *LocalTime   `json:"dueTime,omitempty"`
+	DescriptionFormat TaskDescriptionFormat `json:"descriptionFormat"`
+	LabelIds          []string              `json:"labelIds,omitempty"`
+	CsrfToken         string                `json:"csrfToken"`
+	Title             string                `json:"title"`
+	Description       *string               `json:"description,omitempty"`
+	ProjectID         string                `json:"projectId"`
+	Priority          TaskPriority          `json:"priority"`
+	DueDate           *LocalDate            `json:"dueDate,omitempty"`
+	DueTime           *LocalTime            `json:"dueTime,omitempty"`
 }
 
 type CreateRecurringTaskInput struct {
-	LabelIds     []string       `json:"labelIds,omitempty"`
-	CsrfToken    string         `json:"csrfToken"`
-	Title        string         `json:"title"`
-	Description  *string        `json:"description,omitempty"`
-	ProjectID    string         `json:"projectId"`
-	Priority     TaskPriority   `json:"priority"`
-	FirstDueDate LocalDate      `json:"firstDueDate"`
-	DueTime      *LocalTime     `json:"dueTime,omitempty"`
-	Interval     int            `json:"interval"`
-	Unit         RecurrenceUnit `json:"unit"`
-	Mode         RecurrenceMode `json:"mode"`
-	KeepDueTime  bool           `json:"keepDueTime"`
+	DescriptionFormat TaskDescriptionFormat `json:"descriptionFormat"`
+	LabelIds          []string              `json:"labelIds,omitempty"`
+	CsrfToken         string                `json:"csrfToken"`
+	Title             string                `json:"title"`
+	Description       *string               `json:"description,omitempty"`
+	ProjectID         string                `json:"projectId"`
+	Priority          TaskPriority          `json:"priority"`
+	FirstDueDate      LocalDate             `json:"firstDueDate"`
+	DueTime           *LocalTime            `json:"dueTime,omitempty"`
+	Interval          int                   `json:"interval"`
+	Unit              RecurrenceUnit        `json:"unit"`
+	Mode              RecurrenceMode        `json:"mode"`
+	KeepDueTime       bool                  `json:"keepDueTime"`
+}
+
+type CreateSubtaskInput struct {
+	CsrfToken    string        `json:"csrfToken"`
+	ParentTaskID string        `json:"parentTaskId"`
+	Title        string        `json:"title"`
+	ProjectID    *string       `json:"projectId,omitempty"`
+	Priority     *TaskPriority `json:"priority,omitempty"`
+	LabelIds     []string      `json:"labelIds,omitempty"`
+}
+
+type CreateSubtaskPayload struct {
+	Task          *RelatedTask `json:"task"`
+	RelationError *string      `json:"relationError,omitempty"`
+	LabelError    *string      `json:"labelError,omitempty"`
 }
 
 type CreateTaskCommentInput struct {
@@ -155,9 +173,28 @@ type RecurrenceRule struct {
 	KeepDueTime bool           `json:"keepDueTime"`
 }
 
+type RelatedTask struct {
+	ID     string `json:"id"`
+	Title  string `json:"title"`
+	IsDone bool   `json:"isDone"`
+}
+
+type RelationCandidatePage struct {
+	Items   []*RelatedTask `json:"items"`
+	Page    int            `json:"page"`
+	HasMore bool           `json:"hasMore"`
+}
+
 type RepairTaskMetadataInput struct {
 	CsrfToken  string `json:"csrfToken"`
 	Capability string `json:"capability"`
+}
+
+type RepairTaskReferencesInput struct {
+	CsrfToken string   `json:"csrfToken"`
+	TaskID    string   `json:"taskId"`
+	CommentID *string  `json:"commentId,omitempty"`
+	TargetIds []string `json:"targetIds"`
 }
 
 type Session struct {
@@ -173,6 +210,14 @@ type SetRecurringKeepDueTimeInput struct {
 	Enabled   bool   `json:"enabled"`
 }
 
+type SetTaskRelationInput struct {
+	CsrfToken   string           `json:"csrfToken"`
+	TaskID      string           `json:"taskId"`
+	OtherTaskID string           `json:"otherTaskId"`
+	Kind        TaskRelationKind `json:"kind"`
+	Remove      bool             `json:"remove"`
+}
+
 type SkipRecurringTaskInput struct {
 	CsrfToken     string    `json:"csrfToken"`
 	TaskID        string    `json:"taskId"`
@@ -181,25 +226,26 @@ type SkipRecurringTaskInput struct {
 
 type Task struct {
 	// Total discussion comments, including replies; null when unavailable.
-	CommentCount      *int               `json:"commentCount,omitempty"`
-	ID                string             `json:"id"`
-	Version           string             `json:"version"`
-	Title             string             `json:"title"`
-	Description       string             `json:"description"`
-	Kind              TaskKind           `json:"kind"`
-	IsDone            bool               `json:"isDone"`
-	DoneAt            *time.Time         `json:"doneAt,omitempty"`
-	CompletionOutcome *CompletionOutcome `json:"completionOutcome,omitempty"`
-	Project           *Project           `json:"project"`
-	Priority          TaskPriority       `json:"priority"`
-	DueAt             *time.Time         `json:"dueAt,omitempty"`
-	HasDueTime        bool               `json:"hasDueTime"`
-	StartAt           *time.Time         `json:"startAt,omitempty"`
-	EndAt             *time.Time         `json:"endAt,omitempty"`
-	RecurrenceRule    *RecurrenceRule    `json:"recurrenceRule,omitempty"`
-	Labels            []*Label           `json:"labels"`
-	IsOverdue         bool               `json:"isOverdue"`
-	Timezone          string             `json:"timezone"`
+	CommentCount      *int                 `json:"commentCount,omitempty"`
+	ID                string               `json:"id"`
+	Version           string               `json:"version"`
+	Title             string               `json:"title"`
+	Description       string               `json:"description"`
+	Kind              TaskKind             `json:"kind"`
+	IsDone            bool                 `json:"isDone"`
+	DoneAt            *time.Time           `json:"doneAt,omitempty"`
+	CompletionOutcome *CompletionOutcome   `json:"completionOutcome,omitempty"`
+	Project           *Project             `json:"project"`
+	Priority          TaskPriority         `json:"priority"`
+	DueAt             *time.Time           `json:"dueAt,omitempty"`
+	HasDueTime        bool                 `json:"hasDueTime"`
+	StartAt           *time.Time           `json:"startAt,omitempty"`
+	EndAt             *time.Time           `json:"endAt,omitempty"`
+	RecurrenceRule    *RecurrenceRule      `json:"recurrenceRule,omitempty"`
+	Labels            []*Label             `json:"labels"`
+	IsOverdue         bool                 `json:"isOverdue"`
+	Timezone          string               `json:"timezone"`
+	ReferenceLinking  *TaskReferenceResult `json:"referenceLinking,omitempty"`
 }
 
 type TaskAttachment struct {
@@ -220,11 +266,12 @@ type TaskAttachmentPage struct {
 }
 
 type TaskComment struct {
-	ID        string            `json:"id"`
-	BodyHTML  string            `json:"bodyHtml"`
-	Author    *DiscussionAuthor `json:"author"`
-	CreatedAt time.Time         `json:"createdAt"`
-	UpdatedAt time.Time         `json:"updatedAt"`
+	ID               string               `json:"id"`
+	BodyHTML         string               `json:"bodyHtml"`
+	Author           *DiscussionAuthor    `json:"author"`
+	CreatedAt        time.Time            `json:"createdAt"`
+	UpdatedAt        time.Time            `json:"updatedAt"`
+	ReferenceLinking *TaskReferenceResult `json:"referenceLinking,omitempty"`
 }
 
 type TaskCommentPage struct {
@@ -286,6 +333,23 @@ type TaskPageIssue struct {
 	Code      PageIssueCode `json:"code"`
 	Message   string        `json:"message"`
 	ProjectID *string       `json:"projectId,omitempty"`
+}
+
+// Relation failures do not roll back the confirmed saved content. Null on ordinary reads.
+type TaskReferenceResult struct {
+	TaskID          string   `json:"taskId"`
+	CommentID       *string  `json:"commentId,omitempty"`
+	FailedTargetIds []string `json:"failedTargetIds"`
+	LinkedCount     int      `json:"linkedCount"`
+	Limited         bool     `json:"limited"`
+}
+
+type TaskRelationships struct {
+	TaskID   string         `json:"taskId"`
+	Parents  []*RelatedTask `json:"parents"`
+	Children []*RelatedTask `json:"children"`
+	Related  []*RelatedTask `json:"related"`
+	CanEdit  bool           `json:"canEdit"`
 }
 
 // Explicit per-field reuse, never automatic form defaults. No schedule dates are exposed.
@@ -829,6 +893,61 @@ func (e RepairStep) MarshalJSON() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+type TaskDescriptionFormat string
+
+const (
+	TaskDescriptionFormatMarkdown TaskDescriptionFormat = "MARKDOWN"
+	TaskDescriptionFormatHTML     TaskDescriptionFormat = "HTML"
+)
+
+var AllTaskDescriptionFormat = []TaskDescriptionFormat{
+	TaskDescriptionFormatMarkdown,
+	TaskDescriptionFormatHTML,
+}
+
+func (e TaskDescriptionFormat) IsValid() bool {
+	switch e {
+	case TaskDescriptionFormatMarkdown, TaskDescriptionFormatHTML:
+		return true
+	}
+	return false
+}
+
+func (e TaskDescriptionFormat) String() string {
+	return string(e)
+}
+
+func (e *TaskDescriptionFormat) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TaskDescriptionFormat(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TaskDescriptionFormat", str)
+	}
+	return nil
+}
+
+func (e TaskDescriptionFormat) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TaskDescriptionFormat) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TaskDescriptionFormat) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
 type TaskKind string
 
 const (
@@ -1001,6 +1120,63 @@ func (e *TaskPriority) UnmarshalJSON(b []byte) error {
 }
 
 func (e TaskPriority) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
+}
+
+type TaskRelationKind string
+
+const (
+	TaskRelationKindRelated TaskRelationKind = "RELATED"
+	TaskRelationKindSubtask TaskRelationKind = "SUBTASK"
+	TaskRelationKindParent  TaskRelationKind = "PARENT"
+)
+
+var AllTaskRelationKind = []TaskRelationKind{
+	TaskRelationKindRelated,
+	TaskRelationKindSubtask,
+	TaskRelationKindParent,
+}
+
+func (e TaskRelationKind) IsValid() bool {
+	switch e {
+	case TaskRelationKindRelated, TaskRelationKindSubtask, TaskRelationKindParent:
+		return true
+	}
+	return false
+}
+
+func (e TaskRelationKind) String() string {
+	return string(e)
+}
+
+func (e *TaskRelationKind) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = TaskRelationKind(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid TaskRelationKind", str)
+	}
+	return nil
+}
+
+func (e TaskRelationKind) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *TaskRelationKind) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e TaskRelationKind) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
 	e.MarshalGQL(&buf)
 	return buf.Bytes(), nil

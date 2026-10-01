@@ -10,6 +10,7 @@ import { TaskDescription } from "./task-description";
 import { TaskDetailActions } from "./task-detail-actions";
 import { TaskDetailLoading } from "./task-detail-loading";
 import { TaskProperties } from "./task-properties";
+import { TaskRelationships } from "./task-relationships";
 
 const DiscussionThread = lazy(() =>
   import("@/features/task-discussion/discussion-thread").then((module) => ({
@@ -52,6 +53,7 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
             </h1>
           </header>
           <TaskDescription description={task.description} />
+          <TaskRelationships key={taskId} parent={task} />
         </div>
         <TaskProperties task={task} onChanged={() => refetch()} />
         <section aria-label="Discussion" className="min-w-0 space-y-5 border-t pt-6 xl:col-start-1">

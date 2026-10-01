@@ -1,0 +1,65 @@
+fragment RelatedTaskFields on RelatedTask {
+  id
+  title
+  isDone
+}
+
+fragment ReferenceLinkingResult on TaskReferenceResult {
+  taskId
+  commentId
+  failedTargetIds
+  linkedCount
+  limited
+}
+
+mutation RepairTaskReferences($input: RepairTaskReferencesInput!) {
+  repairTaskReferences(input: $input) {
+    ...ReferenceLinkingResult
+  }
+}
+
+fragment TaskRelationshipFields on TaskRelationships {
+  taskId
+  canEdit
+  parents {
+    ...RelatedTaskFields
+  }
+  children {
+    ...RelatedTaskFields
+  }
+  related {
+    ...RelatedTaskFields
+  }
+}
+
+query TaskRelationships($taskId: ID!) {
+  taskRelationships(taskId: $taskId) {
+    ...TaskRelationshipFields
+  }
+}
+
+query RelationCandidates($taskId: ID!, $search: String!, $page: Int!) {
+  relationCandidates(taskId: $taskId, search: $search, page: $page) {
+    items {
+      ...RelatedTaskFields
+    }
+    page
+    hasMore
+  }
+}
+
+mutation SetTaskRelation($input: SetTaskRelationInput!) {
+  setTaskRelation(input: $input) {
+    ...TaskRelationshipFields
+  }
+}
+
+mutation CreateSubtask($input: CreateSubtaskInput!) {
+  createSubtask(input: $input) {
+    task {
+      ...RelatedTaskFields
+    }
+    relationError
+    labelError
+  }
+}

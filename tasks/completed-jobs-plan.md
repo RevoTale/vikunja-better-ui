@@ -1,5 +1,10 @@
 # Implementation Plan: Query Completed Jobs by Completion Time
 
+2026-10-01 audit: implemented. This original contract predates recurring Jobs,
+`status=all`/`finishAt` support and the `vbu:job` marker. Use current README/API
+documentation for those behaviors; do not restore the legacy `job` classifier
+or blanket non-recurring restriction. See [plan status](README.md).
+
 ## Outcome
 
 Extend `GET /integrations/v1/jobs` so Glance can request completed Jobs within

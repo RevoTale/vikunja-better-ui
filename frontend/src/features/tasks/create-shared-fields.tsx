@@ -1,8 +1,7 @@
 import { AppInput } from "@/components/app-input";
 import { AppSelect } from "@/components/app-select";
-import { Field, FieldLabel } from "@/components/ui/field";
-import { Textarea } from "@/components/ui/textarea";
 import type { TaskCreationValues } from "./task-creation-values";
+import { TaskDescriptionField } from "./task-description-field";
 import type { CreationBaseType, TaskFormErrors } from "./task-form-validation";
 import { taskPriorityOption, taskPriorityOptions } from "./task-priority";
 import { ReuseValueButton, useTaskReuseValues } from "./task-reuse";
@@ -16,6 +15,7 @@ export function SharedFields({
   values,
   onFieldChange,
   description,
+  disabled = false,
   titleRequired = false,
 }: {
   projects: readonly { id: string; title: string }[];
@@ -28,6 +28,7 @@ export function SharedFields({
     value: TaskCreationValues[Field],
   ) => void;
   description?: string;
+  disabled?: boolean;
   titleRequired?: boolean;
 }) {
   const previous = useTaskReuseValues();
@@ -62,10 +63,7 @@ export function SharedFields({
           />
         )}
       </ValidatedField>
-      <Field>
-        <FieldLabel htmlFor="description">Description</FieldLabel>
-        <Textarea id="description" name="description" defaultValue={description} />
-      </Field>
+      <TaskDescriptionField initialHtml={description ?? ""} disabled={disabled} />
       <div className="grid gap-5 sm:grid-cols-2">
         <ValidatedField
           name="projectId"

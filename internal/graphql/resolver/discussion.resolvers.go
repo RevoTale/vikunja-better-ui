@@ -29,14 +29,16 @@ func (r *mutationResolver) CreateTaskComment(
 	if err != nil {
 		return nil, err
 	}
-	comment, err := r.comments.CreateTaskComment(ctx, taskID, write)
+	comment, links, err := service.SaveCommentWithReferences(ctx, r.comments, r.referenceLinker(), taskID, 0, write)
 	if err != nil {
 		return nil, r.discussionError(
 			err,
 			"The comment could not be confirmed. Refresh the discussion before retrying to avoid duplicates.",
 		)
 	}
-	return savedCommentModel(comment), nil
+	mapped := savedCommentModel(comment)
+	mapped.ReferenceLinking = referenceResult(taskID, comment.ID, links)
+	return mapped, nil
 }
 
 // UpdateTaskComment is the resolver for the updateTaskComment field.
@@ -58,14 +60,18 @@ func (r *mutationResolver) UpdateTaskComment(
 	if err != nil {
 		return nil, err
 	}
-	comment, err := r.comments.UpdateTaskComment(ctx, taskID, commentID, write)
+	comment, links, err := service.SaveCommentWithReferences(
+		ctx, r.comments, r.referenceLinker(), taskID, commentID, write,
+	)
 	if err != nil {
 		return nil, r.discussionError(
 			err,
 			"The comment update could not be confirmed. Your text is preserved; refresh before retrying.",
 		)
 	}
-	return savedCommentModel(comment), nil
+	mapped := savedCommentModel(comment)
+	mapped.ReferenceLinking = referenceResult(taskID, comment.ID, links)
+	return mapped, nil
 }
 
 // DeleteTaskComment is the resolver for the deleteTaskComment field.

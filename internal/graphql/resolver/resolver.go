@@ -38,6 +38,13 @@ type avatarReader interface {
 	Avatar(context.Context, string) (string, error)
 }
 
+type relationClient interface {
+	TaskRelationState(context.Context, int64) (vikunja.TaskRelationState, error)
+	TaskRelations(context.Context, int64) (map[vikunja.RelationKind][]vikunja.RelatedTask, error)
+	CreateTaskRelation(context.Context, int64, int64, vikunja.RelationKind) error
+	DeleteTaskRelation(context.Context, int64, int64, vikunja.RelationKind) error
+}
+
 type taskClient interface {
 	taskReaderWriter
 	labelClient
@@ -62,54 +69,60 @@ type labelClient interface {
 
 // Dependencies supplies the authenticated transports and stateless workflow services.
 type Dependencies struct {
-	Credentials  auth.Credentials
-	Sessions     *auth.SessionManager
-	Cookies      auth.SessionCookies
-	Limiter      *auth.LoginLimiter
-	Users        userReader
-	Projects     projectReader
-	Tasks        taskClient
-	Comments     commentClient
-	Attachments  attachmentClient
-	Avatars      avatarReader
-	Capabilities *service.CapabilityManager
-	Logger       *slog.Logger
-	Now          func() time.Time
+	Credentials     auth.Credentials
+	Sessions        *auth.SessionManager
+	Cookies         auth.SessionCookies
+	Limiter         *auth.LoginLimiter
+	Users           userReader
+	Projects        projectReader
+	Tasks           taskClient
+	Comments        commentClient
+	Attachments     attachmentClient
+	Avatars         avatarReader
+	Relations       relationClient
+	ReferencePolicy service.TaskReferencePolicy
+	Capabilities    *service.CapabilityManager
+	Logger          *slog.Logger
+	Now             func() time.Time
 }
 
 // Resolver wires GraphQL operations to application services.
 type Resolver struct {
-	credentials  auth.Credentials
-	sessions     *auth.SessionManager
-	cookies      auth.SessionCookies
-	limiter      *auth.LoginLimiter
-	users        userReader
-	projects     projectReader
-	tasks        taskClient
-	comments     commentClient
-	attachments  attachmentClient
-	avatars      avatarReader
-	capabilities *service.CapabilityManager
-	logger       *slog.Logger
-	now          func() time.Time
+	credentials     auth.Credentials
+	sessions        *auth.SessionManager
+	cookies         auth.SessionCookies
+	limiter         *auth.LoginLimiter
+	users           userReader
+	projects        projectReader
+	tasks           taskClient
+	comments        commentClient
+	attachments     attachmentClient
+	avatars         avatarReader
+	relations       relationClient
+	referencePolicy service.TaskReferencePolicy
+	capabilities    *service.CapabilityManager
+	logger          *slog.Logger
+	now             func() time.Time
 }
 
 // New constructs a resolver with the supplied request dependencies.
 func New(dependencies Dependencies) *Resolver {
 	return &Resolver{
-		credentials:  dependencies.Credentials,
-		sessions:     dependencies.Sessions,
-		cookies:      dependencies.Cookies,
-		limiter:      dependencies.Limiter,
-		users:        dependencies.Users,
-		projects:     dependencies.Projects,
-		tasks:        dependencies.Tasks,
-		comments:     dependencies.Comments,
-		attachments:  dependencies.Attachments,
-		avatars:      dependencies.Avatars,
-		capabilities: dependencies.Capabilities,
-		logger:       dependencies.Logger,
-		now:          dependencies.Now,
+		credentials:     dependencies.Credentials,
+		sessions:        dependencies.Sessions,
+		cookies:         dependencies.Cookies,
+		limiter:         dependencies.Limiter,
+		users:           dependencies.Users,
+		projects:        dependencies.Projects,
+		tasks:           dependencies.Tasks,
+		comments:        dependencies.Comments,
+		attachments:     dependencies.Attachments,
+		avatars:         dependencies.Avatars,
+		relations:       dependencies.Relations,
+		referencePolicy: dependencies.ReferencePolicy,
+		capabilities:    dependencies.Capabilities,
+		logger:          dependencies.Logger,
+		now:             dependencies.Now,
 	}
 }
 

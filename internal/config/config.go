@@ -39,15 +39,16 @@ const (
 
 // Config contains validated server settings and backend-only credentials.
 type Config struct {
-	VikunjaURL      *url.URL
-	VikunjaAPIToken string
-	AuthUsername    string
-	AuthPassword    string
-	SessionSecret   []byte
-	HTTPAddr        string
-	LogLevel        LogLevel
-	Environment     Environment
-	AllowedOrigin   *url.URL
+	VikunjaURL       *url.URL
+	VikunjaPublicURL *url.URL
+	VikunjaAPIToken  string
+	AuthUsername     string
+	AuthPassword     string
+	SessionSecret    []byte
+	HTTPAddr         string
+	LogLevel         LogLevel
+	Environment      Environment
+	AllowedOrigin    *url.URL
 }
 
 // LookupFunc reads an environment variable without coupling validation to the process.
@@ -100,8 +101,24 @@ func Load(lookup LookupFunc) (Config, error) {
 	if err := validateRequired(configuration); err != nil {
 		return Config{}, err
 	}
+	configuration.VikunjaPublicURL, err = parsePublicURL(lookup, environment, vikunjaURL)
+	if err != nil {
+		return Config{}, err
+	}
 
 	return configuration, nil
+}
+
+func parsePublicURL(lookup LookupFunc, environment Environment, fallback *url.URL) (*url.URL, error) {
+	value := required(lookup, "APP_VIKUNJA_PUBLIC_URL")
+	if value == "" {
+		return fallback, nil
+	}
+	parsed, err := parseVikunjaURL(value, environment)
+	if err != nil {
+		return nil, errors.New(strings.ReplaceAll(err.Error(), "APP_VIKUNJA_URL", "APP_VIKUNJA_PUBLIC_URL"))
+	}
+	return parsed, nil
 }
 
 func required(lookup LookupFunc, name string) string {

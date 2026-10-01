@@ -122,13 +122,13 @@ test("fresh tasks do not recall previous Jobs and switching preserves current ed
   await expect(page.getByRole("heading", { name: "Remember this job" })).toBeVisible();
   await page.goto("/tasks/new?type=one-time");
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("");
-  await expect(page.getByLabel("Description")).toHaveValue("");
+  await expect(page.getByRole("textbox", { name: "Description", exact: true })).toHaveText("");
   await expect(page.getByLabel("Job", { exact: true })).not.toBeChecked();
   await page.getByLabel("Title", { exact: true }).fill("Keep this draft");
   await page.getByLabel("Description").fill("Keep this description");
   await page.getByLabel("Job", { exact: true }).check();
   await expect(page.getByLabel("Title (optional)")).toHaveValue("Keep this draft");
-  await expect(page.getByLabel("Description")).toHaveValue("Keep this description");
+  await expect(page.getByLabel("Description")).toHaveText("Keep this description");
   await expect(page.locator('input[name="durationMinutes"]')).toHaveValue("60");
 });
 

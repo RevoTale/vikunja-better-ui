@@ -8,9 +8,13 @@
 - [x] Real-browser regressions and saved HTML round trip.
 - [x] Review, fixes, simplification, re-review.
 - [x] Documentation and final generation/validation/unit/E2E checks executed.
-- [ ] Full E2E gate green: desktop Chromium video playback crashes (see below).
+- [x] Full E2E gate green: CI run 36789208186 passed all 320 tests at
+  `24c0dff`; see [the status index](README.md).
 
 ## Review notes
+
+The results below record the earlier implementation checkpoint, not the current
+CI status. The subsequent green CI above closes the historical runtime blocker.
 
 - Reused server overdue ordering in Week rather than duplicating its comparator.
 - Removed the redundant Reply access check; kept the 44px target without extra padding.

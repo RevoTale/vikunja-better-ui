@@ -7,6 +7,7 @@ import { OnChangePlugin } from "@lexical/react/LexicalOnChangePlugin";
 import { useState } from "react";
 import { DiscussionTaskLinkDocument } from "@/graphql/graphql";
 import { EditorBehavior } from "./editor-behavior";
+import { EditorEmojiShortcodes } from "./editor-emoji-shortcodes";
 import { createDiscussionExtension } from "./editor-extension";
 import { EditorMarkdown } from "./editor-markdown";
 import { EditorMedia } from "./editor-media";
@@ -28,9 +29,9 @@ export function DiscussionEditor({
   disabled: boolean;
   onChange: (html: string) => void;
   focusOnMount?: boolean;
-  taskId: string;
-  csrfToken: string;
-  onBusyChange: (busy: boolean) => void;
+  taskId?: string;
+  csrfToken?: string;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const [pasteNotice, setPasteNotice] = useState("");
   const client = useApolloClient();
@@ -53,7 +54,9 @@ export function DiscussionEditor({
       <fieldset disabled={disabled} className="min-w-0 rounded-lg border bg-background">
         <legend className="sr-only">{label} editor</legend>
         <EditorToolbar />
-        <EditorMedia taskId={taskId} csrfToken={csrfToken} onBusyChange={onBusyChange} />
+        {taskId && csrfToken && onBusyChange ? (
+          <EditorMedia taskId={taskId} csrfToken={csrfToken} onBusyChange={onBusyChange} />
+        ) : null}
         {pasteNotice ? (
           <p role="status" className="p-2 text-sm">
             {pasteNotice}
@@ -66,15 +69,18 @@ export function DiscussionEditor({
         />
       </fieldset>
       <EditorBehavior
+        mediaEnabled={Boolean(taskId && csrfToken && onBusyChange)}
         disabled={disabled}
         focusOnMount={focusOnMount}
         onPasteNotice={setPasteNotice}
       />
       <HorizontalRulePlugin />
       <EditorMarkdown />
+      <EditorEmojiShortcodes />
       <OnChangePlugin
         ignoreSelectionChange
-        onChange={(_, editor) => {
+        onChange={(_, editor, tags) => {
+          if (tags.has("vbu:initial-content")) return;
           editor.read(() => onChange(cleanComment($generateHtmlFromNodes(editor))));
         }}
       />

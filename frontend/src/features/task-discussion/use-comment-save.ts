@@ -1,5 +1,6 @@
 import { useMutation } from "@apollo/client/react";
 import { useRef, useState } from "react";
+import { useReferenceFeedback } from "@/features/tasks/use-reference-feedback";
 import {
   CreateDiscussionCommentDocument,
   UpdateDiscussionCommentDocument,
@@ -12,6 +13,7 @@ export function useCommentSave() {
   const [error, setError] = useState("");
   const [uncertain, setUncertain] = useState(false);
   const inFlight = useRef(false);
+  const referenceFeedback = useReferenceFeedback();
 
   async function save(
     input: { taskId: string; csrfToken: string; bodyHtml: string },
@@ -25,6 +27,7 @@ export function useCommentSave() {
         ? (await update({ variables: { input: { ...input, commentId } } })).data?.updateTaskComment
         : (await create({ variables: { input } })).data?.createTaskComment;
       if (!confirmed) throw new Error("Missing confirmation");
+      referenceFeedback(confirmed.referenceLinking, input.csrfToken);
       return true;
     } catch (caught) {
       setError(
