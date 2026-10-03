@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.1.1...v2.2.0) (2026-10-03)
+
+
+### Features
+
+* **tasks:** add daily navigation and long-term view ([2434292](https://github.com/RevoTale/vikunja-better-ui/commit/243429236f12ea467ee999ce289df7d0d49373c8))
+
 ## [2.1.1](https://github.com/RevoTale/vikunja-better-ui/compare/v2.1.0...v2.1.1) (2026-10-01)
 
 
