@@ -9,7 +9,7 @@ test("PWA caches only the build and opens deep links offline", async ({ page, ba
   try {
     await page.goto(`${origin.url}/login`);
     const manifest = await (await page.request.get("/site.webmanifest")).json();
-    expect(manifest.start_url).toBe("/week");
+    expect(manifest.start_url).toBe("/today");
     expect(manifest.id).toBe("/today");
     expect(manifest.icons).toEqual(
       expect.arrayContaining([expect.objectContaining({ sizes: "512x512", purpose: "maskable" })]),

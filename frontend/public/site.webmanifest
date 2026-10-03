@@ -3,7 +3,7 @@
   "short_name": "Better Vikunja",
   "description": "Fast, predictable recurring-task workflows on Vikunja.",
   "id": "/today",
-  "start_url": "/week",
+  "start_url": "/today",
   "scope": "/",
   "display": "standalone",
   "background_color": "#e9e4d8",

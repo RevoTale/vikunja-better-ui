@@ -6,7 +6,8 @@ test("PWA keeps Today below the sticky header with a top safe-area inset", async
   await page.goto("/week");
   const today = page.locator("#week-today");
   await expect(today).toBeVisible();
-  // Let the route's initial automatic scroll finish before changing device geometry.
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await page.getByRole("button", { name: "Today", exact: true }).click();
   await expect
     .poll(() => today.evaluate((element) => Math.round(element.getBoundingClientRect().top)))
     .toBe(80);

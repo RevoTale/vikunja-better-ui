@@ -1,7 +1,7 @@
 import { useQuery } from "@apollo/client/react";
 import { useLocation } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 
 import { AppSelect } from "@/components/app-select";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import {
 import { graphQLErrorMessage } from "@/lib/user-error";
 import type { ListSearch } from "./list-search";
 import { IssueList, ListMessage, ListSettingsError } from "./list-state";
+import { LongTermTasks } from "./long-term-tasks";
 import { paginationRange } from "./pagination-range";
 import { TaskActionFeedback } from "./task-action-feedback";
 import { TaskLabelFilter } from "./task-label-filter";
@@ -30,6 +31,7 @@ import { useTaskListActions } from "./use-task-list-actions";
 import { useTaskRefreshFeedback } from "./use-task-refresh-feedback";
 
 type TaskListPageProps = {
+  navigation?: ReactNode;
   title: string;
   description: string;
   scope: TaskScope;
@@ -37,9 +39,16 @@ type TaskListPageProps = {
   setSearch: (next: ListSearch) => void;
 };
 
-export function TaskListPage({ title, description, scope, search, setSearch }: TaskListPageProps) {
+export function TaskListPage({
+  title,
+  description,
+  scope,
+  search,
+  setSearch,
+  navigation,
+}: TaskListPageProps) {
   const location = useLocation();
-  const supportsLabels = scope === "TODAY" || scope === "UNSCHEDULED";
+  const supportsLabels = scope === "TODAY" || scope === "UNSCHEDULED" || scope === "LONG_TERM";
   const { data: sessionData, error: sessionError } = useQuery(SessionDocument);
   const { data: projectData, error: projectError } = useQuery(ProjectsDocument);
   const { data, loading, error, refetch } = useQuery(TaskListDocument, {
@@ -91,6 +100,7 @@ export function TaskListPage({ title, description, scope, search, setSearch }: T
           onValueChange={(project) => setSearch({ ...search, project, page: 1 })}
         />
       </div>
+      {navigation}
       {supportsLabels ? (
         <TaskLabelFilter
           value={search.label ?? "all"}
@@ -158,9 +168,10 @@ function TaskListContent({
   }
   if (!taskPage?.isComplete) return <IssueList issues={taskPage?.issues ?? []} />;
   if (taskPage.items.length === 0) return <ListMessage>No tasks here.</ListMessage>;
-  if (scope === "UNSCHEDULED") {
+  if (scope === "UNSCHEDULED" || scope === "LONG_TERM") {
+    const Group = scope === "LONG_TERM" ? LongTermTasks : GroupedTasks;
     return (
-      <GroupedTasks
+      <Group
         countLoading={loading}
         tasks={taskPage.items}
         returnTo={returnTo}

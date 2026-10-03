@@ -100,6 +100,18 @@ type CreatorDiagnostic struct {
 	Name     string `json:"name"`
 }
 
+type DayInput struct {
+	Date      LocalDate `json:"date"`
+	ProjectID *string   `json:"projectId,omitempty"`
+	LabelID   *string   `json:"labelId,omitempty"`
+}
+
+type DayView struct {
+	Day        *WeekDay         `json:"day"`
+	IsComplete bool             `json:"isComplete"`
+	Issues     []*TaskPageIssue `json:"issues"`
+}
+
 type DeleteTaskCommentInput struct {
 	CsrfToken string `json:"csrfToken"`
 	TaskID    string `json:"taskId"`
@@ -1190,6 +1202,7 @@ const (
 	TaskScopeMonth       TaskScope = "MONTH"
 	TaskScopeJobs        TaskScope = "JOBS"
 	TaskScopeUnscheduled TaskScope = "UNSCHEDULED"
+	TaskScopeLongTerm    TaskScope = "LONG_TERM"
 	TaskScopeHistory     TaskScope = "HISTORY"
 )
 
@@ -1199,12 +1212,13 @@ var AllTaskScope = []TaskScope{
 	TaskScopeMonth,
 	TaskScopeJobs,
 	TaskScopeUnscheduled,
+	TaskScopeLongTerm,
 	TaskScopeHistory,
 }
 
 func (e TaskScope) IsValid() bool {
 	switch e {
-	case TaskScopeToday, TaskScopeWeek, TaskScopeMonth, TaskScopeJobs, TaskScopeUnscheduled, TaskScopeHistory:
+	case TaskScopeToday, TaskScopeWeek, TaskScopeMonth, TaskScopeJobs, TaskScopeUnscheduled, TaskScopeLongTerm, TaskScopeHistory:
 		return true
 	}
 	return false

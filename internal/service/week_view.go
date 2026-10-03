@@ -20,6 +20,8 @@ type WeekRequest struct {
 	Timezone   string
 	WeekStart  time.Weekday
 	ProjectID  *int64
+	LabelIDs   []int64
+	singleDay  bool
 }
 
 // WeekProjection is a computed occurrence, not a persisted upstream task.
@@ -40,12 +42,15 @@ type WeekDay struct {
 
 // WeekResult retains calendar bounds even when loading cannot complete.
 type WeekResult struct {
-	Start      time.Time
-	End        time.Time
-	Days       []WeekDay
-	IsComplete bool
-	Issue      *ListIssue
+	Start           time.Time
+	End             time.Time
+	Days            []WeekDay
+	IsComplete      bool
+	Issue           *ListIssue
+	projectionCount int
 }
+
+const maxCalendarProjections = 10000
 
 // ListWeek fetches bounded fresh candidates before computing deterministic occurrences.
 func ListWeek(ctx context.Context, client taskListClient, request WeekRequest) (WeekResult, error) {
@@ -91,18 +96,15 @@ func buildWeekView(request WeekRequest, taskGroups ...[]vikunja.Task) WeekResult
 	if location == nil {
 		location = time.UTC
 	}
-	containing := request.Containing
-	if containing.IsZero() {
-		containing = request.Now
-	}
-	start, end := weekRange(containing, location, request.WeekStart)
-	result := WeekResult{Start: start, End: end, Days: makeWeekDays(start), IsComplete: true}
+	request.Location = location
+	start, end := requestedWeekRange(request)
+	result := WeekResult{Start: start, End: end, Days: makeCalendarDays(start, end), IsComplete: true}
 
 	for _, tasks := range taskGroups {
 		for index := range tasks {
 			task := &tasks[index]
 			classification := ClassifyTask(*task)
-			if task.Done || task.DueDate.IsZero() {
+			if task.Done || task.DueDate.IsZero() || !matchesCalendarLabels(*task, request.LabelIDs) {
 				continue
 			}
 			candidate := taskListCandidate{Task: task, Classification: classification}
@@ -116,6 +118,9 @@ func buildWeekView(request WeekRequest, taskGroups ...[]vikunja.Task) WeekResult
 				}
 			}
 			appendWeekProjections(&result, candidate, request.Now, location)
+			if !result.IsComplete {
+				return incompleteWeek(start, end, request.ProjectID, ListIssueTooLarge, nil)
+			}
 		}
 	}
 
@@ -150,12 +155,19 @@ func requestedWeekRange(request WeekRequest) (time.Time, time.Time) {
 	if containing.IsZero() {
 		containing = request.Now
 	}
+	if request.singleDay {
+		end := nextLocalDay(containing, request.Location)
+		return end.AddDate(0, 0, -1), end
+	}
 	return weekRange(containing, request.Location, request.WeekStart)
 }
 
 func weekTaskQuery(request WeekRequest, start time.Time, end time.Time) vikunja.TaskQuery {
 	filterParts := appendDueBoundary([]string{"done = false"}, end)
 	currentStart, _ := weekRange(request.Now, request.Location, request.WeekStart)
+	if request.singleDay {
+		currentStart = nextLocalDay(request.Now, request.Location).AddDate(0, 0, -1)
+	}
 	if start.After(currentStart) {
 		filterParts = append(filterParts,
 			"(due_date >= '"+start.Format(time.RFC3339)+"' || repeat_after > 0)",
@@ -164,6 +176,9 @@ func weekTaskQuery(request WeekRequest, start time.Time, end time.Time) vikunja.
 		filterParts = append(filterParts, "due_date >= '"+start.Format(time.RFC3339)+"'")
 	}
 	filterParts = appendProjectFilter(filterParts, request.ProjectID)
+	if len(request.LabelIDs) > 0 {
+		filterParts = append(filterParts, "labels in "+joinIDs(request.LabelIDs))
+	}
 	includeNulls := false
 	return vikunja.TaskQuery{
 		IncludeCommentCount: true,
@@ -180,7 +195,7 @@ func incompleteWeek(
 	cause error,
 ) WeekResult {
 	return WeekResult{
-		Start: start, End: end, Days: makeWeekDays(start),
+		Start: start, End: end, Days: makeCalendarDays(start, end),
 		Issue: &ListIssue{Code: code, ProjectID: projectID, Cause: cause},
 	}
 }
@@ -196,10 +211,10 @@ func weekRange(containing time.Time, location *time.Location, weekStart time.Wee
 	return start, start.AddDate(0, 0, daysPerWeek)
 }
 
-func makeWeekDays(start time.Time) []WeekDay {
-	days := make([]WeekDay, daysPerWeek)
-	for index := range days {
-		days[index].Date = start.AddDate(0, 0, index)
+func makeCalendarDays(start time.Time, end time.Time) []WeekDay {
+	days := make([]WeekDay, 0, daysPerWeek)
+	for date := start; date.Before(end); date = date.AddDate(0, 0, 1) {
+		days = append(days, WeekDay{Date: date})
 	}
 	return days
 }
@@ -216,7 +231,11 @@ func appendWeekProjections(
 		return
 	}
 
-	due := firstProjectedDue(*task, result.Start)
+	start := result.Start
+	if now.After(start) {
+		start = now
+	}
+	due := firstProjectedDue(*task, start)
 	for ; !due.IsZero() && due.Before(result.End); due = nextProjectedDue(*task, due) {
 		if due.Before(now) {
 			continue
@@ -224,6 +243,10 @@ func appendWeekProjections(
 		index := weekDayIndex(result.Start, due, location)
 		if index < 0 {
 			continue
+		}
+		if result.projectionCount == maxCalendarProjections {
+			result.IsComplete = false
+			return
 		}
 		projection := WeekProjection{
 			Source: TaskListItem{
@@ -236,6 +259,7 @@ func appendWeekProjections(
 			projection.EndAt = due.Add(task.EndDate.Sub(task.DueDate))
 		}
 		result.Days[index].Projections = append(result.Days[index].Projections, projection)
+		result.projectionCount++
 	}
 }
 

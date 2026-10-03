@@ -6,7 +6,7 @@ test("task labels support explicit reuse without overwriting typed fields", asyn
   await page.getByLabel("Username").fill("app-user");
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL(/\/today/);
   const { session } = await discussionGraphQL<{ session: { csrfToken: string } }>(
     page,
     "{session {csrfToken}}",
@@ -57,7 +57,7 @@ test("task reuse late responses never change input", async ({ page }) => {
   await page.getByLabel("Username").fill("app-user");
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL(/\/today/);
   let release: (() => void) | undefined;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -98,7 +98,7 @@ test("task reuse failure does not block creating a task", async ({ page }) => {
   await page.getByLabel("Username").fill("app-user");
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL(/\/today/);
   await page.route("**/graphql", async (route) => {
     if (route.request().postDataJSON().operationName !== "TaskReuseValues") return route.continue();
     await route.fulfill({
@@ -118,7 +118,7 @@ test("task reuse cancels the pending request for the previous type", async ({ pa
   await page.getByLabel("Username").fill("app-user");
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL(/\/today/);
   let release: (() => void) | undefined;
   const gate = new Promise<void>((resolve) => {
     release = resolve;

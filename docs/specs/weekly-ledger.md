@@ -12,7 +12,8 @@ completion controls remain readable on phone, tablet, and desktop.
 
 ## Navigation and boundaries
 
-- The default view is the current Vikunja week.
+- Opening Week selects the current Vikunja week. The application's default
+  landing page is Today.
 - Previous and Next move by seven calendar days. Today returns to the current
   week and scrolls to today's row.
 - A selected week is stored as an absolute `YYYY-MM-DD` date in the `week` URL
@@ -26,15 +27,15 @@ completion controls remain readable on phone, tablet, and desktop.
 - All seven days remain visible. Every day ends with a low-emphasis `Add task`
   row, including empty days.
 - The current week remains chronological from its configured start. Past dates
-  stay under Earlier this week, followed by Today and then future dates under
-  Upcoming. A group is omitted when it is empty at a week boundary.
+  precede the Today boundary, followed by future dates under Upcoming. There is
+  no Earlier this week heading. Empty upcoming groups are omitted.
 - Past and future weeks remain chronological from the configured week start,
   normally Monday, through all seven days.
 - The Today navigation control returns from another week to the current week and
   scrolls to today's first row. In the current week it scrolls directly to that
-  row. Opening or returning to the current week also scrolls to Today once after
-  the rows load; background refreshes never repeat or take over the user's
-  scroll position.
+  row. Opening or returning to the current week does not auto-scroll. Only an
+  explicit Today action scrolls after the requested week's rows load; background
+  refreshes never take over the user's scroll position.
 
 ## Active and computed work
 
@@ -96,13 +97,19 @@ fresh Vikunja task pages. To limit upstream work and Go memory:
 - remaining pages may load concurrently, but the backend does not duplicate
   their task arrays before grouping the result.
 
+The daily `day` query shares the same engine, scoped to one local date. Future
+days include earlier recurrence sources even inside the current week. Project
+and ordinary-label filters are applied upstream. Both calendar views stop at
+10,000 computed occurrences and report an incomplete/too-large result, never a
+silently truncated schedule. This bounds unusually short recurrence intervals.
+
 ## Accessibility and responsive behavior
 
 - The Week view is ordinary document structure: sections, headings, lists,
   links, and buttons. It is not an ARIA spreadsheet grid.
 - The seven day sections share one bordered weekly-table treatment. Current-week
   group headings remain visible as divider rows while preserving chronological
-  Earlier this week, Today, and Upcoming ordering.
+  past days, Today, and Upcoming ordering.
 - Desktop day rows use a fixed date column separated from the flexible task
   column. Narrow screens stack the date heading above full-width task cards and
   require no horizontal page scrolling.

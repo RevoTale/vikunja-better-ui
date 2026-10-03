@@ -21,7 +21,6 @@ const task: TaskItem = {
   commentCount: null,
   id: "1",
   title: "Read a book",
-  description: "",
   kind: "ONE_TIME",
   isDone: false,
   doneAt: null,

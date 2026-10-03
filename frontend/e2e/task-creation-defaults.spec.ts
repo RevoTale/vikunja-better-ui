@@ -7,7 +7,7 @@ test("task labels support fresh creation without remembered values or storage co
   await page.getByLabel("Username").fill("app-user");
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page).toHaveURL(/\/week/);
+  await expect(page).toHaveURL(/\/today/);
   await page.evaluate(() => {
     localStorage.setItem("vbu:task-create-autofill:v1:one-time:last-variant", "job");
   });

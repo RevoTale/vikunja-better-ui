@@ -18,6 +18,8 @@ export async function workflowWeek(page: Page) {
     mondayOfWeek(localDate()),
   );
   const todayDay = page.locator(`[data-slot="week-day"][data-date="${localDate()}"]`);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await page.getByRole("button", { name: "Today", exact: true }).click();
   await expect(todayDay).toBeInViewport();
   await expect(page.getByText("Earlier this week", { exact: true })).toHaveCount(0);
   if (localDate() !== mondayOfWeek(localDate())) {

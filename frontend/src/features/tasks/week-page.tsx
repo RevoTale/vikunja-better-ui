@@ -55,9 +55,10 @@ export function WeekPage({ search, setSearch }: WeekPageProps) {
   const contentLoading = loading || timezonePending;
   useTaskRefreshFeedback({ refreshing: loading && Boolean(week), errorMessage: backgroundError });
 
-  useScrollToToday(today, week);
+  const scrollRequested = useRequestedTodayScroll(today, week);
 
   const navigateToWeek = (week?: string) => {
+    scrollRequested.current = false;
     setSearch(week ? { project: search.project, week } : { project: search.project });
   };
 
@@ -67,6 +68,7 @@ export function WeekPage({ search, setSearch }: WeekPageProps) {
       scrollToToday();
       return;
     }
+    scrollRequested.current = true;
     setSearch({ project: search.project });
   };
 
@@ -174,20 +176,15 @@ function scrollToToday(): void {
   document.getElementById("week-today")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function useScrollToToday(today: string | undefined, week: WeekQuery["week"] | undefined) {
-  const hasAutoScrolledToToday = useRef(false);
+function useRequestedTodayScroll(today: string | undefined, week: WeekQuery["week"] | undefined) {
+  const requested = useRef(false);
   useEffect(() => {
-    if (!today || !week) return;
-    if (!week.days.some((day) => day.date === today)) {
-      hasAutoScrolledToToday.current = false;
-      return;
-    }
-    if (hasAutoScrolledToToday.current) return;
-
+    if (!requested.current || !today || !week?.days.some((day) => day.date === today)) return;
     const frame = requestAnimationFrame(() => {
-      hasAutoScrolledToToday.current = true;
+      requested.current = false;
       scrollToToday();
     });
     return () => cancelAnimationFrame(frame);
   }, [today, week]);
+  return requested;
 }

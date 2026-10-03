@@ -28,6 +28,7 @@ const (
 	TaskScopeCompletedJobs TaskScope = "COMPLETED_JOBS"
 	TaskScopeAllJobs       TaskScope = "ALL_JOBS"
 	TaskScopeUnscheduled   TaskScope = "UNSCHEDULED"
+	TaskScopeLongTerm      TaskScope = "LONG_TERM"
 	TaskScopeHistory       TaskScope = "HISTORY"
 )
 
@@ -108,14 +109,12 @@ func taskMatchesScope(
 	switch scope {
 	case TaskScopeHistory:
 		return task.Done
-	case TaskScopeJobs:
-		return !task.Done && classification.Kind == TaskKindJob
-	case TaskScopeCompletedJobs:
-		return task.Done && classification.Kind == TaskKindJob && !classification.Recurring
-	case TaskScopeAllJobs:
-		return classification.Kind == TaskKindJob && (!task.Done || !classification.Recurring)
+	case TaskScopeJobs, TaskScopeCompletedJobs, TaskScopeAllJobs:
+		return matchesJobScope(task, classification, scope)
 	case TaskScopeUnscheduled:
 		return !task.Done && task.DueDate.IsZero()
+	case TaskScopeLongTerm:
+		return matchesLongTerm(task, now.In(location))
 	case TaskScopeToday:
 		return dueBeforeBoundary(task, nextLocalDay(now, location))
 	case TaskScopeWeek:
@@ -125,6 +124,23 @@ func taskMatchesScope(
 	default:
 		return false
 	}
+}
+
+func matchesJobScope(task vikunja.Task, classification TaskClassification, scope TaskScope) bool {
+	if classification.Kind != TaskKindJob {
+		return false
+	}
+	if scope == TaskScopeJobs {
+		return !task.Done
+	}
+	if scope == TaskScopeCompletedJobs {
+		return task.Done && !classification.Recurring
+	}
+	return scope == TaskScopeAllJobs && (!task.Done || !classification.Recurring)
+}
+
+func matchesLongTerm(task vikunja.Task, now time.Time) bool {
+	return !task.Done && (task.DueDate.IsZero() || task.DueDate.After(now.AddDate(0, 0, daysPerWeek)))
 }
 
 func dueBeforeBoundary(task vikunja.Task, boundary time.Time) bool {
@@ -203,6 +219,8 @@ func compareScopedTask(scope TaskScope, now time.Time) func(taskListCandidate, t
 		return compareHistory
 	case TaskScopeUnscheduled:
 		return compareUnscheduled
+	case TaskScopeLongTerm:
+		return compareLongTerm
 	case TaskScopeHistory:
 		return compareHistory
 	case TaskScopeAllJobs:
@@ -284,6 +302,13 @@ func compareUnscheduled(left taskListCandidate, right taskListCandidate) int {
 		return result
 	}
 	return comparePriorityTitleID(left, right)
+}
+
+func compareLongTerm(left taskListCandidate, right taskListCandidate) int {
+	if result := compareTimeZeroLast(left.Task.DueDate, right.Task.DueDate); result != 0 {
+		return result
+	}
+	return compareUnscheduled(left, right)
 }
 
 func compareHistory(left taskListCandidate, right taskListCandidate) int {

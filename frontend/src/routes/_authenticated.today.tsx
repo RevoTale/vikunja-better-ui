@@ -1,20 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { parseListSearch } from "@/features/tasks/list-search";
-import { TaskListPage } from "@/features/tasks/task-list-page";
+import { parseDaySearch } from "@/features/tasks/day-search";
+import { TodayPage } from "@/features/tasks/today-page";
 export const Route = createFileRoute("/_authenticated/today")({
-  validateSearch: parseListSearch,
+  validateSearch: parseDaySearch,
   component: Page,
 });
 function Page() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
-  return (
-    <TaskListPage
-      title="Today"
-      description="Due now or before the end of today."
-      scope="TODAY"
-      search={search}
-      setSearch={(next) => navigate({ search: next })}
-    />
-  );
+  return <TodayPage search={search} setSearch={(next) => navigate({ search: next })} />;
 }
