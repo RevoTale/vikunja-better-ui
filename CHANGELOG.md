@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.3.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.2.0...v2.3.0) (2026-10-04)
+
+
+### Features
+
+* **activity:** add opt-in anonymous completion dashboard ([ed8c992](https://github.com/RevoTale/vikunja-better-ui/commit/ed8c992d13017bba65020952e597c63b0c6d1e53))
+* add public activity dashboard and fix mobile task editing ([053bb4f](https://github.com/RevoTale/vikunja-better-ui/commit/053bb4f88359546cfff2a9525d80778f93953fd5))
+
+
+### Bug Fixes
+
+* **recurrence:** preserve only related links in history snapshots ([0d0cc0c](https://github.com/RevoTale/vikunja-better-ui/commit/0d0cc0c6b060b0f1f5fdef996f6696679a8ceaa8))
+* support Vikunja 2.7.0 and stabilize task row geometry ([#93](https://github.com/RevoTale/vikunja-better-ui/issues/93)) ([e54a87b](https://github.com/RevoTale/vikunja-better-ui/commit/e54a87be3be6345a76e76ead87929a468b6467c6))
+* **ui:** constrain mobile task layouts and preserve editor state ([04c9cd9](https://github.com/RevoTale/vikunja-better-ui/commit/04c9cd912a9af578d9e7d38a1bf7047d2f763e1f))
+
 ## [2.2.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.1.1...v2.2.0) (2026-10-03)
 
 
