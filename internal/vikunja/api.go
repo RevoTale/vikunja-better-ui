@@ -48,6 +48,7 @@ func (client *Client) Projects(ctx context.Context) ([]Project, error) {
 
 func (client *Client) fetchProjects(ctx context.Context) ([]Project, error) {
 	projects := make([]Project, 0)
+	var pageSize int64
 	for pageNumber := int64(1); ; pageNumber++ {
 		query := url.Values{
 			pageQueryKey:     []string{strconv.FormatInt(pageNumber, 10)},
@@ -76,7 +77,11 @@ func (client *Client) fetchProjects(ctx context.Context) ([]Project, error) {
 		); err != nil {
 			return nil, err
 		}
-		if response.Total > maxProjectCount || int64(len(projects)+len(response.Items)) > response.Total {
+		if pageNumber == 1 {
+			pageSize = response.PerPage
+		}
+		if response.PerPage != pageSize || response.Total > maxProjectCount ||
+			int64(len(projects)+len(response.Items)) > response.Total {
 			return nil, ErrRejectedResponse
 		}
 		projects = append(projects, response.Items...)
@@ -173,6 +178,7 @@ func (client *Client) Labels(ctx context.Context) ([]Label, error) {
 
 func (client *Client) fetchLabels(ctx context.Context) ([]Label, error) {
 	labels := make([]Label, 0)
+	var pageSize int64
 	for pageNumber := int64(1); ; pageNumber++ {
 		query := url.Values{
 			pageQueryKey:     []string{strconv.FormatInt(pageNumber, 10)},
@@ -201,7 +207,11 @@ func (client *Client) fetchLabels(ctx context.Context) ([]Label, error) {
 		); err != nil {
 			return nil, err
 		}
-		if response.Total > maxLabelCount || int64(len(labels)+len(response.Items)) > response.Total {
+		if pageNumber == 1 {
+			pageSize = response.PerPage
+		}
+		if response.PerPage != pageSize || response.Total > maxLabelCount ||
+			int64(len(labels)+len(response.Items)) > response.Total {
 			return nil, ErrRejectedResponse
 		}
 		labels = append(labels, response.Items...)
@@ -434,7 +444,8 @@ func validatePage(
 	expectedPage int64,
 	expectedPerPage int64,
 ) error {
-	if pageNumber != expectedPage || perPage != expectedPerPage || total < 0 || totalPages < 0 {
+	// API v2 caps per_page at the instance's service.maxitemsperpage setting.
+	if pageNumber != expectedPage || perPage < 1 || perPage > expectedPerPage || total < 0 || totalPages < 0 {
 		return ErrRejectedResponse
 	}
 	if total == 0 {
