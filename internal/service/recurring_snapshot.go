@@ -152,7 +152,17 @@ func createSnapshot(
 		}
 		created.Labels = append(created.Labels, skippedMarker)
 	}
-	return finalizeSnapshot(ctx, client, created.ID, key, outcome)
+	return finalizeRelatedSnapshot(ctx, client, before.ID, created.ID, key, outcome)
+}
+
+func finalizeRelatedSnapshot(
+	ctx context.Context, client recurringCompletionClient, liveID, snapshotID int64,
+	key string, outcome CompletionOutcome,
+) (vikunja.Task, error) {
+	if err := copySnapshotRelations(ctx, client, liveID, snapshotID); err != nil {
+		return vikunja.Task{}, err
+	}
+	return finalizeSnapshot(ctx, client, snapshotID, key, outcome)
 }
 
 func snapshotLabelAllowed(title string) bool {

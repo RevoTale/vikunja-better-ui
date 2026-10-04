@@ -48,6 +48,8 @@ type relationClient interface {
 type taskClient interface {
 	taskReaderWriter
 	labelClient
+	TaskRelations(context.Context, int64) (map[vikunja.RelationKind][]vikunja.RelatedTask, error)
+	CreateTaskRelation(context.Context, int64, int64, vikunja.RelationKind) error
 }
 
 type taskReaderWriter interface {

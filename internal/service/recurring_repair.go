@@ -49,7 +49,7 @@ func RepairRecurringSnapshot(
 	if err := attachMissingSnapshotLabels(ctx, client, live.Labels, &candidate, grant.Outcome); err != nil {
 		return RecurringCompletion{}, err
 	}
-	confirmed, err := finalizeSnapshot(ctx, client, candidate.ID, grant.CompletionKey, grant.Outcome)
+	confirmed, err := finalizeRelatedSnapshot(ctx, client, live.ID, candidate.ID, grant.CompletionKey, grant.Outcome)
 	if err != nil {
 		return RecurringCompletion{}, err
 	}
