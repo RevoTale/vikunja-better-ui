@@ -133,7 +133,7 @@ func listCandidates(ctx context.Context, client taskListClient, request ListRequ
 	}
 	loadedTasks := int64(len(firstPage.Items))
 	for _, page := range pages {
-		if page.Total != firstPage.Total || page.TotalPages != firstPage.TotalPages {
+		if page.Total != firstPage.Total || page.TotalPages != firstPage.TotalPages || page.PerPage != firstPage.PerPage {
 			return incompleteList(request, ListIssueUpstreamPartial, vikunja.ErrRejectedResponse), nil
 		}
 		loadedTasks += int64(len(page.Items))
@@ -190,7 +190,7 @@ func listAllJobCandidates(ctx context.Context, client taskListClient, request Li
 			request.Now, request.Location, request.WeekStart,
 		)
 		for _, page := range set.pages {
-			if page.Total != set.first.Total || page.TotalPages != set.first.TotalPages {
+			if page.Total != set.first.Total || page.TotalPages != set.first.TotalPages || page.PerPage != set.first.PerPage {
 				return incompleteList(request, ListIssueUpstreamPartial, vikunja.ErrRejectedResponse), nil
 			}
 			loadedTasks += int64(len(page.Items))
@@ -310,7 +310,7 @@ func listHistory(ctx context.Context, client taskListClient, request ListRequest
 		page.Items, request.ProjectTitles, TaskScopeHistory, request.Now, request.Location, request.WeekStart,
 	)
 	return ListResult{
-		Items: items, Page: request.Page, PageSize: request.PageSize,
+		Items: items, Page: request.Page, PageSize: int(page.PerPage),
 		TotalItems: page.Total, TotalPages: page.TotalPages, HasMore: int64(request.Page) < page.TotalPages,
 		IsComplete: true,
 	}, nil

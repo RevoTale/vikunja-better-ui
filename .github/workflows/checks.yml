@@ -41,7 +41,7 @@ jobs:
         run: task validate
       - name: Test
         run: task test
-      - name: Test UI against Vikunja 2.5.0
+      - name: Test UI against Vikunja 2.7.0
         run: task e2e
       - name: Smoke-test production image
         run: task image:smoke

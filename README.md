@@ -35,7 +35,13 @@ the whole repository.
 - Works across phone, tablet, and desktop and follows the system light or dark
   color scheme with the configured TweakCN theme.
 
-Only Vikunja 2.5.0 and its REST API v2 are supported.
+Vikunja 2.7.0 and its REST API v2 are the supported integration target.
+The isolated E2E suite uses signed 2.7.0 binaries on Linux amd64 and arm64.
+Older versions are not part of the current compatibility guarantee. Upgrade
+Vikunja separately, following its [upgrade guidance](https://vikunja.io/docs/upgrade/)
+and taking a backup first; updating Better UI does not upgrade your instance.
+Better UI honors the instance's `service.maxitemsperpage` limit and reads
+additional pages when needed, rather than requiring a particular server page size.
 
 ### Overdue schedule display
 
@@ -828,7 +834,7 @@ task gen:check  # prove committed generated source is current
 task fix        # format Go and frontend files
 task validate   # quality-gate tests, formatting/modernization, lint, types, vet, build
 task test       # Go race tests twice with shuffled order, plus frontend unit tests
-task e2e        # real browser tests against isolated Vikunja 2.5.0
+task e2e        # real browser tests against isolated Vikunja 2.7.0
 task demo       # run the complete isolated demo at http://localhost:4180
 task dev        # run the application
 ```
@@ -888,7 +894,7 @@ elements. Runtime style attributes used for popup positioning are allowed
 separately; `style-src` includes that allowance as a WebKit fallback, while
 `style-src-elem` remains nonce-restricted and `script-src` stays self-only.
 
-`task e2e` downloads the official Vikunja 2.5.0 binary for Linux amd64 or
+`task e2e` downloads the official Vikunja 2.7.0 binary for Linux amd64 or
 arm64, verifies its pinned SHA-256 digest and detached signature, and runs it
 directly with an isolated SQLite directory. Every run creates deterministic
 fixtures and a short-lived scoped token, then removes its temporary data.
@@ -918,7 +924,7 @@ Username: app-user
 Password: app-password-strong
 ```
 
-The command builds the frontend and Go server, starts an isolated Vikunja 2.5.0
+The command builds the frontend and Go server, starts an isolated Vikunja 2.7.0
 instance, creates deterministic fixtures and a scoped API token, and serves the
 complete app. Stop it with `Ctrl-C`; its temporary database and files are then
 removed.

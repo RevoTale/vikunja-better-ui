@@ -155,15 +155,35 @@ func TestListTasksHistoryReadsRequestedPagesInAuthoritativeOrder(t *testing.T) {
 		Total: 2, Page: 2, PerPage: 1, TotalPages: 2,
 	}}}
 	result, err := ListTasks(context.Background(), client, ListRequest{
-		Scope: TaskScopeHistory, Page: 2, PageSize: 1, Now: now, Location: time.UTC, Timezone: "UTC",
+		Scope: TaskScopeHistory, Page: 2, PageSize: 30, Now: now, Location: time.UTC, Timezone: "UTC",
 	})
 	if err != nil {
 		t.Fatalf("ListTasks() error = %v", err)
 	}
 	assertTaskIDs(t, result.Items, 2)
+	if result.PageSize != 1 || result.TotalPages != 2 {
+		t.Fatalf("history must report the upstream page cap: %#v", result)
+	}
 	if len(client.queries) != 1 || client.queries[0].Page != 2 ||
 		client.queries[0].SortBy[0] != "done_at" ||
 		client.queries[0].OrderBy[1] != "desc" {
 		t.Fatalf("queries = %#v", client.queries)
+	}
+}
+
+func TestListTasksRejectsChangedPaginationCap(t *testing.T) {
+	t.Parallel()
+	client := &listClientStub{pages: []vikunja.TaskPage{
+		{Items: []vikunja.Task{{ID: 1}}, Total: 2, Page: 1, PerPage: 1, TotalPages: 2},
+		{Items: []vikunja.Task{{ID: 2}}, Total: 2, Page: 2, PerPage: 2, TotalPages: 2},
+	}}
+	result, err := ListTasks(t.Context(), client, ListRequest{
+		Scope: TaskScopeToday, Page: 1, PageSize: 30, Now: time.Now(), Location: time.UTC, Timezone: "UTC",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.IsComplete || result.Issue == nil || result.Issue.Code != ListIssueUpstreamPartial {
+		t.Fatalf("changed pagination cap must not produce a complete list: %#v", result)
 	}
 }

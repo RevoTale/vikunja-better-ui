@@ -171,7 +171,7 @@ and sorting. No extra stored duration or application database is required; the
 duration can be derived from `end_date - start_date` when displaying the job.
 
 For a new integration, prefer Vikunja API v2 when the configured instance
-supports Vikunja 2.5.0 only.
+targets Vikunja 2.7.0. Earlier runtime observations below retain their tested version.
 
 ## Proposed MVP scope
 

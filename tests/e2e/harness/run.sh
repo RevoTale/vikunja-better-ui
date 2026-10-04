@@ -2,8 +2,9 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-metadata_file="$repo_root/tests/e2e/harness/vikunja-2.5.0.json"
-cache_dir="$repo_root/.cache/e2e/vikunja-2.5.0"
+metadata_file="$repo_root/tests/e2e/harness/vikunja-2.7.0.json"
+vikunja_version="$(node -p 'require(process.argv[1]).version' "$metadata_file")"
+cache_dir="$repo_root/.cache/e2e/vikunja-$vikunja_version"
 run_dir="$(mktemp -d "${TMPDIR:-/tmp}/vikunja-better-ui-e2e.XXXXXX")"
 vikunja_pid=""
 app_pid=""
@@ -57,7 +58,7 @@ fingerprint="$(GNUPGHOME="$run_dir/gnupg" gpg --batch --with-colons --fingerprin
 GNUPGHOME="$run_dir/gnupg" gpg --batch --quiet --verify "$signature" "$archive"
 
 unzip -q "$archive" -d "$run_dir/vikunja"
-binary="$run_dir/vikunja/vikunja-v2.5.0-linux-$architecture"
+binary="$run_dir/vikunja/vikunja-v$vikunja_version-linux-$architecture"
 echo "$(read_metadata binarySha256)  $binary" | sha256sum --check --status
 chmod +x "$binary"
 

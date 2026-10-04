@@ -147,7 +147,9 @@ REST verbs, pagination envelopes, snake_case fields, and upstream errors.
 Use these stable baselines:
 
 - Go 1.26, updated to the latest supported patch release.
-- Vikunja 2.5.0 as the only supported integration and E2E fixture version.
+- Vikunja 2.7.0 as the supported integration and E2E fixture version. Historical
+  2.5.0 observations below retain their original evidence version; current
+  compatibility is checked by the 2.7.0 E2E suite.
 - Vikunja REST API v2 exclusively. Do not add v1 fallbacks or compatibility
   branches.
 - React 19.
@@ -1440,7 +1442,7 @@ flow needs the additional WebKit project; the full suite is not duplicated.
 
 ### Real Vikunja and Playwright E2E
 
-- Pin Vikunja 2.5.0 full binaries for Linux amd64 and arm64 with URL, version,
+- Pin Vikunja 2.7.0 full binaries for Linux amd64 and arm64 with URL, version,
   SHA-256, signature URL, and signing-key fingerprint.
 - Verify the official signature before caching or executing the binary.
 - One harness invocation creates one temporary directory, dynamic ports, SQLite
