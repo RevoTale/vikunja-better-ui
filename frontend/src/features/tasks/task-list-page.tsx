@@ -3,7 +3,6 @@ import { useLocation } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
 
-import { AppSelect } from "@/components/app-select";
 import { Button } from "@/components/ui/button";
 import {
   Pagination,
@@ -24,7 +23,7 @@ import { IssueList, ListMessage, ListSettingsError } from "./list-state";
 import { LongTermTasks } from "./long-term-tasks";
 import { paginationRange } from "./pagination-range";
 import { TaskActionFeedback } from "./task-action-feedback";
-import { TaskLabelFilter } from "./task-label-filter";
+import { TaskListHeader } from "./task-list-header";
 import { TaskListLoading } from "./task-list-loading";
 import { type TaskItem, TaskRow } from "./task-row";
 import { useTaskListActions } from "./use-task-list-actions";
@@ -79,36 +78,15 @@ export function TaskListPage({
 
   return (
     <section className="mx-auto w-full max-w-5xl" aria-labelledby="page-title">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
-        <div>
-          <h1 id="page-title" className="font-serif text-3xl font-semibold">
-            {title}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-        </div>
-        <AppSelect
-          aria-label="Project"
-          className="sm:w-64"
-          value={search.project}
-          options={[
-            { value: "all", label: "All projects" },
-            ...(projectData?.projects.items.map((project) => ({
-              value: project.id,
-              label: project.title,
-            })) ?? []),
-          ]}
-          onValueChange={(project) => setSearch({ ...search, project, page: 1 })}
-        />
-      </div>
-      {navigation}
-      {supportsLabels ? (
-        <TaskLabelFilter
-          value={search.label ?? "all"}
-          onChange={(label) =>
-            setSearch({ project: search.project, page: 1, ...(label !== "all" ? { label } : {}) })
-          }
-        />
-      ) : null}
+      <TaskListHeader
+        navigation={navigation}
+        title={title}
+        description={description}
+        projects={projectData?.projects.items ?? []}
+        supportsLabels={supportsLabels}
+        search={search}
+        setSearch={setSearch}
+      />
       <div className="mt-4 sm:mt-6" aria-busy={loading}>
         <ListSettingsError
           taskError={error}

@@ -75,7 +75,7 @@ export function EditTaskForm({
   }
   return (
     <form onSubmit={submit} className="mt-5">
-      <fieldset disabled={pending} className="grid min-w-0 gap-5">
+      <fieldset disabled={pending} className="grid min-w-0 grid-cols-1 gap-5">
         <legend className="sr-only">Edit task fields</legend>
         <SharedFields
           disabled={pending}

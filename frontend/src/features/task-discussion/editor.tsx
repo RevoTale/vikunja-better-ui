@@ -13,6 +13,7 @@ import { EditorMarkdown } from "./editor-markdown";
 import { EditorMedia } from "./editor-media";
 import { EditorToolbar } from "./editor-toolbar";
 import { cleanComment } from "./html";
+import "./discussion.css";
 
 export function DiscussionEditor({
   initialHtml,

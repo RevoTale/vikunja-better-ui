@@ -50,9 +50,9 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await expect
     .poll(() => elementPadding(firstLoadedTask))
     .toEqual({
-      top: "12px",
-      bottom: "12px",
-      left: "16px",
+      top: "8px",
+      bottom: "8px",
+      left: "12px",
     });
   await workflowWeek(page);
   await page.goto("/today");

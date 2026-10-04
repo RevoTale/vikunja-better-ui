@@ -12,6 +12,9 @@
 .discussion-rich-text ol {
   @apply list-decimal ps-[1.5em];
 }
+.discussion-rich-text .discussion-nested-list-item {
+  @apply list-none;
+}
 .discussion-rich-text blockquote {
   @apply my-[0.75em] border-s-2 border-border ps-[0.75em] text-muted-foreground;
 }

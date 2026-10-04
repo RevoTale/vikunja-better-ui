@@ -5,6 +5,7 @@ import { mediaFromElement } from "./media-html";
 import { MediaPreview } from "./media-preview";
 import { mediaReference } from "./media-reference";
 import { ReplyQuote } from "./reply-quote";
+import "./discussion.css";
 
 const CodeBlock = lazy(() =>
   import("./code-block").then((module) => ({ default: module.CodeBlock })),
