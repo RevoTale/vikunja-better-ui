@@ -69,13 +69,16 @@ confirmation that every existing loading state implements it.
   discussion context, comments, and lazy editor. No artificial wait is added.
 - Task-list placeholders use the same card padding, schedule column, and action
   size as loaded rows, with three badge placeholders per row. A shared grid
-  reserves a 3rem title/schedule row and a 3.5rem metadata row on phones (1.5rem
+  reserves a 2.75rem title/schedule row and a 3.125rem metadata row on phones (1.5rem
   at `sm` and above). Short active, overdue, and completed tasks therefore have
   exactly the same row dimensions as their skeletons, even without a completion
   button or comment count. These are minimums, not fixed heights. Titles and badges
   may wrap to two lines or grow further for longer content; never clip text to
   force an exact skeleton height. Responsive regression tests require equal row
   width, position, and height for short content and the controlled two-line fixture.
+  Badge list items use flex layout so inline baseline space cannot enlarge the
+  metadata rows differently across platform fonts. Tests also vary the inherited
+  line box without relaxing exact skeleton-to-content geometry checks.
 - Place the comment count at the left of the metadata row, with flexible space
   before the right-aligned badges. On phones this row spans the full card content
   width, rather than leaving the schedule column empty and squeezing badges into

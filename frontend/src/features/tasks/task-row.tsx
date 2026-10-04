@@ -169,7 +169,7 @@ function TaskMetadata({
 }) {
   return (
     <ul
-      className={cn("flex min-w-0 flex-wrap items-center gap-1.5", className)}
+      className={cn("flex min-w-0 flex-wrap items-center gap-1.5 [&>li]:flex", className)}
       aria-label={
         hidePriority ? "Task labels, project, and type" : "Task priority, labels, project, and type"
       }

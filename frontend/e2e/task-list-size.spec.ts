@@ -76,6 +76,7 @@ for (const projectTitle of ["Daily", "Daily tasks"]) {
       expect(titleHeight.height).toBe(titleHeight.lineHeight * 2);
     }
     const metadata = rows.first().locator('[data-slot="task-metadata"]');
+    await expectNoBadgeBaselineSpace(metadata);
     const badgeRows = await metadata.evaluate((element) => ({
       height: element.getBoundingClientRect().height,
       rowHeight: Math.max(
@@ -91,6 +92,21 @@ for (const projectTitle of ["Daily", "Daily tasks"]) {
     await expectUnclippedRows(rows);
     await page.screenshot({ path: testInfo.outputPath("list-loaded.png") });
   });
+}
+
+async function expectNoBadgeBaselineSpace(metadata: Locator) {
+  await metadata.evaluate((element) => {
+    // A larger inherited line box models different platform font metrics.
+    element.style.lineHeight = "32px";
+  });
+  for (const item of await metadata.locator("li").all()) {
+    const geometry = await item.evaluate((element) => ({
+      item: element.getBoundingClientRect().height,
+      badge: element.firstElementChild?.getBoundingClientRect().height,
+    }));
+    // Badge wrappers must not add font-dependent inline baseline space.
+    expect(geometry.item).toBe(geometry.badge);
+  }
 }
 
 async function widenCountTypography(rows: Locator) {
