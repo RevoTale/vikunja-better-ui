@@ -86,6 +86,7 @@ type Dependencies struct {
 	Capabilities    *service.CapabilityManager
 	Logger          *slog.Logger
 	Now             func() time.Time
+	Activity        *service.PublicActivity
 }
 
 // Resolver wires GraphQL operations to application services.
@@ -105,6 +106,7 @@ type Resolver struct {
 	capabilities    *service.CapabilityManager
 	logger          *slog.Logger
 	now             func() time.Time
+	activity        *service.PublicActivity
 }
 
 // New constructs a resolver with the supplied request dependencies.
@@ -125,6 +127,7 @@ func New(dependencies Dependencies) *Resolver {
 		capabilities:    dependencies.Capabilities,
 		logger:          dependencies.Logger,
 		now:             dependencies.Now,
+		activity:        dependencies.Activity,
 	}
 }
 

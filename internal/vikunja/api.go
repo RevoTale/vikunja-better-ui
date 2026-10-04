@@ -14,6 +14,7 @@ const (
 	maxLabelCount       = 10000
 	pageQueryKey        = "page"
 	pageSizeQueryKey    = "per_page"
+	ascendingOrder      = "asc"
 	taskCheckFieldCount = 12
 	taskPatchFieldCount = 10
 )
@@ -152,7 +153,7 @@ func validateTaskQuery(input TaskQuery) error {
 		return errors.New("search and filter cannot be combined")
 	}
 	for index, field := range input.SortBy {
-		if field == "" || (input.OrderBy[index] != "asc" && input.OrderBy[index] != "desc") {
+		if field == "" || (input.OrderBy[index] != ascendingOrder && input.OrderBy[index] != "desc") {
 			return errors.New("sort field or order is invalid")
 		}
 	}

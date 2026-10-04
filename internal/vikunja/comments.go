@@ -16,7 +16,7 @@ func (client *Client) TaskComments(ctx context.Context, taskID int64, input Comm
 	if taskID <= 0 || input.Page < 1 || input.PerPage < 1 || input.PerPage > maxUpstreamPageSize {
 		return CommentPage{}, errors.New("task ID or comment pagination is invalid")
 	}
-	if input.Order != "asc" && input.Order != "desc" {
+	if input.Order != ascendingOrder && input.Order != "desc" {
 		return CommentPage{}, errors.New("comment order must be asc or desc")
 	}
 	var response CommentPage

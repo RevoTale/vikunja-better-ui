@@ -84,6 +84,12 @@ completion window. A recurring Job keeps one live Vikunja task ID, uses the
 same Completion and Skip behavior as every recurring task, and writes a
 non-recurring Job snapshot to History for each occurrence.
 
+History snapshots copy task fields, permitted labels and **Related** links only.
+Comments and subtasks are never copied. Native renewal keeps the same live task
+ID, so its existing discussion and subtask relationships remain on that live
+series. A failed related-link copy uses the existing History repair flow; retrying
+does not create another occurrence or duplicate confirmed links.
+
 The next Job interval is always coherent:
 
 ```text
@@ -343,6 +349,7 @@ secret.
 | `APP_SESSION_SECRET` | Yes | Base64 value decoding to at least 32 random bytes. |
 | `APP_HTTP_ADDR` | No | Listen address; defaults to `:8080`. |
 | `APP_LOG_LEVEL` | No | `debug`, `info`, `warn`, or `error`; defaults to `info`. |
+| `APP_PUBLIC_ACTIVITY_ENABLED` | No | `true` enables anonymous `/activity`; `false` (default) keeps public statistics disabled. |
 | `APP_ENV` | No | `development`, `test`, or `production`; defaults to `production`. |
 | `APP_ALLOWED_ORIGIN` | Production/test | Exact public app origin used for CSRF checks. Development defaults to `http://localhost:5173`. |
 
@@ -365,6 +372,53 @@ Missing permissions can make login or task operations fail because the backend
 validates the token by reading the current Vikunja user immediately after app
 authentication. Store the generated token value as `APP_VIKUNJA_API_TOKEN`.
 Do not use the app username or password to authenticate with Vikunja.
+
+### Mobile layout and creation drafts
+
+Task rows use compact spacing with the same reserved geometry for loading
+skeletons. Long titles and badges can still wrap; completion controls retain
+their mobile touch targets. Today and Long term put project and label filters
+side by side, with shorter controls on desktop.
+
+Create/edit grids constrain long project names instead of widening the page.
+Code and tables scroll inside their rich-text container. Background settings
+refreshes, including failed refreshes, keep the ready creation form mounted:
+already-entered title and description are not replaced by loading placeholders.
+This does not add automatic field reuse or persistent task drafts.
+
+### Public activity
+
+Set `APP_PUBLIC_ACTIVITY_ENABLED=true`, restart the service, and open `/activity`.
+No login is required. Leave it disabled if you do not want completion patterns
+and the configured timezone to be public.
+
+The page shows daily completion counts and a priority distribution with counts
+and percentages for **today and the previous six calendar days**, in the Vikunja
+API token owner's timezone. It counts all completed tasks accessible to that
+token, including completed Jobs and stored recurrence-history snapshots.
+Skipped occurrences and renewed live tasks are excluded. Completion time
+(`done_at`), not due date, determines the day. Tasks deleted from Vikunja cannot
+be included; native recurrence without stored snapshots has no recoverable history.
+
+Only aggregate counts, dates, timezone and snapshot timestamps are exposed.
+Titles, descriptions, task IDs, users, labels and project names are not public.
+There are no project, date-range or label filters. URL parameters do not change
+the aggregation. Existing `other:user` and `tasks:read_all` token permissions
+are sufficient; the browser never receives the token.
+
+One server-side aggregate is cached for ten minutes per process. Reload the page
+after expiry to request a newer snapshot; the displayed timestamp identifies
+the data's age. The first request makes one user lookup and one request per
+100 completed tasks, without fetching individual tasks, comments or attachments.
+Cache hits make no Vikunja requests, and simultaneous misses share one refresh.
+Tasks are reduced one page at a time, not retained in a cache or database.
+
+Refreshes have a 20-second deadline, a 1,000-page safety limit and the client's
+bounded response-size checks. Failed refreshes return a safe error, not partial
+counts, and have a 30-second retry cooldown. The GraphQL response remains
+`private, no-store`; the ten-minute cache is the aggregate inside the service,
+not a browser or CDN copy of authenticated responses. Use normal reverse-proxy
+rate limits for public traffic; fixed queries do not eliminate network-level DoS.
 
 ### Subtasks and related tasks
 
