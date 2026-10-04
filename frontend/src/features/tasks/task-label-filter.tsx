@@ -1,23 +1,27 @@
 import { useQuery } from "@apollo/client/react";
 import { AppSelect } from "@/components/app-select";
 import { TaskLabelsDocument } from "@/graphql/graphql";
+import { cn } from "@/lib/utils";
 import { taskLabelOptions } from "./task-label-options";
 
 export function TaskLabelFilter({
   value,
   onChange,
+  className,
 }: {
   value: string;
   onChange: (value: string) => void;
+  className?: string;
 }) {
   const { data, loading, error, refetch } = useQuery(TaskLabelsDocument, {
     fetchPolicy: "cache-and-network",
   });
   const labels = data?.taskLabels ?? [];
   return (
-    <div className="mt-3 max-w-sm" aria-busy={loading}>
+    <div className={cn("mt-3 min-w-0 max-w-sm", className)} aria-busy={loading}>
       <AppSelect
         aria-label="Filter by label"
+        className="sm:h-9!"
         value={value}
         options={[
           { value: "all", label: "All labels" },

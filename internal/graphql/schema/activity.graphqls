@@ -1,0 +1,23 @@
+extend type Query {
+  "Anonymous, fixed-window completion counts; null when the feature is disabled."
+  publicActivity: PublicActivity
+}
+
+type PublicActivity {
+  days: [ActivityDay!]!
+  priorities: [ActivityPriority!]!
+  total: Int!
+  timezone: String!
+  generatedAt: DateTime!
+  refreshAt: DateTime!
+}
+
+type ActivityDay {
+  date: String!
+  count: Int!
+}
+
+type ActivityPriority {
+  priority: TaskPriority!
+  count: Int!
+}

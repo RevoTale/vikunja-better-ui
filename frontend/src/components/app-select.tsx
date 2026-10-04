@@ -62,10 +62,10 @@ export function AppSelect<Value extends string>({
     >
       <SelectTrigger
         id={id}
-        className={cn("h-11! w-full rounded-md px-3 shadow-xs", className)}
+        className={cn("h-11! w-full min-w-0 rounded-md px-3 shadow-xs", className)}
         {...attributes}
       >
-        <SelectValue />
+        <SelectValue className="min-w-0 truncate" />
       </SelectTrigger>
       <SelectContent align="start">
         {options.map((option) => (

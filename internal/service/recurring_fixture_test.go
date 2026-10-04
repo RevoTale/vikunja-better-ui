@@ -17,6 +17,16 @@ type recurringClientStub struct {
 	attachedLabels map[int64]bool
 }
 
+func (*recurringClientStub) TaskRelations(
+	context.Context, int64,
+) (map[vikunja.RelationKind][]vikunja.RelatedTask, error) {
+	return nil, nil
+}
+
+func (*recurringClientStub) CreateTaskRelation(context.Context, int64, int64, vikunja.RelationKind) error {
+	return nil
+}
+
 func (client *recurringClientStub) TasksPage(_ context.Context, _ vikunja.TaskQuery) (vikunja.TaskPage, error) {
 	return client.searchPage, nil
 }

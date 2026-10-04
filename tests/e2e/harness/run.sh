@@ -105,6 +105,7 @@ pnpm --dir "$repo_root/frontend" run build >/dev/null
 (cd "$repo_root" && go build -a -o "$run_dir/app" ./cmd/server)
 
 export APP_ENV=test
+export APP_PUBLIC_ACTIVITY_ENABLED=true
 export APP_VIKUNJA_URL="$vikunja_url"
 export APP_VIKUNJA_API_TOKEN="$api_token"
 export APP_AUTH_USERNAME="app-user"

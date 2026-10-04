@@ -1,0 +1,16 @@
+query PublicActivity {
+  publicActivity {
+    days {
+      date
+      count
+    }
+    priorities {
+      priority
+      count
+    }
+    total
+    timezone
+    generatedAt
+    refreshAt
+  }
+}

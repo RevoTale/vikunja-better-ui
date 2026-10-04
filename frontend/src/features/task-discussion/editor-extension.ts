@@ -57,6 +57,7 @@ export function createDiscussionExtension(
         punctuation: "syntax-punctuation",
       },
       list: {
+        nested: { listitem: "discussion-nested-list-item" },
         checklist: "discussion-checklist",
         listitemChecked: "discussion-checked",
         listitemUnchecked: "discussion-unchecked",

@@ -71,7 +71,12 @@ Lexical 0.51.0 renders its code node as a `code` element, not a `pre`.
 Headings use Tailwind's 2xl/xl/lg/base scale. Saved headings remain semantic h3
 sections under the discussion page but retain their original visual level via
 a renderer-owned attribute. List indentation, checklist markers, table cells
-and block padding use em units. Code and tables scroll horizontally within
+and block padding use em units. Editor and rendered-body components import their
+own rich-text stylesheet so direct task creation/editing does not depend on
+visiting Discussion first. Nested bullet markers remain visible on mobile;
+Lexical's nested-only list-item wrapper has no extra empty marker. Its normal
+HTML export merges the nested list into the preceding item for native clients.
+Code and tables scroll horizontally within
 their container without widening the page. Generated shadcn files are untouched.
 
 Sources: [Lexical update listeners](https://lexical.dev/docs/concepts/listeners),

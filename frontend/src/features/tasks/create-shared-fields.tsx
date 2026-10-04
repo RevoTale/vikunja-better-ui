@@ -64,7 +64,7 @@ export function SharedFields({
         )}
       </ValidatedField>
       <TaskDescriptionField initialHtml={description ?? ""} disabled={disabled} />
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
         <ValidatedField
           name="projectId"
           label="Project"

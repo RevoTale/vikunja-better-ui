@@ -52,6 +52,10 @@ func run(configuration config.Config, logger *slog.Logger) error {
 	sessions := auth.NewSessionManager(configuration.SessionSecret, now, rand.Reader)
 	cookies := auth.NewSessionCookies(production)
 	capabilities := service.NewCapabilityManager(configuration.SessionSecret, now)
+	var activity *service.PublicActivity
+	if configuration.PublicActivityEnabled {
+		activity = service.NewPublicActivity(vikunjaClient, now)
+	}
 	root := resolver.New(resolver.Dependencies{
 		Credentials: auth.NewCredentials(configuration.AuthUsername, configuration.AuthPassword),
 		Sessions:    sessions, Cookies: cookies, Limiter: auth.NewLoginLimiter(now),
@@ -63,6 +67,7 @@ func run(configuration config.Config, logger *slog.Logger) error {
 			BetterUI: configuration.AllowedOrigin, Vikunja: configuration.VikunjaPublicURL,
 		},
 		Capabilities: capabilities, Logger: logger, Now: now,
+		Activity: activity,
 	})
 
 	mux := http.NewServeMux()
@@ -88,6 +93,10 @@ func run(configuration config.Config, logger *slog.Logger) error {
 		ReadHeaderTimeout: serverReadHeaderTimeout, ReadTimeout: serverReadTimeout,
 		WriteTimeout: serverWriteTimeout, IdleTimeout: serverIdleTimeout,
 	}
+	return serve(server, logger)
+}
+
+func serve(server *http.Server, logger *slog.Logger) error {
 	shutdownContext, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	go func() {
@@ -99,7 +108,7 @@ func run(configuration config.Config, logger *slog.Logger) error {
 		}
 	}()
 
-	logger.Info("HTTP server listening", "address", configuration.HTTPAddr)
+	logger.Info("HTTP server listening", "address", server.Addr)
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}

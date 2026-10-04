@@ -31,9 +31,9 @@ export async function workflowWeek(page: Page) {
     .locator('[data-slot="card-content"]')
     .first();
   expect(await elementPadding(firstTaskContent)).toEqual({
-    top: "12px",
-    bottom: "12px",
-    left: "16px",
+    top: "8px",
+    bottom: "8px",
+    left: "12px",
   });
   for (const day of await page.locator('[data-slot="week-day"]').all()) {
     await expect(day.locator('[data-slot="card"]')).not.toHaveCount(0);

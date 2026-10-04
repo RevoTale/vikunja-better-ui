@@ -52,8 +52,9 @@ export function CreateTaskForm({
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onFieldErrorsChange: (errors: TaskFormErrors) => void;
 }) {
-  if (settingsLoading) return <p className="mt-6">Loading task settings…</p>;
-  if (settingsError) {
+  const hasSettings = Boolean(timezone && defaultDate && projects.length > 0);
+  if (settingsLoading && !hasSettings) return <p className="mt-6">Loading task settings…</p>;
+  if (settingsError && !hasSettings) {
     return (
       <p className="mt-6 text-destructive" role="alert">
         {graphQLErrorMessage(
@@ -139,7 +140,7 @@ function ReadyCreateTaskForm({
 
   return (
     <form
-      className="mt-6 grid gap-5"
+      className="mt-6 grid min-w-0 grid-cols-1 gap-5"
       onSubmit={(event) => {
         if (labelsPending) event.preventDefault();
         else onSubmit(event);

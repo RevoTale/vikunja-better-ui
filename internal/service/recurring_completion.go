@@ -10,6 +10,7 @@ import (
 
 type recurringCompletionClient interface {
 	completionClient
+	snapshotRelationClient
 	TasksPage(context.Context, vikunja.TaskQuery) (vikunja.TaskPage, error)
 	CreateTaskHTML(context.Context, int64, vikunja.TaskWrite) (vikunja.Task, error)
 	markerClient

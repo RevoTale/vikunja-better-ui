@@ -12,6 +12,16 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 )
 
+type ActivityDay struct {
+	Date  string `json:"date"`
+	Count int    `json:"count"`
+}
+
+type ActivityPriority struct {
+	Priority TaskPriority `json:"priority"`
+	Count    int          `json:"count"`
+}
+
 type CompleteTaskInput struct {
 	CsrfToken         string     `json:"csrfToken"`
 	TaskID            string     `json:"taskId"`
@@ -166,6 +176,15 @@ type Project struct {
 
 type ProjectResult struct {
 	Items []*Project `json:"items"`
+}
+
+type PublicActivity struct {
+	Days        []*ActivityDay      `json:"days"`
+	Priorities  []*ActivityPriority `json:"priorities"`
+	Total       int                 `json:"total"`
+	Timezone    string              `json:"timezone"`
+	GeneratedAt time.Time           `json:"generatedAt"`
+	RefreshAt   time.Time           `json:"refreshAt"`
 }
 
 type Query struct {
