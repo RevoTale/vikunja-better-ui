@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.4.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.3.0...v2.4.0) (2026-10-07)
+
+
+### Features
+
+* **activity:** show two weeks of daily completions ([8cbca00](https://github.com/RevoTale/vikunja-better-ui/commit/8cbca007cb6ec9759493c4d95055545274538c80))
+* **activity:** show two weeks of daily completions ([f4cd008](https://github.com/RevoTale/vikunja-better-ui/commit/f4cd0081b4e58ea9c357f81a90e3c3588c91ad96))
+
 ## [2.3.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.2.0...v2.3.0) (2026-10-04)
 
 
