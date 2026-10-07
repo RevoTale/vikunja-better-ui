@@ -28,7 +28,7 @@ func TestPublicActivityConcurrentReadersShareRefresh(t *testing.T) {
 	for range 30 {
 		group.Go(func() {
 			result, err := cache.Read(t.Context())
-			if err != nil || result.Total != 2 {
+			if err != nil || result.Total != 3 {
 				t.Errorf("read = %v, %v", result, err)
 			}
 		})
@@ -73,7 +73,7 @@ func TestActivityCalendarBoundariesAndInvalidPriority(t *testing.T) {
 	}
 	start := time.Date(2026, 10, 25, 0, 0, 0, 0, location)
 	end := start.AddDate(0, 0, 1)
-	summary := ActivitySummary{Days: [7]ActivityDay{{Date: "2026-10-25"}}}
+	summary := ActivitySummary{Days: [activityDays]ActivityDay{{Date: "2026-10-25"}}}
 	instants := []time.Time{start, start.Add(-time.Nanosecond), end.Add(time.Nanosecond), end.Add(-time.Nanosecond)}
 	for _, instant := range instants {
 		if err := addActivity(&summary, vikunja.ActivityTask{Done: true, DoneAt: instant}, start, end, location); err != nil {

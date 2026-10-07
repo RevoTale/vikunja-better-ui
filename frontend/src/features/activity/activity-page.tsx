@@ -16,7 +16,7 @@ export function ActivityPage() {
         <BrandMark className="size-9" />
         <div>
           <h1 className="font-serif text-2xl font-semibold">Activity</h1>
-          <p className="text-sm text-muted-foreground">Better Vikunja · Last 7 days</p>
+          <p className="text-sm text-muted-foreground">Better Vikunja · Last 14 days</p>
         </div>
       </header>
       {loading && !activity ? (

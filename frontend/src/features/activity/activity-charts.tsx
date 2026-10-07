@@ -3,8 +3,9 @@ import type { PublicActivityQuery } from "@/graphql/graphql";
 
 type Activity = NonNullable<PublicActivityQuery["publicActivity"]>;
 const colors = ["var(--muted-foreground)", "#0284c7", "#16a34a", "#d97706", "#dc2626", "#9333ea"];
+const weekdayFormatter = new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" });
 export const activityChartLayout = {
-  daily: "min-h-72 w-full rounded-lg sm:min-h-76",
+  daily: "min-h-100 w-full rounded-lg",
   priority: "min-h-120 w-full rounded-lg sm:min-h-80",
 };
 
@@ -30,13 +31,15 @@ function DailyChart({ activity }: { activity: Activity }) {
       <p className="mt-1 text-xs text-muted-foreground">
         {activity.days[0]?.date} – {activity.days.at(-1)?.date}
       </p>
-      <div className="mt-6 grid h-44 grid-cols-7 gap-2">
+      <ol
+        aria-label="Daily completions"
+        className="mt-6 grid grid-cols-7 gap-x-1 gap-y-4 sm:gap-x-2"
+      >
         {activity.days.map((day) => (
-          <div key={day.date} className="flex min-w-0 flex-col items-center justify-end gap-1">
-            <span className="text-sm tabular-nums">{day.count}</span>
+          <li key={day.date} className="flex min-w-0 flex-col items-center gap-1">
             <svg
               viewBox="0 0 24 100"
-              className="h-28 w-full"
+              className="h-18 w-full"
               aria-hidden="true"
               preserveAspectRatio="none"
             >
@@ -49,12 +52,21 @@ function DailyChart({ activity }: { activity: Activity }) {
                 className="fill-primary"
               />
             </svg>
-            <time dateTime={day.date} title={day.date} className="text-xs text-muted-foreground">
-              {day.date.slice(8)}
+            <time
+              dateTime={day.date}
+              title={day.date}
+              className="flex h-8 flex-col items-center text-xs leading-4 text-muted-foreground"
+            >
+              <span>{weekdayFormatter.format(new Date(`${day.date}T00:00:00Z`))}</span>
+              <span className="tabular-nums">{day.date.slice(8)}</span>
             </time>
-          </div>
+            <span className="h-5 text-sm tabular-nums">
+              {day.count}
+              <span className="sr-only"> tasks completed</span>
+            </span>
+          </li>
         ))}
-      </div>
+      </ol>
     </section>
   );
 }

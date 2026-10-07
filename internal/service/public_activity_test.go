@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -21,6 +22,8 @@ func (s *activityStub) ActivityPage(_ context.Context, q vikunja.TaskQuery) (vik
 	s.calls++
 	s.query = q
 	return vikunja.ActivityPage{Items: []vikunja.ActivityTask{
+		{Done: true, DoneAt: time.Date(2026, 9, 20, 21, 0, 0, 0, time.UTC), Priority: 2},
+		{Done: true, DoneAt: time.Date(2026, 9, 20, 20, 59, 0, 0, time.UTC), Priority: 2},
 		{Done: true, DoneAt: time.Date(2026, 10, 4, 9, 0, 0, 0, time.UTC), Priority: 3},
 		{Done: true, DoneAt: time.Date(2026, 10, 4, 10, 0, 0, 0, time.UTC), Priority: 0},
 		{Done: true, DoneAt: time.Date(2026, 10, 4, 11, 0, 0, 0, time.UTC), Labels: []vikunja.Label{{Title: skippedLabel}}},
@@ -36,7 +39,8 @@ func TestPublicActivityCachesOnlyAggregates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Total != 2 || result.Days[6].Count != 2 || result.Priorities[3] != 1 || result.Days[0].Date != "2026-09-28" {
+	if result.Total != 3 || result.Days[0].Date != "2026-09-21" || result.Days[0].Count != 1 ||
+		result.Days[13].Count != 2 || result.Priorities[2] != 1 || result.Priorities[3] != 1 {
 		t.Fatalf("unexpected aggregate: %+v", result)
 	}
 	if _, err = cache.Read(t.Context()); err != nil || upstream.calls != 1 {
@@ -46,7 +50,7 @@ func TestPublicActivityCachesOnlyAggregates(t *testing.T) {
 	if _, err = cache.Read(t.Context()); err != nil || upstream.calls != 2 {
 		t.Fatalf("refresh: %v, %d", err, upstream.calls)
 	}
-	if upstream.query.Filter == "" || upstream.query.IncludeCommentCount {
+	if !strings.Contains(upstream.query.Filter, "2026-09-21T00:00:00+03:00") || upstream.query.IncludeCommentCount {
 		t.Fatal("missing bounded filter")
 	}
 }
