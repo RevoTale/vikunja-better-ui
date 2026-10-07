@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	activityDays       = 7
+	activityDays       = 14
 	activityPriorities = 6
 	activityTTL        = 10 * time.Minute
 	activityRetryDelay = 30 * time.Second

@@ -46,7 +46,7 @@ func TestActivityRefreshSurvivesFirstVisitorDisconnect(t *testing.T) {
 		t.Fatalf("visitor cancellation poisoned shared refresh: %v", err)
 	}
 	result, err := cache.Read(t.Context())
-	if err != nil || result.Total != 2 || client.calls != 1 {
+	if err != nil || result.Total != 3 || client.calls != 1 {
 		t.Fatalf("cached result: %+v, %v, calls %d", result, err, client.calls)
 	}
 }

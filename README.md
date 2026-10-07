@@ -399,12 +399,14 @@ No login is required. Leave it disabled if you do not want completion patterns
 and the configured timezone to be public.
 
 The page shows daily completion counts and a priority distribution with counts
-and percentages for **today and the previous six calendar days**, in the Vikunja
+and percentages for **today and the previous thirteen calendar days**, in the Vikunja
 API token owner's timezone. It counts all completed tasks accessible to that
 token, including completed Jobs and stored recurrence-history snapshots.
 Skipped occurrences and renewed live tasks are excluded. Completion time
 (`done_at`), not due date, determines the day. Tasks deleted from Vikunja cannot
 be included; native recurrence without stored snapshots has no recoverable history.
+The daily chart uses two seven-day rows, with weekday, date and count aligned
+in each column.
 
 Only aggregate counts, dates, timezone and snapshot timestamps are exposed.
 Titles, descriptions, task IDs, users, labels and project names are not public.
