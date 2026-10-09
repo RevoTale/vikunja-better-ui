@@ -50,6 +50,7 @@ type Config struct {
 	Environment           Environment
 	AllowedOrigin         *url.URL
 	PublicActivityEnabled bool
+	Use12HourTime         bool
 }
 
 // LookupFunc reads an environment variable without coupling validation to the process.
@@ -110,8 +111,23 @@ func Load(lookup LookupFunc) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	configuration.Use12HourTime, err = parseTimeFormat(lookup)
+	if err != nil {
+		return Config{}, err
+	}
 
 	return configuration, nil
+}
+
+func parseTimeFormat(lookup LookupFunc) (bool, error) {
+	switch valueOrDefault(lookup, "APP_TIME_FORMAT", "24h") {
+	case "24h":
+		return false, nil
+	case "12h":
+		return true, nil
+	default:
+		return false, errors.New("APP_TIME_FORMAT must be 24h or 12h")
+	}
 }
 
 func parsePublicActivity(lookup LookupFunc) (bool, error) {

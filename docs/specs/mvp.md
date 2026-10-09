@@ -287,7 +287,8 @@ ambiguous timestamp heuristic.
   substituted.
 - GraphQL accepts separate `LocalDate`, `LocalTime`, and `LocalDateTime` scalar
   values for form inputs. The backend converts them using the Vikunja timezone.
-- Job creation presents separate native date and time controls for mobile use.
+- Job creation presents separate date and time controls for mobile use. Time
+  inputs default to 24h; `APP_TIME_FORMAT=12h` enables AM/PM independently of the OS.
   The browser validates their normalized strings and composes exactly one
   `YYYY-MM-DDTHH:mm` `LocalDateTime` value without parsing it as a JavaScript
   `Date`. Only that composed value crosses GraphQL; the backend remains the
@@ -532,7 +533,8 @@ Additional fields:
 - Optional title. The form previews the generated `Job YYYY-MM-DD HH:MM` title
   as its placeholder and the backend computes it again from the validated local
   start time when the field is empty.
-- Start local date and time through separate native controls.
+- Start local date and time through separate controls. The clock follows
+  `APP_TIME_FORMAT`, while submitted local times remain canonical 24h values.
 - Positive duration in minutes.
 - Positive completion window in minutes, default 60.
 

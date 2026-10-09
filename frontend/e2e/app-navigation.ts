@@ -39,7 +39,9 @@ test("login restores the requested route and core navigation is accessible", asy
   await expect(datePickerButton(page, "Start date")).toBeVisible();
   const startTime = page.getByLabel("Start time", { exact: true });
   await expect(startTime).toBeVisible();
-  await expect(startTime).toHaveAttribute("type", "time");
+  await expect(startTime).toHaveAttribute("type", "text");
+  await expect(startTime).toHaveValue(/^([01]\d|2[0-3]):[0-5]\d$/);
+  await expect(page.locator('input[name="startTime"]')).toHaveValue(await startTime.inputValue());
   await expect(page.getByLabel("Project", { exact: true }).locator("svg")).toBeVisible();
   await expectCreationControlSizes(page);
   if (test.info().project.name === "phone-320") {

@@ -188,6 +188,7 @@ type ComplexityRoot struct {
 		Authenticated func(childComplexity int) int
 		CsrfToken     func(childComplexity int) int
 		ExpiresAt     func(childComplexity int) int
+		Use12HourTime func(childComplexity int) int
 		VikunjaUser   func(childComplexity int) int
 	}
 
@@ -1135,6 +1136,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Session.ExpiresAt(childComplexity), true
+	case "Session.use12HourTime":
+		if e.ComplexityRoot.Session.Use12HourTime == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Session.Use12HourTime(childComplexity), true
 	case "Session.vikunjaUser":
 		if e.ComplexityRoot.Session.VikunjaUser == nil {
 			break
@@ -2212,6 +2219,7 @@ enum PageIssueCode {
 }
 
 type Session {
+  use12HourTime: Boolean!
   authenticated: Boolean!
   csrfToken: String
   expiresAt: DateTime
@@ -2762,6 +2770,8 @@ func (ec *executionContext) childFields_RelationCandidatePage(ctx context.Contex
 
 func (ec *executionContext) childFields_Session(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 	switch field.Name {
+	case "use12HourTime":
+		return ec.fieldContext_Session_use12HourTime(ctx, field)
 	case "authenticated":
 		return ec.fieldContext_Session_authenticated(ctx, field)
 	case "csrfToken":
@@ -6673,6 +6683,29 @@ func (ec *executionContext) _RelationCandidatePage_hasMore(ctx context.Context, 
 }
 func (ec *executionContext) fieldContext_RelationCandidatePage_hasMore(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("RelationCandidatePage", field, false, false, errors.New("field of type Boolean does not have child fields"))
+}
+
+func (ec *executionContext) _Session_use12HourTime(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Session_use12HourTime(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Use12HourTime, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v bool) graphql.Marshaler {
+			return ec.marshalNBoolean2bool(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Session_use12HourTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Session", field, false, false, errors.New("field of type Boolean does not have child fields"))
 }
 
 func (ec *executionContext) _Session_authenticated(ctx context.Context, field graphql.CollectedField, obj *model.Session) (ret graphql.Marshaler) {
@@ -13351,6 +13384,11 @@ func (ec *executionContext) _Session(ctx context.Context, sel ast.SelectionSet, 
 		switch field.Name {
 		case "__typename":
 			out.Values[i] = graphql.MarshalString("Session")
+		case "use12HourTime":
+			out.Values[i] = ec._Session_use12HourTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		case "authenticated":
 			out.Values[i] = ec._Session_authenticated(ctx, field, obj)
 			if out.Values[i] == graphql.Null {

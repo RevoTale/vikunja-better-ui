@@ -1,5 +1,6 @@
 query AuthSession {
   session {
+    use12HourTime
     authenticated
     csrfToken
     expiresAt
@@ -8,6 +9,7 @@ query AuthSession {
 
 query Session {
   session {
+    use12HourTime
     authenticated
     csrfToken
     expiresAt

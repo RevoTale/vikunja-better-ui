@@ -32,7 +32,9 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 	}
 	r.cookies.Set(requestInfo.Writer, token, session.ExpiresAt)
 	r.limiter.RecordSuccess(requestInfo.ClientIP)
-	return &model.LoginPayload{Session: authenticatedSession(r.sessions, session, user)}, nil
+	result := authenticatedSession(r.sessions, session, user)
+	result.Use12HourTime = r.use12HourTime
+	return &model.LoginPayload{Session: result}, nil
 }
 
 // Logout is the resolver for the logout field.

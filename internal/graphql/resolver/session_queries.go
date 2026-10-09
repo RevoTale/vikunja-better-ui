@@ -13,9 +13,10 @@ import (
 func (r *queryResolver) Session(ctx context.Context) (*model.Session, error) {
 	session, ok := auth.SessionFromContext(ctx)
 	if !ok {
-		return &model.Session{Authenticated: false}, nil
+		return &model.Session{Authenticated: false, Use12HourTime: r.use12HourTime}, nil
 	}
 	result := authenticatedSessionWithoutUser(r.sessions, session)
+	result.Use12HourTime = r.use12HourTime
 	if !gqlgen.FieldRequested(ctx, "vikunjaUser") {
 		return result, nil
 	}

@@ -80,6 +80,7 @@ enum PageIssueCode {
 }
 
 type Session {
+  use12HourTime: Boolean!
   authenticated: Boolean!
   csrfToken: String
   expiresAt: DateTime

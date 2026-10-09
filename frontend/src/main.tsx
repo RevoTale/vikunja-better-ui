@@ -8,6 +8,7 @@ import { registerOfflineShell } from "@/app/pwa/register";
 import { router } from "@/app/router";
 import { Toaster } from "@/components/ui/toast";
 import { apolloClient } from "@/lib/apollo";
+import { TimeFormatProvider } from "@/lib/time-format-context";
 import "@/styles/global.css";
 
 const root = document.getElementById("root");
@@ -23,7 +24,15 @@ createRoot(root).render(
   <StrictMode>
     <CSPProvider nonce={cspNonce}>
       <ApolloProvider client={apolloClient}>
-        <Toaster>{offlineShell ? <OfflineScreen /> : <RouterProvider router={router} />}</Toaster>
+        <Toaster>
+          {offlineShell ? (
+            <OfflineScreen />
+          ) : (
+            <TimeFormatProvider>
+              <RouterProvider router={router} />
+            </TimeFormatProvider>
+          )}
+        </Toaster>
       </ApolloProvider>
     </CSPProvider>
   </StrictMode>,

@@ -71,6 +71,7 @@ type labelClient interface {
 
 // Dependencies supplies the authenticated transports and stateless workflow services.
 type Dependencies struct {
+	Use12HourTime   bool
 	Credentials     auth.Credentials
 	Sessions        *auth.SessionManager
 	Cookies         auth.SessionCookies
@@ -91,6 +92,7 @@ type Dependencies struct {
 
 // Resolver wires GraphQL operations to application services.
 type Resolver struct {
+	use12HourTime   bool
 	credentials     auth.Credentials
 	sessions        *auth.SessionManager
 	cookies         auth.SessionCookies
@@ -112,6 +114,7 @@ type Resolver struct {
 // New constructs a resolver with the supplied request dependencies.
 func New(dependencies Dependencies) *Resolver {
 	return &Resolver{
+		use12HourTime:   dependencies.Use12HourTime,
 		credentials:     dependencies.Credentials,
 		sessions:        dependencies.Sessions,
 		cookies:         dependencies.Cookies,

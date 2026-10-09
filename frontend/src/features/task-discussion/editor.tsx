@@ -24,6 +24,7 @@ export function DiscussionEditor({
   taskId,
   csrfToken,
   onBusyChange,
+  compact = false,
 }: {
   initialHtml: string;
   label: string;
@@ -33,6 +34,7 @@ export function DiscussionEditor({
   taskId?: string;
   csrfToken?: string;
   onBusyChange?: (busy: boolean) => void;
+  compact?: boolean;
 }) {
   const [pasteNotice, setPasteNotice] = useState("");
   const client = useApolloClient();
@@ -52,9 +54,12 @@ export function DiscussionEditor({
   );
   return (
     <LexicalExtensionComposer extension={extension} contentEditable={null}>
-      <fieldset disabled={disabled} className="min-w-0 rounded-lg border bg-background">
+      <fieldset
+        disabled={disabled}
+        className={compact ? "min-w-0" : "min-w-0 rounded-lg border bg-background"}
+      >
         <legend className="sr-only">{label} editor</legend>
-        <EditorToolbar />
+        {compact ? null : <EditorToolbar />}
         {taskId && csrfToken && onBusyChange ? (
           <EditorMedia taskId={taskId} csrfToken={csrfToken} onBusyChange={onBusyChange} />
         ) : null}
@@ -66,7 +71,11 @@ export function DiscussionEditor({
         <ContentEditable
           aria-label={label}
           aria-multiline
-          className="discussion-rich-text min-h-32 rounded-b-lg p-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={
+            compact
+              ? "discussion-rich-text min-h-12 rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              : "discussion-rich-text min-h-32 rounded-b-lg p-3 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          }
         />
       </fieldset>
       <EditorBehavior

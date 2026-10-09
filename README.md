@@ -180,9 +180,25 @@ undated tasks follow. These sections share pagination and project/label filters.
 Existing `/unscheduled` links open Long term; GraphQL `UNSCHEDULED` retains its
 original no-deadline behavior. The additive `LONG_TERM` scope provides both.
 
-Open an active task and select **Edit**. Change its title, description, project,
-priority, Job mode, recurrence, start, end, and due dates. **Save changes** is the
-only action that writes the task. Cancel leaves the original task unchanged.
+On an active task page, click the title or description to edit it in place.
+Times default to 24h everywhere, including time inputs, task lists, comments,
+schedule previews and public snapshot timestamps. `APP_TIME_FORMAT=12h` enables
+AM/PM. Time inputs accept `HH:mm` or four digits (for example `2107`); in 12h
+mode, select AM/PM beside the hour/minute field. Stored values remain canonical
+24h times. Invalid or incomplete input cannot submit the previous valid time.
+
+The description keeps the same rich-text styling without a large formatting
+toolbar; existing formatting and keyboard shortcuts remain available. Links and
+media controls stay interactive. Title Enter saves and Escape cancels; description
+newlines never submit. **Save** confirms an edit; Cancel leaves the task unchanged.
+Click Properties values to edit priority, project, labels, Job/recurrence and dates
+in compact popovers. Empty labels and dates are editable too. Timezone is
+informational and Overdue is calculated. Status uses normal completion/renewal and
+Undo rules. Only one inline field can be edited at once. Unsupported description
+formatting is preserved and requires editing in native Vikunja.
+
+The full **Edit** page remains available for larger changes, schedule shifts and
+duration adjustments. **Save changes** writes that form.
 Recurring edits affect the live task and future projections, never completed
 history. Completed tasks remain read-only.
 
@@ -355,6 +371,7 @@ secret.
 | `APP_SESSION_SECRET` | Yes | Base64 value decoding to at least 32 random bytes. |
 | `APP_HTTP_ADDR` | No | Listen address; defaults to `:8080`. |
 | `APP_LOG_LEVEL` | No | `debug`, `info`, `warn`, or `error`; defaults to `info`. |
+| `APP_TIME_FORMAT` | No | `24h` (default) or `12h` (AM/PM). Controls displayed times and time inputs independently of browser/OS preference. Restart the service and reload the app/PWA after changing it; no frontend rebuild is needed. |
 | `APP_PUBLIC_ACTIVITY_ENABLED` | No | `true` enables anonymous `/activity`; `false` (default) keeps public statistics disabled. |
 | `APP_ENV` | No | `development`, `test`, or `production`; defaults to `production`. |
 | `APP_ALLOWED_ORIGIN` | Production/test | Exact public app origin used for CSRF checks. Development defaults to `http://localhost:5173`. |

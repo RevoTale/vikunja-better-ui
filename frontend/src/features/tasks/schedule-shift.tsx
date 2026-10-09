@@ -3,6 +3,8 @@ import { AppSelect } from "@/components/app-select";
 import { DurationInput } from "@/components/duration-input";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
+import { displayLocalTime } from "@/lib/time-format";
+import { useTwelveHourTime } from "@/lib/time-format-context";
 import { type ScheduleFields, type ScheduleTarget, shiftSchedule } from "./shift-schedule";
 
 const labels = { start: "Start", end: "End", due: "Due" };
@@ -17,6 +19,7 @@ export function ScheduleShift({
   onChange: (fields: ScheduleFields) => void;
 }) {
   const [minutes, setMinutes] = useState("60");
+  const use12Hours = useTwelveHourTime();
   const [applied, setApplied] = useState(false);
   const [direction, setDirection] = useState<"later" | "earlier">("later");
   const [target, setTarget] = useState<ScheduleTarget>("all");
@@ -81,8 +84,8 @@ export function ScheduleShift({
               .filter((field) => effectiveTarget === "all" || effectiveTarget === field)
               .map((field) => (
                 <p key={field}>
-                  {labels[field]}: {fields[field]?.replace("T", " ")} →{" "}
-                  {preview?.[field]?.replace("T", " ")}
+                  {labels[field]}: {displayLocalTime(fields[field], use12Hours)} →{" "}
+                  {displayLocalTime(preview?.[field], use12Hours)}
                 </p>
               ))
           ) : (
