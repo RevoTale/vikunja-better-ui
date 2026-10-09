@@ -4,6 +4,7 @@ import { expectDateOnlyTask, expectVikunjaTask, vikunjaTask } from "./app-api";
 import { displayDate, localDate, selectDate } from "./app-calendar";
 import { invalidTitle, projectID } from "./app-fixture";
 import { chooseSelectOption, elementPadding, expectTaskPriorityLayout } from "./app-layout";
+import { findTaskInPaginatedList } from "./app-pagination";
 import { workflowHistory } from "./workflow-history";
 import { workflowJob } from "./workflow-job";
 import { workflowRecurrence } from "./workflow-recurrence";
@@ -56,6 +57,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
     });
   await workflowWeek(page);
   await page.goto("/today");
+  await findTaskInPaginatedList(page, oneTime);
   await expectTaskPriorityLayout(page, oneTime, "High");
   await page.getByRole("button", { name: `Complete ${oneTime}` }).click();
   await expectStatusMessage(page, `${oneTime} completed.`);

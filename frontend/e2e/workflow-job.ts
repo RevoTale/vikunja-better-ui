@@ -2,6 +2,7 @@ import { expect, type Page } from "@playwright/test";
 import { vikunjaTask } from "./app-api";
 import { displayDate, localDate, localDateTime, selectDate } from "./app-calendar";
 import { chooseSelectOption } from "./app-layout";
+import { findTaskInPaginatedList } from "./app-pagination";
 
 export async function workflowJob(page: Page) {
   await page.goto("/tasks/new?type=job&returnTo=%2Fjobs");
@@ -38,6 +39,7 @@ export async function workflowJob(page: Page) {
   await expect(page.getByText(`${displayDate(jobDate)} - 11:00`, { exact: true })).toBeVisible();
   await expect(page.getByText(`${displayDate(jobDate)} - 12:00`, { exact: true })).toBeVisible();
   await page.goto("/jobs");
+  await findTaskInPaginatedList(page, job);
   const jobCard = page.locator('[data-slot="card"]').filter({ hasText: job });
   await expect(jobCard.getByText(job, { exact: true })).toBeVisible();
   if (Date.now() >= new Date(jobTask.due_date).getTime()) {
@@ -48,5 +50,6 @@ export async function workflowJob(page: Page) {
     await expect(jobCard.getByText("Complete by 12:00", { exact: true })).toBeVisible();
   }
   await page.goto("/today");
+  await findTaskInPaginatedList(page, job);
   await expect(page.getByText(job, { exact: true })).toBeVisible();
 }

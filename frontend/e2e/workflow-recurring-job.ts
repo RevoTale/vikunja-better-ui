@@ -2,6 +2,7 @@ import { expect, type Page } from "@playwright/test";
 import { expectStatusMessage } from "./app-actions";
 import { hasLabelTitle, searchTasks, vikunjaTask } from "./app-api";
 import { addCalendarDays, localDate, localDateTime } from "./app-calendar";
+import { findTaskInPaginatedList } from "./app-pagination";
 
 export async function workflowRecurringJob(page: Page, suffix: string) {
   const recurringJob = `Recurring Job E2E ${suffix}`;
@@ -21,6 +22,7 @@ export async function workflowRecurringJob(page: Page, suffix: string) {
   expect(hasLabelTitle(recurringJobBefore, "vbu:job")).toBe(true);
   expect(hasLabelTitle(recurringJobBefore, "vbu:fixed-due-time")).toBe(true);
   await page.goto("/today");
+  await findTaskInPaginatedList(page, recurringJob);
   const recurringJobCard = page.locator('[data-slot="card"]').filter({ hasText: recurringJob });
   await expect(recurringJobCard.getByText("Job", { exact: true })).toBeVisible();
   await expect(recurringJobCard.getByText("Recurring", { exact: true })).toBeVisible();
