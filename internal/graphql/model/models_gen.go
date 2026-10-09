@@ -229,6 +229,7 @@ type RepairTaskReferencesInput struct {
 }
 
 type Session struct {
+	Use12HourTime bool         `json:"use12HourTime"`
 	Authenticated bool         `json:"authenticated"`
 	CsrfToken     *string      `json:"csrfToken,omitempty"`
 	ExpiresAt     *time.Time   `json:"expiresAt,omitempty"`

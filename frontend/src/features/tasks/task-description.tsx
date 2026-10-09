@@ -3,7 +3,13 @@ import { CommentBody } from "@/features/task-discussion/comment-body";
 import { cleanComment, hasUnsupportedContent } from "@/features/task-discussion/html";
 import "@/features/task-discussion/discussion.css";
 
-export function TaskDescription({ description }: { description: string }) {
+export function TaskDescription({
+  description,
+  compact = false,
+}: {
+  description: string;
+  compact?: boolean;
+}) {
   const content = useMemo(() => {
     const html = new DOMParser().parseFromString(cleanComment(description), "text/html");
     const isPlain =
@@ -12,7 +18,7 @@ export function TaskDescription({ description }: { description: string }) {
     return { isPlain, unsupported: !isPlain && hasUnsupportedContent(description) };
   }, [description]);
   return (
-    <section aria-label="Description" className="min-w-0 space-y-3 py-6">
+    <section aria-label="Description" className={`min-w-0 space-y-3 ${compact ? "" : "py-6"}`}>
       <h2 className="sr-only">Description</h2>
       {description.trim() ? (
         content.isPlain ? (

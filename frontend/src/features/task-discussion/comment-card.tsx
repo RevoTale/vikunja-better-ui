@@ -1,6 +1,8 @@
 import { type ReactNode, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { DiscussionCommentFragment } from "@/graphql/graphql";
+import { displayTimestamp } from "@/lib/time-format";
+import { useTwelveHourTime } from "@/lib/time-format-context";
 import { AuthorAvatar } from "./author-avatar";
 import { CommentBody } from "./comment-body";
 import { CommentComposer } from "./comment-composer";
@@ -28,6 +30,7 @@ export function CommentCard({
   navigation?: ReactNode;
 }) {
   const [editing, setEditing] = useState(false);
+  const use12Hours = useTwelveHourTime();
   const [confirmDelete, setConfirmDelete] = useState(false);
   const article = useRef<HTMLElement>(null);
   const own = access?.authorId === comment.author.id;
@@ -64,10 +67,10 @@ export function CommentCard({
         <div className="ml-auto flex flex-wrap items-center gap-1">
           <time
             dateTime={comment.createdAt}
-            title={new Date(comment.createdAt).toLocaleString()}
+            title={displayTimestamp(comment.createdAt, use12Hours)}
             className="text-xs text-muted-foreground"
           >
-            {new Date(comment.createdAt).toLocaleString()}
+            {displayTimestamp(comment.createdAt, use12Hours)}
             {comment.updatedAt !== comment.createdAt ? " · Edited" : ""}
           </time>
           <CommentMenu

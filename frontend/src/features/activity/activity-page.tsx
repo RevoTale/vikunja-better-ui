@@ -3,9 +3,12 @@ import { BrandMark } from "@/components/brand-mark";
 import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button } from "@/components/ui/button";
 import { PublicActivityDocument } from "@/graphql/graphql";
+import { displayTimestamp } from "@/lib/time-format";
+import { useTwelveHourTime } from "@/lib/time-format-context";
 import { ActivityCharts, activityChartLayout } from "./activity-charts";
 
 export function ActivityPage() {
+  const use12Hours = useTwelveHourTime();
   const { data, loading, error, refetch } = useQuery(PublicActivityDocument, {
     fetchPolicy: "network-only",
   });
@@ -44,9 +47,7 @@ export function ActivityPage() {
             <p>
               Snapshot:{" "}
               <time dateTime={activity.generatedAt}>
-                {new Date(activity.generatedAt).toLocaleString(undefined, {
-                  timeZone: activity.timezone,
-                })}
+                {displayTimestamp(activity.generatedAt, use12Hours, activity.timezone)}
               </time>
             </p>
             <p>Only anonymous counts are public. Skipped occurrences are excluded.</p>

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { TaskListQuery } from "@/graphql/graphql";
+import { useTwelveHourTime } from "@/lib/time-format-context";
 import { cn } from "@/lib/utils";
 import { PriorityBadge } from "./priority-badge";
 import { recurrenceHint } from "./recurrence-hint";
@@ -39,9 +40,10 @@ export function TaskRow({
   countLoading?: boolean;
 }) {
   const labels = visibleTaskLabels(task.labels);
-  const schedule = taskSchedule(task);
+  const use12Hours = useTwelveHourTime();
+  const schedule = taskSchedule(task, undefined, use12Hours);
   const overdue = !projection && schedule.urgency === "overdue";
-  const hint = showRecurrenceHint ? recurrenceHint(task) : null;
+  const hint = showRecurrenceHint ? recurrenceHint(task, use12Hours) : null;
   return (
     <Card
       className={cn(

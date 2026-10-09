@@ -1,4 +1,5 @@
 import type { TaskKind } from "@/graphql/graphql";
+import { displayTime as formatTime } from "@/lib/time-format";
 
 const soonThresholdMilliseconds = 2 * 60 * 60 * 1_000;
 
@@ -22,8 +23,12 @@ export type TaskSchedule = {
   completeBy: string | null;
 };
 
-export function taskSchedule(task: ScheduleTask, now = new Date()): TaskSchedule {
-  const interval = jobInterval(task);
+export function taskSchedule(
+  task: ScheduleTask,
+  now = new Date(),
+  use12HourTime = false,
+): TaskSchedule {
+  const interval = jobInterval(task, use12HourTime);
   if (!task.dueAt) {
     return interval && task.startAt
       ? jobWithoutDeadline(task.startAt, task.timezone, interval)
@@ -36,10 +41,10 @@ export function taskSchedule(task: ScheduleTask, now = new Date()): TaskSchedule
 
   return {
     date: formatDate(dateSource, task.timezone),
-    time: interval ?? (task.hasDueTime ? formatTime(due, task.timezone) : null),
+    time: interval ?? (task.hasDueTime ? formatTime(due, task.timezone, use12HourTime) : null),
     status: urgency === "overdue" ? "Overdue" : null,
     urgency,
-    completeBy: interval ? `Complete by ${formatTime(due, task.timezone)}` : null,
+    completeBy: interval ? `Complete by ${formatTime(due, task.timezone, use12HourTime)}` : null,
   };
 }
 
@@ -70,11 +75,12 @@ function urgencyFor(due: Date, hasDueTime: boolean, now: Date): TaskUrgency {
   return remaining <= soonThresholdMilliseconds ? "soon" : "normal";
 }
 
-function jobInterval(task: ScheduleTask): string | null {
+function jobInterval(task: ScheduleTask, use12HourTime: boolean): string | null {
   if (task.kind !== "JOB" || !task.startAt || !task.endAt) return null;
-  return `${formatTime(new Date(task.startAt), task.timezone)}–${formatTime(
+  return `${formatTime(new Date(task.startAt), task.timezone, use12HourTime)}–${formatTime(
     new Date(task.endAt),
     task.timezone,
+    use12HourTime,
   )}`;
 }
 
@@ -83,14 +89,5 @@ function formatDate(value: Date, timeZone: string): string {
     timeZone,
     day: "2-digit",
     month: "short",
-  }).format(value);
-}
-
-function formatTime(value: Date, timeZone: string): string {
-  return new Intl.DateTimeFormat("en-GB", {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-    hourCycle: "h23",
   }).format(value);
 }

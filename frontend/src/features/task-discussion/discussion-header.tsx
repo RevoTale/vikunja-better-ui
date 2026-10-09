@@ -3,9 +3,11 @@ import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/features/tasks/format-date-time";
 import { TaskDetailsDocument } from "@/graphql/graphql";
+import { useTwelveHourTime } from "@/lib/time-format-context";
 import { graphQLErrorMessage } from "@/lib/user-error";
 
 export function DiscussionHeader({ taskId }: { taskId: string }) {
+  const use12Hours = useTwelveHourTime();
   const { data, loading, error, refetch } = useQuery(TaskDetailsDocument, {
     variables: { id: taskId },
   });
@@ -19,7 +21,7 @@ export function DiscussionHeader({ taskId }: { taskId: string }) {
           <p className="text-sm text-muted-foreground">
             {task.project.title} · {task.isDone ? "Completed" : "Open"}
             {task.dueAt
-              ? ` · Due ${formatDateTime(task.dueAt, task.hasDueTime, task.timezone)}`
+              ? ` · Due ${formatDateTime(task.dueAt, task.hasDueTime, task.timezone, use12Hours)}`
               : ""}
           </p>
         </>

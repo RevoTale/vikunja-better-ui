@@ -57,8 +57,9 @@ func run(configuration config.Config, logger *slog.Logger) error {
 		activity = service.NewPublicActivity(vikunjaClient, now)
 	}
 	root := resolver.New(resolver.Dependencies{
-		Credentials: auth.NewCredentials(configuration.AuthUsername, configuration.AuthPassword),
-		Sessions:    sessions, Cookies: cookies, Limiter: auth.NewLoginLimiter(now),
+		Use12HourTime: configuration.Use12HourTime,
+		Credentials:   auth.NewCredentials(configuration.AuthUsername, configuration.AuthPassword),
+		Sessions:      sessions, Cookies: cookies, Limiter: auth.NewLoginLimiter(now),
 		Users: vikunjaClient, Projects: vikunjaClient, Tasks: vikunjaClient, Comments: vikunjaClient,
 		Attachments: vikunjaClient,
 		Avatars:     vikunjaClient,

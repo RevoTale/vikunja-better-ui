@@ -1,3 +1,5 @@
+import { displayTime } from "@/lib/time-format";
+
 type RecurrenceUnit = "DAY" | "WEEK" | "MONTH";
 
 type RecurrenceHintTask = {
@@ -12,12 +14,12 @@ type RecurrenceHintTask = {
   } | null;
 };
 
-export function recurrenceHint(task: RecurrenceHintTask): string | null {
+export function recurrenceHint(task: RecurrenceHintTask, use12HourTime = false): string | null {
   const rule = task.recurrenceRule;
   if (rule?.mode !== "FROM_COMPLETION") return null;
 
   if (task.hasDueTime && rule.keepDueTime && task.dueAt) {
-    return `Next: ${quantity(rule.interval, `calendar ${unitName(rule.unit)}`)} after completion at ${formatTime(task.dueAt, task.timezone)}.`;
+    return `Next: ${quantity(rule.interval, `calendar ${unitName(rule.unit)}`)} after completion at ${displayTime(new Date(task.dueAt), task.timezone, use12HourTime)}.`;
   }
   if (task.hasDueTime) {
     const hours = rule.interval * (rule.unit === "WEEK" ? 168 : 24);
@@ -34,12 +36,4 @@ function unitName(unit: RecurrenceUnit): string {
 
 function quantity(value: number, noun: string): string {
   return `${value} ${noun}${value === 1 ? "" : "s"}`;
-}
-
-function formatTime(value: string, timeZone: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    timeZone,
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
 }

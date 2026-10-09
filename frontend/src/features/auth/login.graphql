@@ -1,6 +1,7 @@
 mutation Login($input: LoginInput!) {
   login(input: $input) {
     session {
+      use12HourTime
       authenticated
       csrfToken
       expiresAt
