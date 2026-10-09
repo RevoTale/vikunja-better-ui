@@ -11,6 +11,7 @@ import {
 import { addCalendarDays, localDate, localDateTime, selectDate } from "./app-calendar";
 import { emptyProjectID, labeledTitle } from "./app-fixture";
 import { chooseSelectOption } from "./app-layout";
+import { findTaskInPaginatedList } from "./app-pagination";
 
 test("task lists expose loading, empty, error, and project-filter states", async ({ page }) => {
   await blockBrowserVikunjaCalls(page);
@@ -154,6 +155,7 @@ test("completion-based recurrence keeps or releases the configured due time", as
   expect(hasLabelTitle(upstream, "vbu:fixed-due-time")).toBe(true);
 
   await page.goto("/today");
+  await findTaskInPaginatedList(page, title);
   await page.getByRole("button", { name: `Complete ${title}` }).click();
   await expectStatusMessage(page, "Recurring task completed and renewed.");
   upstream = await vikunjaTask(taskID);

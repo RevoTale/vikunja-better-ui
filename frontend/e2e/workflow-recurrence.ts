@@ -2,6 +2,7 @@ import { expect, type Page } from "@playwright/test";
 import { createTask, expectRenewedDate, expectStatusMessage } from "./app-actions";
 import { expectDateOnlyTask, searchTasks, vikunjaTask } from "./app-api";
 import { chooseSelectOption } from "./app-layout";
+import { findTaskInPaginatedList } from "./app-pagination";
 
 export async function workflowRecurrence(page: Page, recurring: string, scheduled: string) {
   const recurringId = await createTask(page, "recurring task", recurring);
@@ -14,6 +15,7 @@ export async function workflowRecurrence(page: Page, recurring: string, schedule
     page.locator('[data-slot="card"]:not([data-projection])').filter({ hasText: recurring }),
   ).toContainText("Next: 1 day after completion.");
   await page.goto("/today");
+  await findTaskInPaginatedList(page, recurring);
   await page.getByRole("button", { name: `Complete ${recurring}` }).click();
   await expectStatusMessage(page, "Recurring task completed and renewed.");
   const recurringAfter = await vikunjaTask(recurringId);
@@ -40,6 +42,7 @@ export async function workflowRecurrence(page: Page, recurring: string, schedule
     computedScheduled.getByRole("button", { name: `Complete ${scheduled}` }),
   ).toHaveCount(0);
   await page.goto("/today");
+  await findTaskInPaginatedList(page, scheduled);
   await page.getByRole("button", { name: `Complete ${scheduled}` }).click();
   await expectStatusMessage(page, "Recurring task completed and renewed.");
   const scheduledAfter = await vikunjaTask(scheduledId);
