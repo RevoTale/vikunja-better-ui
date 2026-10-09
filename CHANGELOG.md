@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.5.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.4.0...v2.5.0) (2026-10-09)
+
+
+### Features
+
+* **tasks:** enable inline editing and configurable clock format ([bdebbe5](https://github.com/RevoTale/vikunja-better-ui/commit/bdebbe57499692f8539adf29d5fa2248aacc5880))
+* **tasks:** enable inline editing and configurable clock format ([2d265ab](https://github.com/RevoTale/vikunja-better-ui/commit/2d265abae098ee8eaddeda1c706c94b47ac112c8))
+
+
+### Bug Fixes
+
+* **deps:** update tanstack-router monorepo ([10feffb](https://github.com/RevoTale/vikunja-better-ui/commit/10feffbd15224ad41786e0f64e7598f4e58c0c51))
+
 ## [2.4.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.3.0...v2.4.0) (2026-10-07)
 
 
