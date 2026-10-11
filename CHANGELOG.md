@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.7.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.6.0...v2.7.0) (2026-10-11)
+
+
+### Features
+
+* **tasks:** add searchable labels and refresh dependencies ([aed3e20](https://github.com/RevoTale/vikunja-better-ui/commit/aed3e20dda69eddd3166b986ebc1976010e93ea4))
+
 ## [2.6.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.5.0...v2.6.0) (2026-10-11)
 
 
