@@ -60,17 +60,36 @@ export function InlineTaskContent({
             <button
               ref={titleTrigger}
               type="button"
-              className="w-full rounded-sm text-left hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
+              className="group flex w-full items-start gap-2 rounded-sm text-left hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-ring"
               aria-label={`Edit title: ${task.title}`}
               disabled={disabled}
               onClick={() => editor.open("title")}
             >
-              {task.title}
+              <span className="min-w-0 flex-1">{task.title}</span>
+              <Pencil
+                aria-hidden="true"
+                className="mt-2 size-4 shrink-0 text-muted-foreground sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-visible:opacity-100"
+              />
             </button>
           )}
         </h1>
       )}
-      <div className="relative min-w-0 py-6">
+      <div className="min-w-0 max-w-prose space-y-2 pt-3 pb-2">
+        <div className="flex min-h-11 items-center justify-between gap-2">
+          <h2 className="text-xs font-medium text-muted-foreground">Description</h2>
+          {!task.isDone && !unsupported && editor.active !== "description" ? (
+            <button
+              ref={descriptionTrigger}
+              type="button"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-sm px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+              aria-label="Edit description"
+              disabled={disabled}
+              onClick={() => editor.open("description")}
+            >
+              <Pencil aria-hidden="true" className="size-3.5" /> Edit
+            </button>
+          ) : null}
+        </div>
         {editor.active === "description" ? (
           <form
             className="min-w-0 space-y-3"
@@ -80,7 +99,7 @@ export function InlineTaskContent({
             }}
           >
             <Suspense fallback={<EditorLoading media={false} />}>
-              <div className="pe-6">
+              <div className="min-w-0">
                 <Editor
                   initialHtml={editor.input.description}
                   label="Task description"
@@ -96,31 +115,8 @@ export function InlineTaskContent({
             </Suspense>
           </form>
         ) : (
-          <div className="relative isolate min-h-12 min-w-0">
-            {!task.isDone && !unsupported ? (
-              <button
-                ref={descriptionTrigger}
-                type="button"
-                className="absolute inset-0 z-0 rounded-sm text-right hover:bg-muted/30 focus-visible:outline-2 focus-visible:outline-ring"
-                aria-label="Edit description"
-                disabled={disabled}
-                onClick={() => editor.open("description")}
-              >
-                <Pencil
-                  aria-hidden="true"
-                  className="absolute right-0 top-0 size-3.5 text-muted-foreground"
-                />
-              </button>
-            ) : null}
-            <div
-              className={
-                !task.isDone && !unsupported
-                  ? "pointer-events-none relative z-10 pe-6 [&_a]:pointer-events-auto [&_button]:pointer-events-auto [&_input]:pointer-events-auto [&_video]:pointer-events-auto [&_audio]:pointer-events-auto [&_.discussion-table-scroll]:pointer-events-auto"
-                  : ""
-              }
-            >
-              <TaskDescription description={task.description} compact />
-            </div>
+          <div className="min-h-12 min-w-0">
+            <TaskDescription description={task.description} compact />
             {unsupported && !task.isDone ? (
               <p className="mt-2 text-xs text-muted-foreground">
                 Edit this description in Vikunja to preserve its unsupported formatting.

@@ -15,8 +15,29 @@ remains read-only. Timezone and Overdue are derived values, not arbitrary status
 - Empty labels and dates remain editable. Dates use the Vikunja timezone and the
   existing date/time controls. Job/type controls include the whole schedule because
   those fields must remain valid together.
-- Status offers the existing completion workflow, including renewal and Undo
+- Completion uses the existing workflow, including renewal and Undo
   rules. Completed/skipped history cannot be reopened through inline editing.
+
+## Task workspace UX
+
+Complete is the visible primary action, not a hidden status-picker action. It
+completes a task or, explicitly, one recurring occurrence. Keep existing Undo
+rules. Derived status stays readable in Properties, not a pretend editable field.
+Edit and Skip remain visible; Extended and Delete live in the keyboard-accessible
+more menu. Delete still navigates to its confirmation page.
+Complete, Skip, Undo and repair share the inline editor's action lock, so slow
+requests cannot overlap another transition or overwrite an active field draft.
+
+The title edits in place with a pencil affordance. Description has a visible Edit
+action and selectable, readable-width content: no invisible edit overlay
+intercepts selecting text or clicking links. Explicit Save/Cancel and matching
+rich formatting remain. On desktop Properties occupies a separate side column;
+on phones content comes first, then Properties, Relationships and Discussion. Group schedule
+fields separately, preserve editable empty values and match the loading skeleton.
+
+The separate Discussion page remains reachable from the Discussion heading.
+Recurring tasks explain that discussion belongs to the whole series. Completed
+details explain read-only fields without disabling the discussion itself.
 - Only one inline editor is active. Prevent duplicate requests. Preserve the
   snapshot version and untouched fields; conflicts/uncertain saves keep the draft
   and require an explicit reload before another submission.

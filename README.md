@@ -500,8 +500,12 @@ permission is sufficient for automatic linking.
 ### Task discussion
 
 Open a task to read its formatted description, inspect its properties and join
-the discussion below. On wide screens, properties sit beside the description;
-on phones, they appear between the description and discussion. **Edit** keeps
+the discussion below. **Complete** is the primary action, with the existing Undo
+rules; recurring tasks complete one occurrence and retain the series discussion.
+**Edit** and **Skip** stay visible; **Extended** and **Delete** are in the `…` menu.
+Delete still requires confirmation. The description's visible Edit action leaves
+its text selectable and its links clickable. On wide screens, properties sit
+beside the description; on phones, they appear before relationships and discussion. **Edit** keeps
 the existing task editing workflow. Creation and editing use the shared rich-text
 editor for descriptions, including emoji, code, tables and formatting. An untouched
 description is submitted exactly as loaded, not reserialized on focus. Unsupported

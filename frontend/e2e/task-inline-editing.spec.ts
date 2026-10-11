@@ -146,7 +146,6 @@ test("discussion supports read-only history and protects unsupported inline desc
   await choose(page, "Priority", "Low");
   await saveProperty(page);
   expect((await readTask(page, taskId)).description).toBe(description);
-  await page.getByRole("button", { name: "Change status", exact: true }).click();
   await page.getByRole("button", { name: "Complete task", exact: true }).click();
   await expect(page.getByRole("complementary", { name: "Task properties" })).toContainText(
     "Completed",
@@ -154,7 +153,7 @@ test("discussion supports read-only history and protects unsupported inline desc
   await expect(page.getByRole("button", { name: "Edit priority", exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Edit title:/ })).toHaveCount(0);
   await page
-    .getByRole("complementary", { name: "Task properties" })
+    .getByRole("group", { name: "Task completion", exact: true })
     .getByRole("button", { name: "Undo", exact: true })
     .click();
   await expect(page.getByRole("button", { name: "Edit priority", exact: true })).toBeVisible();

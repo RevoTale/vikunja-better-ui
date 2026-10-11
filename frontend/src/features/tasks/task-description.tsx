@@ -19,7 +19,7 @@ export function TaskDescription({
   }, [description]);
   return (
     <section aria-label="Description" className={`min-w-0 space-y-3 ${compact ? "" : "py-6"}`}>
-      <h2 className="sr-only">Description</h2>
+      {compact ? null : <h2 className="sr-only">Description</h2>}
       {description.trim() ? (
         content.isPlain ? (
           <p className="whitespace-pre-wrap text-base leading-relaxed wrap-anywhere">

@@ -6,7 +6,6 @@ import { useTwelveHourTime } from "@/lib/time-format-context";
 import { formatDateTime } from "./format-date-time";
 import { InlineProperty } from "./inline-property";
 import type { InlineTaskField } from "./inline-task-input";
-import { InlineTaskStatus } from "./inline-task-status";
 import { PriorityBadge } from "./priority-badge";
 import { taskKindLabels } from "./task-kind-label";
 import { TaskRecurrenceSetting } from "./task-recurrence-setting";
@@ -38,25 +37,18 @@ export function TaskProperties({
   return (
     <aside
       aria-label="Task properties"
-      className="min-w-0 border-y py-5 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:border-y-0 xl:border-l xl:py-0 xl:pl-6"
+      className="min-w-0 space-y-4 border-y py-4 lg:col-start-2 lg:row-span-3 lg:row-start-1 lg:border-y-0 lg:border-l lg:py-0 lg:pl-6"
     >
-      <h2 className="mb-4 text-sm font-semibold">Properties</h2>
-      <dl className="space-y-3">
+      <h2 className="text-sm font-semibold">Properties</h2>
+      <dl className="space-y-1">
         <Property label="Status" icon={<Circle />}>
-          <InlineTaskStatus
-            task={task}
-            disabled={editor.active !== null || editor.pending || editor.blocked}
-            onChanged={onChanged}
-            editor={editor}
-          >
-            {status === "Overdue" ? (
-              <Badge variant="outline" className="border-destructive/40 text-destructive">
-                {status}
-              </Badge>
-            ) : (
-              <span>{status}</span>
-            )}
-          </InlineTaskStatus>
+          {status === "Overdue" ? (
+            <Badge variant="outline" className="border-destructive/40 text-destructive">
+              {status}
+            </Badge>
+          ) : (
+            <span>{status}</span>
+          )}
         </Property>
         <Property label="Priority" icon={<ListFilter />}>
           {edit("priority", "Priority", <PriorityBadge priority={task.priority} />)}
@@ -101,24 +93,29 @@ export function TaskProperties({
             </span>,
           )}
         </Property>
-        {task.isDone && task.doneAt ? (
-          <Property label="Completed" icon={<CalendarDays />}>
-            {format(task.doneAt)}
-          </Property>
-        ) : null}
-        <Property label="Due" icon={<CalendarDays />}>
-          {edit("due", "Due", format(task.dueAt, task.hasDueTime))}
-        </Property>
-        <Property label="Start" icon={<Clock3 />}>
-          {edit("start", "Start", format(task.startAt))}
-        </Property>
-        <Property label="End" icon={<Clock3 />}>
-          {edit("end", "End", format(task.endAt))}
-        </Property>
-        <Property label="Timezone" icon={<Clock3 />}>
-          {task.timezone}
-        </Property>
       </dl>
+      <div className="space-y-2 border-t pt-3">
+        <h3 className="text-xs font-medium text-muted-foreground">Schedule</h3>
+        <dl className="space-y-1">
+          {task.isDone && task.doneAt ? (
+            <Property label="Completed" icon={<CalendarDays />}>
+              {format(task.doneAt)}
+            </Property>
+          ) : null}
+          <Property label="Due" icon={<CalendarDays />}>
+            {edit("due", "Due", format(task.dueAt, task.hasDueTime))}
+          </Property>
+          <Property label="Start" icon={<Clock3 />}>
+            {edit("start", "Start", format(task.startAt))}
+          </Property>
+          <Property label="End" icon={<Clock3 />}>
+            {edit("end", "End", format(task.endAt))}
+          </Property>
+          <Property label="Timezone" icon={<Clock3 />}>
+            {task.timezone}
+          </Property>
+        </dl>
+      </div>
       {task.recurrenceRule ? (
         <p className="mt-5 border-t pt-4 text-sm leading-relaxed text-muted-foreground">
           Repeats every {task.recurrenceRule.interval} {task.recurrenceRule.unit.toLowerCase()} from{" "}
@@ -150,8 +147,8 @@ function Property({
   children: ReactNode;
 }) {
   return (
-    <div className="grid min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] items-start gap-2 text-sm">
-      <dt className="flex items-center gap-2 text-muted-foreground">
+    <div className="grid min-h-9 min-w-0 grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-2 text-sm">
+      <dt className="flex items-center gap-2 text-xs text-muted-foreground">
         <span aria-hidden="true" className="shrink-0 [&>svg]:size-3.5">
           {icon}
         </span>
