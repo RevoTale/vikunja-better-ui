@@ -75,6 +75,35 @@ we use gofmt/goimports plus `lll`. Installed tools are pinned in `tools/go.mod`;
 Our diff gates also reject nonempty output: `go fix -diff` and formatter output
 alone can otherwise exit successfully despite suggesting changes.
 
+### Tool dependency compatibility
+
+The 2026-10-11 refresh keeps golangci-lint at its latest stable v2.14.0 and
+Task at v3.54.0. Three linter dependencies must retain the versions in
+[golangci-lint's upstream module](https://github.com/golangci/golangci-lint/blob/v2.14.0/go.mod):
+`github.com/gobwas/glob` v0.2.3, `github.com/nishanths/exhaustive` v0.13.0,
+and `github.com/nishanths/predeclared` v0.2.2. Their latest releases remove
+APIs that the current linter still imports, so an unconditional `go get -u tool`
+does not compile. Reevaluate these pins when upgrading the linter; do not
+disable rules or fork vendor code to force incompatible plugin versions.
+
+Refresh existing shadcn components with `pnpm dlx shadcn@latest add --overwrite`
+and the explicit installed component names. Keep application customizations in
+wrappers, not registry output. The 2026-10-11 refresh regenerated all 15 installed
+Base UI components and aligned all Lexical packages at v0.52.0.
+
+### Dependency audit exception
+
+On 2026-10-11, `pnpm audit` reports
+[GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm)
+in `braces` v3.0.3, through shadcn CLI and GraphQL Codegen. The npm registry
+and advisory have no published patched version. This is a build/development
+pattern-parser risk: task data is not passed to these tools, the browser imports
+only shadcn's CSS, and the production image contains the Go executable and
+compiled static assets, not Node.js or its dependency tree. Keep generation
+patterns repository-controlled; do not run these tools on untrusted patterns.
+The audit finding is not suppressed. Recheck on 2026-10-18 or the next dependency
+refresh, whichever comes first; use a published compatible fix when available.
+
 ## Commands and failures
 
 - `task quality:test`: positive/negative fixtures against the real tools.
