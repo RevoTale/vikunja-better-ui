@@ -33,7 +33,7 @@ export function TaskDetailCompletion({
       {!task.isDone && task.kind !== "INVALID" ? (
         <Button
           disabled={disabled}
-          className="min-h-11"
+          className="min-h-11 transition-none"
           aria-label={task.recurrenceRule ? "Complete occurrence" : "Complete task"}
           title={
             task.recurrenceRule

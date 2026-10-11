@@ -308,6 +308,11 @@ func compareLongTerm(left taskListCandidate, right taskListCandidate) int {
 	if result := compareTimeZeroLast(left.Task.DueDate, right.Task.DueDate); result != 0 {
 		return result
 	}
+	if left.Task.DueDate.IsZero() {
+		if result := cmp.Compare(right.Task.Priority, left.Task.Priority); result != 0 {
+			return result
+		}
+	}
 	return compareUnscheduled(left, right)
 }
 

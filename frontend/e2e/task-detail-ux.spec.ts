@@ -100,6 +100,14 @@ test("discussion supports readable recurring context and one-click occurrence co
   await expect(
     page.getByRole("button", { name: "Complete occurrence", exact: true }),
   ).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Complete occurrence", exact: true })).toHaveCSS(
+    "transition-property",
+    "none",
+  );
+  await expect(page.getByRole("button", { name: "Complete occurrence", exact: true })).toHaveCSS(
+    "opacity",
+    "1",
+  );
   await page.unrouteAll({ behavior: "wait" });
   const refreshed = page.waitForResponse(
     (response) =>
