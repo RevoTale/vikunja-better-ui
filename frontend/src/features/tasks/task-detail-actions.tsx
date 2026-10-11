@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
-import { Bug, SkipForward, Trash2 } from "lucide-react";
+import { Pencil, SkipForward } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import type { TaskDetailsQuery } from "@/graphql/graphql";
 import { cn } from "@/lib/utils";
 import { taskDetailActionPolicy } from "./task-detail-action-policy";
+import { TaskDetailMore } from "./task-detail-more";
 import { useTaskDetailActions } from "./use-task-detail-actions";
 
 type TaskDetail = NonNullable<TaskDetailsQuery["task"]>;
@@ -12,10 +13,12 @@ export function TaskDetailActions({
   task,
   returnTo,
   onChanged,
+  runAction,
 }: {
   task: TaskDetail;
   returnTo: string;
   onChanged: () => Promise<unknown>;
+  runAction: (action: () => Promise<void>) => Promise<void>;
 }) {
   const policy = taskDetailActionPolicy(task);
   const { pending, actionPending, repairCapability, notice, error, skipOccurrence, repairHistory } =
@@ -25,55 +28,33 @@ export function TaskDetailActions({
     <div className="flex flex-col items-start gap-2 sm:items-end">
       <fieldset className="flex flex-wrap gap-2">
         <legend className="sr-only">Task actions</legend>
-        <Link
-          to="/tasks/$taskId/discussion"
-          params={{ taskId: task.id }}
-          search={{ returnTo }}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-        >
-          Discussion
-        </Link>
         {!task.isDone && !pending ? (
           <Link
             to="/tasks/$taskId/edit"
             params={{ taskId: task.id }}
             search={{ returnTo }}
-            className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+            className={cn(buttonVariants({ variant: "outline", size: "sm" }), "min-h-11")}
           >
-            Edit
+            <Pencil aria-hidden="true" /> Edit
           </Link>
         ) : null}
-        <Link
-          to="/tasks/$taskId/extended"
-          params={{ taskId: task.id }}
-          search={{ returnTo }}
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-        >
-          <Bug /> Extended
-        </Link>
         {policy.canSkip ? (
-          <Button size="sm" variant="outline" disabled={pending} onClick={skipOccurrence}>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="min-h-11"
+            disabled={pending}
+            onClick={() => void runAction(skipOccurrence)}
+          >
             <SkipForward /> {actionPending === "skip" ? "Skipping…" : "Skip"}
           </Button>
         ) : null}
-        {policy.canDelete ? (
-          <Link
-            to="/tasks/$taskId/delete"
-            params={{ taskId: task.id }}
-            search={{ returnTo }}
-            aria-disabled={pending}
-            tabIndex={pending ? -1 : 0}
-            onClick={(event) => {
-              if (pending) event.preventDefault();
-            }}
-            className={cn(
-              buttonVariants({ variant: "outline", size: "sm" }),
-              pending && "pointer-events-none opacity-50",
-            )}
-          >
-            <Trash2 /> Delete
-          </Link>
-        ) : null}
+        <TaskDetailMore
+          taskId={task.id}
+          returnTo={returnTo}
+          canDelete={policy.canDelete}
+          pending={pending}
+        />
       </fieldset>
       {notice ? (
         <p className="max-w-md text-sm text-muted-foreground" role="status">
@@ -86,7 +67,12 @@ export function TaskDetailActions({
         </p>
       ) : null}
       {repairCapability ? (
-        <Button size="sm" variant="outline" disabled={pending} onClick={repairHistory}>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={pending}
+          onClick={() => void runAction(repairHistory)}
+        >
           {actionPending === "repair" ? "Repairing…" : "Repair recurring task"}
         </Button>
       ) : null}

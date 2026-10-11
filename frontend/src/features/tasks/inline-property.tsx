@@ -41,7 +41,7 @@ export function InlineProperty({
       <PopoverTrigger
         aria-label={`Edit ${label.toLowerCase()}`}
         disabled={editor.pending || editor.blocked || (editor.active !== null && !open)}
-        className="-mx-1 max-w-full rounded-sm px-1 text-left hover:bg-muted/70 focus-visible:outline-2 focus-visible:outline-ring"
+        className="-mx-1 min-h-9 w-full max-w-full rounded-sm px-1 text-left hover:bg-muted/70 focus-visible:outline-2 focus-visible:outline-ring"
       >
         {children}
       </PopoverTrigger>

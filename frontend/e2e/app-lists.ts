@@ -116,13 +116,15 @@ test("skip and delete actions preserve recurring history in Vikunja", async ({ p
   await expectGraphQLDeleteRejected(page, String(snapshot.id), "TASK_NOT_ACTIVE");
 
   await page.goto(`/tasks/${taskID}?returnTo=%2Ftoday`);
-  await page.getByRole("link", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "More task actions", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
   await expect(page.getByRole("heading", { name: `Delete ${title}?` })).toBeVisible();
   await page.getByRole("link", { name: "Cancel" }).click();
   await expect(page).toHaveURL(new RegExp(`/tasks/${taskID}`));
   expect((await vikunjaTask(taskID)).id).toBe(Number(taskID));
 
-  await page.getByRole("link", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "More task actions", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
   await page.getByRole("button", { name: "Delete task", exact: true }).click();
   await expect(page).toHaveURL(/\/today/);
   expect(await vikunjaTaskStatus(taskID)).toBe(404);
@@ -130,7 +132,8 @@ test("skip and delete actions preserve recurring history in Vikunja", async ({ p
 
   const oneTimeTitle = `Delete one-time E2E ${Date.now()}`;
   const oneTimeID = await createTask(page, "one-time task", oneTimeTitle);
-  await page.getByRole("link", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "More task actions", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
   await page.getByRole("button", { name: "Delete task", exact: true }).click();
   await expect(page).toHaveURL(/\/today/);
   expect(await vikunjaTaskStatus(oneTimeID)).toBe(404);

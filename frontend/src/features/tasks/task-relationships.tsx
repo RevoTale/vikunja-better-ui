@@ -26,7 +26,7 @@ export function TaskRelationships({ parent }: { parent: SubtaskParent }) {
   const returnTo = `/tasks/${taskId}`;
   const error = relationFailure(actions.error, actions.query.error);
   return (
-    <div className="mt-6 space-y-5 border-t pt-4" aria-busy={actions.query.loading}>
+    <div className="mt-4 space-y-3 border-t pt-3" aria-busy={actions.query.loading}>
       {error ? (
         <div role="alert" className="text-sm text-destructive">
           {error}

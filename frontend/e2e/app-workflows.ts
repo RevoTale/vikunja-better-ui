@@ -30,7 +30,8 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await expectDateOnlyTask(oneTimeId);
   expect((await vikunjaTask(oneTimeId)).priority).toBe(3);
   await expect(page.getByText(displayDate(localDate()), { exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "Extended" }).click();
+  await page.getByRole("button", { name: "More task actions", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Extended", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Extended properties" })).toBeVisible();
   await expect(
     page.getByText("Task ID").locator("..").getByText(oneTimeId, { exact: true }),
