@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.6.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.5.0...v2.6.0) (2026-10-11)
+
+
+### Features
+
+* **tasks:** streamline task detail actions and layout ([6705804](https://github.com/RevoTale/vikunja-better-ui/commit/6705804e8e058b2cd58e5dd42f1df1855dfad0ed))
+
 ## [2.5.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.4.0...v2.5.0) (2026-10-09)
 
 
