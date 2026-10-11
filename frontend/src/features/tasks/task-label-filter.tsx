@@ -1,7 +1,7 @@
 import { useQuery } from "@apollo/client/react";
-import { AppSelect } from "@/components/app-select";
 import { TaskLabelsDocument } from "@/graphql/graphql";
 import { cn } from "@/lib/utils";
+import { TaskLabelCombobox } from "./task-label-combobox";
 import { taskLabelOptions } from "./task-label-options";
 
 export function TaskLabelFilter({
@@ -17,20 +17,20 @@ export function TaskLabelFilter({
     fetchPolicy: "cache-and-network",
   });
   const labels = data?.taskLabels ?? [];
+  const options = [
+    { value: "all", label: "All labels" },
+    ...(value !== "all" && !labels.some((label) => label.id === value)
+      ? [{ value, label: `Label #${value}` }]
+      : []),
+    ...taskLabelOptions(labels),
+  ];
   return (
     <div className={cn("mt-3 min-w-0 max-w-sm", className)} aria-busy={loading}>
-      <AppSelect
-        aria-label="Filter by label"
-        className="sm:h-9!"
+      <TaskLabelCombobox
+        options={options}
         value={value}
-        options={[
-          { value: "all", label: "All labels" },
-          ...(value !== "all" && !labels.some((label) => label.id === value)
-            ? [{ value, label: `Label #${value}` }]
-            : []),
-          ...taskLabelOptions(labels),
-        ]}
-        onValueChange={onChange}
+        loading={loading && !data}
+        onChange={onChange}
       />
       {error ? (
         <p role="alert" className="text-sm text-destructive">

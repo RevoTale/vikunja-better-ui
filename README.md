@@ -176,7 +176,8 @@ button explicitly returns to the current week and scrolls to today's heading.
 **Long term** replaces **No date** and includes both **Later** (active tasks due
 strictly after now plus seven calendar days) and **No deadline** tasks. The
 cutoff uses the Vikunja timezone, including DST. Later tasks sort by due time;
-undated tasks follow. These sections share pagination and project/label filters.
+undated tasks follow, sorted by priority (highest first), then project, title and ID.
+These sections share pagination and project/label filters.
 Existing `/unscheduled` links open Long term; GraphQL `UNSCHEDULED` retains its
 original no-deadline behavior. The additive `LONG_TERM` scope provides both.
 
@@ -241,7 +242,10 @@ association with that task, not the label itself. Completed history stays read-o
 
 **Today**, selected days and **Long term** have a single **Filter by label** control. It includes
 tasks with that label and combines with the project filter. **All labels** clears
-the filter. The label ID is stored in the URL and retained through pagination and
+the filter. This searchable combobox filters locally as you type; only selecting
+a label changes the task filter. Its scrollable list stays within the viewport,
+and long label titles wrap without widening the page. Escape cancels the search.
+The label ID is stored in the URL and retained through pagination and
 return navigation. Duplicate titles show their IDs; titles are not identifiers.
 
 Internal `vbu:*` labels are hidden from these controls and protected on
