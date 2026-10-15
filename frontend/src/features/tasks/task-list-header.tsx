@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
-import { AppSelect } from "@/components/app-select";
 import type { ProjectsQuery } from "@/graphql/graphql";
 import type { ListSearch } from "./list-search";
-import { TaskLabelFilter } from "./task-label-filter";
+import { TaskListFilters } from "./task-list-filters";
 
 export function TaskListHeader({
   title,
   description,
   projects,
   supportsLabels,
+  supportsPriority,
   search,
   setSearch,
   navigation,
@@ -17,6 +17,7 @@ export function TaskListHeader({
   description: string;
   projects: ProjectsQuery["projects"]["items"];
   supportsLabels: boolean;
+  supportsPriority: boolean;
   search: ListSearch;
   setSearch: (search: ListSearch) => void;
   navigation?: ReactNode;
@@ -30,27 +31,13 @@ export function TaskListHeader({
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>
       {navigation}
-      <div className="mt-3 grid min-w-0 grid-cols-2 gap-2 sm:flex sm:max-w-md">
-        <AppSelect
-          aria-label="Project"
-          className="sm:h-9! sm:w-48"
-          value={search.project}
-          options={[
-            { value: "all", label: "All projects" },
-            ...projects.map((project) => ({ value: project.id, label: project.title })),
-          ]}
-          onValueChange={(project) => setSearch({ ...search, project, page: 1 })}
-        />
-        {supportsLabels ? (
-          <TaskLabelFilter
-            className="mt-0 sm:w-48"
-            value={search.label ?? "all"}
-            onChange={(label) =>
-              setSearch({ project: search.project, page: 1, ...(label !== "all" ? { label } : {}) })
-            }
-          />
-        ) : null}
-      </div>
+      <TaskListFilters
+        projects={projects}
+        supportsLabels={supportsLabels}
+        supportsPriority={supportsPriority}
+        search={search}
+        setSearch={setSearch}
+      />
     </div>
   );
 }

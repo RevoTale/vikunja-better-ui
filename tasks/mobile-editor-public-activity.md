@@ -13,7 +13,7 @@ links; investigate creation fields being cleared; add opt-in public activity.
   IDs, descriptions, users, projects or configurable query filters.
 - Disabled by default through `APP_PUBLIC_ACTIVITY_ENABLED=false`.
 - Browser application data remains GraphQL. A single fixed aggregate is cached
-  server-side for ten minutes; no retained task collections or persistence.
+  server-side for one hour; no retained task collections or persistence.
 - Preserve mobile touch targets, multiline content, local table/code scrolling,
   loading geometry and existing recurrence renewal/repair semantics.
 - No commits, dependency additions, or generated UI edits.

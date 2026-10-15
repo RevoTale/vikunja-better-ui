@@ -10,5 +10,9 @@ query TaskReuseValues($job: Boolean!, $recurring: Boolean!) {
     }
     durationMinutes
     completionWindowMinutes
+    dueDate
+    dueTime
+    startDate
+    startTime
   }
 }

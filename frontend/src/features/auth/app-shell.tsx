@@ -19,6 +19,7 @@ import {
   type ActionableCountState,
 } from "@/features/tasks/actionable-count-badge";
 import { createActionForPath } from "@/features/tasks/create-action";
+import { creationContext } from "@/features/tasks/creation-context";
 import { useActionableCount } from "@/features/tasks/use-actionable-count";
 import { LogoutDocument, SessionDocument } from "@/graphql/graphql";
 import { setCSRFToken } from "@/lib/apollo";
@@ -106,7 +107,11 @@ export function AppShell() {
           <Link
             className={cn(buttonVariants({ size: "sm" }))}
             to="/tasks/new"
-            search={{ type: createAction.type, returnTo }}
+            search={{
+              type: createAction.type,
+              returnTo,
+              ...creationContext(location.pathname, location.searchStr),
+            }}
           >
             <Plus /> {createAction.label}
           </Link>

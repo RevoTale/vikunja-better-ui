@@ -15,6 +15,16 @@ func (r *queryResolver) Day(ctx context.Context, input model.DayInput) (*model.D
 	if _, err := requireSession(ctx); err != nil {
 		return nil, err
 	}
+	priority, err := selectedTaskPriority(input.Priority, model.TaskScopeToday)
+	if err != nil {
+		return nil, err
+	}
+	return r.filteredDay(ctx, input, priority)
+}
+
+func (r *queryResolver) filteredDay(
+	ctx context.Context, input model.DayInput, priority *int64,
+) (*model.DayView, error) {
 	userRead := concurrent.Start(func() (vikunja.User, error) { return r.users.CurrentUser(ctx) })
 	projectsRead := concurrent.Start(func() ([]vikunja.Project, error) { return r.projects.Projects(ctx) })
 	labels, err := r.selectedTaskLabel(ctx, input.LabelID, model.TaskScopeToday)
@@ -44,7 +54,7 @@ func (r *queryResolver) Day(ctx context.Context, input model.DayInput) (*model.D
 	}
 	result, err := service.ListDay(ctx, r.tasks, service.WeekRequest{
 		Containing: date, Now: now, Location: location, Timezone: user.Settings.Timezone,
-		ProjectID: projectID, LabelIDs: labels,
+		ProjectID: projectID, LabelIDs: labels, Priority: priority,
 	})
 	if err != nil {
 		r.logError("list day", err)

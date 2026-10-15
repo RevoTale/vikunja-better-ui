@@ -57,7 +57,7 @@ export async function expectTaskRowLayout(page: Page, title: string, label: stri
   if (isPhone) {
     const headerBox = await page.locator("header").boundingBox();
     const headingBox = await page.getByRole("heading", { name: "Today" }).boundingBox();
-    const filterBox = await page.getByLabel("Filter by label", { exact: true }).boundingBox();
+    const filterBox = await page.getByLabel("Filter by priority", { exact: true }).boundingBox();
     const firstCardBox = await page.locator('[data-slot="card"]').first().boundingBox();
     const invalidKind = page.getByText("Invalid: history snapshot still repeats", {
       exact: true,

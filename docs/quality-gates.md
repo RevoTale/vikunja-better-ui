@@ -124,3 +124,7 @@ suite. Reproduce an order-dependent Go failure with its printed seed:
 When splitting tests, retain assertions, setup/cleanup scope, fixture isolation
 and required ordering. The application E2E suite imports its scenario modules
 through one entrypoint so completion/history checks retain their sequence.
+
+Runner resource budgets, repeatable measurements and rejected experiments are
+recorded in [Test resource policy](test-performance.md). File isolation, race
+detection and browser coverage must not be reduced as a performance shortcut.

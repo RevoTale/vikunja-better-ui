@@ -19,7 +19,6 @@ describe("creation settings refresh", () => {
           initialJob={false}
           projects={[{ id: "1", title: "Work", isDefault: true }]}
           defaultProject="1"
-          explicitProjectId={undefined}
           timezone="Europe/Kyiv"
           defaultDate="2026-10-04"
           initialDate={undefined}

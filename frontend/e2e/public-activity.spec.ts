@@ -5,11 +5,11 @@ type Activity = {
   total: number;
   generatedAt: string;
   refreshAt: string;
-  days: { date: string; count: number }[];
+  days: { date: string; count: number; completedWithDeadline: number; completedOnTime: number }[];
   priorities: { priority: string; count: number }[];
 };
 const query = `query { publicActivity {
-  total generatedAt refreshAt days { date count } priorities { priority count }
+  total generatedAt refreshAt days { date count completedWithDeadline completedOnTime } priorities { priority count }
 } }`;
 
 test("public activity supports anonymous fixed aggregates without task access", async ({
@@ -39,7 +39,12 @@ test("public activity supports anonymous fixed aggregates without task access", 
   expect(activity.priorities.reduce((sum, item) => sum + item.count, 0)).toBe(activity.total);
   expect(
     new Date(activity.refreshAt).getTime() - new Date(activity.generatedAt).getTime(),
-  ).toBeGreaterThanOrEqual(600_000);
+  ).toBeGreaterThanOrEqual(3_600_000);
+  for (const day of activity.days) {
+    expect(day.completedOnTime).toBeGreaterThanOrEqual(0);
+    expect(day.completedOnTime).toBeLessThanOrEqual(day.completedWithDeadline);
+    expect(day.completedWithDeadline).toBeLessThanOrEqual(day.count);
+  }
   const rejected = await page.request.post("/graphql", {
     headers: { Origin: new URL(page.url()).origin },
     data: { query: '{ task(id: "1") { title } }' },
@@ -73,11 +78,11 @@ test("public activity keeps chart geometry while loading", async ({ page }) => {
   });
   await page.goto("/activity");
   const placeholders = page.getByRole("status", { name: "Loading activity" }).locator("span");
-  await expect(placeholders).toHaveCount(2);
+  await expect(placeholders).toHaveCount(3);
   const boxes = await Promise.all((await placeholders.all()).map((item) => item.boundingBox()));
   release();
-  const cards = page.locator("main section");
-  await expect(cards).toHaveCount(2);
+  const cards = page.locator("main > section");
+  await expect(cards).toHaveCount(3);
   for (const [index, card] of (await cards.all()).entries()) {
     expect(await card.boundingBox()).toEqual(boxes[index]);
   }

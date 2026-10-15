@@ -233,6 +233,7 @@ type TaskDiagnostics {
 }
 
 input TaskListInput {
+  priority: TaskPriority
   labelId: ID
   scope: TaskScope!
   projectId: ID
@@ -246,6 +247,7 @@ input WeekInput {
 }
 
 input DayInput {
+  priority: TaskPriority
   date: LocalDate!
   projectId: ID
   labelId: ID
@@ -355,7 +357,7 @@ input RepairTaskMetadataInput {
   capability: String!
 }
 
-"Explicit per-field reuse, never automatic form defaults. No schedule dates are exposed."
+"Explicit per-field reuse, never automatic form defaults. Schedule values use the Vikunja user's timezone."
 type TaskReuseValues {
   taskId: ID!
   title: String!
@@ -364,6 +366,10 @@ type TaskReuseValues {
   labels: [Label!]!
   durationMinutes: Int
   completionWindowMinutes: Int
+  dueDate: LocalDate
+  dueTime: LocalTime
+  startDate: LocalDate
+  startTime: LocalTime
 }
 
 type Query {

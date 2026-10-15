@@ -54,6 +54,7 @@ tasks:
     desc: Verify quality gates reject invalid inputs
     cmds:
       - node --test tests/quality/*.test.mjs
+      - node --test tests/e2e/harness/*.test.mjs
 
   go:format:check:
     desc: Check Go formatting without modifying files

@@ -1,6 +1,34 @@
 extend type Query {
   "Anonymous, fixed-window completion counts; null when the feature is disabled."
   publicActivity: PublicActivity
+  "Anonymous weekly all-history aggregates; null when independently disabled. No filter arguments."
+  publicAllTimeActivity: PublicAllTimeActivity
+}
+
+type PublicAllTimeActivity {
+  weeks: [ActivityWeek!]!
+  priorities: [ActivityPriority!]!
+  total: Int!
+  timezone: String!
+  generatedAt: DateTime!
+  refreshAt: DateTime!
+}
+
+type ActivityWeek {
+  "Monday calendar date in the token owner's timezone; the current week is partial."
+  date: String!
+  count: Int!
+  completedWithDeadline: Int!
+  completedOnTime: Int!
+  "Nonempty priority cohorts for client-side filtering without extra upstream reads."
+  priorities: [ActivityPriorityTimeliness!]!
+}
+
+type ActivityPriorityTimeliness {
+  priority: TaskPriority!
+  count: Int!
+  completedWithDeadline: Int!
+  completedOnTime: Int!
 }
 
 type PublicActivity {
@@ -15,6 +43,10 @@ type PublicActivity {
 type ActivityDay {
   date: String!
   count: Int!
+  "Completed tasks with a stored deadline, grouped by completion day."
+  completedWithDeadline: Int!
+  "Eligible completions at or before their stored deadline."
+  completedOnTime: Int!
 }
 
 type ActivityPriority {

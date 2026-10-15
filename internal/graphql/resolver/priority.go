@@ -51,3 +51,21 @@ func priorityValue(priority model.TaskPriority) (int64, error) {
 	}
 	return 0, fmt.Errorf("unsupported GraphQL priority %q", priority)
 }
+
+func selectedTaskPriority(priority *model.TaskPriority, scope model.TaskScope) (*int64, error) {
+	if priority == nil {
+		return nil, nil
+	}
+	switch scope {
+	case model.TaskScopeToday, model.TaskScopeLongTerm, model.TaskScopeUnscheduled, model.TaskScopeJobs:
+	case model.TaskScopeWeek, model.TaskScopeMonth, model.TaskScopeHistory:
+		return nil, clientError("VALIDATION_FAILED", "Priority filtering is not available for this list.")
+	default:
+		return nil, clientError("VALIDATION_FAILED", "Priority filtering is not available for this list.")
+	}
+	value, err := priorityValue(*priority)
+	if err != nil {
+		return nil, clientError("VALIDATION_FAILED", "Priority is invalid.")
+	}
+	return &value, nil
+}

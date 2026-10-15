@@ -22,6 +22,7 @@ export type ChangeTaskCreationField = <Field extends keyof TaskCreationValues>(
 export function defaultTaskCreationValues(context: {
   job: boolean;
   projectId: string;
+  priority?: TaskPriority;
   today: string;
   date: string | undefined;
   jobStart: { date: string; time: string };
@@ -30,7 +31,7 @@ export function defaultTaskCreationValues(context: {
     job: context.job,
     title: "",
     projectId: context.projectId,
-    priority: "UNSET",
+    priority: context.priority ?? "UNSET",
     dueDate: context.date ?? "",
     dueTime: "",
     firstDueDate: context.date ?? context.today,

@@ -31,6 +31,7 @@ test("task labels support explicit reuse without overwriting typed fields", asyn
   await expect(page.locator('input[name="durationMinutes"]')).toHaveValue("240");
   await expect(page.getByLabel("Title (optional)")).toHaveValue("Keep my text");
   await expect(page.locator('input[name="startDate"]')).toHaveValue("2026-10-08");
+  await reuseStartSchedule(page);
   await page.getByRole("checkbox", { name: "focus", exact: true }).check();
   await page.getByRole("button", { name: "Use last labels", exact: true }).click();
   await page.getByRole("button", { name: "Use last labels", exact: true }).click();
@@ -221,4 +222,14 @@ async function seedReuseChoices(page: Page, csrfToken: string, labelId: string |
       csrfToken,
     );
   }
+}
+
+async function reuseStartSchedule(page: Page) {
+  await page.getByLabel("Start time", { exact: true }).fill("12:45");
+  await page.getByRole("button", { name: "Use last start time", exact: true }).click();
+  await expect(page.getByLabel("Start time", { exact: true })).toHaveValue("09:00");
+  await expect(page.locator('input[name="startDate"]')).toHaveValue("2026-10-08");
+  await page.getByRole("button", { name: "Use last start date", exact: true }).click();
+  await expect(page.locator('input[name="startDate"]')).toHaveValue("2026-10-06");
+  await expect(page.getByLabel("Start time", { exact: true })).toHaveValue("09:00");
 }

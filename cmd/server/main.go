@@ -49,12 +49,19 @@ func run(configuration config.Config, logger *slog.Logger) error {
 	vikunjaClient := vikunja.NewClient(
 		configuration.VikunjaURL, configuration.VikunjaAPIToken, vikunja.WithLogger(logger),
 	)
+	if err := vikunjaClient.RequireSupportedVersion(context.Background()); err != nil {
+		return err
+	}
 	sessions := auth.NewSessionManager(configuration.SessionSecret, now, rand.Reader)
 	cookies := auth.NewSessionCookies(production)
 	capabilities := service.NewCapabilityManager(configuration.SessionSecret, now)
 	var activity *service.PublicActivity
 	if configuration.PublicActivityEnabled {
 		activity = service.NewPublicActivity(vikunjaClient, now)
+	}
+	var allTimeActivity *service.PublicAllTimeActivity
+	if configuration.PublicAllTimeActivityEnabled {
+		allTimeActivity = service.NewPublicAllTimeActivity(vikunjaClient, now)
 	}
 	root := resolver.New(resolver.Dependencies{
 		Use12HourTime: configuration.Use12HourTime,
@@ -68,7 +75,7 @@ func run(configuration config.Config, logger *slog.Logger) error {
 			BetterUI: configuration.AllowedOrigin, Vikunja: configuration.VikunjaPublicURL,
 		},
 		Capabilities: capabilities, Logger: logger, Now: now,
-		Activity: activity,
+		Activity: activity, AllTimeActivity: allTimeActivity,
 	})
 
 	mux := http.NewServeMux()

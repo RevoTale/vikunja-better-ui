@@ -10,6 +10,15 @@ const context = {
 };
 
 describe("task creation defaults", () => {
+  it("uses explicit priority without recalling unrelated fields", () => {
+    expect(defaultTaskCreationValues({ ...context, priority: "HIGH" })).toMatchObject({
+      priority: "HIGH",
+      title: "",
+      dueDate: "",
+      projectId: "7",
+    });
+    expect(defaultTaskCreationValues({ ...context, priority: "UNSET" }).priority).toBe("UNSET");
+  });
   it("starts unscheduled with no title or priority", () => {
     expect(defaultTaskCreationValues(context)).toMatchObject({
       job: false,

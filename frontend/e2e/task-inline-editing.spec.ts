@@ -230,6 +230,7 @@ test("discussion supports confirmed saves when a subsequent refresh fails", asyn
 
 async function saveProperty(page: Page) {
   await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Changes saved." })).toHaveCount(1);
   await expect(page.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
 }
 

@@ -40,6 +40,7 @@ type ListRequest struct {
 	IncludeCommentCount bool
 	Scope               TaskScope
 	ProjectID           *int64
+	Priority            *int64
 	Page                int
 	PageSize            int
 	Now                 time.Time
@@ -149,6 +150,7 @@ func listCandidates(ctx context.Context, client taskListClient, request ListRequ
 		candidates = filterCandidatesByCompletionRange(candidates, request.CompletedFrom, request.CompletedBefore)
 	}
 	candidates = filterCandidatesByAnyLabelID(candidates, request.FilterLabelIDs)
+	candidates = filterCandidatesByPriority(candidates, request.Priority)
 	sortTaskList(candidates, request.Scope, request.Now)
 	return completeCandidateList(request, candidates), nil
 }
@@ -348,6 +350,7 @@ func candidateTaskQuery(request ListRequest) vikunja.TaskQuery {
 	case TaskScopeHistory:
 	}
 	filterParts = appendProjectFilter(filterParts, request.ProjectID)
+	filterParts = appendPriorityFilter(filterParts, request.Priority)
 	if len(request.FilterLabelIDs) > 0 &&
 		(request.Scope == TaskScopeToday || request.Scope == TaskScopeUnscheduled || request.Scope == TaskScopeLongTerm) {
 		filterParts = append(filterParts, "labels in "+joinIDs(request.FilterLabelIDs))
@@ -417,6 +420,9 @@ func incompleteList(request ListRequest, code ListIssueCode, cause error) ListRe
 }
 
 func validateListRequest(request ListRequest) error {
+	if err := validatePriority(request.Priority); err != nil {
+		return err
+	}
 	if request.Page < 1 || request.PageSize < 1 || request.PageSize > 100 {
 		return errors.New("page and page size are invalid")
 	}

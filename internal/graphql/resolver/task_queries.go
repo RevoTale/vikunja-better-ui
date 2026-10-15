@@ -16,6 +16,16 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 	if _, err := requireSession(ctx); err != nil {
 		return nil, err
 	}
+	priority, err := selectedTaskPriority(input.Priority, input.Scope)
+	if err != nil {
+		return nil, err
+	}
+	return r.filteredTasks(ctx, input, priority)
+}
+
+func (r *queryResolver) filteredTasks(
+	ctx context.Context, input model.TaskListInput, priority *int64,
+) (*model.TaskPage, error) {
 	includeLabels := input.Scope == model.TaskScopeJobs
 	userRead := concurrent.Start(func() (vikunja.User, error) { return r.users.CurrentUser(ctx) })
 	projectsRead := concurrent.Start(func() ([]vikunja.Project, error) { return r.projects.Projects(ctx) })
@@ -57,7 +67,7 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 		Page: input.Page, PageSize: input.PageSize, Now: r.now(),
 		Location: location, Timezone: user.Settings.Timezone,
 		WeekStart: time.Weekday(user.Settings.WeekStart), ProjectTitles: projectTitleMap(projects),
-		JobLabelIDs: jobLabelIDs, FilterLabelIDs: filterLabelIDs,
+		JobLabelIDs: jobLabelIDs, FilterLabelIDs: filterLabelIDs, Priority: priority,
 	})
 	if err != nil {
 		r.logError("list tasks", err)

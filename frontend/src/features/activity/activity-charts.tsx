@@ -1,5 +1,6 @@
 import { taskPriorityOption } from "@/features/tasks/task-priority";
 import type { PublicActivityQuery } from "@/graphql/graphql";
+import { ActivityOnTimeChart } from "./activity-on-time-chart";
 
 type Activity = NonNullable<PublicActivityQuery["publicActivity"]>;
 const colors = ["var(--muted-foreground)", "#0284c7", "#16a34a", "#d97706", "#dc2626", "#9333ea"];
@@ -12,6 +13,7 @@ export const activityChartLayout = {
 export function ActivityCharts({ activity }: { activity: Activity }) {
   return (
     <>
+      <ActivityOnTimeChart days={activity.days} />
       <DailyChart activity={activity} />
       <PriorityChart activity={activity} />
     </>
@@ -71,7 +73,7 @@ function DailyChart({ activity }: { activity: Activity }) {
   );
 }
 
-function PriorityChart({ activity }: { activity: Activity }) {
+export function PriorityChart({ activity }: { activity: Pick<Activity, "total" | "priorities"> }) {
   let offset = 0;
   return (
     <section

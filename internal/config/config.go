@@ -39,18 +39,19 @@ const (
 
 // Config contains validated server settings and backend-only credentials.
 type Config struct {
-	VikunjaURL            *url.URL
-	VikunjaPublicURL      *url.URL
-	VikunjaAPIToken       string
-	AuthUsername          string
-	AuthPassword          string
-	SessionSecret         []byte
-	HTTPAddr              string
-	LogLevel              LogLevel
-	Environment           Environment
-	AllowedOrigin         *url.URL
-	PublicActivityEnabled bool
-	Use12HourTime         bool
+	VikunjaURL                   *url.URL
+	VikunjaPublicURL             *url.URL
+	VikunjaAPIToken              string
+	AuthUsername                 string
+	AuthPassword                 string
+	SessionSecret                []byte
+	HTTPAddr                     string
+	LogLevel                     LogLevel
+	Environment                  Environment
+	AllowedOrigin                *url.URL
+	PublicActivityEnabled        bool
+	PublicAllTimeActivityEnabled bool
+	Use12HourTime                bool
 }
 
 // LookupFunc reads an environment variable without coupling validation to the process.
@@ -107,16 +108,25 @@ func Load(lookup LookupFunc) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	configuration.PublicActivityEnabled, err = parsePublicActivity(lookup)
-	if err != nil {
-		return Config{}, err
-	}
-	configuration.Use12HourTime, err = parseTimeFormat(lookup)
-	if err != nil {
+	if err := loadPresentationFlags(&configuration, lookup); err != nil {
 		return Config{}, err
 	}
 
 	return configuration, nil
+}
+
+func loadPresentationFlags(configuration *Config, lookup LookupFunc) error {
+	var err error
+	configuration.PublicActivityEnabled, err = parsePublicActivity(lookup)
+	if err != nil {
+		return err
+	}
+	configuration.PublicAllTimeActivityEnabled, err = parseBooleanFlag(lookup, "PUBLIC_ALL_TIME_ACTIVITY")
+	if err != nil {
+		return err
+	}
+	configuration.Use12HourTime, err = parseTimeFormat(lookup)
+	return err
 }
 
 func parseTimeFormat(lookup LookupFunc) (bool, error) {
@@ -131,13 +141,17 @@ func parseTimeFormat(lookup LookupFunc) (bool, error) {
 }
 
 func parsePublicActivity(lookup LookupFunc) (bool, error) {
-	switch valueOrDefault(lookup, "APP_PUBLIC_ACTIVITY_ENABLED", "false") {
+	return parseBooleanFlag(lookup, "APP_PUBLIC_ACTIVITY_ENABLED")
+}
+
+func parseBooleanFlag(lookup LookupFunc, name string) (bool, error) {
+	switch valueOrDefault(lookup, name, "false") {
 	case "false":
 		return false, nil
 	case "true":
 		return true, nil
 	default:
-		return false, errors.New("APP_PUBLIC_ACTIVITY_ENABLED must be true or false")
+		return false, fmt.Errorf("%s must be true or false", name)
 	}
 }
 

@@ -24,6 +24,10 @@ func (r *queryResolver) TaskReuseValues(ctx context.Context, job bool, recurring
 	if task == nil {
 		return nil, nil
 	}
+	location, err := time.LoadLocation(user.Settings.Timezone)
+	if err != nil || user.Settings.Timezone == "" {
+		return nil, clientError("UPSTREAM_UNAVAILABLE", "Previous task has an invalid timezone.")
+	}
 	priority, err := priorityModel(task.Priority)
 	if err != nil {
 		return nil, clientError("UPSTREAM_UNAVAILABLE", "Previous task has an unsupported priority.")
@@ -35,6 +39,8 @@ func (r *queryResolver) TaskReuseValues(ctx context.Context, job bool, recurring
 		Priority:  priority,
 		Labels:    []*model.Label{},
 	}
+	result.DueDate, result.DueTime = reuseSchedule(task.DueDate, location, service.ClassifyTask(*task).DateOnly)
+	result.StartDate, result.StartTime = reuseSchedule(task.StartDate, location, false)
 	for _, label := range task.Labels {
 		if !service.IsInternalLabel(label.Title) {
 			result.Labels = append(result.Labels, &model.Label{ID: strconv.FormatInt(label.ID, 10), Title: label.Title})
@@ -45,6 +51,19 @@ func (r *queryResolver) TaskReuseValues(ctx context.Context, job bool, recurring
 		result.CompletionWindowMinutes = reuseMinutes(task.EndDate, task.DueDate)
 	}
 	return result, nil
+}
+
+func reuseSchedule(instant time.Time, location *time.Location, dateOnly bool) (*model.LocalDate, *model.LocalTime) {
+	if instant.IsZero() {
+		return nil, nil
+	}
+	local := instant.In(location)
+	date := model.LocalDate(local.Format(time.DateOnly))
+	if dateOnly {
+		return &date, nil
+	}
+	clock := model.LocalTime(local.Format("15:04"))
+	return &date, &clock
 }
 
 func reuseMinutes(start, end time.Time) *int {
