@@ -38,6 +38,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   ).toBeVisible();
 
   await page.goto("/today");
+  await findTaskInPaginatedList(page, invalidTitle);
   await expect(page.getByText(invalidTitle, { exact: true })).toBeVisible();
   await expect(
     page.getByText("Invalid: history snapshot still repeats", { exact: true }),

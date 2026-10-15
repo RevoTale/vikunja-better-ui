@@ -1,13 +1,15 @@
 # Woodpecker CI
 
 One workflow replaces the three GitHub Actions workflows. It provisions pinned
-Go/pnpm tools and runs the existing Task gates on pull requests and `main`.
-After a successful `main` push, an official Woodpecker plugin maintains the
-release PR. Its release tag starts a separate tag pipeline that publishes the
-multi-architecture image through an official Woodpecker plugin. The shared
-workspace carries toolchains and caches between containers; no host paths,
-Docker socket, Docker-in-Docker service, or privileged steps are required. Go,
-pnpm and Node images match the production build's pinned versions.
+Go/pnpm tools and runs the existing Task gates on pull requests, `main`, and
+`v*` release tags. Pull requests and `main` also run a no-push production-image
+build. A release tag repeats every Task gate before the production image is
+built and published. After a successful `main` push, an official Woodpecker
+plugin maintains the release PR. Its release tag creates the multi-architecture
+image and a GitHub Release with generated release notes. The shared workspace
+carries toolchains and caches between containers; no host paths, Docker socket,
+Docker-in-Docker service, or privileged steps are required. Go, pnpm and Node
+images match the production build's pinned versions.
 
 ## One-time setup
 
@@ -37,16 +39,19 @@ These are server/repository settings, not changes the YAML can apply for you.
 `required-checks` installs the frozen frontend dependencies and both Playwright
 browsers, then runs `task gen:check`, `task validate`, `task test`, and
 `task e2e`. `production-image` subsequently performs a no-push multi-platform
-Buildx build, validating the production Dockerfile without Docker-in-Docker or
-privileged mode. `task image:smoke` remains the local release-candidate check:
-it starts an isolated Vikunja info fixture and verifies the running image.
+Buildx build on pull requests and `main`, validating the production Dockerfile
+without Docker-in-Docker or privileged mode. The tag pipeline repeats
+`required-checks`; only then does its production Buildx step publish the image.
+`task image:smoke` remains the local release-candidate check: it starts an
+isolated Vikunja info fixture and verifies the running image.
 
 The official `ready-release-go` plugin keeps a reviewed release PR up to date.
 It calculates the version from merged PR labels; merging that PR creates the
-release/tag. Only the resulting tag event can publish an image, so ordinary
-`main` pushes cannot move `latest`. `plugin-docker-buildx` publishes the exact
-tag and `latest` with the configured GHCR credentials. The release title can
-still be edited before merging when a manual version is required.
+release tag. Only the resulting `v*` tag event can publish an image, so
+ordinary `main` pushes cannot move `latest`. After that publish succeeds,
+official `plugin-release` creates the matching GitHub Release with GitHub's
+generated release notes. The release title can still be edited before merging
+when a manual version is required.
 
 Use the plugin's default PR labels for version selection: `breaking` for a
 major release, `feature` or `enhancement` for a minor release, and `bug`,
@@ -73,5 +78,6 @@ scope, release labels and GHCR access.
 Official references: [workflow syntax](https://woodpecker-ci.org/docs/usage/workflow-syntax),
 [repository settings](https://woodpecker-ci.org/docs/usage/project-settings),
 [Ready release go](https://woodpecker-ci.org/plugins/ready-release-go),
-[Docker Buildx plugin](https://woodpecker-ci.org/plugins/docker-buildx), and
+[Docker Buildx plugin](https://woodpecker-ci.org/plugins/docker-buildx),
+[Release plugin](https://woodpecker-ci.org/plugins/release), and
 [Docker cross-compilation](https://docs.docker.com/build/building/multi-platform/#cross-compilation).

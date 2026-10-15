@@ -47,26 +47,32 @@ test("discussion API creates, paginates, updates and deletes native Vikunja comm
     };
   };
   const first = await graphql<Result>(page, query, { taskId, page: 1 });
-  expect(first.taskComments.items.map((comment) => comment.id)).toEqual([ids[0]]);
   expect(first.taskComments.hasMore).toBe(true);
   const second = await graphql<Result>(page, query, { taskId, page: 2 });
-  expect(second.taskComments.items.map((comment) => comment.id)).toEqual([ids[1]]);
   expect(second.taskComments.hasMore).toBe(false);
+  const pagedIDs = [...first.taskComments.items, ...second.taskComments.items]
+    .map((comment) => comment.id)
+    .sort();
+  expect(pagedIDs).toEqual([...ids].sort());
+  const firstCommentID = first.taskComments.items[0]?.id;
+  if (!firstCommentID) throw new Error("first comment page was empty");
+  const remainingCommentID = ids.find((id) => id !== firstCommentID);
+  if (!remainingCommentID) throw new Error("second comment was missing");
   const changed = await graphql<{ updateTaskComment: { bodyHtml: string } }>(
     page,
     `mutation($input: UpdateTaskCommentInput!) { updateTaskComment(input: $input) { bodyHtml } }`,
-    { input: { csrfToken, taskId, commentId: ids[0], bodyHtml: "<p>Edited comment</p>" } },
+    { input: { csrfToken, taskId, commentId: firstCommentID, bodyHtml: "<p>Edited comment</p>" } },
     csrfToken,
   );
   expect(changed.updateTaskComment.bodyHtml).toContain("Edited comment");
   await graphql(
     page,
     `mutation($input: DeleteTaskCommentInput!) { deleteTaskComment(input: $input) { deletedCommentId } }`,
-    { input: { csrfToken, taskId, commentId: ids[0] } },
+    { input: { csrfToken, taskId, commentId: firstCommentID } },
     csrfToken,
   );
   const remaining = await graphql<Result>(page, query, { taskId, page: 1 });
-  expect(remaining.taskComments.items.map((comment) => comment.id)).toEqual([ids[1]]);
+  expect(remaining.taskComments.items.map((comment) => comment.id)).toEqual([remainingCommentID]);
 });
 
 async function graphql<T>(

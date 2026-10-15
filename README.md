@@ -1114,8 +1114,10 @@ for reproducible benchmarks, measured allocations, and tuning constraints.
 ## CI and releases
 
 Woodpecker runs the single [.woodpecker.yaml](.woodpecker.yaml) workflow on
-pull-request updates, pushes to `main`, and release tags. It runs `gen:check`,
-`validate`, `test`, `e2e`, and a no-push multi-platform production-image build.
+pull-request updates, pushes to `main`, and `v*` release tags. Pull requests
+and `main` run `gen:check`, `validate`, `test`, `e2e`, and a no-push
+multi-platform production-image build. A release tag repeats the complete
+verification before its image build can publish.
 GitHub Actions workflows are removed, so these runs do not consume GitHub
 Actions minutes.
 
@@ -1124,12 +1126,13 @@ mode. Its CI agent must allow the exact pinned official Buildx plugin; see
 [Woodpecker setup](docs/woodpecker.md).
 
 After checks pass on `main`, Woodpecker's release plugin maintains a release PR;
-merging it creates the GitHub release and its version tag. The tag pipeline then
-publishes `ghcr.io/revotale/vikunja-better-ui` with that exact `vX.Y.Z` tag and
-`latest`, for `linux/amd64` and `linux/arm64`. Ordinary main pushes do not
-publish an image. Build stages run natively and Go cross-compiles; QEMU
-registration is not required. The protected `github_token` secret is only
-available to the release/tag steps.
+merging it creates the version tag. Its tag pipeline repeats the complete test
+suite, publishes `ghcr.io/revotale/vikunja-better-ui` with that exact `vX.Y.Z`
+tag and `latest` for `linux/amd64` and `linux/arm64`, then creates the GitHub
+Release. GitHub generates the release summary from merged pull requests. Ordinary
+main pushes do not publish an image. Build stages run natively and Go
+cross-compiles; QEMU registration is not required. The protected `github_token`
+secret is only available to the release/tag steps.
 
 Enable the repository in Woodpecker and replace the old GitHub Actions required
 status in branch protection with Woodpecker's reported status before merging.
