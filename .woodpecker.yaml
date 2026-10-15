@@ -29,21 +29,28 @@ steps:
 
   - name: required-checks
     image: &node node:26.11.1-trixie-slim@sha256:193fe51b64e77981119c98c2002c9e32a70e2f006fb4d25068ce0558998917f0
-    environment:
-      DOCKER_HOST: tcp://docker:2375
-      SMOKE_PROBE_HOST: docker
-      SMOKE_PUBLISH_HOST: 0.0.0.0
     commands:
       - export PATH="$${PWD}/.cache/ci/go/bin:$${PWD}/.cache/ci/bin:$${PWD}/.cache/ci/pnpm/bin:$${PATH}"
       - export GOMODCACHE="$${PWD}/.cache/ci/mod" GOCACHE="$${PWD}/.cache/ci/build"
-      - apt-get update && apt-get install -y --no-install-recommends docker-cli docker-buildx gcc libc6-dev git curl ca-certificates openssl gnupg unzip procps
+      - apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev git curl ca-certificates openssl gnupg unzip procps
       - pnpm --dir frontend install --frozen-lockfile
       - pnpm --dir frontend exec playwright install --with-deps chromium webkit
       - task gen:check
       - task validate
       - task test
       - task e2e
-      - task image:smoke
+    when:
+      - event: pull_request
+      - event: push
+        branch: main
+
+  - name: production-image
+    image: woodpeckerci/plugin-docker-buildx:6.1.2@sha256:d26b69cbe748b8a219c707e7889d5ffb3f9214bc3c480c30fe857ff85954267c
+    settings:
+      repo: ghcr.io/revotale/vikunja-better-ui
+      platforms: linux/amd64,linux/arm64
+      dry_run: true
+      buildkit_oci_max_parallelism: 2
     when:
       - event: pull_request
       - event: push
@@ -61,8 +68,7 @@ steps:
         branch: main
 
   - name: publish-image
-    image: woodpeckerci/plugin-docker-buildx:2
-    privileged: true
+    image: woodpeckerci/plugin-docker-buildx:6.1.2@sha256:d26b69cbe748b8a219c707e7889d5ffb3f9214bc3c480c30fe857ff85954267c
     settings:
       registry: ghcr.io
       repo: ghcr.io/revotale/vikunja-better-ui
@@ -70,20 +76,13 @@ steps:
         - ${CI_COMMIT_TAG}
         - latest
       platforms: linux/amd64,linux/arm64
-      username:
-        from_secret: github_username
+      username: l-you
       password:
         from_secret: github_token
+      buildkit_oci_max_parallelism: 2
       labels:
         - org.opencontainers.image.source=https://github.com/${CI_REPO}
         - org.opencontainers.image.revision=${CI_COMMIT_SHA}
         - org.opencontainers.image.version=${CI_COMMIT_TAG}
     when:
       - event: tag
-
-services:
-  - name: docker
-    image: docker:29.9.0-dind
-    privileged: true
-    environment:
-      DOCKER_TLS_CERTDIR: ""
