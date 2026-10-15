@@ -19,6 +19,19 @@ test("test measurements preserve failing command status and report sampled tree 
   assert.ok(metrics.peakTreeRssMiB > 0);
 });
 
+test("test measurements sample short-lived commands", () => {
+  const result = spawnSync(process.execPath, [
+    script.pathname,
+    process.execPath,
+    "-e",
+    "setTimeout(() => process.exit(0), 20)",
+  ], { encoding: "utf8", timeout: 5_000 });
+  assert.equal(result.status, 0);
+  const metrics = JSON.parse(result.stderr.trim());
+  assert.ok(metrics.samples > 0);
+  assert.ok(metrics.peakTreeRssMiB > 0);
+});
+
 test("test measurements fail instead of reporting success for missing executables", () => {
   const result = spawnSync(process.execPath, [script.pathname, "/nonexistent-test-command"], {
     encoding: "utf8",

@@ -12,7 +12,14 @@ optimization.
   process-tree RSS on many-core machines.
 - Playwright retains one worker and sequential scenario ordering. Tests mutate
   one isolated Vikunja SQLite instance; increasing workers without independent
-  fixtures introduces contention and state collisions. Keep all six projects.
+  fixtures introduces contention and state collisions. The full matrix has one
+  desktop project plus focused phone and WebKit projects. This keeps each
+  behavior covered while avoiding duplicate execution at nearly identical
+  desktop and tablet viewports.
+- Pull requests run the compact Chromium/WebKit smoke matrix. Pushes to `main`
+  and release tags run the full matrix before a production image is built or
+  published. The full matrix is the release gate; the smoke matrix gives fast
+  feedback without pretending to replace it.
 - First-failure traces, videos and screenshots remain enabled. Retry-only video
   was measured and rejected, not adopted as an assumed improvement.
 - E2E and demo builds use normal `go build`, not `go build -a`. Go's build cache
@@ -44,6 +51,9 @@ E2E_MEASURE=1 tests/e2e/harness/run.sh \
 
 # Entire harness, including fixture servers and builds.
 node tests/e2e/harness/measure.mjs task e2e
+
+# Fast PR browser matrix.
+node tests/e2e/harness/measure.mjs task e2e:pr
 ```
 
 The Linux sampler uses `ps` every 250 ms and writes JSON to stderr. It propagates
@@ -67,20 +77,23 @@ below are sampled process-tree sums, not container-wide memory.
 | Retry-only video, same 48 browser cases | 43.39 → 41.97 s; 1398.0 → 1419.2 MiB | Revert; no convincing speed/memory gain |
 | API login + direct discussion navigation, same 48 cases | 43.39 → 69.25 s; 1398.0 → 1176.7 MiB | Revert; slower despite less RSS |
 | UI login + direct discussion navigation, same 48 cases | 43.39 → 78.17 s; 1398.0 → 1181.0 MiB | Revert; keep the original navigation |
+| Focused browser projects, warm full fixture | 469 → 188 executions; 563.38 → 206.82 s; 2618.2 → 2146.4 MiB | Keep; one desktop pass plus targeted phone/WebKit checks preserve browser-specific coverage without repeating equivalent viewports |
+| Compact PR browser matrix, warm fixture | 44 executions; 52.04 s; 1705.0 MiB | Keep; covers high-risk Chromium flows plus PWA, mobile and WebKit editor paths before the complete main/tag gate |
 
 The initial full baseline took 563.38 s / 2618.2 MiB but had one 45-second
 combobox timeout (468 passed). Do not use that failed run to claim an overall
 speedup. Trace inspection localized the test's premature popup reopening; after
 waiting for each close transition, 20/20 focused mobile repetitions passed.
-No application behavior, existing assertions, browser projects or retries were
-removed to obtain these results. These local measurements do not predict CI
-hardware timings.
+No scenario assertion or retry was removed for the current matrix. Only repeated
+execution at equivalent tablet/desktop viewports was removed; mobile, WebKit,
+PWA and timezone-specific cases remain targeted projects. These local
+measurements do not predict CI hardware timings.
 
 Final verification after review: `task gen:check`, `task validate`, `task test`
-and `task e2e` passed. Frontend: 300 tests; E2E: all 469 scenarios, 8.6 minutes.
-The final browser-only sampled peak was 2646.0 MiB: no substantial reduction in
-Playwright's full-suite RSS was established. Its coverage and diagnostics were
-preserved rather than trading them for an unproven memory improvement.
+and `task e2e` passed. Frontend: 324 tests; E2E: all 188 selected scenarios in
+3.4 minutes. The final browser-only sampled peak was 2146.4 MiB. The fast PR
+matrix runs its 44 high-signal Chromium/WebKit cases separately; `main` and
+release tags keep the complete matrix before image build/publish.
 
 ## References
 

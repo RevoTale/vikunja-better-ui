@@ -40,13 +40,32 @@ steps:
       - export GOMODCACHE="$${PWD}/.cache/ci/mod" GOCACHE="$${PWD}/.cache/ci/build"
       - apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev git curl ca-certificates openssl gnupg unzip procps
       - pnpm --dir frontend install --frozen-lockfile
-      - pnpm --dir frontend exec playwright install --with-deps chromium webkit
       - task gen:check
       - task validate
       - task test:ci
-      - task e2e
     when:
       - event: pull_request
+      - event: push
+        branch: main
+      - event: tag
+        ref: refs/tags/v*
+
+  - name: e2e-pr
+    image: *node
+    commands:
+      - export PATH="$${PWD}/.cache/ci/go/bin:$${PWD}/.cache/ci/bin:$${PWD}/.cache/ci/pnpm:$${PATH}"
+      - pnpm --dir frontend exec playwright install --with-deps chromium webkit
+      - task e2e:pr
+    when:
+      - event: pull_request
+
+  - name: e2e-full
+    image: *node
+    commands:
+      - export PATH="$${PWD}/.cache/ci/go/bin:$${PWD}/.cache/ci/bin:$${PWD}/.cache/ci/pnpm:$${PATH}"
+      - pnpm --dir frontend exec playwright install --with-deps chromium webkit
+      - task e2e
+    when:
       - event: push
         branch: main
       - event: tag

@@ -115,10 +115,14 @@ refresh, whichever comes first; use a published compatible fix when available.
   Biome uses `--error-on-warnings`: warnings fail local validation and CI,
   not only errors. A warning-only fixture tests the actual lint script.
 - `task test`: `go test -race -count=2 -shuffle=on ./...` and frontend unit tests.
-- `task e2e`: existing isolated Vikunja fixture, mobile/desktop Chromium and WebKit.
+- `task e2e:pr`: compact Chromium/WebKit PR coverage against the isolated Vikunja fixture.
+- `task e2e`: complete isolated matrix: desktop Chromium plus focused mobile,
+  WebKit and timezone cases.
 
-CI calls these same tasks; do not substitute a focused success for the full
-suite. Reproduce an order-dependent Go failure with its printed seed:
+PR CI runs every non-browser gate and `task e2e:pr`; `main` and release-tag CI
+run `task e2e` before any production image stage. Do not treat a focused PR
+success as a substitute for the full release gate. Reproduce an order-dependent
+Go failure with its printed seed:
 `go test -race -count=2 -shuffle=<seed> ./internal/service`.
 
 When splitting tests, retain assertions, setup/cleanup scope, fixture isolation

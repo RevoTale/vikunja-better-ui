@@ -20,7 +20,7 @@ images match the production build's pinned versions.
    exact pinned official Buildx plugin through
    `WOODPECKER_PLUGINS_PRIVILEGED=woodpeckerci/plugin-docker-buildx:6.1.2@sha256:d26b69cbe748b8a219c707e7889d5ffb3f9214bc3c480c30fe857ff85954267c`;
    this narrowly enables the builder runtime, not arbitrary privileged steps.
-3. Set the repository timeout to at least 45 minutes. Enable cancellation of
+3. Set the repository timeout to 120 minutes. Enable cancellation of
    previous **pull-request** pipelines, not `main` release pipelines.
 4. Add the protected `github_token` secret, enabled for push and tag events
    only, never PR events. It is a classic PAT owned by `l-you`, with `repo` and
@@ -36,9 +36,12 @@ These are server/repository settings, not changes the YAML can apply for you.
 
 ## Checks and releases
 
-`required-checks` installs the frozen frontend dependencies and both Playwright
-browsers, then runs `task gen:check`, `task validate`, `task test:ci`, and
-`task e2e`. `test:ci` executes the complete Go suite twice in shuffled order,
+`required-checks` installs the frozen frontend dependencies, then runs
+`task gen:check`, `task validate`, and `task test:ci`. Pull requests then run
+`e2e-pr`: a compact Chromium/WebKit browser matrix with the creation,
+recurrence, task-editing, PWA, discussion and mobile/Safari-risk coverage.
+Pushes to `main` and release tags run `e2e-full`, the complete browser matrix,
+before their production image steps. `test:ci` executes the complete Go suite twice in shuffled order,
 plus the frontend suite, but intentionally omits `-race`: the sole native
 Woodpecker `linux/arm64` agent exposes a 47-bit virtual address space that the
 Go 1.27.2 race runtime rejects before any test can start. `task test` retains

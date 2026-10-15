@@ -74,9 +74,14 @@ tasks:
       - sh tests/quality/empty-output.sh go fix -diff ./...
 
   e2e:
-    desc: Run Playwright against an isolated Vikunja 2.7.0 binary
+    desc: Run the full Playwright matrix against an isolated Vikunja 2.7.0 binary
     cmds:
-      - tests/e2e/harness/run.sh
+      - tests/e2e/harness/run.sh --project=phone-320 --project=phone-webkit --project=desktop-1440 --project=timezone-webkit
+
+  e2e:pr:
+    desc: Run the fast PR Playwright matrix against an isolated Vikunja 2.7.0 binary
+    cmds:
+      - tests/e2e/harness/run.sh --project=pr-chromium --project=pr-webkit
 
   demo:
     desc: Run the complete isolated demo on port 4180

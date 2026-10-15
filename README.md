@@ -961,16 +961,21 @@ task gen:check  # prove committed generated source is current
 task fix        # format Go and frontend files
 task validate   # quality-gate tests, formatting/modernization, lint, types, vet, build
 task test       # Go race tests twice with shuffled order, plus frontend unit tests
-task e2e        # real browser tests against isolated Vikunja 2.7.0
+task e2e:pr     # compact PR browser coverage against isolated Vikunja 2.7.0
+task e2e        # complete browser matrix against isolated Vikunja 2.7.0
 task demo       # run the complete isolated demo at http://localhost:4180
 task dev        # run the application
 ```
 
 The [quality contract](docs/quality-gates.md) defines file/function limits,
 complexity, Go documentation and architecture checks, generated-code exclusions,
-and how to reproduce shuffled failures. `task fix` applies Go formatting/imports
+and how to reproduce shuffled failures. Pull requests run `task e2e:pr`; `main`
+pushes and release tags run the complete `task e2e` matrix before an image is
+built. `task fix` applies Go formatting/imports
 and Biome fixes; apply Go modernization separately with `go fix ./...` and review
-the diff. CI uses the same `gen:check`, `validate`, `test`, and `e2e` entrypoints.
+the diff. CI uses the same quality entrypoints; its ARM64-compatible `test:ci`
+omits only Go's unsupported race runtime, while `main` and release tags retain
+the complete E2E entrypoint.
 
 ### Automated dependency updates
 
@@ -1115,9 +1120,11 @@ for reproducible benchmarks, measured allocations, and tuning constraints.
 
 Woodpecker runs the single [.woodpecker.yaml](.woodpecker.yaml) workflow on
 pull-request updates, pushes to `main`, and `v*` release tags. Pull requests
-and `main` run `gen:check`, `validate`, `test`, `e2e`, and a no-push
-multi-platform production-image build. A release tag repeats the complete
-verification before its image build can publish.
+run `gen:check`, `validate`, `test:ci`, a compact Chromium/WebKit E2E matrix,
+and a no-push multi-platform production-image build. `main` and release tags
+run the complete `task e2e` matrix before their production image stages. A
+release tag repeats the complete verification before its image build can
+publish.
 GitHub Actions workflows are removed, so these runs do not consume GitHub
 Actions minutes.
 

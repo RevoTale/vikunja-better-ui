@@ -1,6 +1,24 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { commentMenu } from "./comment-menu-fixture";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
+
+async function expectCopiedCode(page: Page, article: Locator, code: string) {
+  await page.evaluate(() => {
+    let copied = "";
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (value: string) => {
+          copied = value;
+        },
+        readText: async () => copied,
+      },
+    });
+  });
+  await article.getByRole("button", { name: "Copy code", exact: true }).click();
+  await expect(article.getByText("Code copied.", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(code);
+}
 
 for (const trigger of ["Enter", "Space"]) {
   test(`discussion supports bare code fences with ${trigger}`, async ({ page }) => {
@@ -44,7 +62,6 @@ for (const trigger of ["Enter", "Space"]) {
 
 test("discussion preserves code, tables, checklists and text formats through editing", async ({
   page,
-  context,
 }) => {
   const { taskId, csrfToken } = await discussionFixture(page);
   const code = 'const x = "<b>literal</b>";\n\tconsole.log(x);\n\n';
@@ -84,10 +101,7 @@ test("discussion preserves code, tables, checklists and text formats through edi
   expect(sent).toContain('data-checked="true"');
   for (const tag of ["u", "s", "mark", "sub", "sup", "hr"]) expect(sent).toContain(`<${tag}`);
   await expect.poll(() => article.locator("pre").textContent()).toBe(code);
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await article.getByRole("button", { name: "Copy code", exact: true }).click();
-  await expect(article.getByText("Code copied.", { exact: true })).toBeVisible();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(code);
+  await expectCopiedCode(page, article, code);
 });
 
 test("discussion supports code and table controls on mobile and desktop", async ({ page }) => {
@@ -165,10 +179,7 @@ test("discussion refuses lossy editing of native styles and disclosure blocks", 
   }
 });
 
-test("discussion Markdown shortcuts and code copying preserve literal text", async ({
-  page,
-  context,
-}) => {
+test("discussion Markdown shortcuts and code copying preserve literal text", async ({ page }) => {
   await discussionFixture(page);
   const editor = page.getByRole("textbox", { name: "Comment", exact: true });
   await editor.pressSequentially("### A heading");
@@ -189,8 +200,5 @@ test("discussion Markdown shortcuts and code copying preserve literal text", asy
   const article = page.getByRole("article");
   await expect(article.locator("h3")).toHaveText("A heading");
   await expect(article.locator('li[data-checked="true"]')).toContainText("A checklist item");
-  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
-  await article.getByRole("button", { name: "Copy code", exact: true }).click();
-  await expect(article.getByText("Code copied.", { exact: true })).toBeVisible();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("const x = 1;");
+  await expectCopiedCode(page, article, "const x = 1;");
 });

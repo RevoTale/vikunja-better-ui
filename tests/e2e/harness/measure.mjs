@@ -8,7 +8,7 @@ const started = performance.now();
 const child = spawn(command, args, { stdio: "inherit" });
 let peakKiB = 0;
 let samples = 0;
-const timer = setInterval(() => {
+function sampleTreeRSS() {
   const result = spawnSync("ps", ["-e", "-o", "pid=,ppid=,rss="], { encoding: "utf8" });
   if (result.status !== 0) return;
   const rows = result.stdout.trim().split("\n").map((line) => line.trim().split(/\s+/).map(Number));
@@ -26,7 +26,11 @@ const timer = setInterval(() => {
   const rss = rows.reduce((sum, [pid, , kib]) => sum + (descendants.has(pid) ? kib : 0), 0);
   peakKiB = Math.max(peakKiB, rss);
   samples++;
-}, 250);
+}
+
+// Collect once before the first interval so short commands still produce a metric.
+sampleTreeRSS();
+const timer = setInterval(sampleTreeRSS, 250);
 child.on("error", (error) => {
   clearInterval(timer);
   console.error(error);

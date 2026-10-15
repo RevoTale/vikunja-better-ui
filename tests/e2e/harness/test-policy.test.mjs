@@ -17,7 +17,7 @@ function browserPolicy() {
   return JSON.parse(result.stdout);
 }
 
-test("browser resource policy retains first-failure traces and every browser/viewport", () => {
+test("browser resource policy retains first-failure diagnostics and focused viewport coverage", () => {
   const config = browserPolicy();
   assert.equal(config.workers, 1);
   assert.equal(config.fullyParallel, false);
@@ -25,7 +25,7 @@ test("browser resource policy retains first-failure traces and every browser/vie
   assert.equal(config.use.screenshot, "only-on-failure");
   assert.equal(config.use.video, "retain-on-failure");
   assert.deepEqual(config.projects.map((project) => project.name), [
-    "phone-320", "phone-webkit", "tablet-768", "desktop-1024", "desktop-1440", "timezone-webkit",
+    "pr-chromium", "pr-webkit", "phone-320", "phone-webkit", "desktop-1440", "timezone-webkit",
   ]);
 });
 
