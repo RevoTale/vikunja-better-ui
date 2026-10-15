@@ -993,8 +993,7 @@ still needs a reviewed follow-up commit rather than bypassing `task gen:check`.
 
 The production and development images copy pnpm from the official,
 digest-pinned pnpm image. The frontend build runs on the separately pinned
-Node.js image, while CI reads the exact Node.js version from
-`frontend/package.json`. Task and golangci-lint are isolated as standard Go
+Node.js image, also used by Woodpecker checks. Task and golangci-lint are isolated as standard Go
 tool dependencies in `tools/go.mod`; CI and the Dev Container install those
 exact versions with `go install tool`. Gqlgen remains a tool of the application
 module. No global npm, Corepack, custom Renovate manager, or version-check
@@ -1114,20 +1113,23 @@ for reproducible benchmarks, measured allocations, and tuning constraints.
 
 ## CI and releases
 
-Pull requests and `main` run one reusable required-checks job covering generated
-drift, validation, unit/integration tests, real Playwright E2E, and the
-production image smoke test. Configure the GitHub branch rule for `main` to
-require the `Required checks` status before merge.
+Woodpecker runs the single [.woodpecker.yaml](.woodpecker.yaml) workflow on
+pull-request updates, pushes to `main`, and release tags. It keeps the same `gen:check`,
+`validate`, `test`, `e2e`, and production image smoke-test gates. GitHub Actions
+workflows are removed, so these runs do not consume GitHub Actions minutes.
 
-CI starts automatically on pull-request updates. A newer run cancels the older
-run for the same PR; different PRs run independently. Checks on `main` run
-through the Release workflow and are not cancelled by PR updates. No custom
-approval gate or manual dispatch is configured.
+After checks pass on `main`, Woodpecker's release plugin maintains a release PR;
+merging it creates the GitHub release and its version tag. The tag pipeline then
+publishes `ghcr.io/revotale/vikunja-better-ui` with that exact `vX.Y.Z` tag and
+`latest`, for `linux/amd64` and `linux/arm64`. Ordinary main pushes do not
+publish an image. Build stages run natively and Go cross-compiles; QEMU
+registration is not required. The protected `github_token` and
+`github_username` secrets are only available to the release/tag steps.
 
-After checks pass on `main`, release-please creates or updates the release pull
-request. Merging that pull request creates the release, and the pinned RevoTale
-action publishes `linux/amd64` and `linux/arm64` images to GHCR with the release
-tag and `latest`.
+Enable the repository in Woodpecker and replace the old GitHub Actions required
+status in branch protection with Woodpecker's reported status before merging.
+See [Woodpecker setup](docs/woodpecker.md) for runner permissions, secret scopes,
+timeouts, PR cancellation and the browser artifact-storage limitation.
 
 See [AGENTS.md](AGENTS.md) for the repository rules and
 [the MVP specification](docs/specs/mvp.md) for the complete product contract.
