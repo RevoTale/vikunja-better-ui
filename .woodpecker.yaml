@@ -54,7 +54,7 @@ steps:
     image: *node
     commands:
       - export PATH="$${PWD}/.cache/ci/go/bin:$${PWD}/.cache/ci/bin:$${PWD}/.cache/ci/pnpm:$${PATH}"
-      - apt-get update && apt-get install -y --no-install-recommends curl
+      - apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg unzip
       - pnpm --dir frontend exec playwright install --with-deps chromium webkit
       - task e2e:pr
     when:
@@ -64,7 +64,7 @@ steps:
     image: *node
     commands:
       - export PATH="$${PWD}/.cache/ci/go/bin:$${PWD}/.cache/ci/bin:$${PWD}/.cache/ci/pnpm:$${PATH}"
-      - apt-get update && apt-get install -y --no-install-recommends curl
+      - apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg unzip
       - pnpm --dir frontend exec playwright install --with-deps chromium webkit
       - task e2e
     when:
