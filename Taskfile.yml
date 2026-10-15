@@ -44,10 +44,17 @@ tasks:
         go build -o "$output" ./cmd/server
 
   test:
-    desc: Run backend and frontend tests
+    desc: Run backend and frontend tests with race detection
     cmds:
       - pnpm --dir frontend run build
       - go test -race -count=2 -shuffle=on ./...
+      - pnpm --dir frontend run test
+
+  test:ci:
+    desc: Run backend and frontend tests on the race-incompatible CI runner
+    cmds:
+      - pnpm --dir frontend run build
+      - go test -count=2 -shuffle=on ./...
       - pnpm --dir frontend run test
 
   quality:test:

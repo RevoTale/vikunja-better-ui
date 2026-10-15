@@ -37,10 +37,17 @@ These are server/repository settings, not changes the YAML can apply for you.
 ## Checks and releases
 
 `required-checks` installs the frozen frontend dependencies and both Playwright
-browsers, then runs `task gen:check`, `task validate`, `task test`, and
-`task e2e`. `production-image` subsequently performs a no-push multi-platform
-Buildx build on pull requests and `main`, validating the production Dockerfile
-without Docker-in-Docker or privileged mode. The tag pipeline repeats
+browsers, then runs `task gen:check`, `task validate`, `task test:ci`, and
+`task e2e`. `test:ci` executes the complete Go suite twice in shuffled order,
+plus the frontend suite, but intentionally omits `-race`: the sole native
+Woodpecker `linux/arm64` agent exposes a 47-bit virtual address space that the
+Go 1.27.2 race runtime rejects before any test can start. `task test` retains
+the twice-shuffled race suite for compatible developer hosts and must replace
+`test:ci` once a Go release includes the upstream
+[47-bit TSan fix](https://github.com/llvm/llvm-project/pull/220040).
+`production-image` subsequently performs a no-push multi-platform Buildx build
+on pull requests and `main`, validating the production Dockerfile without
+Docker-in-Docker or privileged mode. The tag pipeline repeats
 `required-checks`; only then does its production Buildx step publish the image.
 `task image:smoke` remains the local release-candidate check: it starts an
 isolated Vikunja info fixture and verifies the running image.

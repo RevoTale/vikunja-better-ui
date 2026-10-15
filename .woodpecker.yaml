@@ -43,7 +43,7 @@ steps:
       - pnpm --dir frontend exec playwright install --with-deps chromium webkit
       - task gen:check
       - task validate
-      - task test
+      - task test:ci
       - task e2e
     when:
       - event: pull_request
