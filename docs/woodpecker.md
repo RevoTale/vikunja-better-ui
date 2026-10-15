@@ -16,7 +16,7 @@ pnpm and Node images match the production build's pinned versions.
    running code from contributors. The repository does not need to be trusted
    and its YAML does not request privileged mode. The CI agent must allow the
    exact pinned official Buildx plugin through
-   `WOODPECKER_PLUGINS_PRIVILEGED=woodpeckerci/plugin-docker-buildx:6.1.2`;
+   `WOODPECKER_PLUGINS_PRIVILEGED=woodpeckerci/plugin-docker-buildx:6.1.2@sha256:d26b69cbe748b8a219c707e7889d5ffb3f9214bc3c480c30fe857ff85954267c`;
    this narrowly enables the builder runtime, not arbitrary privileged steps.
 3. Set the repository timeout to at least 45 minutes. Enable cancellation of
    previous **pull-request** pipelines, not `main` release pipelines.
