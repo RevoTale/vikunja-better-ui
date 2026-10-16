@@ -13,6 +13,7 @@
 
 ### Misc
 
+- 🎉 Release 2.8.2 [[#119](https://github.com/RevoTale/vikunja-better-ui/pull/119)]
 - ci(woodpecker): verify releases before publishing [[#114](https://github.com/RevoTale/vikunja-better-ui/pull/114)]
 
 ## [2.8.1](https://github.com/RevoTale/vikunja-better-ui/compare/v2.8.0...v2.8.1) (2026-10-15)
