@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.8.2](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.8.2) - 2026-10-16
+
+### ❤️ Thanks to all contributors! ❤️
+
+@l-you
+
+### 🐛 Bug Fixes
+
+- ci(woodpecker): restore ARM release automation [[#118](https://github.com/RevoTale/vikunja-better-ui/pull/118)]
+- test(e2e): allow comprehensive workflow on ARM [[#117](https://github.com/RevoTale/vikunja-better-ui/pull/117)]
+
+### Misc
+
+- ci(woodpecker): verify releases before publishing [[#114](https://github.com/RevoTale/vikunja-better-ui/pull/114)]
+
 ## [2.8.1](https://github.com/RevoTale/vikunja-better-ui/compare/v2.8.0...v2.8.1) (2026-10-15)
 
 
