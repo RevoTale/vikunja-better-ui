@@ -11,10 +11,21 @@ steps:
   - name: go-tools
     image: golang:1.27.2-trixie@sha256:e58d6f83b3416618d8bcac2b3dde1b7f7e3c4a77d25e88637f8bbae81536c48d
     commands:
-      - mkdir -p .cache/ci
+      - mkdir -p .cache/ci/bin
       - cp -a /usr/local/go .cache/ci/
-      - export GOBIN="$${PWD}/.cache/ci/bin" GOMODCACHE="$${PWD}/.cache/ci/mod" GOCACHE="$${PWD}/.cache/ci/build"
-      - go -C tools install tool
+      - export GOMODCACHE="$${PWD}/.cache/ci/mod" GOCACHE="$${PWD}/.cache/ci/build" GOTOOLCHAIN=local
+      - go -C tools build -o .cache/ci/bin/task github.com/go-task/task/v3/cmd/task
+    when:
+      - event: pull_request
+      - event: push
+        branch: main
+      - event: tag
+        ref: refs/tags/v*
+
+  - name: golangci-lint
+    image: golangci/golangci-lint@sha256:ad862ba6b3798cbe0fd9fd7408d498fd74fbd2623a92406b2fd3898faf0bf98f
+    commands:
+      - install -D /usr/bin/golangci-lint .cache/ci/bin/golangci-lint
     when:
       - event: pull_request
       - event: push
@@ -37,7 +48,7 @@ steps:
     image: &node node:26.11.1-trixie-slim@sha256:193fe51b64e77981119c98c2002c9e32a70e2f006fb4d25068ce0558998917f0
     commands:
       - export PATH="$${PWD}/.cache/ci/go/bin:$${PWD}/.cache/ci/bin:$${PWD}/.cache/ci/pnpm:$${PATH}"
-      - export GOMODCACHE="$${PWD}/.cache/ci/mod" GOCACHE="$${PWD}/.cache/ci/build"
+      - export GOMODCACHE="$${PWD}/.cache/ci/mod" GOCACHE="$${PWD}/.cache/ci/build" GOTOOLCHAIN=local
       - apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev git curl ca-certificates openssl gnupg unzip procps
       - pnpm --dir frontend install --frozen-lockfile
       - task gen:check
@@ -54,6 +65,7 @@ steps:
     image: *node
     commands:
       - export PATH="$${PWD}/.cache/ci/go/bin:$${PWD}/.cache/ci/bin:$${PWD}/.cache/ci/pnpm:$${PATH}"
+      - export GOMODCACHE="$${PWD}/.cache/ci/mod" GOCACHE="$${PWD}/.cache/ci/build" GOTOOLCHAIN=local
       - apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg unzip
       - pnpm --dir frontend exec playwright install --with-deps chromium webkit
       - task e2e:pr
@@ -64,6 +76,7 @@ steps:
     image: *node
     commands:
       - export PATH="$${PWD}/.cache/ci/go/bin:$${PWD}/.cache/ci/bin:$${PWD}/.cache/ci/pnpm:$${PATH}"
+      - export GOMODCACHE="$${PWD}/.cache/ci/mod" GOCACHE="$${PWD}/.cache/ci/build" GOTOOLCHAIN=local
       - apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg unzip
       - pnpm --dir frontend exec playwright install --with-deps chromium webkit
       - task e2e

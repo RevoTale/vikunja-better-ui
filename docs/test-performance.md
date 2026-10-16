@@ -22,6 +22,11 @@ optimization.
   release tags run the full matrix before a production image is built or
   published. The full matrix is the release gate; the smoke matrix gives fast
   feedback without pretending to replace it.
+- Woodpecker builds the pinned Task command and copies the matching official
+  golangci-lint binary. It shares Go module/build caches between validation and
+  E2E steps, so fixture generation does not download Gqlgen a second time.
+  Browser downloads remain explicit because the current runner has no approved
+  persistent browser-cache volume.
 - First-failure traces, videos and screenshots remain enabled. Retry-only video
   was measured and rejected, not adopted as an assumed improvement.
 - E2E and demo builds use normal `go build`, not `go build -a`. Go's build cache
@@ -94,8 +99,8 @@ measurements do not predict CI hardware timings.
 Final verification after review: `task gen:check`, `task validate`, `task test`
 and `task e2e` passed. Frontend: 324 tests; E2E: all 188 selected scenarios in
 3.4 minutes. The final browser-only sampled peak was 2146.4 MiB. The fast PR
-matrix runs its 44 high-signal Chromium/WebKit cases separately; `main` and
-release tags keep the complete matrix before image build/publish.
+matrix runs 12 high-signal Chromium/WebKit cases; `main` and release tags keep
+the complete matrix before image build/publish.
 
 ## References
 

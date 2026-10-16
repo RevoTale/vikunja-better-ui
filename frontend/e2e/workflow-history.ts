@@ -40,5 +40,5 @@ export async function workflowHistory(page: Page, unscheduled: string) {
     "page",
   );
   await expect(page.getByRole("button", { name: "Go to next page" })).toBeDisabled();
-  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
 }

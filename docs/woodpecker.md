@@ -36,8 +36,11 @@ These are server/repository settings, not changes the YAML can apply for you.
 
 ## Checks and releases
 
-`required-checks` installs the frozen frontend dependencies, then runs
-`task gen:check`, `task validate`, and `task test:ci`. Pull requests then run
+`go-tools` copies the pinned Go toolchain and builds only the pinned Task
+binary. The separate official, digest-pinned `golangci-lint` image supplies its
+matching binary, avoiding a cold compilation of every linter. `required-checks`
+installs the frozen frontend dependencies, then runs `task gen:check`, `task
+validate`, and `task test:ci`. Pull requests then run
 `e2e-pr`: a compact Chromium/WebKit browser matrix with the creation,
 recurrence, task-editing, PWA, discussion and mobile/Safari-risk coverage.
 Pushes to `main` and release tags run `e2e-full`, the complete browser matrix,

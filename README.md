@@ -998,11 +998,13 @@ still needs a reviewed follow-up commit rather than bypassing `task gen:check`.
 
 The production and development images copy pnpm from the official,
 digest-pinned pnpm image. The frontend build runs on the separately pinned
-Node.js image, also used by Woodpecker checks. Task and golangci-lint are isolated as standard Go
-tool dependencies in `tools/go.mod`; CI and the Dev Container install those
-exact versions with `go install tool`. Gqlgen remains a tool of the application
-module. No global npm, Corepack, custom Renovate manager, or version-check
-script is required.
+Node.js image, also used by Woodpecker checks. Task and golangci-lint are
+isolated as standard Go tool dependencies in `tools/go.mod`; the Dev Container
+installs those exact versions with `go install tool`. Woodpecker builds the
+pinned Task command and copies the matching official, digest-pinned
+golangci-lint binary instead of recompiling every linter for each pipeline.
+Gqlgen remains a tool of the application module. No global npm, Corepack,
+custom Renovate manager, or version-check script is required.
 
 ### Frontend components
 
