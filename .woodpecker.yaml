@@ -98,7 +98,7 @@ steps:
         branch: main
 
   - name: release
-    image: woodpeckerci/plugin-ready-release-go:4.1.1
+    image: woodpeckerci/plugin-ready-release-go:4.1.1@sha256:4916ae245e4d810b9939aea86002321f1dbf33b429f98d4fc018d1c8ca96ad6a
     settings:
       forge_token:
         from_secret: github_token
