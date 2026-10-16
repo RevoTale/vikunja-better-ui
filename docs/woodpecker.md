@@ -2,9 +2,9 @@
 
 One workflow replaces the three GitHub Actions workflows. It provisions pinned
 Go/pnpm tools and runs the existing Task gates on pull requests, `main`, and
-`v*` release tags. Pull requests and `main` also run a no-push production-image
-build. A release tag repeats every Task gate before the production image is
-built and published. After a successful `main` push, an official Woodpecker
+`v*` release tags. `main` also runs a no-push production-image build. A release
+tag repeats every Task gate before the production image is built and published.
+After a successful `main` push, an official Woodpecker
 plugin maintains the release PR. Its release tag creates the multi-architecture
 image and a GitHub Release with generated release notes. The shared workspace
 carries toolchains and caches between containers; no host paths, Docker socket,
@@ -41,10 +41,12 @@ binary. The separate official, digest-pinned `golangci-lint` image supplies its
 matching binary, avoiding a cold compilation of every linter. `required-checks`
 installs the frozen frontend dependencies, then runs `task gen:check`, `task
 validate`, and `task test:ci`. Pull requests then run
-`e2e-pr`: a compact Chromium/WebKit browser matrix with the creation,
-recurrence, task-editing, PWA, discussion and mobile/Safari-risk coverage.
-Pushes to `main` and release tags run `e2e-full`, the complete browser matrix,
-before their production image steps. `test:ci` executes the complete Go suite twice in shuffled order,
+`e2e-pr`: a compact Chromium/WebKit browser matrix with creation,
+task-editing, PWA, discussion and mobile/Safari-risk coverage. The longer
+end-to-end workflow stays in `e2e-full`, preserving coverage without making a
+pull request wait for every workflow sequence. Pushes to `main` and release
+tags run `e2e-full`, the complete browser matrix, before their production image
+steps. `test:ci` executes the complete Go suite twice in shuffled order,
 plus the frontend suite, but intentionally omits `-race`: the sole native
 Woodpecker `linux/arm64` agent exposes a 47-bit virtual address space that the
 Go 1.27.2 race runtime rejects before any test can start. `task test` retains
@@ -52,8 +54,8 @@ the twice-shuffled race suite for compatible developer hosts and must replace
 `test:ci` once a Go release includes the upstream
 [47-bit TSan fix](https://github.com/llvm/llvm-project/pull/220040).
 `production-image` subsequently performs a no-push multi-platform Buildx build
-on pull requests and `main`, validating the production Dockerfile without
-Docker-in-Docker or privileged mode. The tag pipeline repeats
+on `main`, validating the production Dockerfile without Docker-in-Docker or
+privileged mode. The tag pipeline repeats
 `required-checks`; only then does its production Buildx step publish the image.
 `task image:smoke` remains the local release-candidate check: it starts an
 isolated Vikunja info fixture and verifies the running image.

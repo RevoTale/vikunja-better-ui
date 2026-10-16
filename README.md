@@ -1122,11 +1122,10 @@ for reproducible benchmarks, measured allocations, and tuning constraints.
 
 Woodpecker runs the single [.woodpecker.yaml](.woodpecker.yaml) workflow on
 pull-request updates, pushes to `main`, and `v*` release tags. Pull requests
-run `gen:check`, `validate`, `test:ci`, a compact Chromium/WebKit E2E matrix,
-and a no-push multi-platform production-image build. `main` and release tags
-run the complete `task e2e` matrix before their production image stages. A
-release tag repeats the complete verification before its image build can
-publish.
+run `gen:check`, `validate`, `test:ci`, and a compact Chromium/WebKit E2E
+matrix. `main` runs the complete `task e2e` matrix and a no-push
+multi-platform production-image build. Release tags repeat the complete
+verification before their image build can publish.
 GitHub Actions workflows are removed, so these runs do not consume GitHub
 Actions minutes.
 

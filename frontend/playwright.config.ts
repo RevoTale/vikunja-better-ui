@@ -8,7 +8,6 @@ const prChromiumSmoke = new RegExp(
   [
     "Today count supports ready-now rules",
     "task creation and display use the Vikunja timezone",
-    "desktop workflows match Vikunja state",
     "PWA caches only the build",
     "discussion supports bare code fences with Enter",
     "discussion supports comments, replies, edits, drafts and deletion",

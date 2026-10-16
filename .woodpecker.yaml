@@ -94,7 +94,6 @@ steps:
       dry_run: true
       buildkit_oci_max_parallelism: 2
     when:
-      - event: pull_request
       - event: push
         branch: main
 
