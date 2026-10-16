@@ -29,6 +29,20 @@ test("browser resource policy retains first-failure diagnostics and focused view
   ]);
 });
 
+test("PR smoke projects retain representative workflow and browser-risk coverage", async () => {
+  process.env["E2E_BASE_URL"] = "http://127.0.0.1:12345";
+  const { default: config } = await import("../../../frontend/playwright.config.ts");
+  const chromium = config.projects.find((project) => project.name === "pr-chromium");
+  const webkit = config.projects.find((project) => project.name === "pr-webkit");
+
+  assert.ok(chromium?.grep instanceof RegExp);
+  assert.ok(webkit?.grep instanceof RegExp);
+  assert.match("desktop workflows match Vikunja state", chromium.grep);
+  assert.match("task editing preserves drafts on conflict", chromium.grep);
+  assert.match("PWA keeps authenticated reads", webkit.grep);
+  assert.match("discussion supports code and table controls on mobile and desktop", webkit.grep);
+});
+
 test("unit workers are bounded without disabling per-file isolation", async () => {
   const { default: config } = await import("../../../frontend/vitest.config.ts");
   assert.equal(config.test.pool, "threads");

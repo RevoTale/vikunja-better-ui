@@ -4,6 +4,26 @@ const baseURL = process.env["E2E_BASE_URL"];
 if (!baseURL) throw new Error("E2E_BASE_URL is required; run task e2e through the harness");
 const chromiumExecutable = process.env["E2E_CHROMIUM_EXECUTABLE"];
 const chromiumLaunchOptions = chromiumExecutable ? { executablePath: chromiumExecutable } : {};
+const prChromiumSmoke = new RegExp(
+  [
+    "Today count supports ready-now rules",
+    "task creation and display use the Vikunja timezone",
+    "desktop workflows match Vikunja state",
+    "PWA caches only the build",
+    "discussion supports bare code fences with Enter",
+    "discussion supports comments, replies, edits, drafts and deletion",
+    "task editing preserves drafts on conflict",
+    "task relationships support linking",
+  ].join("|"),
+);
+const prWebKitSmoke = new RegExp(
+  [
+    "PWA keeps authenticated reads",
+    "PWA keeps Today below the sticky header",
+    "discussion supports bare code fences with Enter",
+    "discussion supports code and table controls on mobile and desktop",
+  ].join("|"),
+);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -38,6 +58,7 @@ export default defineConfig({
         "task-editing.spec.ts",
         "task-relations.spec.ts",
       ],
+      grep: prChromiumSmoke,
       use: { viewport: { width: 1440, height: 900 }, launchOptions: chromiumLaunchOptions },
     },
     {
@@ -47,6 +68,7 @@ export default defineConfig({
         "pwa-safe-area.spec.ts",
         "task-discussion-rich-text.spec.ts",
       ],
+      grep: prWebKitSmoke,
       use: {
         browserName: "webkit",
         viewport: { width: 320, height: 800 },

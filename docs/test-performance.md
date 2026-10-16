@@ -16,8 +16,10 @@ optimization.
   desktop project plus focused phone and WebKit projects. This keeps each
   behavior covered while avoiding duplicate execution at nearly identical
   desktop and tablet viewports.
-- Pull requests run the compact Chromium/WebKit smoke matrix. Pushes to `main`
-  and release tags run the full matrix before a production image is built or
+- Pull requests run 12 representative Chromium/WebKit smoke scenarios: task
+  creation and workflow, ready-now count, PWA, rich text, discussion editing,
+  task editing, relations, and mobile/WebKit risks. Pushes to `main` and
+  release tags run the full matrix before a production image is built or
   published. The full matrix is the release gate; the smoke matrix gives fast
   feedback without pretending to replace it.
 - First-failure traces, videos and screenshots remain enabled. Retry-only video
@@ -78,7 +80,7 @@ below are sampled process-tree sums, not container-wide memory.
 | API login + direct discussion navigation, same 48 cases | 43.39 → 69.25 s; 1398.0 → 1176.7 MiB | Revert; slower despite less RSS |
 | UI login + direct discussion navigation, same 48 cases | 43.39 → 78.17 s; 1398.0 → 1181.0 MiB | Revert; keep the original navigation |
 | Focused browser projects, warm full fixture | 469 → 188 executions; 563.38 → 206.82 s; 2618.2 → 2146.4 MiB | Keep; one desktop pass plus targeted phone/WebKit checks preserve browser-specific coverage without repeating equivalent viewports |
-| Compact PR browser matrix, warm fixture | 44 executions; 52.04 s; 1705.0 MiB | Keep; covers high-risk Chromium flows plus PWA, mobile and WebKit editor paths before the complete main/tag gate |
+| Compact PR browser matrix, warm fixture | 12 executions; 22.60 s; 1666.4 MiB | Keep; covers representative Chromium flows plus PWA, mobile and WebKit editor paths before the complete main/tag gate |
 
 The initial full baseline took 563.38 s / 2618.2 MiB but had one 45-second
 combobox timeout (468 passed). Do not use that failed run to claim an overall
