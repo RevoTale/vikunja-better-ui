@@ -14,7 +14,7 @@ steps:
       - mkdir -p .cache/ci/bin
       - cp -a /usr/local/go .cache/ci/
       - export GOMODCACHE="$${PWD}/.cache/ci/mod" GOCACHE="$${PWD}/.cache/ci/build" GOTOOLCHAIN=local
-      - go -C tools build -o .cache/ci/bin/task github.com/go-task/task/v3/cmd/task
+      - go -C tools build -o ../.cache/ci/bin/task github.com/go-task/task/v3/cmd/task
     when:
       - event: pull_request
       - event: push
