@@ -11,10 +11,12 @@ export async function workflowJob(page: Page) {
     "placeholder",
     `Job ${displayDate(jobDate)} - 09:00`,
   );
-  const job = `Job ${displayDate(jobDate)} - 10:15`;
+  const generatedJob = `Job ${displayDate(jobDate)} - 10:15`;
+  const job = `${generatedJob} E2E ${Date.now()}`;
   await selectDate(page, "Start date", jobDate);
   await page.getByLabel("Start time", { exact: true }).fill("10:15");
-  await expect(page.getByLabel("Title (optional)")).toHaveAttribute("placeholder", job);
+  await expect(page.getByLabel("Title (optional)")).toHaveAttribute("placeholder", generatedJob);
+  await page.getByLabel("Title (optional)").fill(job);
   await chooseSelectOption(page, "Duration unit", "Minutes");
   await page.getByLabel("Duration", { exact: true }).fill("45");
   await chooseSelectOption(page, "Completion window unit", "Minutes");
