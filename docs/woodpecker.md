@@ -68,6 +68,12 @@ official `plugin-release` creates the matching GitHub Release with GitHub's
 generated release notes. The release title can still be edited before merging
 when a manual version is required.
 
+The release helper is pinned to `2.1.1`. Its newer `4.x` ARM64 images contain
+an amd64-only esbuild binary and fail before the plugin starts on the Raspberry
+Pi agent. Renovate must not advance this image until an upstream ARM64 image
+starts successfully; the pin is an agent-compatibility constraint, not a
+general preference for an older release.
+
 Use the plugin's default PR labels for version selection: `breaking` for a
 major release, `feature` or `enhancement` for a minor release, and `bug`,
 `docs`, `dependencies`, or `chore` for a patch release. This replaces the
