@@ -28,6 +28,11 @@
       "postUpdateOptions": ["pnpmDedupe"]
     },
     {
+      "description": "Keep the release helper on the last working ARM64 image",
+      "matchPackageNames": ["woodpeckerci/plugin-ready-release-go"],
+      "allowedVersions": "2.1.1"
+    },
+    {
       "description": "Make breaking upgrade PRs explicit",
       "matchUpdateTypes": ["major"],
       "addLabels": ["breaking"]

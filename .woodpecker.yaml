@@ -98,7 +98,8 @@ steps:
         branch: main
 
   - name: release
-    image: woodpeckerci/plugin-ready-release-go:4.1.1
+    # 4.x images copy amd64 esbuild into the arm64 image and cannot start on our Pi runner.
+    image: woodpeckerci/plugin-ready-release-go:2.1.1@sha256:58ab6f79fa3fa1dfb33263d2b603efa7b49a4353ebac811733e695f176b7f33d
     settings:
       forge_token:
         from_secret: github_token
