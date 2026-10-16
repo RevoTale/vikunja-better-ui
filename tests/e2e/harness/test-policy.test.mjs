@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import test from "node:test";
 
@@ -42,6 +43,14 @@ test("PR smoke projects retain representative workflow and browser-risk coverage
   assert.match("task editing preserves drafts on conflict", chromium.grep);
   assert.match("PWA keeps authenticated reads", webkit.grep);
   assert.match("discussion supports code and table controls on mobile and desktop", webkit.grep);
+});
+
+test("the comprehensive workflow keeps its ARM-safe timeout without relaxing the suite", () => {
+  const workflow = readFileSync(
+    new URL("../../../frontend/e2e/app-workflows.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(workflow, /desktop workflows match Vikunja state[\s\S]*?test\.slow\(\)/);
 });
 
 test("unit workers are bounded without disabling per-file isolation", async () => {
