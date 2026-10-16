@@ -46,7 +46,7 @@ func TestPublicActivityCachesOnlyAggregates(t *testing.T) {
 	if _, err = cache.Read(t.Context()); err != nil || upstream.calls != 1 {
 		t.Fatalf("cache miss: %v, %d", err, upstream.calls)
 	}
-	now = now.Add(10 * time.Minute)
+	now = now.Add(time.Hour)
 	if _, err = cache.Read(t.Context()); err != nil || upstream.calls != 2 {
 		t.Fatalf("refresh: %v, %d", err, upstream.calls)
 	}

@@ -44,16 +44,24 @@ tasks:
         go build -o "$output" ./cmd/server
 
   test:
-    desc: Run backend and frontend tests
+    desc: Run backend and frontend tests with race detection
     cmds:
       - pnpm --dir frontend run build
       - go test -race -count=2 -shuffle=on ./...
+      - pnpm --dir frontend run test
+
+  test:ci:
+    desc: Run backend and frontend tests on the race-incompatible CI runner
+    cmds:
+      - pnpm --dir frontend run build
+      - go test -count=2 -shuffle=on ./...
       - pnpm --dir frontend run test
 
   quality:test:
     desc: Verify quality gates reject invalid inputs
     cmds:
       - node --test tests/quality/*.test.mjs
+      - node --test tests/e2e/harness/*.test.mjs
 
   go:format:check:
     desc: Check Go formatting without modifying files
@@ -66,9 +74,14 @@ tasks:
       - sh tests/quality/empty-output.sh go fix -diff ./...
 
   e2e:
-    desc: Run Playwright against an isolated Vikunja 2.7.0 binary
+    desc: Run the full Playwright matrix against an isolated Vikunja 2.7.0 binary
     cmds:
-      - tests/e2e/harness/run.sh
+      - tests/e2e/harness/run.sh --project=phone-320 --project=phone-webkit --project=desktop-1440 --project=timezone-webkit
+
+  e2e:pr:
+    desc: Run the fast PR Playwright matrix against an isolated Vikunja 2.7.0 binary
+    cmds:
+      - tests/e2e/harness/run.sh --project=pr-chromium --project=pr-webkit
 
   demo:
     desc: Run the complete isolated demo on port 4180

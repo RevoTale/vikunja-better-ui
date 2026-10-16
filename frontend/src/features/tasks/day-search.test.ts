@@ -3,10 +3,11 @@ import { navigateDaySearch, parseDaySearch } from "./day-search";
 
 describe("daily navigation search", () => {
   it("uses the click-time calendar day across midnight and DST", () => {
-    const search = { project: "4", label: "7", page: 3 };
+    const search = { project: "4", label: "7", priority: "HIGH" as const, page: 3 };
     expect(navigateDaySearch(search, "Europe/Kyiv", 1, new Date("2026-10-24T21:30:00Z"))).toEqual({
       project: "4",
       label: "7",
+      priority: "HIGH",
       page: 1,
       date: "2026-10-26",
     });

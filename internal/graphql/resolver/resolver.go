@@ -88,6 +88,7 @@ type Dependencies struct {
 	Logger          *slog.Logger
 	Now             func() time.Time
 	Activity        *service.PublicActivity
+	AllTimeActivity *service.PublicAllTimeActivity
 }
 
 // Resolver wires GraphQL operations to application services.
@@ -109,6 +110,7 @@ type Resolver struct {
 	logger          *slog.Logger
 	now             func() time.Time
 	activity        *service.PublicActivity
+	allTimeActivity *service.PublicAllTimeActivity
 }
 
 // New constructs a resolver with the supplied request dependencies.
@@ -131,6 +133,7 @@ func New(dependencies Dependencies) *Resolver {
 		logger:          dependencies.Logger,
 		now:             dependencies.Now,
 		activity:        dependencies.Activity,
+		allTimeActivity: dependencies.AllTimeActivity,
 	}
 }
 

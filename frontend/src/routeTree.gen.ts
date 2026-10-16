@@ -8,6 +8,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as ActivityRouteImport } from './routes/activity'
+import { Route as AllTimeActivityRouteImport } from './routes/all-time-activity'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated.history'
 import { Route as AuthenticatedJobsRouteImport } from './routes/_authenticated.jobs'
@@ -35,6 +36,11 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
 const ActivityRoute = ActivityRouteImport.update({
   id: '/activity',
   path: '/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AllTimeActivityRoute = AllTimeActivityRouteImport.update({
+  id: '/all-time-activity',
+  path: '/all-time-activity',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -118,6 +124,7 @@ const AuthenticatedTasksTaskIdExtendedRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
+  '/all-time-activity': typeof AllTimeActivityRoute
   '/login': typeof LoginRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/jobs': typeof AuthenticatedJobsRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/activity': typeof ActivityRoute
+  '/all-time-activity': typeof AllTimeActivityRoute
   '/login': typeof LoginRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/jobs': typeof AuthenticatedJobsRoute
@@ -155,6 +163,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/activity': typeof ActivityRoute
+  '/all-time-activity': typeof AllTimeActivityRoute
   '/login': typeof LoginRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/jobs': typeof AuthenticatedJobsRoute
@@ -175,6 +184,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/activity'
+    | '/all-time-activity'
     | '/login'
     | '/history'
     | '/jobs'
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/activity'
+    | '/all-time-activity'
     | '/login'
     | '/history'
     | '/jobs'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/activity'
+    | '/all-time-activity'
     | '/login'
     | '/_authenticated/history'
     | '/_authenticated/jobs'
@@ -231,6 +243,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
   ActivityRoute: typeof ActivityRoute
+  AllTimeActivityRoute: typeof AllTimeActivityRoute
   LoginRoute: typeof LoginRoute
 }
 
@@ -255,6 +268,13 @@ declare module '@tanstack/react-router' {
       path: '/activity'
       fullPath: '/activity'
       preLoaderRoute: typeof ActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/all-time-activity': {
+      id: '/all-time-activity'
+      path: '/all-time-activity'
+      fullPath: '/all-time-activity'
+      preLoaderRoute: typeof AllTimeActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -412,6 +432,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
   ActivityRoute: ActivityRoute,
+  AllTimeActivityRoute: AllTimeActivityRoute,
   LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport

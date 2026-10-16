@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestActivityPageUsesFilteredMinimalTaskCollection(t *testing.T) {
@@ -21,7 +22,8 @@ func TestActivityPageUsesFilteredMinimalTaskCollection(t *testing.T) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"items":[{"done":true,"done_at":"2026-10-02T12:00:00Z",
-			"priority":2,"description":"private","labels":[{"title":"vbu:skipped"}]}],
+			"due_date":"2026-10-02T13:00:00Z","priority":2,"description":"private",
+			"labels":[{"title":"vbu:skipped"}]}],
 			"page":1,"per_page":100,"total":1,"total_pages":1}`))
 	}))
 	t.Cleanup(server.Close)
@@ -30,5 +32,8 @@ func TestActivityPageUsesFilteredMinimalTaskCollection(t *testing.T) {
 	})
 	if err != nil || len(result.Items) != 1 || result.Items[0].Priority != 2 || !result.Items[0].Done {
 		t.Fatalf("activity: %+v, %v", result, err)
+	}
+	if !result.Items[0].DueDate.Equal(time.Date(2026, 10, 2, 13, 0, 0, 0, time.UTC)) {
+		t.Fatalf("task-list deadline was not decoded: %+v", result.Items[0])
 	}
 }

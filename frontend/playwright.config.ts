@@ -4,6 +4,25 @@ const baseURL = process.env["E2E_BASE_URL"];
 if (!baseURL) throw new Error("E2E_BASE_URL is required; run task e2e through the harness");
 const chromiumExecutable = process.env["E2E_CHROMIUM_EXECUTABLE"];
 const chromiumLaunchOptions = chromiumExecutable ? { executablePath: chromiumExecutable } : {};
+const prChromiumSmoke = new RegExp(
+  [
+    "Today count supports ready-now rules",
+    "task creation and display use the Vikunja timezone",
+    "PWA caches only the build",
+    "discussion supports bare code fences with Enter",
+    "discussion supports comments, replies, edits, drafts and deletion",
+    "task editing preserves drafts on conflict",
+    "task relationships support linking",
+  ].join("|"),
+);
+const prWebKitSmoke = new RegExp(
+  [
+    "PWA keeps authenticated reads",
+    "PWA keeps Today below the sticky header",
+    "discussion supports bare code fences with Enter",
+    "discussion supports code and table controls on mobile and desktop",
+  ].join("|"),
+);
 
 export default defineConfig({
   testDir: "./e2e",
@@ -26,8 +45,47 @@ export default defineConfig({
   outputDir: "test-results",
   projects: [
     {
+      name: "pr-chromium",
+      testMatch: [
+        "app-creation.ts",
+        "app-recurring-jobs.ts",
+        "app-workflows.ts",
+        "actionable-count.spec.ts",
+        "pwa.spec.ts",
+        "task-discussion-rich-text.spec.ts",
+        "task-discussion.spec.ts",
+        "task-editing.spec.ts",
+        "task-relations.spec.ts",
+      ],
+      grep: prChromiumSmoke,
+      use: { viewport: { width: 1440, height: 900 }, launchOptions: chromiumLaunchOptions },
+    },
+    {
+      name: "pr-webkit",
+      testMatch: [
+        "pwa-authenticated.spec.ts",
+        "pwa-safe-area.spec.ts",
+        "task-discussion-rich-text.spec.ts",
+      ],
+      grep: prWebKitSmoke,
+      use: {
+        browserName: "webkit",
+        viewport: { width: 320, height: 800 },
+        isMobile: true,
+        hasTouch: true,
+      },
+    },
+    {
       name: "phone-320",
-      grep: /login restores|discussion supports|task labels support|task relationships support|Today count supports|daily navigation|public activity|PWA/,
+      testMatch: [
+        "pwa-safe-area.spec.ts",
+        "task-discussion-rich-text.spec.ts",
+        "task-discussion-toolbar.spec.ts",
+        "task-list-compact-size.spec.ts",
+        "task-list-size.spec.ts",
+        "task-mobile-content.spec.ts",
+        "task-mobile-fields.spec.ts",
+      ],
       use: {
         browserName: "chromium",
         launchOptions: chromiumLaunchOptions,
@@ -38,23 +96,23 @@ export default defineConfig({
     },
     {
       name: "phone-webkit",
-      grep: /login restores|discussion supports|discussion plays|task labels support|task relationships support|Today count supports|daily navigation|public activity|PWA/,
+      testMatch: [
+        "pwa-authenticated.spec.ts",
+        "pwa-safe-area.spec.ts",
+        "task-discussion-media.spec.ts",
+        "task-discussion-rich-text.spec.ts",
+        "time-format.spec.ts",
+      ],
+      // route.fetch() does not preserve a multipart upload on WebKit, so its
+      // lost-response simulation belongs to the Chromium transport suite.
+      // The normal WebKit upload, paste, drop and playback cases still run.
+      grepInvert: /recovers a lost upload response/,
       use: {
         browserName: "webkit",
         viewport: { width: 320, height: 800 },
         isMobile: true,
         hasTouch: true,
       },
-    },
-    {
-      name: "tablet-768",
-      grep: /login restores|discussion supports/,
-      use: { viewport: { width: 768, height: 1024 }, launchOptions: chromiumLaunchOptions },
-    },
-    {
-      name: "desktop-1024",
-      grep: /login restores|discussion supports/,
-      use: { viewport: { width: 1024, height: 768 }, launchOptions: chromiumLaunchOptions },
     },
     {
       name: "desktop-1440",

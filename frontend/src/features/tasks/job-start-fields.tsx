@@ -1,5 +1,6 @@
 import { DatePickerField } from "./date-picker-field";
 import type { LocalDateTimeParts } from "./local-date-time";
+import { ReuseScheduleValue } from "./reuse-schedule-value";
 import type { TaskFormErrors } from "./task-form-validation";
 import { TimeInput24 } from "./time-input-24";
 import { ValidatedField } from "./validated-field";
@@ -17,7 +18,18 @@ export function JobStartFields({
 }) {
   return (
     <div className="grid gap-5 sm:grid-cols-2">
-      <ValidatedField name="startDate" label="Start date" error={errors.startDate}>
+      <ValidatedField
+        name="startDate"
+        label="Start date"
+        error={errors.startDate}
+        action={
+          <ReuseScheduleValue
+            field="startDate"
+            label="start date"
+            onApply={(date) => onChange({ ...value, date })}
+          />
+        }
+      >
         {(attributes) => (
           <DatePickerField
             id="startDate"
@@ -31,7 +43,18 @@ export function JobStartFields({
           />
         )}
       </ValidatedField>
-      <ValidatedField name="startTime" label="Start time" error={errors.startTime}>
+      <ValidatedField
+        name="startTime"
+        label="Start time"
+        error={errors.startTime}
+        action={
+          <ReuseScheduleValue
+            field="startTime"
+            label="start time"
+            onApply={(time) => onChange({ ...value, time })}
+          />
+        }
+      >
         {(attributes) => (
           <TimeInput24
             id="startTime"

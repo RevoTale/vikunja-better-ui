@@ -1,9 +1,14 @@
-export type ListSearch = { project: string; page: number; label?: string };
+import type { TaskPriority } from "@/graphql/graphql";
+import { parseTaskPriority } from "./task-priority";
+
+export type ListSearch = { project: string; page: number; label?: string; priority?: TaskPriority };
 
 export function parseListSearch(search: Record<string, unknown>): ListSearch {
+  const priority = parseTaskPriority(search["priority"]);
   return {
     project: parseProject(search["project"]),
     page: parsePage(search["page"]),
+    ...(priority ? { priority } : {}),
     ...(parseProject(search["label"]) !== "all" ? { label: parseProject(search["label"]) } : {}),
   };
 }

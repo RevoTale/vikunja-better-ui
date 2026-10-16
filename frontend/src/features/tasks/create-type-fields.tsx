@@ -3,13 +3,12 @@ import { useState } from "react";
 import { AppInput } from "@/components/app-input";
 import { AppSelect } from "@/components/app-select";
 import { DurationInput } from "@/components/duration-input";
-import { DatePickerField } from "./date-picker-field";
+import { CreateDueFields } from "./create-due-fields";
 import { JobStartFields } from "./job-start-fields";
 import type { LocalDateTimeParts } from "./local-date-time";
 import type { ChangeTaskCreationField, TaskCreationValues } from "./task-creation-values";
 import type { CreationBaseType, TaskFormErrors } from "./task-form-validation";
 import { ReuseValueButton, useTaskReuseValues } from "./task-reuse";
-import { TimeInput24 } from "./time-input-24";
 import { ValidatedField } from "./validated-field";
 
 export function TaskTypeFields({
@@ -40,110 +39,18 @@ export function TaskTypeFields({
         ) : null}
       </>
     );
-  if (type === "one-time")
-    return (
-      <OneTimeFields
-        errors={errors}
-        defaultDate={defaultDate}
-        values={values}
-        onFieldChange={onFieldChange}
-      />
-    );
-  if (type === "recurring")
-    return (
-      <RecurringFields
-        errors={errors}
-        defaultDate={defaultDate}
-        values={values}
-        onFieldChange={onFieldChange}
-      />
-    );
-  return null;
-}
-
-function OneTimeFields({
-  errors,
-  defaultDate,
-  values,
-  onFieldChange,
-}: {
-  errors: TaskFormErrors;
-  defaultDate: string;
-  values: TaskCreationValues;
-  onFieldChange: ChangeTaskCreationField;
-}) {
-  return (
-    <div className="grid gap-5 sm:grid-cols-2">
-      <ValidatedField name="dueDate" label="Due date" error={errors.dueDate}>
-        {(attributes) => (
-          <DatePickerField
-            id="dueDate"
-            name="dueDate"
-            label="Due date"
-            value={values.dueDate}
-            defaultDate={defaultDate}
-            onChange={(dueDate) => onFieldChange("dueDate", dueDate)}
-            {...attributes}
-          />
-        )}
-      </ValidatedField>
-      <ValidatedField name="dueTime" label="Due time" error={errors.dueTime}>
-        {(attributes) => (
-          <TimeInput24
-            id="dueTime"
-            name="dueTime"
-            value={values.dueTime}
-            onChange={(dueTime) => onFieldChange("dueTime", dueTime)}
-            disabled={!values.dueDate}
-            {...attributes}
-          />
-        )}
-      </ValidatedField>
-    </div>
-  );
-}
-
-function RecurringFields({
-  errors,
-  defaultDate,
-  values,
-  onFieldChange,
-}: {
-  errors: TaskFormErrors;
-  defaultDate: string;
-  values: TaskCreationValues;
-  onFieldChange: ChangeTaskCreationField;
-}) {
   return (
     <>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <ValidatedField name="firstDueDate" label="First due date" error={errors.firstDueDate}>
-          {(attributes) => (
-            <DatePickerField
-              id="firstDueDate"
-              name="firstDueDate"
-              label="First due date"
-              value={values.firstDueDate}
-              defaultDate={defaultDate}
-              onChange={(firstDueDate) => onFieldChange("firstDueDate", firstDueDate)}
-              required
-              {...attributes}
-            />
-          )}
-        </ValidatedField>
-        <ValidatedField name="dueTime" label="Due time" error={errors.dueTime}>
-          {(attributes) => (
-            <TimeInput24
-              id="dueTime"
-              name="dueTime"
-              value={values.dueTime}
-              onChange={(dueTime) => onFieldChange("dueTime", dueTime)}
-              {...attributes}
-            />
-          )}
-        </ValidatedField>
-      </div>
-      <RecurrenceFields errors={errors} timeOfDay={values.dueTime} isJob={false} />
+      <CreateDueFields
+        type={type}
+        errors={errors}
+        defaultDate={defaultDate}
+        values={values}
+        onFieldChange={onFieldChange}
+      />
+      {type === "recurring" ? (
+        <RecurrenceFields errors={errors} timeOfDay={values.dueTime} isJob={false} />
+      ) : null}
     </>
   );
 }

@@ -1,5 +1,25 @@
 # Changelog
 
+## [2.8.1](https://github.com/RevoTale/vikunja-better-ui/compare/v2.8.0...v2.8.1) (2026-10-15)
+
+
+### Bug Fixes
+
+* **ci:** publish releases without repository-wide privileged mode ([1992b75](https://github.com/RevoTale/vikunja-better-ui/commit/1992b750287ff7bf5a3f51bbbbd7410229e064bc))
+
+## [2.8.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.7.0...v2.8.0) (2026-10-15)
+
+
+### Features
+
+* **activity:** add on-time and all-time analytics with priority filtering ([a40d319](https://github.com/RevoTale/vikunja-better-ui/commit/a40d319e86b841fb718c7ea251d5f39d9f54ff44))
+* **tasks:** add priority filters, creation context, and reusable schedule values ([a40d319](https://github.com/RevoTale/vikunja-better-ui/commit/a40d319e86b841fb718c7ea251d5f39d9f54ff44))
+
+
+### Continuous Integration
+
+* **woodpecker:** migrate checks, release tags, images, and GitHub releases from GitHub Actions ([957a0b5](https://github.com/RevoTale/vikunja-better-ui/commit/957a0b54db89f2b3c634c4ac7be561221d1d5c43))
+
 ## [2.7.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.6.0...v2.7.0) (2026-10-11)
 
 

@@ -12,11 +12,12 @@ import (
 const (
 	activityDays       = 14
 	activityPriorities = 6
-	activityTTL        = 10 * time.Minute
+	activityTTL        = time.Hour
 	activityRetryDelay = 30 * time.Second
 	activityTimeout    = 20 * time.Second
 	activityPageSize   = 100
 	activityMaxPages   = 1000
+	activityUTCDateDay = 24 * time.Hour
 )
 
 type activityClient interface {
@@ -26,8 +27,10 @@ type activityClient interface {
 
 // ActivityDay is an anonymous calendar-day count.
 type ActivityDay struct {
-	Date  string
-	Count int
+	Date              string
+	Count             int
+	WithDeadlineCount int
+	OnTimeCount       int
 }
 
 // ActivitySummary contains only fixed-size, public completion totals.
@@ -50,7 +53,7 @@ type PublicActivity struct {
 	expires time.Time
 }
 
-// NewPublicActivity creates an empty, lazily populated ten-minute aggregate cache.
+// NewPublicActivity creates an empty, lazily populated one-hour aggregate cache.
 func NewPublicActivity(client activityClient, now func() time.Time) *PublicActivity {
 	return &PublicActivity{client: client, now: now, gate: make(chan struct{}, 1)}
 }
@@ -127,14 +130,28 @@ func addActivity(
 	if task.Priority < 0 || task.Priority >= activityPriorities {
 		return vikunja.ErrRejectedResponse
 	}
-	date := task.DoneAt.In(location).Format(time.DateOnly)
-	for index := range summary.Days {
-		if summary.Days[index].Date == date {
-			summary.Days[index].Count++
-			summary.Priorities[task.Priority]++
-			summary.Total++
-			break
+	index := activityDayOffset(start, task.DoneAt, location)
+	if index < 0 || index >= len(summary.Days) || summary.Days[index].Date == "" {
+		return nil
+	}
+	day := &summary.Days[index]
+	day.Count++
+	if !task.DueDate.IsZero() {
+		day.WithDeadlineCount++
+		if !task.DoneAt.After(task.DueDate) {
+			day.OnTimeCount++
 		}
 	}
+	summary.Priorities[task.Priority]++
+	summary.Total++
 	return nil
+}
+
+func activityDayOffset(start, instant time.Time, location *time.Location) int {
+	startYear, startMonth, startDay := start.In(location).Date()
+	year, month, day := instant.In(location).Date()
+	// Compare local calendar dates on a UTC axis: DST days need not last 24 hours.
+	first := time.Date(startYear, startMonth, startDay, 0, 0, 0, 0, time.UTC)
+	current := time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
+	return int(current.Sub(first) / activityUTCDateDay)
 }

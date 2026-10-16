@@ -21,6 +21,7 @@ type WeekRequest struct {
 	WeekStart  time.Weekday
 	ProjectID  *int64
 	LabelIDs   []int64
+	Priority   *int64
 	singleDay  bool
 }
 
@@ -54,6 +55,9 @@ const maxCalendarProjections = 10000
 
 // ListWeek fetches bounded fresh candidates before computing deterministic occurrences.
 func ListWeek(ctx context.Context, client taskListClient, request WeekRequest) (WeekResult, error) {
+	if err := validatePriority(request.Priority); err != nil {
+		return WeekResult{}, err
+	}
 	if request.Location == nil || request.Timezone == "" {
 		return WeekResult{}, errors.New("timezone is required")
 	}
@@ -104,7 +108,8 @@ func buildWeekView(request WeekRequest, taskGroups ...[]vikunja.Task) WeekResult
 		for index := range tasks {
 			task := &tasks[index]
 			classification := ClassifyTask(*task)
-			if task.Done || task.DueDate.IsZero() || !matchesCalendarLabels(*task, request.LabelIDs) {
+			if task.Done || task.DueDate.IsZero() || !matchesCalendarLabels(*task, request.LabelIDs) ||
+				!matchesPriority(task.Priority, request.Priority) {
 				continue
 			}
 			candidate := taskListCandidate{Task: task, Classification: classification}
@@ -176,6 +181,7 @@ func weekTaskQuery(request WeekRequest, start time.Time, end time.Time) vikunja.
 		filterParts = append(filterParts, "due_date >= '"+start.Format(time.RFC3339)+"'")
 	}
 	filterParts = appendProjectFilter(filterParts, request.ProjectID)
+	filterParts = appendPriorityFilter(filterParts, request.Priority)
 	if len(request.LabelIDs) > 0 {
 		filterParts = append(filterParts, "labels in "+joinIDs(request.LabelIDs))
 	}

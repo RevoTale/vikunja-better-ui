@@ -50,6 +50,10 @@ export function isTaskPriority(value: string): value is TaskPriority {
   return taskPriorityOptions.some((option) => option.value === value);
 }
 
+export function parseTaskPriority(value: unknown): TaskPriority | undefined {
+  return typeof value === "string" && isTaskPriority(value) ? value : undefined;
+}
+
 export function taskPriorityOption(priority: TaskPriority): PriorityOption {
   return taskPriorityOptions.find((option) => option.value === priority) ?? taskPriorityOptions[0];
 }

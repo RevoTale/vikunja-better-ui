@@ -38,13 +38,30 @@ type DirectiveRoot struct {
 
 type ComplexityRoot struct {
 	ActivityDay struct {
-		Count func(childComplexity int) int
-		Date  func(childComplexity int) int
+		CompletedOnTime       func(childComplexity int) int
+		CompletedWithDeadline func(childComplexity int) int
+		Count                 func(childComplexity int) int
+		Date                  func(childComplexity int) int
 	}
 
 	ActivityPriority struct {
 		Count    func(childComplexity int) int
 		Priority func(childComplexity int) int
+	}
+
+	ActivityPriorityTimeliness struct {
+		CompletedOnTime       func(childComplexity int) int
+		CompletedWithDeadline func(childComplexity int) int
+		Count                 func(childComplexity int) int
+		Priority              func(childComplexity int) int
+	}
+
+	ActivityWeek struct {
+		CompletedOnTime       func(childComplexity int) int
+		CompletedWithDeadline func(childComplexity int) int
+		Count                 func(childComplexity int) int
+		Date                  func(childComplexity int) int
+		Priorities            func(childComplexity int) int
 	}
 
 	CompletionPayload struct {
@@ -145,24 +162,34 @@ type ComplexityRoot struct {
 		Total       func(childComplexity int) int
 	}
 
+	PublicAllTimeActivity struct {
+		GeneratedAt func(childComplexity int) int
+		Priorities  func(childComplexity int) int
+		RefreshAt   func(childComplexity int) int
+		Timezone    func(childComplexity int) int
+		Total       func(childComplexity int) int
+		Weeks       func(childComplexity int) int
+	}
+
 	Query struct {
-		ActionableTaskCount func(childComplexity int) int
-		Day                 func(childComplexity int, input model.DayInput) int
-		DiscussionAvatar    func(childComplexity int, username string) int
-		Projects            func(childComplexity int) int
-		PublicActivity      func(childComplexity int) int
-		RelationCandidates  func(childComplexity int, taskID string, search string, page int) int
-		Session             func(childComplexity int) int
-		Task                func(childComplexity int, id string) int
-		TaskAttachments     func(childComplexity int, taskID string, page int) int
-		TaskComment         func(childComplexity int, taskID string, commentID string) int
-		TaskComments        func(childComplexity int, taskID string, page int, pageSize int, order model.DiscussionOrder) int
-		TaskDiagnostics     func(childComplexity int, id string) int
-		TaskLabels          func(childComplexity int) int
-		TaskRelationships   func(childComplexity int, taskID string) int
-		TaskReuseValues     func(childComplexity int, job bool, recurring bool) int
-		Tasks               func(childComplexity int, input model.TaskListInput) int
-		Week                func(childComplexity int, input model.WeekInput) int
+		ActionableTaskCount   func(childComplexity int) int
+		Day                   func(childComplexity int, input model.DayInput) int
+		DiscussionAvatar      func(childComplexity int, username string) int
+		Projects              func(childComplexity int) int
+		PublicActivity        func(childComplexity int) int
+		PublicAllTimeActivity func(childComplexity int) int
+		RelationCandidates    func(childComplexity int, taskID string, search string, page int) int
+		Session               func(childComplexity int) int
+		Task                  func(childComplexity int, id string) int
+		TaskAttachments       func(childComplexity int, taskID string, page int) int
+		TaskComment           func(childComplexity int, taskID string, commentID string) int
+		TaskComments          func(childComplexity int, taskID string, page int, pageSize int, order model.DiscussionOrder) int
+		TaskDiagnostics       func(childComplexity int, id string) int
+		TaskLabels            func(childComplexity int) int
+		TaskRelationships     func(childComplexity int, taskID string) int
+		TaskReuseValues       func(childComplexity int, job bool, recurring bool) int
+		Tasks                 func(childComplexity int, input model.TaskListInput) int
+		Week                  func(childComplexity int, input model.WeekInput) int
 	}
 
 	RecurrenceRule struct {
@@ -312,10 +339,14 @@ type ComplexityRoot struct {
 
 	TaskReuseValues struct {
 		CompletionWindowMinutes func(childComplexity int) int
+		DueDate                 func(childComplexity int) int
+		DueTime                 func(childComplexity int) int
 		DurationMinutes         func(childComplexity int) int
 		Labels                  func(childComplexity int) int
 		Priority                func(childComplexity int) int
 		ProjectID               func(childComplexity int) int
+		StartDate               func(childComplexity int) int
+		StartTime               func(childComplexity int) int
 		TaskID                  func(childComplexity int) int
 		Title                   func(childComplexity int) int
 	}
@@ -389,6 +420,7 @@ type QueryResolver interface {
 	Task(ctx context.Context, id string) (*model.Task, error)
 	TaskDiagnostics(ctx context.Context, id string) (*model.TaskDiagnostics, error)
 	PublicActivity(ctx context.Context) (*model.PublicActivity, error)
+	PublicAllTimeActivity(ctx context.Context) (*model.PublicAllTimeActivity, error)
 	DiscussionAvatar(ctx context.Context, username string) (*string, error)
 	TaskComment(ctx context.Context, taskID string, commentID string) (*model.TaskComment, error)
 	TaskComments(ctx context.Context, taskID string, page int, pageSize int, order model.DiscussionOrder) (*model.TaskCommentPage, error)
@@ -415,6 +447,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 	_ = ec
 	switch typeName + "." + field {
 
+	case "ActivityDay.completedOnTime":
+		if e.ComplexityRoot.ActivityDay.CompletedOnTime == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityDay.CompletedOnTime(childComplexity), true
+	case "ActivityDay.completedWithDeadline":
+		if e.ComplexityRoot.ActivityDay.CompletedWithDeadline == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityDay.CompletedWithDeadline(childComplexity), true
 	case "ActivityDay.count":
 		if e.ComplexityRoot.ActivityDay.Count == nil {
 			break
@@ -440,6 +484,62 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.ActivityPriority.Priority(childComplexity), true
+
+	case "ActivityPriorityTimeliness.completedOnTime":
+		if e.ComplexityRoot.ActivityPriorityTimeliness.CompletedOnTime == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityPriorityTimeliness.CompletedOnTime(childComplexity), true
+	case "ActivityPriorityTimeliness.completedWithDeadline":
+		if e.ComplexityRoot.ActivityPriorityTimeliness.CompletedWithDeadline == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityPriorityTimeliness.CompletedWithDeadline(childComplexity), true
+	case "ActivityPriorityTimeliness.count":
+		if e.ComplexityRoot.ActivityPriorityTimeliness.Count == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityPriorityTimeliness.Count(childComplexity), true
+	case "ActivityPriorityTimeliness.priority":
+		if e.ComplexityRoot.ActivityPriorityTimeliness.Priority == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityPriorityTimeliness.Priority(childComplexity), true
+
+	case "ActivityWeek.completedOnTime":
+		if e.ComplexityRoot.ActivityWeek.CompletedOnTime == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityWeek.CompletedOnTime(childComplexity), true
+	case "ActivityWeek.completedWithDeadline":
+		if e.ComplexityRoot.ActivityWeek.CompletedWithDeadline == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityWeek.CompletedWithDeadline(childComplexity), true
+	case "ActivityWeek.count":
+		if e.ComplexityRoot.ActivityWeek.Count == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityWeek.Count(childComplexity), true
+	case "ActivityWeek.date":
+		if e.ComplexityRoot.ActivityWeek.Date == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityWeek.Date(childComplexity), true
+	case "ActivityWeek.priorities":
+		if e.ComplexityRoot.ActivityWeek.Priorities == nil {
+			break
+		}
+
+		return e.ComplexityRoot.ActivityWeek.Priorities(childComplexity), true
 
 	case "CompletionPayload.completedTask":
 		if e.ComplexityRoot.CompletionPayload.CompletedTask == nil {
@@ -891,6 +991,43 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 
 		return e.ComplexityRoot.PublicActivity.Total(childComplexity), true
 
+	case "PublicAllTimeActivity.generatedAt":
+		if e.ComplexityRoot.PublicAllTimeActivity.GeneratedAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PublicAllTimeActivity.GeneratedAt(childComplexity), true
+	case "PublicAllTimeActivity.priorities":
+		if e.ComplexityRoot.PublicAllTimeActivity.Priorities == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PublicAllTimeActivity.Priorities(childComplexity), true
+	case "PublicAllTimeActivity.refreshAt":
+		if e.ComplexityRoot.PublicAllTimeActivity.RefreshAt == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PublicAllTimeActivity.RefreshAt(childComplexity), true
+	case "PublicAllTimeActivity.timezone":
+		if e.ComplexityRoot.PublicAllTimeActivity.Timezone == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PublicAllTimeActivity.Timezone(childComplexity), true
+	case "PublicAllTimeActivity.total":
+		if e.ComplexityRoot.PublicAllTimeActivity.Total == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PublicAllTimeActivity.Total(childComplexity), true
+	case "PublicAllTimeActivity.weeks":
+		if e.ComplexityRoot.PublicAllTimeActivity.Weeks == nil {
+			break
+		}
+
+		return e.ComplexityRoot.PublicAllTimeActivity.Weeks(childComplexity), true
+
 	case "Query.actionableTaskCount":
 		if e.ComplexityRoot.Query.ActionableTaskCount == nil {
 			break
@@ -932,6 +1069,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.PublicActivity(childComplexity), true
+	case "Query.publicAllTimeActivity":
+		if e.ComplexityRoot.Query.PublicAllTimeActivity == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.PublicAllTimeActivity(childComplexity), true
 	case "Query.relationCandidates":
 		if e.ComplexityRoot.Query.RelationCandidates == nil {
 			break
@@ -1676,6 +1819,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TaskReuseValues.CompletionWindowMinutes(childComplexity), true
+	case "TaskReuseValues.dueDate":
+		if e.ComplexityRoot.TaskReuseValues.DueDate == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TaskReuseValues.DueDate(childComplexity), true
+	case "TaskReuseValues.dueTime":
+		if e.ComplexityRoot.TaskReuseValues.DueTime == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TaskReuseValues.DueTime(childComplexity), true
 	case "TaskReuseValues.durationMinutes":
 		if e.ComplexityRoot.TaskReuseValues.DurationMinutes == nil {
 			break
@@ -1700,6 +1855,18 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.TaskReuseValues.ProjectID(childComplexity), true
+	case "TaskReuseValues.startDate":
+		if e.ComplexityRoot.TaskReuseValues.StartDate == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TaskReuseValues.StartDate(childComplexity), true
+	case "TaskReuseValues.startTime":
+		if e.ComplexityRoot.TaskReuseValues.StartTime == nil {
+			break
+		}
+
+		return e.ComplexityRoot.TaskReuseValues.StartTime(childComplexity), true
 	case "TaskReuseValues.taskId":
 		if e.ComplexityRoot.TaskReuseValues.TaskID == nil {
 			break
@@ -1933,6 +2100,34 @@ var sources = []*ast.Source{
 	{Name: "../schema/activity.graphqls", Input: `extend type Query {
   "Anonymous, fixed-window completion counts; null when the feature is disabled."
   publicActivity: PublicActivity
+  "Anonymous weekly all-history aggregates; null when independently disabled. No filter arguments."
+  publicAllTimeActivity: PublicAllTimeActivity
+}
+
+type PublicAllTimeActivity {
+  weeks: [ActivityWeek!]!
+  priorities: [ActivityPriority!]!
+  total: Int!
+  timezone: String!
+  generatedAt: DateTime!
+  refreshAt: DateTime!
+}
+
+type ActivityWeek {
+  "Monday calendar date in the token owner's timezone; the current week is partial."
+  date: String!
+  count: Int!
+  completedWithDeadline: Int!
+  completedOnTime: Int!
+  "Nonempty priority cohorts for client-side filtering without extra upstream reads."
+  priorities: [ActivityPriorityTimeliness!]!
+}
+
+type ActivityPriorityTimeliness {
+  priority: TaskPriority!
+  count: Int!
+  completedWithDeadline: Int!
+  completedOnTime: Int!
 }
 
 type PublicActivity {
@@ -1947,6 +2142,10 @@ type PublicActivity {
 type ActivityDay {
   date: String!
   count: Int!
+  "Completed tasks with a stored deadline, grouped by completion day."
+  completedWithDeadline: Int!
+  "Eligible completions at or before their stored deadline."
+  completedOnTime: Int!
 }
 
 type ActivityPriority {
@@ -2372,6 +2571,7 @@ type TaskDiagnostics {
 }
 
 input TaskListInput {
+  priority: TaskPriority
   labelId: ID
   scope: TaskScope!
   projectId: ID
@@ -2385,6 +2585,7 @@ input WeekInput {
 }
 
 input DayInput {
+  priority: TaskPriority
   date: LocalDate!
   projectId: ID
   labelId: ID
@@ -2494,7 +2695,7 @@ input RepairTaskMetadataInput {
   capability: String!
 }
 
-"Explicit per-field reuse, never automatic form defaults. No schedule dates are exposed."
+"Explicit per-field reuse, never automatic form defaults. Schedule values use the Vikunja user's timezone."
 type TaskReuseValues {
   taskId: ID!
   title: String!
@@ -2503,6 +2704,10 @@ type TaskReuseValues {
   labels: [Label!]!
   durationMinutes: Int
   completionWindowMinutes: Int
+  dueDate: LocalDate
+  dueTime: LocalTime
+  startDate: LocalDate
+  startTime: LocalTime
 }
 
 type Query {
@@ -2566,6 +2771,10 @@ func (ec *executionContext) childFields_ActivityDay(ctx context.Context, field g
 		return ec.fieldContext_ActivityDay_date(ctx, field)
 	case "count":
 		return ec.fieldContext_ActivityDay_count(ctx, field)
+	case "completedWithDeadline":
+		return ec.fieldContext_ActivityDay_completedWithDeadline(ctx, field)
+	case "completedOnTime":
+		return ec.fieldContext_ActivityDay_completedOnTime(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ActivityDay", field.Name)
 }
@@ -2578,6 +2787,36 @@ func (ec *executionContext) childFields_ActivityPriority(ctx context.Context, fi
 		return ec.fieldContext_ActivityPriority_count(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type ActivityPriority", field.Name)
+}
+
+func (ec *executionContext) childFields_ActivityPriorityTimeliness(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "priority":
+		return ec.fieldContext_ActivityPriorityTimeliness_priority(ctx, field)
+	case "count":
+		return ec.fieldContext_ActivityPriorityTimeliness_count(ctx, field)
+	case "completedWithDeadline":
+		return ec.fieldContext_ActivityPriorityTimeliness_completedWithDeadline(ctx, field)
+	case "completedOnTime":
+		return ec.fieldContext_ActivityPriorityTimeliness_completedOnTime(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ActivityPriorityTimeliness", field.Name)
+}
+
+func (ec *executionContext) childFields_ActivityWeek(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "date":
+		return ec.fieldContext_ActivityWeek_date(ctx, field)
+	case "count":
+		return ec.fieldContext_ActivityWeek_count(ctx, field)
+	case "completedWithDeadline":
+		return ec.fieldContext_ActivityWeek_completedWithDeadline(ctx, field)
+	case "completedOnTime":
+		return ec.fieldContext_ActivityWeek_completedOnTime(ctx, field)
+	case "priorities":
+		return ec.fieldContext_ActivityWeek_priorities(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type ActivityWeek", field.Name)
 }
 
 func (ec *executionContext) childFields_CompletionPayload(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -2728,6 +2967,24 @@ func (ec *executionContext) childFields_PublicActivity(ctx context.Context, fiel
 		return ec.fieldContext_PublicActivity_refreshAt(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type PublicActivity", field.Name)
+}
+
+func (ec *executionContext) childFields_PublicAllTimeActivity(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+	switch field.Name {
+	case "weeks":
+		return ec.fieldContext_PublicAllTimeActivity_weeks(ctx, field)
+	case "priorities":
+		return ec.fieldContext_PublicAllTimeActivity_priorities(ctx, field)
+	case "total":
+		return ec.fieldContext_PublicAllTimeActivity_total(ctx, field)
+	case "timezone":
+		return ec.fieldContext_PublicAllTimeActivity_timezone(ctx, field)
+	case "generatedAt":
+		return ec.fieldContext_PublicAllTimeActivity_generatedAt(ctx, field)
+	case "refreshAt":
+		return ec.fieldContext_PublicAllTimeActivity_refreshAt(ctx, field)
+	}
+	return nil, fmt.Errorf("no field named %q was found under type PublicAllTimeActivity", field.Name)
 }
 
 func (ec *executionContext) childFields_RecurrenceRule(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
@@ -3036,6 +3293,14 @@ func (ec *executionContext) childFields_TaskReuseValues(ctx context.Context, fie
 		return ec.fieldContext_TaskReuseValues_durationMinutes(ctx, field)
 	case "completionWindowMinutes":
 		return ec.fieldContext_TaskReuseValues_completionWindowMinutes(ctx, field)
+	case "dueDate":
+		return ec.fieldContext_TaskReuseValues_dueDate(ctx, field)
+	case "dueTime":
+		return ec.fieldContext_TaskReuseValues_dueTime(ctx, field)
+	case "startDate":
+		return ec.fieldContext_TaskReuseValues_startDate(ctx, field)
+	case "startTime":
+		return ec.fieldContext_TaskReuseValues_startTime(ctx, field)
 	}
 	return nil, fmt.Errorf("no field named %q was found under type TaskReuseValues", field.Name)
 }
@@ -3856,6 +4121,52 @@ func (ec *executionContext) fieldContext_ActivityDay_count(_ context.Context, fi
 	return graphql.NewScalarFieldContext("ActivityDay", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _ActivityDay_completedWithDeadline(ctx context.Context, field graphql.CollectedField, obj *model.ActivityDay) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ActivityDay_completedWithDeadline(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CompletedWithDeadline, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ActivityDay_completedWithDeadline(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ActivityDay", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ActivityDay_completedOnTime(ctx context.Context, field graphql.CollectedField, obj *model.ActivityDay) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ActivityDay_completedOnTime(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CompletedOnTime, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ActivityDay_completedOnTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ActivityDay", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
 func (ec *executionContext) _ActivityPriority_priority(ctx context.Context, field graphql.CollectedField, obj *model.ActivityPriority) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -3900,6 +4211,222 @@ func (ec *executionContext) _ActivityPriority_count(ctx context.Context, field g
 }
 func (ec *executionContext) fieldContext_ActivityPriority_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("ActivityPriority", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ActivityPriorityTimeliness_priority(ctx context.Context, field graphql.CollectedField, obj *model.ActivityPriorityTimeliness) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ActivityPriorityTimeliness_priority(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Priority, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v model.TaskPriority) graphql.Marshaler {
+			return ec.marshalNTaskPriority2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPriority(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ActivityPriorityTimeliness_priority(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ActivityPriorityTimeliness", field, false, false, errors.New("field of type TaskPriority does not have child fields"))
+}
+
+func (ec *executionContext) _ActivityPriorityTimeliness_count(ctx context.Context, field graphql.CollectedField, obj *model.ActivityPriorityTimeliness) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ActivityPriorityTimeliness_count(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Count, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ActivityPriorityTimeliness_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ActivityPriorityTimeliness", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ActivityPriorityTimeliness_completedWithDeadline(ctx context.Context, field graphql.CollectedField, obj *model.ActivityPriorityTimeliness) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ActivityPriorityTimeliness_completedWithDeadline(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CompletedWithDeadline, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ActivityPriorityTimeliness_completedWithDeadline(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ActivityPriorityTimeliness", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ActivityPriorityTimeliness_completedOnTime(ctx context.Context, field graphql.CollectedField, obj *model.ActivityPriorityTimeliness) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ActivityPriorityTimeliness_completedOnTime(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CompletedOnTime, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ActivityPriorityTimeliness_completedOnTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ActivityPriorityTimeliness", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ActivityWeek_date(ctx context.Context, field graphql.CollectedField, obj *model.ActivityWeek) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ActivityWeek_date(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Date, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ActivityWeek_date(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ActivityWeek", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _ActivityWeek_count(ctx context.Context, field graphql.CollectedField, obj *model.ActivityWeek) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ActivityWeek_count(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Count, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ActivityWeek_count(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ActivityWeek", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ActivityWeek_completedWithDeadline(ctx context.Context, field graphql.CollectedField, obj *model.ActivityWeek) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ActivityWeek_completedWithDeadline(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CompletedWithDeadline, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ActivityWeek_completedWithDeadline(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ActivityWeek", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ActivityWeek_completedOnTime(ctx context.Context, field graphql.CollectedField, obj *model.ActivityWeek) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ActivityWeek_completedOnTime(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.CompletedOnTime, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ActivityWeek_completedOnTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("ActivityWeek", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _ActivityWeek_priorities(ctx context.Context, field graphql.CollectedField, obj *model.ActivityWeek) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_ActivityWeek_priorities(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Priorities, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.ActivityPriorityTimeliness) graphql.Marshaler {
+			return ec.marshalNActivityPriorityTimeliness2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐActivityPriorityTimelinessᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_ActivityWeek_priorities(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "ActivityWeek",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ActivityPriorityTimeliness(ctx, field)
+		},
+	}
+	return fc, nil
 }
 
 func (ec *executionContext) _CompletionPayload_status(ctx context.Context, field graphql.CollectedField, obj *model.CompletionPayload) (ret graphql.Marshaler) {
@@ -5691,6 +6218,162 @@ func (ec *executionContext) fieldContext_PublicActivity_refreshAt(_ context.Cont
 	return graphql.NewScalarFieldContext("PublicActivity", field, false, false, errors.New("field of type DateTime does not have child fields"))
 }
 
+func (ec *executionContext) _PublicAllTimeActivity_weeks(ctx context.Context, field graphql.CollectedField, obj *model.PublicAllTimeActivity) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PublicAllTimeActivity_weeks(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Weeks, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.ActivityWeek) graphql.Marshaler {
+			return ec.marshalNActivityWeek2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐActivityWeekᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PublicAllTimeActivity_weeks(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PublicAllTimeActivity",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ActivityWeek(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PublicAllTimeActivity_priorities(ctx context.Context, field graphql.CollectedField, obj *model.PublicAllTimeActivity) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PublicAllTimeActivity_priorities(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Priorities, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v []*model.ActivityPriority) graphql.Marshaler {
+			return ec.marshalNActivityPriority2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐActivityPriorityᚄ(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PublicAllTimeActivity_priorities(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "PublicAllTimeActivity",
+		Field:      field,
+		IsMethod:   false,
+		IsResolver: false,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_ActivityPriority(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _PublicAllTimeActivity_total(ctx context.Context, field graphql.CollectedField, obj *model.PublicAllTimeActivity) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PublicAllTimeActivity_total(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Total, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PublicAllTimeActivity_total(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PublicAllTimeActivity", field, false, false, errors.New("field of type Int does not have child fields"))
+}
+
+func (ec *executionContext) _PublicAllTimeActivity_timezone(ctx context.Context, field graphql.CollectedField, obj *model.PublicAllTimeActivity) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PublicAllTimeActivity_timezone(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.Timezone, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v string) graphql.Marshaler {
+			return ec.marshalNString2string(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PublicAllTimeActivity_timezone(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PublicAllTimeActivity", field, false, false, errors.New("field of type String does not have child fields"))
+}
+
+func (ec *executionContext) _PublicAllTimeActivity_generatedAt(ctx context.Context, field graphql.CollectedField, obj *model.PublicAllTimeActivity) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PublicAllTimeActivity_generatedAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.GeneratedAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNDateTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PublicAllTimeActivity_generatedAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PublicAllTimeActivity", field, false, false, errors.New("field of type DateTime does not have child fields"))
+}
+
+func (ec *executionContext) _PublicAllTimeActivity_refreshAt(ctx context.Context, field graphql.CollectedField, obj *model.PublicAllTimeActivity) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_PublicAllTimeActivity_refreshAt(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.RefreshAt, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v time.Time) graphql.Marshaler {
+			return ec.marshalNDateTime2timeᚐTime(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_PublicAllTimeActivity_refreshAt(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("PublicAllTimeActivity", field, false, false, errors.New("field of type DateTime does not have child fields"))
+}
+
 func (ec *executionContext) _Query_actionableTaskCount(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -6101,6 +6784,38 @@ func (ec *executionContext) fieldContext_Query_publicActivity(_ context.Context,
 		IsResolver: true,
 		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
 			return ec.childFields_PublicActivity(ctx, field)
+		},
+	}
+	return fc, nil
+}
+
+func (ec *executionContext) _Query_publicAllTimeActivity(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_publicAllTimeActivity(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().PublicAllTimeActivity(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.PublicAllTimeActivity) graphql.Marshaler {
+			return ec.marshalOPublicAllTimeActivity2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐPublicAllTimeActivity(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_Query_publicAllTimeActivity(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	fc = &graphql.FieldContext{
+		Object:     "Query",
+		Field:      field,
+		IsMethod:   true,
+		IsResolver: true,
+		Child: func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.childFields_PublicAllTimeActivity(ctx, field)
 		},
 	}
 	return fc, nil
@@ -9087,6 +9802,98 @@ func (ec *executionContext) fieldContext_TaskReuseValues_completionWindowMinutes
 	return graphql.NewScalarFieldContext("TaskReuseValues", field, false, false, errors.New("field of type Int does not have child fields"))
 }
 
+func (ec *executionContext) _TaskReuseValues_dueDate(ctx context.Context, field graphql.CollectedField, obj *model.TaskReuseValues) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TaskReuseValues_dueDate(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DueDate, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.LocalDate) graphql.Marshaler {
+			return ec.marshalOLocalDate2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLocalDate(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TaskReuseValues_dueDate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TaskReuseValues", field, false, false, errors.New("field of type LocalDate does not have child fields"))
+}
+
+func (ec *executionContext) _TaskReuseValues_dueTime(ctx context.Context, field graphql.CollectedField, obj *model.TaskReuseValues) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TaskReuseValues_dueTime(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.DueTime, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.LocalTime) graphql.Marshaler {
+			return ec.marshalOLocalTime2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLocalTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TaskReuseValues_dueTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TaskReuseValues", field, false, false, errors.New("field of type LocalTime does not have child fields"))
+}
+
+func (ec *executionContext) _TaskReuseValues_startDate(ctx context.Context, field graphql.CollectedField, obj *model.TaskReuseValues) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TaskReuseValues_startDate(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StartDate, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.LocalDate) graphql.Marshaler {
+			return ec.marshalOLocalDate2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLocalDate(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TaskReuseValues_startDate(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TaskReuseValues", field, false, false, errors.New("field of type LocalDate does not have child fields"))
+}
+
+func (ec *executionContext) _TaskReuseValues_startTime(ctx context.Context, field graphql.CollectedField, obj *model.TaskReuseValues) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_TaskReuseValues_startTime(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return obj.StartTime, nil
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v *model.LocalTime) graphql.Marshaler {
+			return ec.marshalOLocalTime2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLocalTime(ctx, selections, v)
+		},
+		true,
+		false,
+	)
+}
+func (ec *executionContext) fieldContext_TaskReuseValues_startTime(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("TaskReuseValues", field, false, false, errors.New("field of type LocalTime does not have child fields"))
+}
+
 func (ec *executionContext) _VikunjaUser_id(ctx context.Context, field graphql.CollectedField, obj *model.VikunjaUser) (ret graphql.Marshaler) {
 	return graphql.ResolveField(
 		ctx,
@@ -11108,13 +11915,20 @@ func (ec *executionContext) unmarshalInputDayInput(ctx context.Context, obj any)
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"date", "projectId", "labelId"}
+	fieldsInOrder := [...]string{"priority", "date", "projectId", "labelId"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "priority":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priority"))
+			data, err := ec.unmarshalOTaskPriority2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPriority(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Priority = data
 		case "date":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("date"))
 			data, err := ec.unmarshalNLocalDate2githubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐLocalDate(ctx, v)
@@ -11573,13 +12387,20 @@ func (ec *executionContext) unmarshalInputTaskListInput(ctx context.Context, obj
 		asMap["pageSize"] = 30
 	}
 
-	fieldsInOrder := [...]string{"labelId", "scope", "projectId", "page", "pageSize"}
+	fieldsInOrder := [...]string{"priority", "labelId", "scope", "projectId", "page", "pageSize"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
+		case "priority":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("priority"))
+			data, err := ec.unmarshalOTaskPriority2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐTaskPriority(ctx, v)
+			if err != nil {
+				return it, err
+			}
+			it.Priority = data
 		case "labelId":
 			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("labelId"))
 			data, err := ec.unmarshalOID2ᚖstring(ctx, v)
@@ -11940,6 +12761,16 @@ func (ec *executionContext) _ActivityDay(ctx context.Context, sel ast.SelectionS
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
+		case "completedWithDeadline":
+			out.Values[i] = ec._ActivityDay_completedWithDeadline(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completedOnTime":
+			out.Values[i] = ec._ActivityDay_completedOnTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -11980,6 +12811,117 @@ func (ec *executionContext) _ActivityPriority(ctx context.Context, sel ast.Selec
 			}
 		case "count":
 			out.Values[i] = ec._ActivityPriority_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var activityPriorityTimelinessImplementors = []string{"ActivityPriorityTimeliness"}
+
+func (ec *executionContext) _ActivityPriorityTimeliness(ctx context.Context, sel ast.SelectionSet, obj *model.ActivityPriorityTimeliness) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, activityPriorityTimelinessImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ActivityPriorityTimeliness")
+		case "priority":
+			out.Values[i] = ec._ActivityPriorityTimeliness_priority(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "count":
+			out.Values[i] = ec._ActivityPriorityTimeliness_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completedWithDeadline":
+			out.Values[i] = ec._ActivityPriorityTimeliness_completedWithDeadline(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completedOnTime":
+			out.Values[i] = ec._ActivityPriorityTimeliness_completedOnTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
+var activityWeekImplementors = []string{"ActivityWeek"}
+
+func (ec *executionContext) _ActivityWeek(ctx context.Context, sel ast.SelectionSet, obj *model.ActivityWeek) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, activityWeekImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("ActivityWeek")
+		case "date":
+			out.Values[i] = ec._ActivityWeek_date(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "count":
+			out.Values[i] = ec._ActivityWeek_count(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completedWithDeadline":
+			out.Values[i] = ec._ActivityWeek_completedWithDeadline(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "completedOnTime":
+			out.Values[i] = ec._ActivityWeek_completedOnTime(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "priorities":
+			out.Values[i] = ec._ActivityWeek_priorities(ctx, field, obj)
 			if out.Values[i] == graphql.Null {
 				out.Invalids++
 			}
@@ -12794,6 +13736,69 @@ func (ec *executionContext) _PublicActivity(ctx context.Context, sel ast.Selecti
 	return out
 }
 
+var publicAllTimeActivityImplementors = []string{"PublicAllTimeActivity"}
+
+func (ec *executionContext) _PublicAllTimeActivity(ctx context.Context, sel ast.SelectionSet, obj *model.PublicAllTimeActivity) graphql.Marshaler {
+	fields := graphql.CollectFields(ec.OperationContext, sel, publicAllTimeActivityImplementors)
+
+	out := graphql.NewFieldSet(fields)
+	deferredFieldSet := graphql.NewFieldSet(nil)
+	deferLabelToView := make(map[string]*graphql.FieldSetView)
+	for i, field := range fields {
+		switch field.Name {
+		case "__typename":
+			out.Values[i] = graphql.MarshalString("PublicAllTimeActivity")
+		case "weeks":
+			out.Values[i] = ec._PublicAllTimeActivity_weeks(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "priorities":
+			out.Values[i] = ec._PublicAllTimeActivity_priorities(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "total":
+			out.Values[i] = ec._PublicAllTimeActivity_total(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "timezone":
+			out.Values[i] = ec._PublicAllTimeActivity_timezone(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "generatedAt":
+			out.Values[i] = ec._PublicAllTimeActivity_generatedAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		case "refreshAt":
+			out.Values[i] = ec._PublicAllTimeActivity_refreshAt(ctx, field, obj)
+			if out.Values[i] == graphql.Null {
+				out.Invalids++
+			}
+		default:
+			panic("unknown field " + strconv.Quote(field.Name))
+		}
+	}
+	out.Dispatch(ctx)
+	if out.Invalids > 0 {
+		return graphql.Null
+	}
+
+	atomic.AddInt32(&ec.Deferred, int32(min(len(deferLabelToView), math.MaxInt32)))
+
+	ec.ProcessDeferredGroup(graphql.DeferredGroup{
+		Defers:   deferLabelToView,
+		Path:     graphql.GetPath(ctx),
+		FieldSet: deferredFieldSet,
+		Context:  ctx,
+	})
+
+	return out
+}
+
 var queryImplementors = []string{"Query"}
 
 func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) graphql.Marshaler {
@@ -13044,6 +14049,28 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 					}
 				}()
 				res = ec._Query_publicActivity(ctx, field)
+				if res == graphql.RequiredNull {
+					atomic.AddUint32(&fs.Invalids, 1)
+				}
+				return res
+			}
+
+			rrm := func(ctx context.Context) graphql.Marshaler {
+				return ec.OperationContext.RootResolverMiddleware(ctx,
+					func(ctx context.Context) graphql.Marshaler { return innerFunc(ctx, out) })
+			}
+
+			out.Concurrently(i, func(ctx context.Context) graphql.Marshaler { return rrm(innerCtx) })
+		case "publicAllTimeActivity":
+			field := field
+
+			innerFunc := func(ctx context.Context, fs *graphql.FieldSet) (res graphql.Marshaler) {
+				defer func() {
+					if r := recover(); r != nil {
+						ec.Error(ctx, ec.Recover(ctx, r))
+					}
+				}()
+				res = ec._Query_publicAllTimeActivity(ctx, field)
 				if res == graphql.RequiredNull {
 					atomic.AddUint32(&fs.Invalids, 1)
 				}
@@ -14265,6 +15292,26 @@ func (ec *executionContext) _TaskReuseValues(ctx context.Context, sel ast.Select
 			if out.Values[i] == graphql.RequiredNull {
 				out.Invalids++
 			}
+		case "dueDate":
+			out.Values[i] = ec._TaskReuseValues_dueDate(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "dueTime":
+			out.Values[i] = ec._TaskReuseValues_dueTime(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "startDate":
+			out.Values[i] = ec._TaskReuseValues_startDate(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
+		case "startTime":
+			out.Values[i] = ec._TaskReuseValues_startTime(ctx, field, obj)
+			if out.Values[i] == graphql.RequiredNull {
+				out.Invalids++
+			}
 		default:
 			panic("unknown field " + strconv.Quote(field.Name))
 		}
@@ -14950,6 +15997,58 @@ func (ec *executionContext) marshalNActivityPriority2ᚖgithubᚗcomᚋRevoTale�
 		return graphql.Null
 	}
 	return ec._ActivityPriority(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNActivityPriorityTimeliness2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐActivityPriorityTimelinessᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ActivityPriorityTimeliness) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNActivityPriorityTimeliness2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐActivityPriorityTimeliness(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNActivityPriorityTimeliness2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐActivityPriorityTimeliness(ctx context.Context, sel ast.SelectionSet, v *model.ActivityPriorityTimeliness) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ActivityPriorityTimeliness(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalNActivityWeek2ᚕᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐActivityWeekᚄ(ctx context.Context, sel ast.SelectionSet, v []*model.ActivityWeek) graphql.Marshaler {
+	ret := graphql.MarshalSliceConcurrently(ctx, len(v), 0, false, func(ctx context.Context, i int) graphql.Marshaler {
+		fc := graphql.GetFieldContext(ctx)
+		fc.Result = &v[i]
+		return ec.marshalNActivityWeek2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐActivityWeek(ctx, sel, v[i])
+	})
+
+	for _, e := range ret {
+		if e == graphql.Null {
+			return graphql.Null
+		}
+	}
+
+	return ret
+}
+
+func (ec *executionContext) marshalNActivityWeek2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐActivityWeek(ctx context.Context, sel ast.SelectionSet, v *model.ActivityWeek) graphql.Marshaler {
+	if v == nil {
+		if !graphql.HasFieldError(ctx, graphql.GetFieldContext(ctx)) {
+			graphql.AddErrorf(ctx, "the requested element is null which the schema does not allow")
+		}
+		return graphql.Null
+	}
+	return ec._ActivityWeek(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalNBoolean2bool(ctx context.Context, v any) (bool, error) {
@@ -16157,6 +17256,13 @@ func (ec *executionContext) marshalOPublicActivity2ᚖgithubᚗcomᚋRevoTaleᚋ
 		return graphql.Null
 	}
 	return ec._PublicActivity(ctx, sel, v)
+}
+
+func (ec *executionContext) marshalOPublicAllTimeActivity2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐPublicAllTimeActivity(ctx context.Context, sel ast.SelectionSet, v *model.PublicAllTimeActivity) graphql.Marshaler {
+	if v == nil {
+		return graphql.Null
+	}
+	return ec._PublicAllTimeActivity(ctx, sel, v)
 }
 
 func (ec *executionContext) unmarshalORecurrenceInput2ᚖgithubᚗcomᚋRevoTaleᚋvikunjaᚑbetterᚑuiᚋinternalᚋgraphqlᚋmodelᚐRecurrenceInput(ctx context.Context, v any) (*model.RecurrenceInput, error) {

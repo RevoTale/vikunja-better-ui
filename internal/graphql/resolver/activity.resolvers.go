@@ -25,7 +25,9 @@ func (resolver *queryResolver) PublicActivity(ctx context.Context) (*model.Publi
 		GeneratedAt: summary.GeneratedAt, RefreshAt: summary.RefreshAt,
 	}
 	for _, day := range summary.Days {
-		result.Days = append(result.Days, &model.ActivityDay{Date: day.Date, Count: day.Count})
+		result.Days = append(result.Days, &model.ActivityDay{Date: day.Date, Count: day.Count,
+			CompletedWithDeadline: day.WithDeadlineCount, CompletedOnTime: day.OnTimeCount,
+		})
 	}
 	for index, count := range summary.Priorities {
 		priority, priorityErr := priorityModel(int64(index))

@@ -35,7 +35,9 @@ the whole repository.
 - Works across phone, tablet, and desktop and follows the system light or dark
   color scheme with the configured TweakCN theme.
 
-Vikunja 2.7.0 and its REST API v2 are the supported integration target.
+Vikunja **2.7.0 is the minimum supported version**; the app uses REST API v2.
+Startup checks `/api/v2/info` and rejects older, unknown or prerelease versions.
+If this check cannot reach Vikunja, startup fails rather than serving an unsupported integration.
 The isolated E2E suite uses signed 2.7.0 binaries on Linux amd64 and arm64.
 Older versions are not part of the current compatibility guarantee. Upgrade
 Vikunja separately, following its [upgrade guidance](https://vikunja.io/docs/upgrade/)
@@ -117,15 +119,40 @@ full creation, renewal, repair, projection, and History contracts.
 
 ### Task creation defaults
 
-New task starts from normal defaults and the date/project selected on the
-originating page. Nothing is filled automatically. Choose Job above the fields;
+New task starts from normal defaults and the date/project/ordinary label selected
+in the originating list filters. Suggestions never fill fields automatically. Choose Job above the fields;
 changing Job or recurring mode preserves shared values entered in this form.
 
-Use the history icon beside title, project, priority, labels, or Job duration
-and completion window to reuse that field from the latest task. Labels are
-added without removing current selections. Dates, times, descriptions, and
-recurrence rules are never copied. A click can replace the selected field;
+Use the history icon beside title, project, priority, labels, dates, times, or Job
+duration and completion window to reuse that field from the latest task. Labels
+are added without removing current selections. Date/time buttons copy exact
+calendar dates or minute-precision local times in the Vikunja user's timezone,
+including past dates; they never shift to today. Reusing time leaves the selected
+day unchanged, and reusing a day leaves the entered time unchanged. A due date
+is required before applying a one-time due time. Missing schedules and date-only
+deadline times have disabled buttons. Descriptions and recurrence rules are
+never copied. A click can replace the selected field;
 loading a suggestion cannot. Unavailable values have disabled buttons.
+
+Creation context is applied once, before editing begins. Refreshing projects,
+labels or suggestions cannot reapply those defaults or restore a label you
+deselected. Inaccessible projects fall back to normal project selection;
+unknown, inaccessible and internal `vbu:*` labels are never preselected.
+
+### Task list priority filter
+
+Today, Long term and Jobs support one selected priority. **All priorities**
+disables the filter; **No priority** selects only unset priority, not all tasks.
+The filter combines with project and, in Today/Long term, label filters.
+Changing a filter resets pagination to page one without clearing other filters.
+The URL retains the selection across reloads and Today day navigation.
+
+Filtering happens in the existing Vikunja task request, before Better UI
+pagination; it adds no metadata or per-task requests. Future Today dates filter
+both real tasks and computed occurrences using their source task priority.
+**New task** (including a future day's **Add task**) initializes priority from
+the active filter. It never reapplies the value over subsequent edits. Week,
+History and public Activity selections do not set task creation priority.
 
 Suggestions are fetched fresh through `taskReuseValues(job:, recurring:)`.
 They come from the newest accessible task created by the configured Vikunja
@@ -377,6 +404,7 @@ secret.
 | `APP_LOG_LEVEL` | No | `debug`, `info`, `warn`, or `error`; defaults to `info`. |
 | `APP_TIME_FORMAT` | No | `24h` (default) or `12h` (AM/PM). Controls displayed times and time inputs independently of browser/OS preference. Restart the service and reload the app/PWA after changing it; no frontend rebuild is needed. |
 | `APP_PUBLIC_ACTIVITY_ENABLED` | No | `true` enables anonymous `/activity`; `false` (default) keeps public statistics disabled. |
+| `PUBLIC_ALL_TIME_ACTIVITY` | No | `true` independently enables anonymous `/all-time-activity`; `false` by default. This intentionally uses the requested unprefixed name. |
 | `APP_ENV` | No | `development`, `test`, or `production`; defaults to `production`. |
 | `APP_ALLOWED_ORIGIN` | Production/test | Exact public app origin used for CSRF checks. Development defaults to `http://localhost:5173`. |
 
@@ -419,8 +447,9 @@ Set `APP_PUBLIC_ACTIVITY_ENABLED=true`, restart the service, and open `/activity
 No login is required. Leave it disabled if you do not want completion patterns
 and the configured timezone to be public.
 
-The page shows daily completion counts and a priority distribution with counts
-and percentages for **today and the previous thirteen calendar days**, in the Vikunja
+The page shows an **On-time completion** percentage, daily completion counts and
+a priority distribution with counts and percentages for **today and the previous
+thirteen calendar days**, in the Vikunja
 API token owner's timezone. It counts all completed tasks accessible to that
 token, including completed Jobs and stored recurrence-history snapshots.
 Skipped occurrences and renewed live tasks are excluded. Completion time
@@ -429,25 +458,96 @@ be included; native recurrence without stored snapshots has no recoverable histo
 The daily chart uses two seven-day rows, with weekday, date and count aligned
 in each column.
 
-Only aggregate counts, dates, timezone and snapshot timestamps are exposed.
+On-time completion is the share of **completed tasks with a deadline** whose
+`done_at <= due_date`, grouped by completion day. For example, three on-time
+and one late completion produce 75%; a task without a deadline is excluded.
+Exact-deadline completion counts as on time. Missing samples show **No data**,
+not 0% or 100%. A 14-day line chart uses a fixed 0–100% scale and breaks at
+days without samples instead of interpolating them. Weekday and date appear
+below each point; percentage labels remain visible. On narrow screens the
+chart scrolls horizontally inside its card, including with the keyboard.
+Exact on-time/eligible counts are available as point tooltips and in the
+screen-reader summary; the period
+percentage uses the combined sample, not an average of daily percentages.
+Priorities are not weighted. The latest day is partial as of the snapshot.
+
+This measures timeliness among completed work, **not the fraction of planned
+work completed** or personal quality of life. Unfinished overdue tasks are not
+in the denominator, and clearing old overdue tasks can lower the percentage.
+Stored recurrence-history snapshots retain the original due date; skipped and
+renewed live tasks stay excluded. Deleted tasks, later deadline edits, missing
+snapshots, and native recurrence completed outside Better UI can change or limit
+the available history.
+
+Only aggregate counts, percentages, dates, timezone and snapshot timestamps are exposed.
 Titles, descriptions, task IDs, users, labels and project names are not public.
 There are no project, date-range or label filters. URL parameters do not change
 the aggregation. Existing `other:user` and `tasks:read_all` token permissions
 are sufficient; the browser never receives the token.
 
-One server-side aggregate is cached for ten minutes per process. Reload the page
+One server-side aggregate is cached for **one hour** per process. Reload the page
 after expiry to request a newer snapshot; the displayed timestamp identifies
 the data's age. The first request makes one user lookup and one request per
 100 completed tasks, without fetching individual tasks, comments or attachments.
 Cache hits make no Vikunja requests, and simultaneous misses share one refresh.
 Tasks are reduced one page at a time, not retained in a cache or database.
+The on-time metric reads `due_date` from those same responses: it adds no
+upstream requests, task-detail fetches, or upstream response bandwidth.
+For 10,000 completions and an effective page size of 100, a cold refresh needs
+101 requests (one user lookup and 100 task pages); cache hits need none.
+If Vikunja caps pages at 50 records, the same scan needs 201 requests.
+The aggregate may be up to one hour old, including across midnight; the visible
+dates and snapshot timestamp identify the actual window. It is not a live feed.
 
 Refreshes have a 20-second deadline, a 1,000-page safety limit and the client's
 bounded response-size checks. Failed refreshes return a safe error, not partial
 counts, and have a 30-second retry cooldown. The GraphQL response remains
-`private, no-store`; the ten-minute cache is the aggregate inside the service,
+`private, no-store`; the one-hour cache is the aggregate inside the service,
 not a browser or CDN copy of authenticated responses. Use normal reverse-proxy
 rate limits for public traffic; fixed queries do not eliminate network-level DoS.
+
+### All-time activity
+
+Set `PUBLIC_ALL_TIME_ACTIVITY=true`, restart, and open `/all-time-activity`.
+It is **off by default**, independently of `APP_PUBLIC_ACTIVITY_ENABLED`.
+Both public views use the API token owner's accessible tasks and timezone.
+The page exposes only anonymous weekly completions, on-time percentages and
+priority totals. Weeks start Monday; the current week is partial. The on-time
+definition and history limitations above also apply here.
+
+Browse 13 weeks at a time with Earlier/Later weeks. This is local presentation
+of the cached aggregate, not another upstream query. Neither the page nor
+`publicAllTimeActivity` accepts date, project, label or pagination arguments.
+
+Choose one or several priorities above the charts; all are selected initially.
+All priorities restores the full view. An empty selection means no data, not
+all priorities. Every chart and total uses the same selection; on-time percentages
+divide selected on-time completions by selected completions with deadlines.
+Filtering is local, with no new GraphQL/Vikunja requests or separate cache entries.
+Each cached week carries at most six anonymous priority cohorts, not task records.
+Weekly points sit at the center of Monday–Sunday intervals and display both dates,
+including across month/year boundaries. Filtering keeps empty calendar weeks.
+
+The server makes **one all-history paginated scan per hour**, not a query per
+week or per task. It reduces at most 100 tasks at a time into weekly counters;
+Vikunja may cap the effective page size at 50. For example, 10,000 records need
+101 requests at size 100, or 201 at size 50, including the user lookup. Cache
+hits add zero Vikunja calls. There is no public group-by or task-field projection
+endpoint in the [pinned Vikunja 2.7 API](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.7.0/pkg/swagger/swagger.json).
+
+Abuse protections are per process: one coalesced refresh, at most 16 concurrent
+readers, 20 reads per second, a 20-second scan deadline, 1,000 pages, 4 MiB per
+upstream response and at most 5,200 calendar weeks. GraphQL complexity prevents
+duplicating the full response through root aliases. Exceeding a safety limit
+returns unavailable, **never a truncated all-time result**. Failures have a
+five-minute retry cooldown; an expired successful snapshot is not served as fresh.
+The aggregate cache lasts one hour, including after task deletion or permission
+changes. Nothing is persisted and GraphQL remains `private, no-store`.
+
+These controls bound application work, not network-level DDoS. Apply connection,
+body-size and request-rate limits at your reverse proxy/CDN. Multiple replicas
+each have their own cache and rate budget. No additional token permissions are
+needed beyond `other:user` and `tasks:read_all`.
 
 ### Subtasks and related tasks
 
@@ -861,16 +961,21 @@ task gen:check  # prove committed generated source is current
 task fix        # format Go and frontend files
 task validate   # quality-gate tests, formatting/modernization, lint, types, vet, build
 task test       # Go race tests twice with shuffled order, plus frontend unit tests
-task e2e        # real browser tests against isolated Vikunja 2.7.0
+task e2e:pr     # compact PR browser coverage against isolated Vikunja 2.7.0
+task e2e        # complete browser matrix against isolated Vikunja 2.7.0
 task demo       # run the complete isolated demo at http://localhost:4180
 task dev        # run the application
 ```
 
 The [quality contract](docs/quality-gates.md) defines file/function limits,
 complexity, Go documentation and architecture checks, generated-code exclusions,
-and how to reproduce shuffled failures. `task fix` applies Go formatting/imports
+and how to reproduce shuffled failures. Pull requests run `task e2e:pr`; `main`
+pushes and release tags run the complete `task e2e` matrix before an image is
+built. `task fix` applies Go formatting/imports
 and Biome fixes; apply Go modernization separately with `go fix ./...` and review
-the diff. CI uses the same `gen:check`, `validate`, `test`, and `e2e` entrypoints.
+the diff. CI uses the same quality entrypoints; its ARM64-compatible `test:ci`
+omits only Go's unsupported race runtime, while `main` and release tags retain
+the complete E2E entrypoint.
 
 ### Automated dependency updates
 
@@ -893,12 +998,13 @@ still needs a reviewed follow-up commit rather than bypassing `task gen:check`.
 
 The production and development images copy pnpm from the official,
 digest-pinned pnpm image. The frontend build runs on the separately pinned
-Node.js image, while CI reads the exact Node.js version from
-`frontend/package.json`. Task and golangci-lint are isolated as standard Go
-tool dependencies in `tools/go.mod`; CI and the Dev Container install those
-exact versions with `go install tool`. Gqlgen remains a tool of the application
-module. No global npm, Corepack, custom Renovate manager, or version-check
-script is required.
+Node.js image, also used by Woodpecker checks. Task and golangci-lint are
+isolated as standard Go tool dependencies in `tools/go.mod`; the Dev Container
+installs those exact versions with `go install tool`. Woodpecker builds the
+pinned Task command and copies the matching official, digest-pinned
+golangci-lint binary instead of recompiling every linter for each pipeline.
+Gqlgen remains a tool of the application module. No global npm, Corepack,
+custom Renovate manager, or version-check script is required.
 
 ### Frontend components
 
@@ -925,6 +1031,19 @@ separately; `style-src` includes that allowance as a WebKit fallback, while
 arm64, verifies its pinned SHA-256 digest and detached signature, and runs it
 directly with an isolated SQLite directory. Every run creates deterministic
 fixtures and a short-lived scoped token, then removes its temporary data.
+
+See [Test resource policy](docs/test-performance.md) for bounded unit workers,
+cache-aware builds, browser diagnostics and repeatable RAM/time measurements.
+Set `E2E_MEASURE=1` to report browser-process measurements without fixture/build
+preparation; all browser scenarios and first-failure diagnostics remain enabled.
+
+The discussion pagination scenario seeds its 51 historical comments in one
+`BEGIN IMMEDIATE` transaction in that temporary database. This avoids a pinned
+Vikunja 2.7 SQLite read/write-upgrade race during bulk API setup. A checked
+fixture marker, loopback origin and exact database path prevent using this
+helper outside the isolated harness. Pagination, reply navigation and deletion
+still exercise the real API and UI; separate scenarios verify comment creation
+and edits. Uncertain production writes are never automatically resubmitted.
 
 Playwright uses its bundled browsers by default. To verify an upstream Chromium
 runtime fix, set `E2E_CHROMIUM_EXECUTABLE` to an already-installed browser's
@@ -955,6 +1074,10 @@ The command builds the frontend and Go server, starts an isolated Vikunja 2.7.0
 instance, creates deterministic fixtures and a scoped API token, and serves the
 complete app. Stop it with `Ctrl-C`; its temporary database and files are then
 removed.
+Only demo mode adds randomized completed tasks across the last three weeks,
+with varied priorities and on-time/late completions, so `/activity` has realistic
+chart data. Each demo restart creates a fresh sample; automated E2E fixtures
+remain deterministic. The public page still displays only its fixed 14-day window.
 
 The Dev Container forwards port `4180`. If VS Code assigns a different local
 port, restart the demo with that forwarded address. For example, when VS Code
@@ -997,20 +1120,32 @@ for reproducible benchmarks, measured allocations, and tuning constraints.
 
 ## CI and releases
 
-Pull requests and `main` run one reusable required-checks job covering generated
-drift, validation, unit/integration tests, real Playwright E2E, and the
-production image smoke test. Configure the GitHub branch rule for `main` to
-require the `Required checks` status before merge.
+Woodpecker runs the single [.woodpecker.yaml](.woodpecker.yaml) workflow on
+pull-request updates, pushes to `main`, and `v*` release tags. Pull requests
+run `gen:check`, `validate`, `test:ci`, and a compact Chromium/WebKit E2E
+matrix. `main` runs the complete `task e2e` matrix and a no-push
+multi-platform production-image build. Release tags repeat the complete
+verification before their image build can publish.
+GitHub Actions workflows are removed, so these runs do not consume GitHub
+Actions minutes.
 
-CI starts automatically on pull-request updates. A newer run cancels the older
-run for the same PR; different PRs run independently. Checks on `main` run
-through the Release workflow and are not cancelled by PR updates. No custom
-approval gate or manual dispatch is configured.
+The workflow does not mark this repository trusted or request `privileged`
+mode. Its CI agent must allow the exact pinned official Buildx plugin; see
+[Woodpecker setup](docs/woodpecker.md).
 
-After checks pass on `main`, release-please creates or updates the release pull
-request. Merging that pull request creates the release, and the pinned RevoTale
-action publishes `linux/amd64` and `linux/arm64` images to GHCR with the release
-tag and `latest`.
+After checks pass on `main`, Woodpecker's release plugin maintains a release PR;
+merging it creates the version tag. Its tag pipeline repeats the complete test
+suite, publishes `ghcr.io/revotale/vikunja-better-ui` with that exact `vX.Y.Z`
+tag and `latest` for `linux/amd64` and `linux/arm64`, then creates the GitHub
+Release. GitHub generates the release summary from merged pull requests. Ordinary
+main pushes do not publish an image. Build stages run natively and Go
+cross-compiles; QEMU registration is not required. The protected `github_token`
+secret is only available to the release/tag steps.
+
+Enable the repository in Woodpecker and replace the old GitHub Actions required
+status in branch protection with Woodpecker's reported status before merging.
+See [Woodpecker setup](docs/woodpecker.md) for runner permissions, secret scopes,
+timeouts, PR cancellation and the browser artifact-storage limitation.
 
 See [AGENTS.md](AGENTS.md) for the repository rules and
 [the MVP specification](docs/specs/mvp.md) for the complete product contract.

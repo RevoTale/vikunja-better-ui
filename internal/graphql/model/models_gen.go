@@ -15,11 +15,32 @@ import (
 type ActivityDay struct {
 	Date  string `json:"date"`
 	Count int    `json:"count"`
+	// Completed tasks with a stored deadline, grouped by completion day.
+	CompletedWithDeadline int `json:"completedWithDeadline"`
+	// Eligible completions at or before their stored deadline.
+	CompletedOnTime int `json:"completedOnTime"`
 }
 
 type ActivityPriority struct {
 	Priority TaskPriority `json:"priority"`
 	Count    int          `json:"count"`
+}
+
+type ActivityPriorityTimeliness struct {
+	Priority              TaskPriority `json:"priority"`
+	Count                 int          `json:"count"`
+	CompletedWithDeadline int          `json:"completedWithDeadline"`
+	CompletedOnTime       int          `json:"completedOnTime"`
+}
+
+type ActivityWeek struct {
+	// Monday calendar date in the token owner's timezone; the current week is partial.
+	Date                  string `json:"date"`
+	Count                 int    `json:"count"`
+	CompletedWithDeadline int    `json:"completedWithDeadline"`
+	CompletedOnTime       int    `json:"completedOnTime"`
+	// Nonempty priority cohorts for client-side filtering without extra upstream reads.
+	Priorities []*ActivityPriorityTimeliness `json:"priorities"`
 }
 
 type CompleteTaskInput struct {
@@ -111,9 +132,10 @@ type CreatorDiagnostic struct {
 }
 
 type DayInput struct {
-	Date      LocalDate `json:"date"`
-	ProjectID *string   `json:"projectId,omitempty"`
-	LabelID   *string   `json:"labelId,omitempty"`
+	Priority  *TaskPriority `json:"priority,omitempty"`
+	Date      LocalDate     `json:"date"`
+	ProjectID *string       `json:"projectId,omitempty"`
+	LabelID   *string       `json:"labelId,omitempty"`
 }
 
 type DayView struct {
@@ -180,6 +202,15 @@ type ProjectResult struct {
 
 type PublicActivity struct {
 	Days        []*ActivityDay      `json:"days"`
+	Priorities  []*ActivityPriority `json:"priorities"`
+	Total       int                 `json:"total"`
+	Timezone    string              `json:"timezone"`
+	GeneratedAt time.Time           `json:"generatedAt"`
+	RefreshAt   time.Time           `json:"refreshAt"`
+}
+
+type PublicAllTimeActivity struct {
+	Weeks       []*ActivityWeek     `json:"weeks"`
 	Priorities  []*ActivityPriority `json:"priorities"`
 	Total       int                 `json:"total"`
 	Timezone    string              `json:"timezone"`
@@ -334,11 +365,12 @@ type TaskDiagnostics struct {
 }
 
 type TaskListInput struct {
-	LabelID   *string   `json:"labelId,omitempty"`
-	Scope     TaskScope `json:"scope"`
-	ProjectID *string   `json:"projectId,omitempty"`
-	Page      int       `json:"page"`
-	PageSize  int       `json:"pageSize"`
+	Priority  *TaskPriority `json:"priority,omitempty"`
+	LabelID   *string       `json:"labelId,omitempty"`
+	Scope     TaskScope     `json:"scope"`
+	ProjectID *string       `json:"projectId,omitempty"`
+	Page      int           `json:"page"`
+	PageSize  int           `json:"pageSize"`
 }
 
 type TaskMutationPayload struct {
@@ -384,7 +416,7 @@ type TaskRelationships struct {
 	CanEdit  bool           `json:"canEdit"`
 }
 
-// Explicit per-field reuse, never automatic form defaults. No schedule dates are exposed.
+// Explicit per-field reuse, never automatic form defaults. Schedule values use the Vikunja user's timezone.
 type TaskReuseValues struct {
 	TaskID                  string       `json:"taskId"`
 	Title                   string       `json:"title"`
@@ -393,6 +425,10 @@ type TaskReuseValues struct {
 	Labels                  []*Label     `json:"labels"`
 	DurationMinutes         *int         `json:"durationMinutes,omitempty"`
 	CompletionWindowMinutes *int         `json:"completionWindowMinutes,omitempty"`
+	DueDate                 *LocalDate   `json:"dueDate,omitempty"`
+	DueTime                 *LocalTime   `json:"dueTime,omitempty"`
+	StartDate               *LocalDate   `json:"startDate,omitempty"`
+	StartTime               *LocalTime   `json:"startTime,omitempty"`
 }
 
 type UndoTaskCompletionInput struct {

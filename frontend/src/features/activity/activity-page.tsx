@@ -6,6 +6,7 @@ import { PublicActivityDocument } from "@/graphql/graphql";
 import { displayTimestamp } from "@/lib/time-format";
 import { useTwelveHourTime } from "@/lib/time-format-context";
 import { ActivityCharts, activityChartLayout } from "./activity-charts";
+import { activityOnTimeLayout } from "./activity-on-time-chart";
 
 export function ActivityPage() {
   const use12Hours = useTwelveHourTime();
@@ -24,6 +25,7 @@ export function ActivityPage() {
       </header>
       {loading && !activity ? (
         <div role="status" aria-label="Loading activity" className="space-y-6">
+          <LoadingPlaceholder className={activityOnTimeLayout} />
           <LoadingPlaceholder className={activityChartLayout.daily} />
           <LoadingPlaceholder className={activityChartLayout.priority} />
         </div>
@@ -42,7 +44,7 @@ export function ActivityPage() {
         <>
           <ActivityCharts activity={activity} />
           <footer className="text-sm text-muted-foreground">
-            <p>{activity.timezone} · Includes today. Cached for 10 minutes.</p>
+            <p>{activity.timezone} · 14 calendar days. Cached for 1 hour.</p>
             <p>Reload this page for a newer snapshot after the cache expires.</p>
             <p>
               Snapshot:{" "}
@@ -50,7 +52,9 @@ export function ActivityPage() {
                 {displayTimestamp(activity.generatedAt, use12Hours, activity.timezone)}
               </time>
             </p>
-            <p>Only anonymous counts are public. Skipped occurrences are excluded.</p>
+            <p>
+              Only anonymous counts and percentages are public. Skipped occurrences are excluded.
+            </p>
           </footer>
         </>
       ) : (

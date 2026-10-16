@@ -1,12 +1,13 @@
 import { expect, type Page, test } from "@playwright/test";
 import { commentMenu } from "./comment-menu-fixture";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
+import { seedDiscussionReplyChain } from "./discussion-seed";
 
 test("discussion supports pagination, lazy reply chains, and recovery of an emptied last page", async ({
   page,
 }) => {
   const { taskId, csrfToken } = await discussionFixture(page);
-  const source = await seedReplyChain(page, taskId, csrfToken);
+  const source = seedDiscussionReplyChain(taskId);
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.getByRole("article")).toHaveCount(50);
   await page.getByRole("button", { name: "Next comments", exact: true }).click();
@@ -98,24 +99,4 @@ async function expectDescendingComments(page: Page) {
       elements.map((element) => Date.parse(element.getAttribute("datetime") ?? "")),
     );
   expect(timestamps).toEqual([...timestamps].sort((left, right) => right - left));
-}
-
-async function seedReplyChain(page: Page, taskId: string, csrfToken: string) {
-  let source = "";
-  let parent = "";
-  for (let index = 0; index < 51; index++) {
-    const bodyHtml =
-      index === 50
-        ? `<blockquote data-comment-id="${parent}">Journal 1</blockquote><p>Last reply</p>`
-        : `${index === 1 ? `<blockquote data-comment-id="${source}">Journal 0</blockquote>` : ""}<p>Journal ${index}</p>`;
-    const result = await discussionGraphQL<{ createTaskComment: { id: string } }>(
-      page,
-      "mutation($input: CreateTaskCommentInput!) { createTaskComment(input: $input) { id } }",
-      { input: { taskId, csrfToken, bodyHtml } },
-      csrfToken,
-    );
-    if (index === 0) source = result.createTaskComment.id;
-    if (index === 1) parent = result.createTaskComment.id;
-  }
-  return source;
 }

@@ -13,6 +13,7 @@ import (
 type ActivityTask struct {
 	Done     bool      `json:"done"`
 	DoneAt   time.Time `json:"done_at"`
+	DueDate  time.Time `json:"due_date"`
 	Priority int64     `json:"priority"`
 	Labels   []Label   `json:"labels"`
 }

@@ -215,6 +215,9 @@ Use the `APP_` prefix. The expected variables are:
 
 Document every variable in `.env.example` and `README.md`. Fail at startup with
 a clear message when required configuration is missing or invalid.
+The explicitly requested `PUBLIC_ALL_TIME_ACTIVITY` is the sole unprefixed
+feature flag; it independently enables the anonymous all-time activity view.
+Vikunja 2.7.0 or later is required and checked through API v2 info at startup.
 
 Never commit a populated `.env` file or a real secret. Never put credentials in
 the frontend bundle, GraphQL responses, URLs, logs, metrics, or user-visible

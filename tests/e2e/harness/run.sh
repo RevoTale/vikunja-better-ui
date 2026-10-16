@@ -78,6 +78,7 @@ vikunja_user="e2e-user"
 vikunja_password="e2e-password-strong"
 
 export VIKUNJA_DATABASE_TYPE=sqlite
+export E2E_FIXTURE_DIR="$run_dir"
 export VIKUNJA_DATABASE_PATH="$run_dir/vikunja.db"
 export VIKUNJA_FILES_BASEPATH="$run_dir/files"
 export VIKUNJA_SERVICE_INTERFACE="127.0.0.1:$vikunja_port"
@@ -103,10 +104,12 @@ export E2E_LABELED_TITLE="$(node -e 'const d=JSON.parse(process.argv[1]);process
 
 pnpm --dir "$repo_root/frontend" run generate:graphql >/dev/null
 pnpm --dir "$repo_root/frontend" run build >/dev/null
-(cd "$repo_root" && go build -a -o "$run_dir/app" ./cmd/server)
+# Go tracks embedded asset contents in the cache key; never rebuild all dependencies here.
+(cd "$repo_root" && go build -o "$run_dir/app" ./cmd/server)
 
 export APP_ENV=test
 export APP_PUBLIC_ACTIVITY_ENABLED=true
+export PUBLIC_ALL_TIME_ACTIVITY=true
 export APP_VIKUNJA_URL="$vikunja_url"
 export APP_VIKUNJA_API_TOKEN="$api_token"
 export APP_AUTH_USERNAME="app-user"
@@ -136,4 +139,9 @@ if [[ "${E2E_DEMO:-}" == "1" ]]; then
   while true; do sleep 30; done
 fi
 
-pnpm --dir "$repo_root/frontend" exec playwright test "$@"
+playwright=(pnpm --dir "$repo_root/frontend" exec playwright test "$@")
+if [[ "${E2E_MEASURE:-}" == "1" ]]; then
+  node "$repo_root/tests/e2e/harness/measure.mjs" "${playwright[@]}"
+else
+  "${playwright[@]}"
+fi

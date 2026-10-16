@@ -1,7 +1,7 @@
-import { type FormEvent, useState } from "react";
-
+import { type FormEvent, useEffect, useState } from "react";
+import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button } from "@/components/ui/button";
-import type { ProjectsQuery } from "@/graphql/graphql";
+import type { ProjectsQuery, TaskPriority } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import { SharedFields } from "./create-shared-fields";
 import { TaskTypeFields } from "./create-type-fields";
@@ -16,6 +16,7 @@ import {
   type TaskFormErrors,
   validateTaskForm,
 } from "./task-form-validation";
+import type { TaskLabel } from "./task-label-options";
 import { TaskLabelPicker } from "./task-label-picker";
 import { TaskReuseProvider } from "./task-reuse";
 
@@ -24,7 +25,6 @@ export function CreateTaskForm({
   initialJob,
   projects,
   defaultProject,
-  explicitProjectId,
   timezone,
   defaultDate,
   initialDate,
@@ -33,6 +33,9 @@ export function CreateTaskForm({
   loading,
   settingsLoading,
   settingsError,
+  initialLabels = [],
+  initialLabelsLoading = false,
+  initialPriority = "UNSET",
   onSubmit,
   onFieldErrorsChange,
 }: {
@@ -40,7 +43,6 @@ export function CreateTaskForm({
   initialJob: boolean;
   projects: ProjectsQuery["projects"]["items"];
   defaultProject: string;
-  explicitProjectId: string | undefined;
   timezone: string | null | undefined;
   defaultDate: string | undefined;
   initialDate: string | undefined;
@@ -49,10 +51,19 @@ export function CreateTaskForm({
   loading: boolean;
   settingsLoading: boolean;
   settingsError: unknown;
+  initialLabels?: readonly TaskLabel[];
+  initialLabelsLoading?: boolean;
+  initialPriority?: TaskPriority | undefined;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onFieldErrorsChange: (errors: TaskFormErrors) => void;
 }) {
+  const [labelsResolved, setLabelsResolved] = useState(!initialLabelsLoading);
+  useEffect(() => {
+    if (!initialLabelsLoading) setLabelsResolved(true);
+  }, [initialLabelsLoading]);
   const hasSettings = Boolean(timezone && defaultDate && projects.length > 0);
+  if (initialLabelsLoading && !labelsResolved)
+    return <LoadingPlaceholder className="mt-6 h-96 w-full" />;
   if (settingsLoading && !hasSettings) return <p className="mt-6">Loading task settings…</p>;
   if (settingsError && !hasSettings) {
     return (
@@ -80,7 +91,6 @@ export function CreateTaskForm({
   }
   return (
     <ReadyCreateTaskForm
-      key={`${initialDate ?? ""}:${explicitProjectId ?? ""}`}
       type={type}
       initialJob={initialJob}
       projects={projects}
@@ -88,6 +98,8 @@ export function CreateTaskForm({
       defaultProject={defaultProject}
       defaultDate={defaultDate}
       initialDate={initialDate}
+      initialPriority={initialPriority}
+      initialLabels={initialLabels}
       selectedJobStart={selectedJobStart}
       fieldErrors={fieldErrors}
       loading={loading}
@@ -105,6 +117,8 @@ function ReadyCreateTaskForm({
   defaultProject,
   defaultDate,
   initialDate,
+  initialLabels,
+  initialPriority,
   selectedJobStart,
   fieldErrors,
   loading,
@@ -118,6 +132,8 @@ function ReadyCreateTaskForm({
   defaultProject: string;
   defaultDate: string;
   initialDate: string | undefined;
+  initialLabels: readonly TaskLabel[];
+  initialPriority: TaskPriority;
   selectedJobStart: LocalDateTimeParts;
   fieldErrors: TaskFormErrors;
   loading: boolean;
@@ -128,6 +144,7 @@ function ReadyCreateTaskForm({
   const [values, setValues] = useState(() =>
     defaultTaskCreationValues({
       job: initialJob,
+      priority: initialPriority,
       projectId: defaultProject,
       today: defaultDate,
       date: initialDate,
@@ -208,7 +225,7 @@ function ReadyCreateTaskForm({
             }
           }}
         />
-        <TaskLabelPicker onPendingChange={setLabelsPending} />
+        <TaskLabelPicker initialLabels={initialLabels} onPendingChange={setLabelsPending} />
       </TaskReuseProvider>
       <Button type="submit" disabled={loading || labelsPending}>
         {loading ? "Creating…" : creationButtonLabel(type, values.job)}

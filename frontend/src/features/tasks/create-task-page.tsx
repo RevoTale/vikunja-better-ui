@@ -3,7 +3,12 @@ import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
-import { ProjectsDocument, SessionDocument } from "@/graphql/graphql";
+import {
+  ProjectsDocument,
+  SessionDocument,
+  TaskLabelsDocument,
+  type TaskPriority,
+} from "@/graphql/graphql";
 import { cn } from "@/lib/utils";
 import { CreateTaskForm } from "./create-task-form";
 import { CreationLabelWarningPanel, CreationRepairPanel } from "./creation-outcome";
@@ -15,6 +20,7 @@ import {
   type CreationType,
   hasTaskFormErrors,
 } from "./task-form-validation";
+import { isInternalTaskLabel } from "./task-label-options";
 import { useCreatedTaskResult } from "./use-created-task-result";
 import { useTaskCreation } from "./use-task-creation";
 
@@ -23,22 +29,21 @@ export function CreateTaskPage({
   returnTo,
   date: initialDate,
   project: initialProjectID,
+  label: initialLabelID,
+  priority: initialPriority,
 }: {
   type: CreationType;
   returnTo: string;
   date?: string;
   project?: string;
+  label?: string;
+  priority?: TaskPriority;
 }) {
-  const {
-    projects,
-    timezone,
-    defaultDate,
-    selectedJobStart,
-    defaultProject,
-    csrfToken,
-    settingsLoading,
-    settingsError,
-  } = useCreationSettings(initialProjectID, initialDate);
+  const { csrfToken, ...settings } = useCreationSettings(
+    initialProjectID,
+    initialDate,
+    initialLabelID,
+  );
   const result = useCreatedTaskResult(csrfToken, returnTo);
   const { error, setError, labelWarning, repairInfo, repairing, continueRepair } = result;
   const [baseType, setBaseType] = useState<CreationBaseType>(type === "job" ? "one-time" : type);
@@ -107,19 +112,14 @@ export function CreateTaskPage({
         </div>
       ) : null}
       <CreateTaskForm
+        key={`${initialDate ?? ""}:${initialProjectID ?? ""}:${initialLabelID ?? ""}:${initialPriority ?? ""}`}
         type={baseType}
         initialJob={type === "job"}
-        projects={projects}
-        defaultProject={defaultProject}
-        explicitProjectId={initialProjectID}
-        timezone={timezone}
-        defaultDate={defaultDate}
+        {...settings}
         initialDate={initialDate}
-        selectedJobStart={selectedJobStart}
+        initialPriority={initialPriority}
         fieldErrors={fieldErrors}
         loading={loading}
-        settingsLoading={settingsLoading}
-        settingsError={settingsError}
         onSubmit={submit}
         onFieldErrorsChange={setFieldErrors}
       />
@@ -130,6 +130,7 @@ export function CreateTaskPage({
 function useCreationSettings(
   initialProjectID: string | undefined,
   initialDate: string | undefined,
+  initialLabelID: string | undefined,
 ) {
   const {
     data: sessionData,
@@ -141,6 +142,17 @@ function useCreationSettings(
     loading: projectsLoading,
     error: projectsError,
   } = useQuery(ProjectsDocument);
+  const {
+    data: labelsData,
+    loading: labelsLoading,
+    error: labelsError,
+  } = useQuery(TaskLabelsDocument, {
+    skip: !initialLabelID,
+    fetchPolicy: "cache-and-network",
+  });
+  const initialLabels = (labelsData?.taskLabels ?? []).filter(
+    (label) => label.id === initialLabelID && !isInternalTaskLabel(label.title),
+  );
   const projects = projectData?.projects.items ?? [];
   const timezone = sessionData?.session.vikunjaUser?.timezone;
   const defaultDate = timezone ? currentDateInTimeZone(timezone) : undefined;
@@ -161,5 +173,7 @@ function useCreationSettings(
     csrfToken: sessionData?.session.csrfToken,
     settingsLoading: sessionLoading || projectsLoading,
     settingsError: sessionError ?? projectsError,
+    initialLabels,
+    initialLabelsLoading: Boolean(initialLabelID && labelsLoading && !labelsData && !labelsError),
   };
 }

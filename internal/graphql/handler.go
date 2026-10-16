@@ -18,14 +18,19 @@ import (
 )
 
 const (
-	maxOperationComplexity = 200
-	maxOperationDepth      = 12
-	maxMultipartMemory     = 1 << 20
+	maxOperationComplexity    = 200
+	maxOperationDepth         = 12
+	maxMultipartMemory        = 1 << 20
+	allTimeActivityComplexity = 180
 )
 
 // NewHandler configures transports, operation limits, and safe panic responses.
 func NewHandler(root *resolver.Resolver, production bool, logger *slog.Logger) *handler.Server {
-	server := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: root}))
+	complexity := generated.ComplexityRoot{}
+	complexity.Query.PublicAllTimeActivity = func(childComplexity int) int {
+		return allTimeActivityComplexity + childComplexity
+	}
+	server := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: root, Complexity: complexity}))
 	server.AddTransport(transport.POST{})
 	server.AddTransport(transport.MultipartForm{MaxUploadSize: web.MaxGraphQLUploadBytes, MaxMemory: maxMultipartMemory})
 	server.Use(extension.FixedComplexityLimit(maxOperationComplexity))

@@ -3,6 +3,30 @@ query PublicActivity {
     days {
       date
       count
+      completedWithDeadline
+      completedOnTime
+    }
+    priorities {
+      priority
+      count
+    }
+    total
+    timezone
+    generatedAt
+    refreshAt
+  }
+}
+
+query PublicAllTimeActivity {
+  publicAllTimeActivity {
+    weeks {
+      date
+      priorities {
+        priority
+        count
+        completedWithDeadline
+        completedOnTime
+      }
     }
     priorities {
       priority

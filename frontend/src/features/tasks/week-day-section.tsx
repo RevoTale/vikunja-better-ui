@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import type { WeekQuery } from "@/graphql/graphql";
 import { cn } from "@/lib/utils";
+import { creationContextFromReturnTo } from "./creation-context";
 import { type TaskItem, TaskRow } from "./task-row";
 import { formatDayDate, formatDayName } from "./week-date-format";
 import { mergeWeekEntries } from "./week-entries";
@@ -101,6 +102,7 @@ export function WeekDaySection({
         <Link
           to="/tasks/new"
           search={{
+            ...creationContextFromReturnTo(returnTo),
             type: "one-time",
             returnTo,
             date: day.date,

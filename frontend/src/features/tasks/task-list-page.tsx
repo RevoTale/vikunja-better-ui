@@ -48,6 +48,7 @@ export function TaskListPage({
 }: TaskListPageProps) {
   const location = useLocation();
   const supportsLabels = scope === "TODAY" || scope === "UNSCHEDULED" || scope === "LONG_TERM";
+  const supportsPriority = supportsLabels || scope === "JOBS";
   const { data: sessionData, error: sessionError } = useQuery(SessionDocument);
   const { data: projectData, error: projectError } = useQuery(ProjectsDocument);
   const { data, loading, error, refetch } = useQuery(TaskListDocument, {
@@ -58,6 +59,7 @@ export function TaskListPage({
         pageSize: 30,
         projectId: search.project === "all" ? null : search.project,
         ...(supportsLabels && search.label ? { labelId: search.label } : {}),
+        ...(supportsPriority && search.priority ? { priority: search.priority } : {}),
       },
     },
     fetchPolicy: "cache-and-network",
@@ -84,6 +86,7 @@ export function TaskListPage({
         description={description}
         projects={projectData?.projects.items ?? []}
         supportsLabels={supportsLabels}
+        supportsPriority={supportsPriority}
         search={search}
         setSearch={setSearch}
       />

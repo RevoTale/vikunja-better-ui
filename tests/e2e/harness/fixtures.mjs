@@ -1,9 +1,14 @@
+import { seedPreviewActivity } from "./preview-activity.mjs";
+import { registerDiscussionFixture } from "../../../frontend/e2e/discussion-seed.ts";
+
 const [baseURL, username, password] = process.argv.slice(2);
 const fixtureTimezone = "Europe/Kyiv";
 
 if (!baseURL || !username || !password) {
   throw new Error("usage: fixtures.mjs <base-url> <username> <password>");
 }
+
+registerDiscussionFixture();
 
 const login = await request("/login", {
   method: "POST",
@@ -245,7 +250,7 @@ const currentWeekPreview = [
     task: { due_date: scheduledThisWeek(6, 19, 0) },
   },
 ];
-for (let index = 0; index < 125; index += 1) {
+for (let index = 0; process.env.E2E_DEMO !== "1" && index < 125; index += 1) {
   const scheduled = schedule[index % schedule.length];
   const dayOffset = -Math.floor(index / schedule.length) - 1;
   const task = await createTask(
@@ -253,6 +258,9 @@ for (let index = 0; index < 125; index += 1) {
     scheduled.historyLabels ?? scheduled.labels,
   );
   await completeTask(task.id);
+}
+if (process.env.E2E_DEMO === "1") {
+  await seedPreviewActivity(request, project.id, jwt);
 }
 
 for (const scheduled of schedule) {
