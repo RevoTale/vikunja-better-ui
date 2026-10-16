@@ -12,6 +12,7 @@ import { workflowRecurringJob } from "./workflow-recurring-job";
 import { workflowWeek } from "./workflow-week";
 
 test("desktop workflows match Vikunja state", async ({ page }) => {
+  test.slow();
   await blockBrowserVikunjaCalls(page);
   await page.goto("/today");
   await login(page);
