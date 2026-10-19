@@ -1,5 +1,6 @@
 import { useQuery } from "@apollo/client/react";
 import { useState } from "react";
+import { LoadFailure } from "@/components/load-failure";
 import { Button } from "@/components/ui/button";
 import {
   type DiscussionCommentFragment,
@@ -62,7 +63,7 @@ export function DiscussionThread({
           </span>
         </p>
       </div>
-      <DiscussionError error={comments.error} retained={Boolean(list)} />
+      <DiscussionError error={comments.error} retained={Boolean(list)} retry={() => refresh()} />
       {list?.items.length === 0 ? (
         <p className="py-4 text-muted-foreground">No comments yet. Start the discussion below.</p>
       ) : null}
@@ -145,13 +146,21 @@ function CommentPermissions({ loading, retry }: { loading: boolean; retry: () =>
   );
 }
 
-function DiscussionError({ error, retained }: { error: unknown; retained: boolean }) {
+function DiscussionError({
+  error,
+  retained,
+  retry,
+}: {
+  error: unknown;
+  retained: boolean;
+  retry: () => void;
+}) {
   if (!error) return null;
   return (
-    <p role="alert" className="text-destructive">
+    <LoadFailure onRetry={retry}>
       {graphQLErrorMessage(error, "Comments could not be loaded. Your draft is unchanged.")}
       {retained ? " Displayed comments are from the previous successful load." : ""}
-    </p>
+    </LoadFailure>
   );
 }
 

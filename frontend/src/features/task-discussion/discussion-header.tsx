@@ -1,6 +1,6 @@
 import { useQuery } from "@apollo/client/react";
+import { LoadFailure } from "@/components/load-failure";
 import { LoadingPlaceholder } from "@/components/loading-placeholder";
-import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/features/tasks/format-date-time";
 import { TaskDetailsDocument } from "@/graphql/graphql";
 import { useTwelveHourTime } from "@/lib/time-format-context";
@@ -34,17 +34,9 @@ export function DiscussionHeader({ taskId }: { taskId: string }) {
         <p>Task context unavailable.</p>
       )}
       {error ? (
-        <>
-          <p role="alert">{graphQLErrorMessage(error, "Task could not be loaded.")}</p>
-          <Button
-            variant="outline"
-            onClick={() => {
-              void refetch().catch(() => undefined);
-            }}
-          >
-            Retry task
-          </Button>
-        </>
+        <LoadFailure className="mt-3" onRetry={() => void refetch().catch(() => undefined)}>
+          {graphQLErrorMessage(error, "Task could not be loaded.")}
+        </LoadFailure>
       ) : null}
     </header>
   );

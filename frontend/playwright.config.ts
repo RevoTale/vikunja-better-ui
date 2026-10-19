@@ -18,6 +18,7 @@ const prChromiumSmoke = new RegExp(
 const prWebKitSmoke = new RegExp(
   [
     "PWA keeps authenticated reads",
+    "PWA caches only the build",
     "PWA keeps Today below the sticky header",
     "discussion supports bare code fences with Enter",
     "discussion supports code and table controls on mobile and desktop",
@@ -64,6 +65,7 @@ export default defineConfig({
       name: "pr-webkit",
       testMatch: [
         "pwa-authenticated.spec.ts",
+        "pwa.spec.ts",
         "pwa-safe-area.spec.ts",
         "task-discussion-rich-text.spec.ts",
       ],
@@ -98,6 +100,7 @@ export default defineConfig({
       name: "phone-webkit",
       testMatch: [
         "pwa-authenticated.spec.ts",
+        "pwa.spec.ts",
         "pwa-safe-area.spec.ts",
         "task-discussion-media.spec.ts",
         "task-discussion-rich-text.spec.ts",

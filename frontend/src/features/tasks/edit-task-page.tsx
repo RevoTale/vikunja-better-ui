@@ -1,6 +1,7 @@
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { LoadFailure } from "@/components/load-failure";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   ProjectsDocument,
@@ -62,12 +63,10 @@ export function EditTaskPage({ taskId, returnTo }: { taskId: string; returnTo: s
     return <p>Loading task editor…</p>;
   if ((!task && taskQuery.error) || (!projects.data && projects.error))
     return (
-      <p role="alert">
-        {graphQLErrorMessage(
-          taskQuery.error ?? projects.error,
-          "Task settings could not be loaded.",
-        )}
-      </p>
+      <TaskEditorLoadFailure
+        error={taskQuery.error ?? projects.error}
+        retry={() => Promise.all([taskQuery.refetch(), projects.refetch()])}
+      />
     );
   if (!task) return <p>Task not found.</p>;
   return (
@@ -120,5 +119,19 @@ export function EditTaskPage({ taskId, returnTo }: { taskId: string; returnTo: s
         />
       )}
     </section>
+  );
+}
+
+function TaskEditorLoadFailure({
+  error,
+  retry,
+}: {
+  error: unknown;
+  retry: () => Promise<unknown>;
+}) {
+  return (
+    <LoadFailure onRetry={() => void retry().catch(() => undefined)}>
+      {graphQLErrorMessage(error, "Task settings could not be loaded.")}
+    </LoadFailure>
   );
 }

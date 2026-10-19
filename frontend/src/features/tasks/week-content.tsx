@@ -1,5 +1,6 @@
+import { LoadFailure } from "@/components/load-failure";
 import type { WeekQuery } from "@/graphql/graphql";
-import { IssueList, ListMessage } from "./list-state";
+import { IssueList } from "./list-state";
 import { TaskListLoading } from "./task-list-loading";
 import type { TaskItem } from "./task-row";
 import { groupCurrentWeekDays } from "./week-day-groups";
@@ -30,11 +31,7 @@ export function WeekContent({
 }: WeekContentProps) {
   if (loading && !dataLoaded) return <TaskListLoading />;
   if (error && !week) {
-    return (
-      <ListMessage tone="error">
-        Week tasks could not be loaded. Try refreshing this page.
-      </ListMessage>
-    );
+    return <LoadFailure>Week tasks could not be loaded. Try refreshing this page.</LoadFailure>;
   }
   if (!week?.isComplete) return <IssueList issues={week?.issues ?? []} />;
 

@@ -57,8 +57,12 @@ test("task lists expose loading, empty, error, and project-filter states", async
   await expect(page.getByText("Refreshing tasks…", { exact: true })).toHaveCount(0);
 
   await page.unroute("**/graphql");
+  let failListLoads = true;
   await page.route("**/graphql", async (route) => {
-    if (["TaskList", "Week"].includes(graphQLOperation(route.request().postData()) ?? "")) {
+    if (
+      failListLoads &&
+      ["TaskList", "Week"].includes(graphQLOperation(route.request().postData()) ?? "")
+    ) {
       await route.abort("failed");
       return;
     }
@@ -71,9 +75,13 @@ test("task lists expose loading, empty, error, and project-filter states", async
   await expect(page.getByText(labeledTitle, { exact: true })).toBeVisible();
 
   await page.goto(`/week?project=${emptyProjectID}`);
-  await expect(page.getByRole("alert")).toHaveText(
+  await expect(page.getByRole("alert")).toContainText(
     "Week tasks could not be loaded. Try refreshing this page.",
   );
+  failListLoads = false;
+  await page.getByRole("button", { name: "Reload page" }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Week" })).toBeVisible();
 });
 
 test("skip and delete actions preserve recurring history in Vikunja", async ({ page }) => {

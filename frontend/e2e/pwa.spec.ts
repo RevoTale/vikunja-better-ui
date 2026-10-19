@@ -27,7 +27,7 @@ test("PWA caches only the build and opens deep links offline", async ({ page, ba
     await expect(page.request.get(`${origin.url}/graphql`)).rejects.toThrow();
     const response = await page.goto(`${origin.url}/tasks/137/discussion?returnTo=%2Fweek`);
     await expect(page.getByRole("heading", { name: "You're offline" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Retry connection" })).toBeVisible();
     const nonce = await page.locator('meta[name="csp-nonce"]').getAttribute("content");
     expect(response?.headers()["content-security-policy"]).toContain(`'nonce-${nonce}'`);
     const cached = await page.evaluate(async () => {
@@ -45,7 +45,7 @@ test("PWA caches only the build and opens deep links offline", async ({ page, ba
     expect(cached).toContain("/index.html");
     expect(cached.some((path) => /^\/(graphql|media|tasks|login)(\/|$)/.test(path))).toBe(false);
     origin.setAvailable(true);
-    await page.getByRole("button", { name: "Retry" }).click();
+    await page.getByRole("button", { name: "Retry connection" }).click();
     await expect(page.getByRole("heading", { name: "You're offline" })).toHaveCount(0);
   } finally {
     await origin.close();

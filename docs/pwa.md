@@ -24,11 +24,16 @@ security headers. The favicon and manifest keep their 10-minute HTTP cache
 policy online; offline they can use the installed build's copy.
 
 When a navigation cannot reach the server, the saved shell shows **You're
-offline** and **Retry**. Reconnecting and choosing Retry loads the normal app
-and checks authentication again. This is not offline task access: GraphQL,
+offline** and **Retry connection**. Reconnecting and choosing it loads the normal
+app and checks authentication again. This is not offline task access: GraphQL,
 session responses, task data and attachment media never enter the service-worker
 cache. There is no mutation queue or offline completion/editing. Existing
 discussion draft recovery is independent and unchanged.
+
+Fatal route and initial-data failures expose **Reload page** with a reload icon,
+so an installed iOS app does not depend on browser chrome or the task manager.
+Where a safe request-level recovery exists, **Try again** appears first and keeps
+the current document and drafts in place; full reload remains the fallback.
 
 An already open editor is not replaced when connectivity changes. Its existing
 request/error handling preserves edits; no automatic reload is triggered.
@@ -56,7 +61,7 @@ Regenerate the checked-in install PNGs after changing `frontend/public/favicon.s
 with `node e2e/render-icons.mjs` from `frontend/` in the Dev Container. This uses
 the existing Playwright Chromium installation; normal builds require no browser.
 
-Browser regression coverage checks offline deep links, Retry, cache boundaries
+Browser regression coverage checks offline deep links, recovery controls, cache boundaries
 and CSP consistency. Unit tests cover rejected/partial installations and cache
 cleanup. Physical iOS installation and home-screen cropping still require a
 real-device check; WebKit automation is not a substitute for that check.

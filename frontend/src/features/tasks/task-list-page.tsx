@@ -2,7 +2,7 @@ import { useQuery } from "@apollo/client/react";
 import { useLocation } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { type ReactNode, useMemo, useState } from "react";
-
+import { LoadFailure } from "@/components/load-failure";
 import { Button } from "@/components/ui/button";
 import {
   Pagination,
@@ -142,9 +142,9 @@ function TaskListContent({
   if (loading && !dataLoaded) return <TaskListLoading />;
   if (error && !taskPage) {
     return (
-      <ListMessage tone="error">
+      <LoadFailure>
         {graphQLErrorMessage(error, "Tasks could not be loaded. Try refreshing this page.")}
-      </ListMessage>
+      </LoadFailure>
     );
   }
   if (!taskPage?.isComplete) return <IssueList issues={taskPage?.issues ?? []} />;
