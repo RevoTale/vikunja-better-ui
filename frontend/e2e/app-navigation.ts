@@ -46,7 +46,7 @@ test("login restores the requested route and core navigation is accessible", asy
   await expectCreationControlSizes(page);
   if (test.info().project.name === "phone-320") {
     await expect(
-      page.getByRole("navigation", { name: "Main navigation" }).getByText("Long term"),
+      page.getByRole("navigation", { name: "Main navigation" }).getByText("More"),
     ).toBeVisible();
   }
   if (test.info().project.name.startsWith("phone-")) {

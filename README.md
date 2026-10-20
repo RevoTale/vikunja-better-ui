@@ -257,6 +257,10 @@ data. Vikunja stores task fields and marker labels through separate requests;
 if a metadata update fails, the app reports partial success and asks you to
 reload before retrying. It never reports that failure as a successful save.
 
+Primary navigation contains **Today**, **Week**, and **More**. **More** keeps
+Jobs, Long term, History, Last 14 days, and All-time activity in one secondary
+navigation page, reducing the phone bottom bar without hiding any view.
+
 Month is no longer a navigation tab. Existing `/month` links redirect to Week.
 The GraphQL `MONTH` scope remains available for existing consumers.
 
@@ -403,8 +407,8 @@ secret.
 | `APP_HTTP_ADDR` | No | Listen address; defaults to `:8080`. |
 | `APP_LOG_LEVEL` | No | `debug`, `info`, `warn`, or `error`; defaults to `info`. |
 | `APP_TIME_FORMAT` | No | `24h` (default) or `12h` (AM/PM). Controls displayed times and time inputs independently of browser/OS preference. Restart the service and reload the app/PWA after changing it; no frontend rebuild is needed. |
-| `APP_PUBLIC_ACTIVITY_ENABLED` | No | `true` enables anonymous `/activity`; `false` (default) keeps public statistics disabled. |
-| `PUBLIC_ALL_TIME_ACTIVITY` | No | `true` independently enables anonymous `/all-time-activity`; `false` by default. This intentionally uses the requested unprefixed name. |
+| `APP_PUBLIC_ACTIVITY_ENABLED` | No | `true` enables anonymous `/activity`; `false` (default) still allows signed-in users. |
+| `PUBLIC_ALL_TIME_ACTIVITY` | No | `true` independently enables anonymous `/all-time-activity`; `false` (default) still allows signed-in users. This intentionally uses the requested unprefixed name. |
 | `APP_ENV` | No | `development`, `test`, or `production`; defaults to `production`. |
 | `APP_ALLOWED_ORIGIN` | Production/test | Exact public app origin used for CSRF checks. Development defaults to `http://localhost:5173`. |
 
@@ -443,9 +447,10 @@ This does not add automatic field reuse or persistent task drafts.
 
 ### Public activity
 
-Set `APP_PUBLIC_ACTIVITY_ENABLED=true`, restart the service, and open `/activity`.
-No login is required. Leave it disabled if you do not want completion patterns
-and the configured timezone to be public.
+Signed-in users can open `/activity` from **More** regardless of configuration.
+Set `APP_PUBLIC_ACTIVITY_ENABLED=true` and restart the service only when anonymous
+access is wanted. Leave it disabled if completion patterns and the configured
+timezone must not be public.
 
 The page shows an **On-time completion** percentage, daily completion counts and
 a priority distribution with counts and percentages for **today and the previous
@@ -508,8 +513,10 @@ rate limits for public traffic; fixed queries do not eliminate network-level DoS
 
 ### All-time activity
 
-Set `PUBLIC_ALL_TIME_ACTIVITY=true`, restart, and open `/all-time-activity`.
-It is **off by default**, independently of `APP_PUBLIC_ACTIVITY_ENABLED`.
+Signed-in users can open `/all-time-activity` from **More** regardless of
+configuration. Set `PUBLIC_ALL_TIME_ACTIVITY=true` and restart only to allow
+anonymous access. Public access is **off by default**, independently of
+`APP_PUBLIC_ACTIVITY_ENABLED`.
 Both public views use the API token owner's accessible tasks and timezone.
 The page exposes only anonymous weekly completions, on-time percentages and
 priority totals. Weeks start Monday; the current week is partial. The on-time
@@ -519,9 +526,11 @@ Browse 13 weeks at a time with Earlier/Later weeks. This is local presentation
 of the cached aggregate, not another upstream query. Neither the page nor
 `publicAllTimeActivity` accepts date, project, label or pagination arguments.
 
-Choose one or several priorities above the charts; all are selected initially.
-All priorities restores the full view. An empty selection means no data, not
-all priorities. Every chart and total uses the same selection; on-time percentages
+Choose one or several priorities in **Included priorities**; all are checked
+initially. Each option explicitly says **Included** or **Excluded**, while the
+summary reports both totals. **Include all** restores the full view and
+**Exclude all** produces no data rather than silently selecting everything.
+Every chart and total uses the same selection; on-time percentages
 divide selected on-time completions by selected completions with deadlines.
 Filtering is local, with no new GraphQL/Vikunja requests or separate cache entries.
 Each cached week carries at most six anonymous priority cohorts, not task records.
@@ -542,7 +551,9 @@ duplicating the full response through root aliases. Exceeding a safety limit
 returns unavailable, **never a truncated all-time result**. Failures have a
 five-minute retry cooldown; an expired successful snapshot is not served as fresh.
 The aggregate cache lasts one hour, including after task deletion or permission
-changes. Nothing is persisted and GraphQL remains `private, no-store`.
+changes. The same anonymous aggregate can serve signed-in and public readers,
+but nothing is persisted and every GraphQL HTTP response remains
+`private, no-store`; sessions and user-specific data never enter this cache.
 
 These controls bound application work, not network-level DDoS. Apply connection,
 body-size and request-rate limits at your reverse proxy/CDN. Multiple replicas

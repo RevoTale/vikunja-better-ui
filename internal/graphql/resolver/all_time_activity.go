@@ -4,13 +4,15 @@ import (
 	"context"
 	"errors"
 
+	"github.com/RevoTale/vikunja-better-ui/internal/auth"
 	"github.com/RevoTale/vikunja-better-ui/internal/graphql/model"
 	"github.com/RevoTale/vikunja-better-ui/internal/service"
 )
 
-// PublicAllTimeActivity returns only anonymous weekly aggregates when explicitly enabled.
+// PublicAllTimeActivity returns weekly aggregates to sessions or, when enabled, anonymous callers.
 func (resolver *queryResolver) PublicAllTimeActivity(ctx context.Context) (*model.PublicAllTimeActivity, error) {
-	if resolver.allTimeActivity == nil {
+	_, authenticated := auth.SessionFromContext(ctx)
+	if resolver.allTimeActivity == nil || (!resolver.publicAllTimeActivityEnabled && !authenticated) {
 		return nil, nil
 	}
 	summary, err := resolver.allTimeActivity.Read(ctx)

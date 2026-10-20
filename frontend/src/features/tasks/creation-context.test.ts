@@ -17,7 +17,7 @@ describe("creation context from active filters", () => {
     expect(creationContext(path, "?priority=all")).toEqual({});
     expect(creationContext(path, "?priority=3")).toEqual({});
   });
-  it.each(["/week", "/history", "/activity", "/all-time-activity", "/tasks/new"])(
+  it.each(["/week", "/history", "/activity", "/all-time-activity", "/more", "/tasks/new"])(
     "does not import priority from %s",
     (path) => {
       expect(creationContext(path, "?priority=HIGH")).toEqual({});

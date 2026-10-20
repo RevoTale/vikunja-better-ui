@@ -55,14 +55,8 @@ func run(configuration config.Config, logger *slog.Logger) error {
 	sessions := auth.NewSessionManager(configuration.SessionSecret, now, rand.Reader)
 	cookies := auth.NewSessionCookies(production)
 	capabilities := service.NewCapabilityManager(configuration.SessionSecret, now)
-	var activity *service.PublicActivity
-	if configuration.PublicActivityEnabled {
-		activity = service.NewPublicActivity(vikunjaClient, now)
-	}
-	var allTimeActivity *service.PublicAllTimeActivity
-	if configuration.PublicAllTimeActivityEnabled {
-		allTimeActivity = service.NewPublicAllTimeActivity(vikunjaClient, now)
-	}
+	activity := service.NewPublicActivity(vikunjaClient, now)
+	allTimeActivity := service.NewPublicAllTimeActivity(vikunjaClient, now)
 	root := resolver.New(resolver.Dependencies{
 		Use12HourTime: configuration.Use12HourTime,
 		Credentials:   auth.NewCredentials(configuration.AuthUsername, configuration.AuthPassword),
@@ -76,6 +70,8 @@ func run(configuration config.Config, logger *slog.Logger) error {
 		},
 		Capabilities: capabilities, Logger: logger, Now: now,
 		Activity: activity, AllTimeActivity: allTimeActivity,
+		PublicActivityEnabled:        configuration.PublicActivityEnabled,
+		PublicAllTimeActivityEnabled: configuration.PublicAllTimeActivityEnabled,
 	})
 
 	mux := http.NewServeMux()

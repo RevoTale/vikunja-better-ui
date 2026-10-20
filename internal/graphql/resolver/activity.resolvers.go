@@ -8,12 +8,14 @@ package resolver
 import (
 	"context"
 
+	"github.com/RevoTale/vikunja-better-ui/internal/auth"
 	"github.com/RevoTale/vikunja-better-ui/internal/graphql/model"
 )
 
 // PublicActivity is the resolver for the publicActivity field.
 func (resolver *queryResolver) PublicActivity(ctx context.Context) (*model.PublicActivity, error) {
-	if resolver.activity == nil {
+	_, authenticated := auth.SessionFromContext(ctx)
+	if resolver.activity == nil || (!resolver.publicActivityEnabled && !authenticated) {
 		return nil, nil
 	}
 	summary, err := resolver.activity.Read(ctx)

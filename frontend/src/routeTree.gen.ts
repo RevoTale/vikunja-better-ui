@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated.history'
 import { Route as AuthenticatedJobsRouteImport } from './routes/_authenticated.jobs'
 import { Route as AuthenticatedMonthRouteImport } from './routes/_authenticated.month'
+import { Route as AuthenticatedMoreRouteImport } from './routes/_authenticated.more'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated.today'
 import { Route as AuthenticatedUnscheduledRouteImport } from './routes/_authenticated.unscheduled'
 import { Route as AuthenticatedWeekRouteImport } from './routes/_authenticated.week'
@@ -61,6 +62,11 @@ const AuthenticatedJobsRoute = AuthenticatedJobsRouteImport.update({
 const AuthenticatedMonthRoute = AuthenticatedMonthRouteImport.update({
   id: '/month',
   path: '/month',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedMoreRoute = AuthenticatedMoreRouteImport.update({
+  id: '/more',
+  path: '/more',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedTodayRoute = AuthenticatedTodayRouteImport.update({
@@ -129,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/history': typeof AuthenticatedHistoryRoute
   '/jobs': typeof AuthenticatedJobsRoute
   '/month': typeof AuthenticatedMonthRoute
+  '/more': typeof AuthenticatedMoreRoute
   '/today': typeof AuthenticatedTodayRoute
   '/unscheduled': typeof AuthenticatedUnscheduledRoute
   '/week': typeof AuthenticatedWeekRoute
@@ -148,6 +155,7 @@ export interface FileRoutesByTo {
   '/history': typeof AuthenticatedHistoryRoute
   '/jobs': typeof AuthenticatedJobsRoute
   '/month': typeof AuthenticatedMonthRoute
+  '/more': typeof AuthenticatedMoreRoute
   '/today': typeof AuthenticatedTodayRoute
   '/unscheduled': typeof AuthenticatedUnscheduledRoute
   '/week': typeof AuthenticatedWeekRoute
@@ -168,6 +176,7 @@ export interface FileRoutesById {
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/jobs': typeof AuthenticatedJobsRoute
   '/_authenticated/month': typeof AuthenticatedMonthRoute
+  '/_authenticated/more': typeof AuthenticatedMoreRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
   '/_authenticated/unscheduled': typeof AuthenticatedUnscheduledRoute
   '/_authenticated/week': typeof AuthenticatedWeekRoute
@@ -189,6 +198,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/jobs'
     | '/month'
+    | '/more'
     | '/today'
     | '/unscheduled'
     | '/week'
@@ -208,6 +218,7 @@ export interface FileRouteTypes {
     | '/history'
     | '/jobs'
     | '/month'
+    | '/more'
     | '/today'
     | '/unscheduled'
     | '/week'
@@ -227,6 +238,7 @@ export interface FileRouteTypes {
     | '/_authenticated/history'
     | '/_authenticated/jobs'
     | '/_authenticated/month'
+    | '/_authenticated/more'
     | '/_authenticated/today'
     | '/_authenticated/unscheduled'
     | '/_authenticated/week'
@@ -303,6 +315,13 @@ declare module '@tanstack/react-router' {
       path: '/month'
       fullPath: '/month'
       preLoaderRoute: typeof AuthenticatedMonthRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/more': {
+      id: '/_authenticated/more'
+      path: '/more'
+      fullPath: '/more'
+      preLoaderRoute: typeof AuthenticatedMoreRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/today': {
@@ -406,6 +425,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedJobsRoute: typeof AuthenticatedJobsRoute
   AuthenticatedMonthRoute: typeof AuthenticatedMonthRoute
+  AuthenticatedMoreRoute: typeof AuthenticatedMoreRoute
   AuthenticatedTodayRoute: typeof AuthenticatedTodayRoute
   AuthenticatedUnscheduledRoute: typeof AuthenticatedUnscheduledRoute
   AuthenticatedWeekRoute: typeof AuthenticatedWeekRoute
@@ -417,6 +437,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedJobsRoute: AuthenticatedJobsRoute,
   AuthenticatedMonthRoute: AuthenticatedMonthRoute,
+  AuthenticatedMoreRoute: AuthenticatedMoreRoute,
   AuthenticatedTodayRoute: AuthenticatedTodayRoute,
   AuthenticatedUnscheduledRoute: AuthenticatedUnscheduledRoute,
   AuthenticatedWeekRoute: AuthenticatedWeekRoute,

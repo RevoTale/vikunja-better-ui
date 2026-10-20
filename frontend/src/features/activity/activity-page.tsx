@@ -1,4 +1,5 @@
 import { useQuery } from "@apollo/client/react";
+import { Link } from "@tanstack/react-router";
 import { BrandMark } from "@/components/brand-mark";
 import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,14 @@ export function ActivityPage() {
           <p className="text-sm text-muted-foreground">Better Vikunja · Last 14 days</p>
         </div>
       </header>
+      <nav aria-label="Activity navigation" className="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+        <Link to="/more" className="underline underline-offset-4">
+          Back to app
+        </Link>
+        <Link to="/all-time-activity" className="underline underline-offset-4">
+          All-time activity
+        </Link>
+      </nav>
       {loading && !activity ? (
         <div role="status" aria-label="Loading activity" className="space-y-6">
           <LoadingPlaceholder className={activityOnTimeLayout} />
