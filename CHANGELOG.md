@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.10.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.10.0) - 2026-10-25
+
+### ❤️ Thanks to all contributors! ❤️
+
+@l-you
+
+### ✨ Features
+
+- feat(activity): add cacheable public pages [[#130](https://github.com/RevoTale/vikunja-better-ui/pull/130)]
+
 ## [2.9.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.8.2...v2.9.0) (2026-10-20)
 
 ### Features
