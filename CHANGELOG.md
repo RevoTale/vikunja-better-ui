@@ -10,10 +10,6 @@
 
 - feat(activity): add cacheable public pages [[#130](https://github.com/RevoTale/vikunja-better-ui/pull/130)]
 
-### Misc
-
-- 🎉 Release 2.10.0 [[#131](https://github.com/RevoTale/vikunja-better-ui/pull/131)]
-
 ## [2.9.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.8.2...v2.9.0) (2026-10-20)
 
 ### Features
