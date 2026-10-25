@@ -1,11 +1,8 @@
-import type { PublicActivityQuery } from "@/graphql/graphql";
 import { ActivityChartViewport } from "./activity-chart-viewport";
+import type { ActivityDayView } from "./activity-view-model";
 import { activityWeekLabel } from "./activity-week-label";
 
-type Days = readonly Omit<
-  NonNullable<PublicActivityQuery["publicActivity"]>["days"][number],
-  "__typename"
->[];
+type Days = readonly ActivityDayView[];
 const weekday = new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" });
 const plot = { left: 48, right: 696, top: 28, bottom: 208 };
 

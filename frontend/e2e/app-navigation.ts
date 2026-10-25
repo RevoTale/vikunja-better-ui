@@ -10,8 +10,18 @@ import {
   expectUnclippedLines,
 } from "./app-layout";
 
-test("Today is the default landing page and logo destination", async ({ page }) => {
+test("anonymous root explains the product while signed-in root and logo open Today", async ({
+  page,
+}) => {
   await page.goto("/");
+  await expect(page).toHaveURL(/\/$/);
+  await expect(
+    page.getByRole("heading", { name: "A quieter way to keep recurring work moving." }),
+  ).toBeVisible();
+  await expect(page.getByText("Deployed instance", { exact: true })).toBeVisible();
+  await expect(page.getByText("Your data stays in Vikunja.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in to your workspace" })).toBeVisible();
+  await page.getByRole("link", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/\/login\?returnTo=%2Ftoday/);
   await login(page);
   await expect(page).toHaveURL(/\/today/);
@@ -20,6 +30,21 @@ test("Today is the default landing page and logo destination", async ({ page }) 
   await expect(page).toHaveURL(/\/today/);
   await page.goto("/");
   await expect(page).toHaveURL(/\/today/);
+});
+
+test("anonymous root remains usable when session detection is unavailable", async ({ page }) => {
+  await page.route("**/graphql", async (route) => {
+    if (route.request().postDataJSON()?.operationName === "AuthSession") {
+      await route.fulfill({ status: 503, json: { errors: [{ message: "Unavailable" }] } });
+      return;
+    }
+    await route.continue();
+  });
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "A quieter way to keep recurring work moving." }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Sign in to your workspace" })).toBeVisible();
 });
 
 test("login restores the requested route and core navigation is accessible", async ({ page }) => {
@@ -129,10 +154,10 @@ test("login displays the GraphQL error returned by the app", async ({ page }) =>
 test("theme follows system color scheme changes", async ({ page }) => {
   await page.emulateMedia({ colorScheme: "light" });
   await page.goto("/login");
-  await expect(page).toHaveTitle("Better Vikunja — Fast recurring task workflows");
+  await expect(page).toHaveTitle("Better Vikunja instance — Fast recurring task workflows");
   await expect(page.locator('meta[name="description"]')).toHaveAttribute(
     "content",
-    "A focused, self-hosted interface for fast, predictable recurring-task workflows on Vikunja.",
+    "A deployed instance of the open-source Better Vikunja client for predictable Vikunja workflows.",
   );
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
     "content",

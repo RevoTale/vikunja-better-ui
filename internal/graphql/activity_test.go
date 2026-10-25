@@ -30,21 +30,23 @@ func (publicActivityReader) ActivityPage(context.Context, vikunja.TaskQuery) (vi
 	}}, nil
 }
 
-func TestPublicActivityAnonymousBoundary(t *testing.T) {
+func TestActivityGraphQLRequiresAuthentication(t *testing.T) {
 	t.Parallel()
 	root := resolver.New(resolver.Dependencies{
-		PublicActivityEnabled: true,
 		Activity: service.NewPublicActivity(publicActivityReader{}, func() time.Time {
 			return time.Date(2026, 10, 15, 13, 0, 0, 0, time.UTC)
 		}),
 	})
 	handler := NewHandler(root, true, discardLogger())
-	response := graphQLRequest(t, handler,
-		`{ publicActivity { total days { date count completedWithDeadline completedOnTime } } }`)
-	body := response.Body.String()
+	body := graphQLRequest(t, handler, `{ publicActivity { total } }`).Body.String()
+	if !strings.Contains(body, `"errors"`) || !strings.Contains(body, `"UNAUTHENTICATED"`) {
+		t.Fatalf("anonymous response = %s", body)
+	}
+	body = authenticatedActivityRequest(t, root,
+		`{ publicActivity { total days { date count completedWithDeadline completedOnTime } } }`).Body.String()
 	if !strings.Contains(body, `"total":2`) || strings.Contains(body, "private-user") ||
 		!strings.Contains(body, `"completedWithDeadline":2,"completedOnTime":1`) {
-		t.Fatalf("public summary: %s", body)
+		t.Fatalf("authenticated summary: %s", body)
 	}
 	for _, query := range []string{
 		`{ publicActivity(from: "2000-01-01") { total } }`,
@@ -61,15 +63,10 @@ func TestPublicActivityAnonymousBoundary(t *testing.T) {
 func TestActivityAllowsAuthenticatedAccessWhenPublicAccessIsDisabled(t *testing.T) {
 	t.Parallel()
 	root := resolver.New(resolver.Dependencies{
-		PublicActivityEnabled: false,
 		Activity: service.NewPublicActivity(publicActivityReader{}, func() time.Time {
 			return time.Date(2026, 10, 15, 13, 0, 0, 0, time.UTC)
 		}),
 	})
-	if body := graphQLRequest(t, NewHandler(root, true, discardLogger()),
-		`{ publicActivity { total } }`).Body.String(); !strings.Contains(body, `"publicActivity":null`) {
-		t.Fatalf("anonymous response = %s", body)
-	}
 	body := authenticatedActivityRequest(t, root, `{ publicActivity { total } }`).Body.String()
 	if !strings.Contains(body, `"total":2`) {
 		t.Fatalf("authenticated response = %s", body)

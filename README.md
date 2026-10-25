@@ -327,14 +327,19 @@ There is no stale server result cache added by these views.
 ## Architecture and security boundaries
 
 ```text
-React UI -> same-origin Go GraphQL API -> Vikunja REST API v2
+Authenticated React UI -> same-origin Go GraphQL API -> Vikunja REST API v2
+Anonymous activity UI -> fixed Go public snapshot GET -> Vikunja REST API v2
 ```
 
 The Go server embeds the static Vite build. Frontend source, metadata, and the
 lockfile stay in Git; `internal/web/assets/dist` is an ignored build artifact
 created before Go compilation by Task, CI, and the Docker frontend stage. The
-browser talks only to the GraphQL endpoint and never receives or calls Vikunja
-with its API token.
+authenticated browser workflows use GraphQL and never receive or call Vikunja
+with its API token. The accepted anonymous activity boundary uses two fixed,
+parameter-free REST snapshots so a reverse proxy or CDN can reuse the same
+aggregate across visitors. See
+[ADR-008](docs/decisions/0008-public-activity-http-cache.md). Signed-in activity
+uses fresh private GraphQL reads; anonymous activity uses the fixed public GETs.
 
 Authentication has two separate boundaries:
 
@@ -381,6 +386,27 @@ integration, health, and readiness responses are not stored. The application
 does not add a persistent task cache or server-side task cache. Configure Brotli
 or gzip at the production reverse proxy.
 
+The public-activity design provides shared-cacheable
+`/public/v1/activity` and `/public/v1/all-time-activity` JSON snapshots while
+keeping signed-in activity on uncached GraphQL. These fixed GET resources are
+the only anonymous browser-data exception; they accept no filters or cache-key
+parameters.
+
+The same design uses Go-rendered, shared-cacheable HTML for the root
+and anonymously enabled activity pages, progressively enhanced by the existing
+React application. Public pages identify themselves as one deployed instance,
+not as a separate upstream product website. Deployment-specific structured-data
+IDs use `APP_PUBLIC_URL`; the shared software and source identities use the
+repository URL. They expose canonical metadata, Open Graph, JSON-LD,
+robots/sitemap discovery and a visible MIT-licensed open-source link to
+the [GitHub project](https://github.com/RevoTale/vikunja-better-ui). Private app
+routes remain excluded from indexing. See ADR-008 for the exact boundary.
+
+Optional `APP_PUBLIC_URL` is both the validated
+canonical origin and explicit permission to index root. Without it, root remains
+`noindex`; the activity flags cannot independently make pages indexable without
+a canonical public origin.
+
 ### Home-screen installation and offline launch
 
 Install Better Vikunja from your browser (on iOS, Share → Add to Home Screen).
@@ -407,6 +433,7 @@ secret.
 | `APP_HTTP_ADDR` | No | Listen address; defaults to `:8080`. |
 | `APP_LOG_LEVEL` | No | `debug`, `info`, `warn`, or `error`; defaults to `info`. |
 | `APP_TIME_FORMAT` | No | `24h` (default) or `12h` (AM/PM). Controls displayed times and time inputs independently of browser/OS preference. Restart the service and reload the app/PWA after changing it; no frontend rebuild is needed. |
+| `APP_PUBLIC_URL` | No | Canonical public origin and explicit SEO opt-in. HTTPS is required outside development; only loopback HTTP is accepted in development. Paths, query strings, fragments and credentials are rejected. Leave unset to keep root out of the sitemap and search indexes. |
 | `APP_PUBLIC_ACTIVITY_ENABLED` | No | `true` enables anonymous `/activity`; `false` (default) still allows signed-in users. |
 | `PUBLIC_ALL_TIME_ACTIVITY` | No | `true` independently enables anonymous `/all-time-activity`; `false` (default) still allows signed-in users. This intentionally uses the requested unprefixed name. |
 | `APP_ENV` | No | `development`, `test`, or `production`; defaults to `production`. |
@@ -490,9 +517,11 @@ There are no project, date-range or label filters. URL parameters do not change
 the aggregation. Existing `other:user` and `tasks:read_all` token permissions
 are sufficient; the browser never receives the token.
 
-One server-side aggregate is cached for **one hour** per process. Reload the page
-after expiry to request a newer snapshot; the displayed timestamp identifies
-the data's age. The first request makes one user lookup and one request per
+One anonymous server-side aggregate is cached for **one hour** per process.
+Public HTML and JSON advertise the remaining shared-cache lifetime, so a proxy
+or CDN can serve repeat anonymous requests without reaching Go. Reload after
+expiry to request a newer snapshot; the displayed timestamp identifies the
+data's age. A cold refresh makes one user lookup and one request per
 100 completed tasks, without fetching individual tasks, comments or attachments.
 Cache hits make no Vikunja requests, and simultaneous misses share one refresh.
 Tasks are reduced one page at a time, not retained in a cache or database.
@@ -506,10 +535,10 @@ dates and snapshot timestamp identify the actual window. It is not a live feed.
 
 Refreshes have a 20-second deadline, a 1,000-page safety limit and the client's
 bounded response-size checks. Failed refreshes return a safe error, not partial
-counts, and have a 30-second retry cooldown. The GraphQL response remains
-`private, no-store`; the one-hour cache is the aggregate inside the service,
-not a browser or CDN copy of authenticated responses. Use normal reverse-proxy
-rate limits for public traffic; fixed queries do not eliminate network-level DoS.
+counts, and have a 30-second retry cooldown. Signed-in views bypass this cache
+and calculate current data through GraphQL with `private, no-store`. Use normal
+reverse-proxy rate limits for public traffic; fixed queries do not eliminate
+network-level DoS.
 
 ### All-time activity
 
@@ -522,9 +551,10 @@ The page exposes only anonymous weekly completions, on-time percentages and
 priority totals. Weeks start Monday; the current week is partial. The on-time
 definition and history limitations above also apply here.
 
-Browse 13 weeks at a time with Earlier/Later weeks. This is local presentation
-of the cached aggregate, not another upstream query. Neither the page nor
-`publicAllTimeActivity` accepts date, project, label or pagination arguments.
+Anonymous HTML and JSON expose only the latest 13 weeks plus all-time and
+priority totals, keeping the response bounded regardless of account age. They
+have no filters or request parameters. Signed-in GraphQL views load the complete
+aggregate and browse 13 weeks at a time locally.
 
 Choose one or several priorities in **Included priorities**; all are checked
 initially. Each option explicitly says **Included** or **Excluded**, while the
@@ -532,8 +562,9 @@ summary reports both totals. **Include all** restores the full view and
 **Exclude all** produces no data rather than silently selecting everything.
 Every chart and total uses the same selection; on-time percentages
 divide selected on-time completions by selected completions with deadlines.
-Filtering is local, with no new GraphQL/Vikunja requests or separate cache entries.
-Each cached week carries at most six anonymous priority cohorts, not task records.
+Authenticated filtering is local, with no new GraphQL/Vikunja requests or
+separate cache entries. Each authenticated week carries at most six priority
+cohorts, not task records; anonymous weekly rows contain totals only.
 Weekly points sit at the center of Monday–Sunday intervals and display both dates,
 including across month/year boundaries. Filtering keeps empty calendar weeks.
 
@@ -550,10 +581,10 @@ upstream response and at most 5,200 calendar weeks. GraphQL complexity prevents
 duplicating the full response through root aliases. Exceeding a safety limit
 returns unavailable, **never a truncated all-time result**. Failures have a
 five-minute retry cooldown; an expired successful snapshot is not served as fresh.
-The aggregate cache lasts one hour, including after task deletion or permission
-changes. The same anonymous aggregate can serve signed-in and public readers,
-but nothing is persisted and every GraphQL HTTP response remains
-`private, no-store`; sessions and user-specific data never enter this cache.
+The anonymous aggregate cache lasts one hour, including after task deletion or
+permission changes. Signed-in views do not reuse it: every GraphQL HTTP response
+remains `private, no-store` and is calculated from a current bounded scan.
+Nothing is persisted; sessions and user-specific data never enter public caches.
 
 These controls bound application work, not network-level DDoS. Apply connection,
 body-size and request-rate limits at your reverse proxy/CDN. Multiple replicas

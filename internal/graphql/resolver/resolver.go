@@ -17,6 +17,14 @@ type userReader interface {
 	CurrentUser(context.Context) (vikunja.User, error)
 }
 
+type activityReader interface {
+	Read(context.Context) (service.ActivitySummary, error)
+}
+
+type allTimeActivityReader interface {
+	Read(context.Context) (service.AllTimeActivitySummary, error)
+}
+
 type projectReader interface {
 	Projects(context.Context) ([]vikunja.Project, error)
 }
@@ -87,60 +95,53 @@ type Dependencies struct {
 	Capabilities    *service.CapabilityManager
 	Logger          *slog.Logger
 	Now             func() time.Time
-	Activity        *service.PublicActivity
-	AllTimeActivity *service.PublicAllTimeActivity
-	// Public activity flags control anonymous access; authenticated sessions can always read aggregates.
-	PublicActivityEnabled        bool
-	PublicAllTimeActivityEnabled bool
+	Activity        activityReader
+	AllTimeActivity allTimeActivityReader
 }
 
 // Resolver wires GraphQL operations to application services.
 type Resolver struct {
-	use12HourTime                bool
-	credentials                  auth.Credentials
-	sessions                     *auth.SessionManager
-	cookies                      auth.SessionCookies
-	limiter                      *auth.LoginLimiter
-	users                        userReader
-	projects                     projectReader
-	tasks                        taskClient
-	comments                     commentClient
-	attachments                  attachmentClient
-	avatars                      avatarReader
-	relations                    relationClient
-	referencePolicy              service.TaskReferencePolicy
-	capabilities                 *service.CapabilityManager
-	logger                       *slog.Logger
-	now                          func() time.Time
-	activity                     *service.PublicActivity
-	allTimeActivity              *service.PublicAllTimeActivity
-	publicActivityEnabled        bool
-	publicAllTimeActivityEnabled bool
+	use12HourTime   bool
+	credentials     auth.Credentials
+	sessions        *auth.SessionManager
+	cookies         auth.SessionCookies
+	limiter         *auth.LoginLimiter
+	users           userReader
+	projects        projectReader
+	tasks           taskClient
+	comments        commentClient
+	attachments     attachmentClient
+	avatars         avatarReader
+	relations       relationClient
+	referencePolicy service.TaskReferencePolicy
+	capabilities    *service.CapabilityManager
+	logger          *slog.Logger
+	now             func() time.Time
+	activity        activityReader
+	allTimeActivity allTimeActivityReader
 }
 
 // New constructs a resolver with the supplied request dependencies.
 func New(dependencies Dependencies) *Resolver {
 	return &Resolver{
-		use12HourTime:                dependencies.Use12HourTime,
-		credentials:                  dependencies.Credentials,
-		sessions:                     dependencies.Sessions,
-		cookies:                      dependencies.Cookies,
-		limiter:                      dependencies.Limiter,
-		users:                        dependencies.Users,
-		projects:                     dependencies.Projects,
-		tasks:                        dependencies.Tasks,
-		comments:                     dependencies.Comments,
-		attachments:                  dependencies.Attachments,
-		avatars:                      dependencies.Avatars,
-		relations:                    dependencies.Relations,
-		referencePolicy:              dependencies.ReferencePolicy,
-		capabilities:                 dependencies.Capabilities,
-		logger:                       dependencies.Logger,
-		now:                          dependencies.Now,
-		activity:                     dependencies.Activity,
-		allTimeActivity:              dependencies.AllTimeActivity,
-		publicActivityEnabled:        dependencies.PublicActivityEnabled,
-		publicAllTimeActivityEnabled: dependencies.PublicAllTimeActivityEnabled,
+		use12HourTime:   dependencies.Use12HourTime,
+		credentials:     dependencies.Credentials,
+		sessions:        dependencies.Sessions,
+		cookies:         dependencies.Cookies,
+		limiter:         dependencies.Limiter,
+		users:           dependencies.Users,
+		projects:        dependencies.Projects,
+		tasks:           dependencies.Tasks,
+		comments:        dependencies.Comments,
+		attachments:     dependencies.Attachments,
+		avatars:         dependencies.Avatars,
+		relations:       dependencies.Relations,
+		referencePolicy: dependencies.ReferencePolicy,
+		capabilities:    dependencies.Capabilities,
+		logger:          dependencies.Logger,
+		now:             dependencies.Now,
+		activity:        dependencies.Activity,
+		allTimeActivity: dependencies.AllTimeActivity,
 	}
 }
 

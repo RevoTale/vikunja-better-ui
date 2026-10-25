@@ -1,8 +1,7 @@
 import { taskPriorityOption } from "@/features/tasks/task-priority";
-import type { PublicActivityQuery } from "@/graphql/graphql";
 import { ActivityOnTimeChart } from "./activity-on-time-chart";
+import type { ActivityView } from "./activity-view-model";
 
-type Activity = NonNullable<PublicActivityQuery["publicActivity"]>;
 const colors = ["var(--muted-foreground)", "#0284c7", "#16a34a", "#d97706", "#dc2626", "#9333ea"];
 const weekdayFormatter = new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" });
 export const activityChartLayout = {
@@ -10,7 +9,7 @@ export const activityChartLayout = {
   priority: "min-h-120 w-full rounded-lg sm:min-h-80",
 };
 
-export function ActivityCharts({ activity }: { activity: Activity }) {
+export function ActivityCharts({ activity }: { activity: ActivityView }) {
   return (
     <>
       <ActivityOnTimeChart days={activity.days} />
@@ -20,7 +19,7 @@ export function ActivityCharts({ activity }: { activity: Activity }) {
   );
 }
 
-function DailyChart({ activity }: { activity: Activity }) {
+function DailyChart({ activity }: { activity: ActivityView }) {
   const maximum = Math.max(1, ...activity.days.map((day) => day.count));
   return (
     <section
@@ -73,7 +72,11 @@ function DailyChart({ activity }: { activity: Activity }) {
   );
 }
 
-export function PriorityChart({ activity }: { activity: Pick<Activity, "total" | "priorities"> }) {
+export function PriorityChart({
+  activity,
+}: {
+  activity: Pick<ActivityView, "total" | "priorities">;
+}) {
   let offset = 0;
   return (
     <section

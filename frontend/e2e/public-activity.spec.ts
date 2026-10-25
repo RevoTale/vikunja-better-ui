@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { discussionGraphQL } from "./discussion-fixture";
+import { login } from "./app-actions";
 
 type Activity = {
   total: number;
@@ -8,16 +8,13 @@ type Activity = {
   days: { date: string; count: number; completedWithDeadline: number; completedOnTime: number }[];
   priorities: { priority: string; count: number }[];
 };
-const query = `query { publicActivity {
-  total generatedAt refreshAt days { date count completedWithDeadline completedOnTime } priorities { priority count }
-} }`;
 
 test("public activity supports anonymous fixed aggregates without task access", async ({
   page,
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  await page.goto("/activity?project=999&from=2000-01-01");
+  await page.goto("/activity");
   await expect(page.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
   await expect(page.getByText("Better Vikunja · Last 14 days")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Completed by priority" })).toBeVisible();
@@ -29,10 +26,10 @@ test("public activity supports anonymous fixed aggregates without task access", 
   expect(nextWeek).not.toBeNull();
   expect(Math.abs((firstBox?.x ?? 0) - (nextWeek?.x ?? 0))).toBeLessThan(1);
   expect((nextWeek?.y ?? 0) - (firstBox?.y ?? 0)).toBeGreaterThan(0);
-  const first = await discussionGraphQL<{ publicActivity: Activity }>(page, query);
-  const second = await discussionGraphQL<{ publicActivity: Activity }>(page, query);
+  const first = (await (await page.request.get("/public/v1/activity")).json()) as Activity;
+  const second = (await (await page.request.get("/public/v1/activity")).json()) as Activity;
   expect(second).toEqual(first);
-  const activity = first.publicActivity;
+  const activity = first;
   expect(activity.days).toHaveLength(14);
   expect(activity.priorities).toHaveLength(6);
   expect(activity.days.reduce((sum, day) => sum + day.count, 0)).toBe(activity.total);
@@ -50,11 +47,12 @@ test("public activity supports anonymous fixed aggregates without task access", 
     data: { query: '{ task(id: "1") { title } }' },
   });
   expect((await rejected.json()).errors).toBeDefined();
-  const filtered = await page.request.post("/graphql", {
+  const anonymousActivity = await page.request.post("/graphql", {
     headers: { Origin: new URL(page.url()).origin },
-    data: { query: '{ publicActivity(from: "2000-01-01") { total } }' },
+    data: { query: "{ publicActivity { total } }" },
   });
-  expect((await filtered.json()).errors).toBeDefined();
+  expect((await anonymousActivity.json()).errors).toBeDefined();
+  expect((await page.request.get("/public/v1/activity?priority=high")).status()).toBe(400);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
     await page.evaluate(() => document.documentElement.clientWidth),
   );
@@ -71,12 +69,12 @@ test("public activity keeps chart geometry while loading", async ({ page }) => {
   const gate = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route("**/graphql", async (route) => {
-    if (route.request().postDataJSON()?.operationName !== "PublicActivity") return route.continue();
+  await page.route("**/public/v1/activity", async (route) => {
     await gate;
     await route.continue();
   });
-  await page.goto("/activity");
+  await page.goto("/");
+  await page.getByRole("link", { name: "Last 14 days" }).click();
   const placeholders = page.getByRole("status", { name: "Loading activity" }).locator("span");
   await expect(placeholders).toHaveCount(3);
   const boxes = await Promise.all((await placeholders.all()).map((item) => item.boundingBox()));
@@ -86,4 +84,31 @@ test("public activity keeps chart geometry while loading", async ({ page }) => {
   for (const [index, card] of (await cards.all()).entries()) {
     expect(await card.boundingBox()).toEqual(boxes[index]);
   }
+});
+
+test("public activity identifies the cached snapshot until private data arrives", async ({
+  page,
+}) => {
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await page.route("**/graphql", async (route) => {
+    if (route.request().postDataJSON().operationName !== "PublicActivity") {
+      await route.continue();
+      return;
+    }
+    await gate;
+    await route.continue();
+  });
+  await page.goto("/login");
+  await login(page);
+  await page.goto("/activity");
+  await expect(page.getByText("Updating with current private data…")).toBeVisible();
+  await expect(
+    page.getByText("Public snapshot cached for 1 hour.", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByText("Current private data.", { exact: false })).toHaveCount(0);
+  release();
+  await expect(page.getByText("Current private data.", { exact: false })).toBeVisible();
 });

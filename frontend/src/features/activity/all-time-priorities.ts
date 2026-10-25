@@ -1,9 +1,7 @@
-import type { PublicAllTimeActivityQuery, TaskPriority } from "@/graphql/graphql";
+import type { TaskPriority } from "@/graphql/graphql";
+import type { AllTimeActivityView } from "./activity-view-model";
 
-type Activity = Pick<
-  NonNullable<PublicAllTimeActivityQuery["publicAllTimeActivity"]>,
-  "weeks" | "priorities" | "total"
->;
+type Activity = Pick<AllTimeActivityView, "weeks" | "priorities" | "total">;
 
 export function filterAllTimePriorities(activity: Activity, priorities: readonly TaskPriority[]) {
   const selected = new Set(priorities);

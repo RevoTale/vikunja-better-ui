@@ -1,11 +1,8 @@
-import type { PublicActivityQuery } from "@/graphql/graphql";
 import { ActivityOnTimePlot } from "./activity-on-time-plot";
+import type { ActivityDayView } from "./activity-view-model";
 import { activityWeekLabel } from "./activity-week-label";
 
-type Days = readonly Omit<
-  NonNullable<PublicActivityQuery["publicActivity"]>["days"][number],
-  "__typename"
->[];
+type Days = readonly ActivityDayView[];
 export const activityOnTimeLayout = "min-h-128 w-full rounded-lg";
 
 export function ActivityOnTimeChart({
