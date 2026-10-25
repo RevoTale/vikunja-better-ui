@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import { LoadFailure } from "@/components/load-failure";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import { cn } from "@/lib/utils";
 
@@ -14,11 +15,7 @@ export function ListSettingsError({
   message: string;
 }) {
   if (taskError || !(sessionError || projectError)) return null;
-  return (
-    <ListMessage tone="error">
-      {graphQLErrorMessage(sessionError ?? projectError, message)}
-    </ListMessage>
-  );
+  return <LoadFailure>{graphQLErrorMessage(sessionError ?? projectError, message)}</LoadFailure>;
 }
 
 export function ListMessage({ children, tone }: { children: string; tone?: "error" }) {

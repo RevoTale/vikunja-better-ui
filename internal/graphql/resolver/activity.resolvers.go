@@ -13,6 +13,9 @@ import (
 
 // PublicActivity is the resolver for the publicActivity field.
 func (resolver *queryResolver) PublicActivity(ctx context.Context) (*model.PublicActivity, error) {
+	if _, err := requireSession(ctx); err != nil {
+		return nil, err
+	}
 	if resolver.activity == nil {
 		return nil, nil
 	}

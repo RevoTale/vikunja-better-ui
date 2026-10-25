@@ -1,14 +1,6 @@
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import {
-  BriefcaseBusiness,
-  CalendarDays,
-  CheckCircle2,
-  History,
-  LogOut,
-  Plus,
-  TimerOff,
-} from "lucide-react";
+import { CalendarDays, CheckCircle2, LogOut, Menu, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
@@ -29,10 +21,10 @@ import { cn } from "@/lib/utils";
 const navigation = [
   { to: "/today", label: "Today", mobileLabel: "Today", icon: CheckCircle2 },
   { to: "/week", label: "Week", mobileLabel: "Week", icon: CalendarDays },
-  { to: "/jobs", label: "Jobs", mobileLabel: "Jobs", icon: BriefcaseBusiness },
-  { to: "/unscheduled", label: "Long term", mobileLabel: "Long term", icon: TimerOff },
-  { to: "/history", label: "History", mobileLabel: "History", icon: History },
+  { to: "/more", label: "More", mobileLabel: "More", icon: Menu },
 ] as const;
+
+const morePaths = new Set(["/more", "/jobs", "/unscheduled", "/history"]);
 
 export function AppShell() {
   const apollo = useApolloClient();
@@ -82,7 +74,12 @@ export function AppShell() {
         <Brand timezone={data?.session.vikunjaUser?.timezone} loading={sessionLoading} />
         <nav className="mt-8 grid gap-1" aria-label="Main navigation">
           {navigation.map((item) => (
-            <NavigationLink key={item.to} {...item} count={actionableCount} />
+            <NavigationLink
+              key={item.to}
+              {...item}
+              count={actionableCount}
+              currentPath={location.pathname}
+            />
           ))}
         </nav>
         <div className="mt-auto grid gap-2">
@@ -121,11 +118,17 @@ export function AppShell() {
         </main>
       </div>
       <nav
-        className="app-safe-navigation fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t bg-background lg:hidden"
+        className="app-safe-navigation fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 border-t bg-background lg:hidden"
         aria-label="Main navigation"
       >
         {navigation.map((item) => (
-          <NavigationLink key={item.to} {...item} count={actionableCount} compact />
+          <NavigationLink
+            key={item.to}
+            {...item}
+            count={actionableCount}
+            currentPath={location.pathname}
+            compact
+          />
         ))}
       </nav>
     </div>
@@ -170,16 +173,23 @@ function NavigationLink({
   icon: Icon,
   compact = false,
   count,
-}: (typeof navigation)[number] & { compact?: boolean; count: ActionableCountState }) {
+  currentPath,
+}: (typeof navigation)[number] & {
+  compact?: boolean;
+  count: ActionableCountState;
+  currentPath: string;
+}) {
+  const active = currentPath === to || (to === "/more" && morePaths.has(currentPath));
   return (
     <Link
       to={to}
-      search={{ project: "all", page: 1 }}
+      {...(to === "/more" ? {} : { search: { project: "all", page: 1 } })}
       className={cn(
         "flex items-center gap-3 rounded-md text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         compact ? "min-h-16 flex-col justify-center gap-1 px-1 text-[0.65rem]" : "min-h-11 px-3",
+        active && "bg-sidebar-accent text-sidebar-accent-foreground",
       )}
-      activeProps={{ className: "bg-sidebar-accent text-sidebar-accent-foreground" }}
+      aria-current={active ? "page" : undefined}
     >
       <span className="relative">
         <Icon className="size-5" aria-hidden="true" />

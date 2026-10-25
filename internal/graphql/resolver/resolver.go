@@ -17,6 +17,14 @@ type userReader interface {
 	CurrentUser(context.Context) (vikunja.User, error)
 }
 
+type activityReader interface {
+	Read(context.Context) (service.ActivitySummary, error)
+}
+
+type allTimeActivityReader interface {
+	Read(context.Context) (service.AllTimeActivitySummary, error)
+}
+
 type projectReader interface {
 	Projects(context.Context) ([]vikunja.Project, error)
 }
@@ -87,8 +95,8 @@ type Dependencies struct {
 	Capabilities    *service.CapabilityManager
 	Logger          *slog.Logger
 	Now             func() time.Time
-	Activity        *service.PublicActivity
-	AllTimeActivity *service.PublicAllTimeActivity
+	Activity        activityReader
+	AllTimeActivity allTimeActivityReader
 }
 
 // Resolver wires GraphQL operations to application services.
@@ -109,8 +117,8 @@ type Resolver struct {
 	capabilities    *service.CapabilityManager
 	logger          *slog.Logger
 	now             func() time.Time
-	activity        *service.PublicActivity
-	allTimeActivity *service.PublicAllTimeActivity
+	activity        activityReader
+	allTimeActivity allTimeActivityReader
 }
 
 // New constructs a resolver with the supplied request dependencies.

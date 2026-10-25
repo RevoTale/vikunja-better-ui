@@ -1,5 +1,5 @@
 import { BrandMark } from "@/components/brand-mark";
-import { Button } from "@/components/ui/button";
+import { ReloadPageButton } from "@/components/load-failure";
 
 export function OfflineScreen() {
   return (
@@ -10,9 +10,9 @@ export function OfflineScreen() {
         Better Vikunja is ready. Connect to load fresh tasks and make changes. Task data is not
         stored offline.
       </p>
-      <Button className="self-start" onClick={() => window.location.reload()}>
-        Retry
-      </Button>
+      <div className="self-start">
+        <ReloadPageButton label="Retry connection" />
+      </div>
     </main>
   );
 }

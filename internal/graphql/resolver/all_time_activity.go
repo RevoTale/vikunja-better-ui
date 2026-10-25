@@ -8,8 +8,11 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/service"
 )
 
-// PublicAllTimeActivity returns only anonymous weekly aggregates when explicitly enabled.
+// PublicAllTimeActivity returns current weekly aggregates to authenticated sessions.
 func (resolver *queryResolver) PublicAllTimeActivity(ctx context.Context) (*model.PublicAllTimeActivity, error) {
+	if _, err := requireSession(ctx); err != nil {
+		return nil, err
+	}
 	if resolver.allTimeActivity == nil {
 		return nil, nil
 	}
@@ -18,7 +21,7 @@ func (resolver *queryResolver) PublicAllTimeActivity(ctx context.Context) (*mode
 		return nil, clientError("RATE_LIMITED", "Activity is busy. Try again shortly.")
 	}
 	if err != nil {
-		resolver.logError("read all-time public activity", err)
+		resolver.logError("read all-time activity", err)
 		return nil, clientError("UPSTREAM_UNAVAILABLE", "Activity is temporarily unavailable. Try again shortly.")
 	}
 	result := &model.PublicAllTimeActivity{Total: summary.Total, Timezone: summary.Timezone,

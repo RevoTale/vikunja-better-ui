@@ -2098,9 +2098,9 @@ func newExecutionContext(
 
 var sources = []*ast.Source{
 	{Name: "../schema/activity.graphqls", Input: `extend type Query {
-  "Anonymous, fixed-window completion counts; null when the feature is disabled."
+  "Authenticated current fixed-window completion counts. Anonymous clients use /public/v1/activity."
   publicActivity: PublicActivity
-  "Anonymous weekly all-history aggregates; null when independently disabled. No filter arguments."
+  "Authenticated current weekly all-history aggregates. Anonymous clients use the bounded public REST snapshot."
   publicAllTimeActivity: PublicAllTimeActivity
 }
 

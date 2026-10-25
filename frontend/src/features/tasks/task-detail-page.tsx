@@ -2,7 +2,8 @@ import { useQuery } from "@apollo/client/react";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft, ArrowUpRight, MessageSquare } from "lucide-react";
 import { lazy, Suspense } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { LoadFailure } from "@/components/load-failure";
+import { buttonVariants } from "@/components/ui/button";
 import { CommentsLoading } from "@/features/task-discussion/discussion-loading";
 import { TaskDetailsDocument } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
@@ -29,12 +30,9 @@ export function TaskDetailPage({ taskId, returnTo }: { taskId: string; returnTo:
   });
   if (loading && !data) return <TaskDetailLoading />;
   const failure = error ? (
-    <div role="alert" className="mb-4 text-destructive">
-      <p>{graphQLErrorMessage(error, "Task could not be loaded.")}</p>
-      <Button variant="outline" onClick={() => void refetch().catch(() => undefined)}>
-        Retry task
-      </Button>
-    </div>
+    <LoadFailure className="mb-4" onRetry={() => void refetch().catch(() => undefined)}>
+      {graphQLErrorMessage(error, "Task could not be loaded.")}
+    </LoadFailure>
   ) : null;
   const task = data?.task;
   if (!task) return failure ?? <p>Task not found.</p>;

@@ -49,6 +49,7 @@ type Config struct {
 	LogLevel                     LogLevel
 	Environment                  Environment
 	AllowedOrigin                *url.URL
+	PublicURL                    *url.URL
 	PublicActivityEnabled        bool
 	PublicAllTimeActivityEnabled bool
 	Use12HourTime                bool
@@ -108,11 +109,47 @@ func Load(lookup LookupFunc) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	configuration.PublicURL, err = parseApplicationPublicURL(lookup, environment)
+	if err != nil {
+		return Config{}, err
+	}
 	if err := loadPresentationFlags(&configuration, lookup); err != nil {
 		return Config{}, err
 	}
 
 	return configuration, nil
+}
+
+func parseApplicationPublicURL(lookup LookupFunc, environment Environment) (*url.URL, error) {
+	value, ok := lookup("APP_PUBLIC_URL")
+	if !ok || value == "" {
+		return nil, nil
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || !parsed.IsAbs() || parsed.Host == "" || !isPublicOriginOnly(parsed) {
+		return nil, errors.New("APP_PUBLIC_URL must be an absolute HTTP(S) origin")
+	}
+	parsed.Path = ""
+	if parsed.Scheme == httpsScheme {
+		return parsed, nil
+	}
+	if parsed.Scheme != httpScheme || environment != EnvironmentDevelopment || !isLoopbackHost(parsed.Hostname()) {
+		return nil, errors.New("APP_PUBLIC_URL must use HTTPS except for loopback development")
+	}
+	return parsed, nil
+}
+
+func isPublicOriginOnly(parsed *url.URL) bool {
+	return parsed.User == nil && (parsed.Path == "" || parsed.Path == "/") && parsed.RawPath == "" &&
+		parsed.RawQuery == "" && parsed.Fragment == ""
+}
+
+func isLoopbackHost(host string) bool {
+	if host == "localhost" {
+		return true
+	}
+	address := net.ParseIP(host)
+	return address != nil && address.IsLoopback()
 }
 
 func loadPresentationFlags(configuration *Config, lookup LookupFunc) error {

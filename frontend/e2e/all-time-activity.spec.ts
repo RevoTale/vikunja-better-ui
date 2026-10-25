@@ -6,18 +6,12 @@ test("public activity all-time is anonymous and uses weekly aggregates", async (
   await expect(page.getByRole("heading", { name: "All-time activity", exact: true })).toBeVisible();
   await expect(page.getByRole("img", { name: "Weekly on-time completion chart" })).toBeVisible();
   await expect(page.getByText("Cached for 1 hour.", { exact: false })).toBeVisible();
-  const response = await page.request.post("/graphql", {
-    headers: { Origin: new URL(page.url()).origin },
-    data: {
-      query:
-        "{ publicAllTimeActivity { total weeks { date count completedWithDeadline completedOnTime } } }",
-    },
-  });
+  const response = await page.request.get("/public/v1/all-time-activity");
   const body = await response.json();
-  expect(body.errors).toBeUndefined();
-  expect(body.data.publicAllTimeActivity.total).toBeGreaterThanOrEqual(125);
-  expect(body.data.publicAllTimeActivity.weeks.length).toBeGreaterThan(0);
-  for (const week of body.data.publicAllTimeActivity.weeks) {
+  expect(body.total).toBeGreaterThanOrEqual(125);
+  expect(body.weeks.length).toBeGreaterThan(0);
+  expect(body.weeks.length).toBeLessThanOrEqual(13);
+  for (const week of body.weeks) {
     expect(new Date(`${week.date}T00:00:00Z`).getUTCDay()).toBe(1);
     expect(week.completedOnTime).toBeLessThanOrEqual(week.completedWithDeadline);
     expect(week.completedWithDeadline).toBeLessThanOrEqual(week.count);
@@ -25,55 +19,35 @@ test("public activity all-time is anonymous and uses weekly aggregates", async (
   expect((await new AxeBuilder({ page }).include("main").analyze()).violations).toEqual([]);
 });
 
-test("public activity all-time browses older weeks locally without overflow or extra requests", async ({
+test("public activity all-time stays bounded without filters or extra requests", async ({
   page,
 }, info) => {
   let requests = 0;
-  const weeks = Array.from({ length: 27 }, (_, index) => ({
-    __typename: "ActivityWeek",
+  const weeks = Array.from({ length: 13 }, (_, index) => ({
     date: new Date(Date.UTC(2026, 3, 13 + index * 7)).toISOString().slice(0, 10),
     count: index + 1,
     completedWithDeadline: index + 1,
     completedOnTime: Math.floor((index + 1) / 2),
-    priorities: [
-      {
-        priority: "HIGH",
-        count: index + 1,
-        completedWithDeadline: index + 1,
-        completedOnTime: Math.floor((index + 1) / 2),
-      },
-    ],
   }));
-  await page.route("**/graphql", async (route) => {
-    if (route.request().postDataJSON().operationName !== "PublicAllTimeActivity")
-      return route.continue();
+  await page.route("**/public/v1/all-time-activity", async (route) => {
     requests++;
     await route.fulfill({
       json: {
-        data: {
-          publicAllTimeActivity: {
-            __typename: "PublicAllTimeActivity",
-            weeks,
-            total: 378,
-            priorities: [{ __typename: "ActivityPriority", priority: "HIGH", count: 378 }],
-            timezone: "Europe/Kyiv",
-            generatedAt: "2026-10-15T12:00:00Z",
-            refreshAt: "2026-10-15T13:00:00Z",
-          },
-        },
+        weeks,
+        total: 91,
+        priorities: [{ priority: "HIGH", count: 91 }],
+        timezone: "Europe/Kyiv",
+        generatedAt: "2026-10-15T12:00:00Z",
+        refreshAt: "2026-10-15T13:00:00Z",
       },
     });
   });
-  await page.goto("/all-time-activity");
+  await page.goto("/");
+  await page.getByRole("link", { name: "All-time activity" }).click();
   const samples = page.getByRole("list", { name: "Weekly completions" }).getByRole("listitem");
   await expect(samples).toHaveCount(13);
-  await page.getByRole("button", { name: "Earlier weeks" }).click();
-  await expect(samples).toHaveCount(13);
-  await page.getByRole("button", { name: "Earlier weeks" }).click();
-  await expect(samples).toHaveCount(1);
-  await expect(page.getByRole("button", { name: "Earlier weeks" })).toBeDisabled();
-  await page.getByRole("button", { name: "Later weeks" }).click();
-  await expect(samples).toHaveCount(13);
+  await expect(page.getByRole("group", { name: "Included priorities" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Earlier weeks" })).toHaveCount(0);
   const countPositions = await samples.evaluateAll((items) =>
     items.map((item) => Math.round(item.lastElementChild?.getBoundingClientRect().top ?? -1)),
   );

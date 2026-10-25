@@ -13,11 +13,13 @@ const prChromiumSmoke = new RegExp(
     "discussion supports comments, replies, edits, drafts and deletion",
     "task editing preserves drafts on conflict",
     "task relationships support linking",
+    "More keeps secondary task views",
   ].join("|"),
 );
 const prWebKitSmoke = new RegExp(
   [
     "PWA keeps authenticated reads",
+    "PWA caches only the build",
     "PWA keeps Today below the sticky header",
     "discussion supports bare code fences with Enter",
     "discussion supports code and table controls on mobile and desktop",
@@ -48,6 +50,7 @@ export default defineConfig({
       name: "pr-chromium",
       testMatch: [
         "app-creation.ts",
+        "app-navigation-more.spec.ts",
         "app-recurring-jobs.ts",
         "app-workflows.ts",
         "actionable-count.spec.ts",
@@ -64,6 +67,7 @@ export default defineConfig({
       name: "pr-webkit",
       testMatch: [
         "pwa-authenticated.spec.ts",
+        "pwa.spec.ts",
         "pwa-safe-area.spec.ts",
         "task-discussion-rich-text.spec.ts",
       ],
@@ -78,6 +82,7 @@ export default defineConfig({
     {
       name: "phone-320",
       testMatch: [
+        "app-navigation-more.spec.ts",
         "pwa-safe-area.spec.ts",
         "task-discussion-rich-text.spec.ts",
         "task-discussion-toolbar.spec.ts",
@@ -98,6 +103,7 @@ export default defineConfig({
       name: "phone-webkit",
       testMatch: [
         "pwa-authenticated.spec.ts",
+        "pwa.spec.ts",
         "pwa-safe-area.spec.ts",
         "task-discussion-media.spec.ts",
         "task-discussion-rich-text.spec.ts",

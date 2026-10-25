@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
+import { LoadFailure } from "@/components/load-failure";
 import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button } from "@/components/ui/button";
 import type { ProjectsQuery, TaskPriority } from "@/graphql/graphql";
@@ -67,12 +68,12 @@ export function CreateTaskForm({
   if (settingsLoading && !hasSettings) return <p className="mt-6">Loading task settings…</p>;
   if (settingsError && !hasSettings) {
     return (
-      <p className="mt-6 text-destructive" role="alert">
+      <LoadFailure className="mt-6">
         {graphQLErrorMessage(
           settingsError,
           "Task settings could not be loaded. Refresh the page and try again.",
         )}
-      </p>
+      </LoadFailure>
     );
   }
   if (!timezone || !defaultDate) {

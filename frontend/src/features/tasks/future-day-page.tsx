@@ -1,10 +1,11 @@
 import { useQuery } from "@apollo/client/react";
 import { useLocation } from "@tanstack/react-router";
 import type { ComponentProps, ReactNode } from "react";
+import { LoadFailure } from "@/components/load-failure";
 import { DayDocument, type DayQuery, ProjectsDocument, type SessionQuery } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import type { DaySearch } from "./day-search";
-import { IssueList, ListMessage, ListSettingsError } from "./list-state";
+import { IssueList, ListSettingsError } from "./list-state";
 import { TaskActionFeedback } from "./task-action-feedback";
 import { TaskListHeader } from "./task-list-header";
 import { TaskListLoading } from "./task-list-loading";
@@ -100,9 +101,7 @@ function DayContent({
 }) {
   if (!view)
     return error ? (
-      <ListMessage tone="error">
-        Day tasks could not be loaded. Try refreshing this page.
-      </ListMessage>
+      <LoadFailure>Day tasks could not be loaded. Try refreshing this page.</LoadFailure>
     ) : (
       <TaskListLoading />
     );

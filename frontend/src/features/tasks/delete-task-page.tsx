@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { LoadFailure } from "@/components/load-failure";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DeleteTaskDocument, SessionDocument, TaskDetailsDocument } from "@/graphql/graphql";
@@ -60,11 +61,7 @@ export function DeleteTaskPage({ taskId, returnTo }: { taskId: string; returnTo:
 
   if (loading && !data) return <p>Loading task…</p>;
   if (error || !task)
-    return (
-      <p role="alert" className="text-destructive">
-        {graphQLErrorMessage(error, "Task could not be loaded.")}
-      </p>
-    );
+    return <LoadFailure>{graphQLErrorMessage(error, "Task could not be loaded.")}</LoadFailure>;
 
   const canDelete = taskDetailActionPolicy(task).canDelete;
   return (

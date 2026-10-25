@@ -13,10 +13,11 @@ explicit request.
 
 ## Architecture
 
-Use this request path:
+Use these request paths:
 
 ```text
-React UI -> Go GraphQL API -> Vikunja REST API
+Authenticated React UI -> Go GraphQL API -> Vikunja REST API
+Anonymous activity UI -> fixed Go public snapshot GET -> Vikunja REST API
 ```
 
 The browser must never call Vikunja directly. The Go backend is the only code
@@ -35,8 +36,14 @@ support Vikunja username/password authentication.
 Keep the app stateless. After app login, use a signed, expiring, HTTP-only
 session cookie. Do not add a database for sessions or application data.
 
-Use GraphQL for all browser application requests. Implement login and logout as
-GraphQL mutations.
+Use GraphQL for all authenticated browser application requests. Implement login
+and logout as GraphQL mutations.
+
+The approved anonymous-data exception is the fixed, read-only activity snapshot
+API documented in `docs/decisions/0008-public-activity-http-cache.md`. It exposes
+only aggregate public data through parameter-free GET endpoints. It must ignore
+cookies and authorization, reject query parameters, and remain independent from
+authenticated GraphQL responses. React must request it without credentials.
 
 The approved exception is authenticated same-origin binary attachment streaming
 at `/media/tasks/{task}/attachments/{attachment}`. Uploads and metadata remain
@@ -57,7 +64,10 @@ with bounded memory, and use private no-store caching. Never proxy arbitrary URL
 
 - React with strict TypeScript. Enable strict compiler checks, including
   unchecked indexed access and exact optional property types.
-- Vite with a static production build. Do not add server-side rendering.
+- Vite with a static production build. Do not add Node or React SSR. Go may
+  render the indexable root and anonymous activity HTML described in
+  `docs/decisions/0008-public-activity-http-cache.md`; React progressively
+  enhances those pages from the same public snapshot.
 - Node.js for frontend tooling.
 - `pnpm` as the only package manager.
 - Apollo Client for GraphQL requests and server state.
@@ -212,11 +222,14 @@ Use the `APP_` prefix. The expected variables are:
 - `APP_SESSION_SECRET`: strong secret used to sign session cookies.
 - `APP_HTTP_ADDR`: HTTP listen address.
 - `APP_LOG_LEVEL`: log level.
+- `APP_PUBLIC_URL`: optional canonical public origin and root-indexing opt-in.
 
 Document every variable in `.env.example` and `README.md`. Fail at startup with
 a clear message when required configuration is missing or invalid.
 The explicitly requested `PUBLIC_ALL_TIME_ACTIVITY` is the sole unprefixed
 feature flag; it independently enables the anonymous all-time activity view.
+`APP_PUBLIC_URL` is both the validated canonical origin and explicit
+root-indexing opt-in described by ADR-008.
 Vikunja 2.7.0 or later is required and checked through API v2 info at startup.
 
 Never commit a populated `.env` file or a real secret. Never put credentials in
@@ -284,7 +297,8 @@ Never:
 
 - Expose or log credentials, API tokens, session secrets, or cookies.
 - Call Vikunja from browser code.
-- Add server-side rendering.
+- Add Node/React SSR or Go-rendered application pages outside the narrow public
+  root/activity boundary approved by ADR-008.
 - Add a database without approval.
 - Edit generated files by hand.
 - Remove tests to make checks pass.

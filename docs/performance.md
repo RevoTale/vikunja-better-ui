@@ -61,6 +61,14 @@ Response caching is intentionally explicit:
 - GraphQL and caller-authenticated Jobs integration: `private, no-store`;
 - health and readiness: `no-store`.
 
+[ADR-008](decisions/0008-public-activity-http-cache.md) defines the implemented
+boundary for the two anonymous activity aggregates. Their fixed GET resources
+use a one-hour shared-cache lifetime, a five-minute browser lifetime, content
+ETags, and a one-minute stale-while-revalidate window.
+The shared TTL must be the remaining lifetime of the origin snapshot so the two
+cache layers cannot compound. Authenticated activity remains GraphQL with
+`private, no-store`.
+
 The service worker caches only public build files, never task data or API
 responses. See [PWA cache boundaries](pwa.md). There is no server-side task-data cache. The Go server
 does not dynamically compress static files; enable Brotli or gzip in the

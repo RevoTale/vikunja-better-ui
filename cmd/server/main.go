@@ -55,14 +55,10 @@ func run(configuration config.Config, logger *slog.Logger) error {
 	sessions := auth.NewSessionManager(configuration.SessionSecret, now, rand.Reader)
 	cookies := auth.NewSessionCookies(production)
 	capabilities := service.NewCapabilityManager(configuration.SessionSecret, now)
-	var activity *service.PublicActivity
-	if configuration.PublicActivityEnabled {
-		activity = service.NewPublicActivity(vikunjaClient, now)
-	}
-	var allTimeActivity *service.PublicAllTimeActivity
-	if configuration.PublicAllTimeActivityEnabled {
-		allTimeActivity = service.NewPublicAllTimeActivity(vikunjaClient, now)
-	}
+	activity := service.NewPublicActivity(vikunjaClient, now)
+	allTimeActivity := service.NewPublicAllTimeActivity(vikunjaClient, now)
+	currentActivity := service.NewCurrentActivity(vikunjaClient, now)
+	currentAllTimeActivity := service.NewCurrentAllTimeActivity(vikunjaClient, now)
 	root := resolver.New(resolver.Dependencies{
 		Use12HourTime: configuration.Use12HourTime,
 		Credentials:   auth.NewCredentials(configuration.AuthUsername, configuration.AuthPassword),
@@ -75,9 +71,8 @@ func run(configuration config.Config, logger *slog.Logger) error {
 			BetterUI: configuration.AllowedOrigin, Vikunja: configuration.VikunjaPublicURL,
 		},
 		Capabilities: capabilities, Logger: logger, Now: now,
-		Activity: activity, AllTimeActivity: allTimeActivity,
+		Activity: currentActivity, AllTimeActivity: currentAllTimeActivity,
 	})
-
 	mux := http.NewServeMux()
 	graphQL := graphqlserver.NewHandler(root, production, logger)
 	mux.Handle(
@@ -92,16 +87,56 @@ func run(configuration config.Config, logger *slog.Logger) error {
 		"/integrations/v1/jobs",
 		integration.NewJobsHandler(configuration.VikunjaURL, configuration.AllowedOrigin, logger, now),
 	)
+	mux.Handle("/public/v1/", web.NewPublicActivityAPI(
+		activity, allTimeActivity, configuration.PublicActivityEnabled,
+		configuration.PublicAllTimeActivityEnabled, now,
+	))
 	mux.HandleFunc("/healthz", healthHandler)
 	mux.Handle("/readyz", readinessHandler(vikunjaClient, logger))
-	mux.Handle("/", web.SPAHandler())
+	spa := web.SPAHandler()
+	publicPages := web.NewPublicPages(web.PublicPageOptions{
+		PublicURL:       configuration.PublicURL,
+		ActivityEnabled: configuration.PublicActivityEnabled,
+		AllTimeEnabled:  configuration.PublicAllTimeActivityEnabled,
+		Activity:        activity, AllTime: allTimeActivity, PrivateFallback: spa, Now: now,
+	})
+	privatePages := auth.HTTPContext(sessions, cookies)(publicPages)
+	registerPublicRoutes(mux, publicPages, privatePages, spa, configuration)
+	server := newHTTPServer(configuration.HTTPAddr, production, mux)
+	return serve(server, logger)
+}
 
-	server := &http.Server{
-		Addr: configuration.HTTPAddr, Handler: web.SecurityHeaders(production)(mux),
+func registerPublicRoutes(
+	mux *http.ServeMux,
+	public http.Handler,
+	private http.Handler,
+	fallback http.Handler,
+	configuration config.Config,
+) {
+	mux.Handle("GET /{$}", public)
+	mux.Handle("GET /robots.txt", public)
+	mux.Handle("GET /sitemap.xml", public)
+	mux.Handle("GET /activity", choosePublicRoute(configuration.PublicActivityEnabled, public, private))
+	mux.Handle(
+		"GET /all-time-activity",
+		choosePublicRoute(configuration.PublicAllTimeActivityEnabled, public, private),
+	)
+	mux.Handle("/", fallback)
+}
+
+func choosePublicRoute(enabled bool, public, private http.Handler) http.Handler {
+	if enabled {
+		return public
+	}
+	return private
+}
+
+func newHTTPServer(address string, production bool, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr: address, Handler: web.SecurityHeaders(production)(handler),
 		ReadHeaderTimeout: serverReadHeaderTimeout, ReadTimeout: serverReadTimeout,
 		WriteTimeout: serverWriteTimeout, IdleTimeout: serverIdleTimeout,
 	}
-	return serve(server, logger)
 }
 
 func serve(server *http.Server, logger *slog.Logger) error {

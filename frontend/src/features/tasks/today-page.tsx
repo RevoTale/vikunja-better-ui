@@ -1,10 +1,10 @@
 import { useQuery } from "@apollo/client/react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { LoadFailure } from "@/components/load-failure";
 import { Button } from "@/components/ui/button";
 import { SessionDocument } from "@/graphql/graphql";
 import { type DaySearch, navigateDaySearch } from "./day-search";
 import { FutureDayPage } from "./future-day-page";
-import { ListMessage } from "./list-state";
 import { currentDateInTimeZone } from "./local-date-time";
 import { TaskListLoading } from "./task-list-loading";
 import { TaskListPage } from "./task-list-page";
@@ -39,7 +39,7 @@ export function TodayPage({
   );
   if (search.date && !today) {
     return error ? (
-      <ListMessage tone="error">Timezone could not be loaded. Refresh the page.</ListMessage>
+      <LoadFailure>Timezone could not be loaded. Refresh the page.</LoadFailure>
     ) : (
       <TaskListLoading />
     );

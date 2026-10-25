@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/RevoTale/vikunja-better-ui/internal/config"
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
@@ -49,6 +50,51 @@ func TestReadinessHandlerReflectsVikunjaAvailability(t *testing.T) {
 			}
 			if cacheControl := recorder.Header().Get("Cache-Control"); cacheControl != "no-store" {
 				t.Fatalf("Cache-Control = %q", cacheControl)
+			}
+		})
+	}
+}
+
+func TestRegisterPublicRoutesKeepsCacheablePagesOutsideSessionMiddleware(t *testing.T) {
+	t.Parallel()
+
+	public := http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = writer.Write([]byte("public"))
+	})
+	private := http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		http.SetCookie(writer, &http.Cookie{
+			Name: "session", Value: "refreshed", Secure: true, HttpOnly: true, SameSite: http.SameSiteLaxMode,
+		})
+		_, _ = writer.Write([]byte("private"))
+	})
+	mux := http.NewServeMux()
+	registerPublicRoutes(mux, public, private, http.NotFoundHandler(), config.Config{
+		PublicActivityEnabled: true,
+	})
+
+	testCases := []struct {
+		path          string
+		wantBody      string
+		wantSetCookie bool
+	}{
+		{path: "/", wantBody: "public"},
+		{path: "/robots.txt", wantBody: "public"},
+		{path: "/sitemap.xml", wantBody: "public"},
+		{path: "/activity", wantBody: "public"},
+		{path: "/all-time-activity", wantBody: "private", wantSetCookie: true},
+	}
+	for _, testCase := range testCases {
+		t.Run(testCase.path, func(t *testing.T) {
+			t.Parallel()
+			recorder := httptest.NewRecorder()
+			mux.ServeHTTP(recorder, httptest.NewRequestWithContext(
+				t.Context(), http.MethodGet, "http://app.test"+testCase.path, nil,
+			))
+			if body := recorder.Body.String(); body != testCase.wantBody {
+				t.Fatalf("body = %q, want %q", body, testCase.wantBody)
+			}
+			if got := recorder.Header().Get("Set-Cookie") != ""; got != testCase.wantSetCookie {
+				t.Fatalf("Set-Cookie present = %t, want %t", got, testCase.wantSetCookie)
 			}
 		})
 	}

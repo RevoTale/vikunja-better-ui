@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.9.0](https://github.com/RevoTale/vikunja-better-ui/compare/v2.8.2...v2.9.0) (2026-10-20)
+
+### Features
+
+* **activity:** add authenticated insights navigation and explicit priority filtering ([ad0fd93](https://github.com/RevoTale/vikunja-better-ui/commit/ad0fd9312998f2d33fccc273c1c7092927e5bed2))
+
+### Bug Fixes
+
+* **pwa:** add recovery actions for failed page loads ([b316917](https://github.com/RevoTale/vikunja-better-ui/commit/b3169170dc861dee2b23f21af7335e0a1c1e5543))
+
 ## [2.8.2](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.8.2) - 2026-10-16
 
 ### ❤️ Thanks to all contributors! ❤️
