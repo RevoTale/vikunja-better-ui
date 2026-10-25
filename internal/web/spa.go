@@ -58,7 +58,7 @@ func staticCacheControl(requestedPath string) string {
 	switch {
 	case strings.HasPrefix(requestedPath, "assets/"):
 		return hashedAssetCacheControl
-	case requestedPath == "favicon.svg", requestedPath == "site.webmanifest":
+	case requestedPath == "favicon.svg", requestedPath == "site.webmanifest", requestedPath == "social-preview.png":
 		return metadataCacheControl
 	default:
 		return revalidatedCacheControl
@@ -66,7 +66,7 @@ func staticCacheControl(requestedPath string) string {
 }
 
 func serveIndex(writer http.ResponseWriter, request *http.Request, indexHTML []byte) {
-	body := bytes.Replace(indexHTML, []byte(cspNoncePlaceholder), []byte(cspNonce(request.Context())), 1)
+	body := renderPrivateIndex(indexHTML, cspNonce(request.Context()))
 	writer.Header().Set("Cache-Control", revalidatedCacheControl)
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
 	writer.WriteHeader(http.StatusOK)
@@ -74,4 +74,22 @@ func serveIndex(writer http.ResponseWriter, request *http.Request, indexHTML []b
 		return
 	}
 	_, _ = writer.Write(body)
+}
+
+func renderPrivateIndex(indexHTML []byte, nonce string) []byte {
+	replacements := map[string]string{
+		cspNoncePlaceholder:     nonce,
+		"__PAGE_TITLE__":        defaultPageTitle,
+		"__PAGE_DESCRIPTION__":  pageDescription,
+		"__ROBOTS__":            "noindex, nofollow, noarchive",
+		"__TWITTER_CARD__":      "summary",
+		"<!--PUBLIC_META-->":    "",
+		"<!--PUBLIC_CONTENT-->": "",
+		"<!--PUBLIC_DATA-->":    "",
+	}
+	body := indexHTML
+	for from, to := range replacements {
+		body = bytes.ReplaceAll(body, []byte(from), []byte(to))
+	}
+	return body
 }

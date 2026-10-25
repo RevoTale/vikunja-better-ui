@@ -1,37 +1,41 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import type { PublicAllTimeActivityQuery } from "@/graphql/graphql";
 import { ActivityChartViewport } from "./activity-chart-viewport";
 import { activityChartLayout, PriorityChart } from "./activity-charts";
 import { ActivityOnTimeChart } from "./activity-on-time-chart";
 import { ActivityPriorityFilter, allActivityPriorities } from "./activity-priority-filter";
+import type { ActivityWeekView, AllTimeActivityView } from "./activity-view-model";
 import { activityWeekLabel } from "./activity-week-label";
 import { filterAllTimePriorities } from "./all-time-priorities";
 
-type Activity = NonNullable<PublicAllTimeActivityQuery["publicAllTimeActivity"]>;
 const windowWeeks = 13;
 
-export function AllTimeActivityCharts({ activity }: { activity: Activity }) {
+export function AllTimeActivityCharts({
+  activity,
+  filterable = true,
+}: {
+  activity: AllTimeActivityView;
+  filterable?: boolean;
+}) {
   const [offset, setOffset] = useState(0);
   const [selected, setSelected] = useState(allActivityPriorities);
-  const filtered = filterAllTimePriorities(activity, selected);
+  const filtered = filterable ? filterAllTimePriorities(activity, selected) : activity;
   const end = Math.max(0, activity.weeks.length - offset);
   const weeks = filtered.weeks.slice(Math.max(0, end - windowWeeks), end);
   const lastWeek = weeks.at(-1);
   return (
     <>
-      <ActivityPriorityFilter selected={selected} onChange={setSelected} />
-      <nav
-        aria-label="Activity week range"
-        className="flex min-h-20 flex-wrap items-center gap-2 sm:min-h-10"
-      >
-        <Button
-          variant="outline"
-          disabled={end <= windowWeeks}
-          onClick={() => setOffset(offset + windowWeeks)}
-        >
-          Earlier weeks
-        </Button>
+      {filterable ? <ActivityPriorityFilter selected={selected} onChange={setSelected} /> : null}
+      <nav aria-label="Activity week range" className="flex min-h-10 flex-wrap items-center gap-2">
+        {filterable ? (
+          <Button
+            variant="outline"
+            disabled={end <= windowWeeks}
+            onClick={() => setOffset(offset + windowWeeks)}
+          >
+            Earlier weeks
+          </Button>
+        ) : null}
         <span
           className="order-last w-full text-sm tabular-nums sm:order-none sm:w-auto"
           aria-live="polite"
@@ -40,13 +44,15 @@ export function AllTimeActivityCharts({ activity }: { activity: Activity }) {
             ? `${weeks[0]?.date} – ${activityWeekLabel(lastWeek.date).endDate}`
             : "No completed weeks"}
         </span>
-        <Button
-          variant="outline"
-          disabled={offset === 0}
-          onClick={() => setOffset(Math.max(0, offset - windowWeeks))}
-        >
-          Later weeks
-        </Button>
+        {filterable ? (
+          <Button
+            variant="outline"
+            disabled={offset === 0}
+            onClick={() => setOffset(Math.max(0, offset - windowWeeks))}
+          >
+            Later weeks
+          </Button>
+        ) : null}
       </nav>
       <ActivityOnTimeChart days={weeks} summaryDays={filtered.weeks} cadence="week" />
       <WeeklyCompletions weeks={weeks} total={filtered.total} />
@@ -59,7 +65,7 @@ function WeeklyCompletions({
   weeks,
   total,
 }: {
-  weeks: ReturnType<typeof filterAllTimePriorities>["weeks"];
+  weeks: readonly ActivityWeekView[];
   total: number;
 }) {
   const maximum = Math.max(1, ...weeks.map((week) => week.count));

@@ -11,25 +11,20 @@ const days = Array.from({ length: 14 }, (_, index) => ({
 test("public activity shows daily on-time samples, real zeros and missing data without overflow", async ({
   page,
 }, info) => {
-  await page.route("**/graphql", async (route) => {
-    if (route.request().postDataJSON().operationName !== "PublicActivity") return route.continue();
+  await page.route("**/public/v1/activity", async (route) => {
     await route.fulfill({
       json: {
-        data: {
-          publicActivity: {
-            __typename: "PublicActivity",
-            days: days.map((day) => ({ __typename: "ActivityDay", ...day })),
-            priorities: [{ __typename: "ActivityPriority", priority: "UNSET", count: 7 }],
-            total: 7,
-            timezone: "Europe/Kyiv",
-            generatedAt: "2026-10-15T12:00:00Z",
-            refreshAt: "2026-10-15T13:00:00Z",
-          },
-        },
+        days,
+        priorities: [{ priority: "UNSET", count: 7 }],
+        total: 7,
+        timezone: "Europe/Kyiv",
+        generatedAt: "2026-10-15T12:00:00Z",
+        refreshAt: "2026-10-15T13:00:00Z",
       },
     });
   });
-  await page.goto("/activity");
+  await page.goto("/");
+  await page.getByRole("link", { name: "Last 14 days" }).click();
   await expect(
     page.getByRole("heading", { name: "On-time completion 40%", exact: true }),
   ).toBeVisible();
@@ -47,7 +42,9 @@ test("public activity shows daily on-time samples, real zeros and missing data w
   await expect(samples.nth(2)).toContainText("0%");
   await expect(samples.nth(3)).toContainText("No data");
   await expect(samples.nth(3)).not.toContainText("0%");
-  await expect(page.getByText("Europe/Kyiv · 14 calendar days. Cached for 1 hour.")).toBeVisible();
+  await expect(
+    page.getByText("Europe/Kyiv · 14 calendar days. Public snapshot cached for 1 hour."),
+  ).toBeVisible();
   for (const width of [320, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     await expect

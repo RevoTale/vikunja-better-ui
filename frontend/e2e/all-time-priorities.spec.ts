@@ -1,7 +1,8 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
+import { login } from "./app-actions";
 
-test("public activity filters multiple priorities locally with consistent weekly charts", async ({
+test("signed-in activity filters multiple priorities locally with consistent weekly charts", async ({
   page,
 }) => {
   let requests = 0;
@@ -48,6 +49,8 @@ test("public activity filters multiple priorities locally with consistent weekly
       },
     });
   });
+  await page.goto("/login");
+  await login(page);
   await page.goto("/all-time-activity");
   const filter = page.getByRole("group", { name: "Included priorities", exact: true });
   await expect(filter.getByText("6 included · 0 excluded", { exact: true })).toBeVisible();

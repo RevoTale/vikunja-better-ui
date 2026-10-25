@@ -8,32 +8,34 @@
     <meta name="color-scheme" content="light dark" />
     <meta
       name="description"
-      content="A focused, self-hosted interface for fast, predictable recurring-task workflows on Vikunja."
+      content="__PAGE_DESCRIPTION__"
     />
     <meta name="application-name" content="Better Vikunja" />
-    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta name="robots" content="__ROBOTS__" />
     <meta name="theme-color" content="#e9e4d8" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141414" media="(prefers-color-scheme: dark)" />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Better Vikunja" />
-    <meta property="og:title" content="Better Vikunja — Fast recurring task workflows" />
+    <meta property="og:site_name" content="Better Vikunja instance" />
+    <meta property="og:title" content="__PAGE_TITLE__" />
     <meta
       property="og:description"
-      content="A focused, self-hosted interface for fast, predictable recurring-task workflows on Vikunja."
+      content="__PAGE_DESCRIPTION__"
     />
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Better Vikunja — Fast recurring task workflows" />
+    <meta name="twitter:card" content="__TWITTER_CARD__" />
+    <meta name="twitter:title" content="__PAGE_TITLE__" />
     <meta
       name="twitter:description"
-      content="A focused, self-hosted interface for fast, predictable recurring-task workflows on Vikunja."
+      content="__PAGE_DESCRIPTION__"
     />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-    <title>Better Vikunja — Fast recurring task workflows</title>
+    <!--PUBLIC_META-->
+    <title>__PAGE_TITLE__</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><!--PUBLIC_CONTENT--></div>
+    <!--PUBLIC_DATA-->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -78,7 +78,7 @@ func TestSPAHandlerServesNestedAsset(t *testing.T) {
 func TestSPAHandlerCachesUnhashedMetadataForTenMinutes(t *testing.T) {
 	t.Parallel()
 
-	for _, requestPath := range []string{"favicon.svg", "site.webmanifest"} {
+	for _, requestPath := range []string{"favicon.svg", "site.webmanifest", "social-preview.png"} {
 		t.Run(requestPath, func(t *testing.T) {
 			t.Parallel()
 			recorder := httptest.NewRecorder()
@@ -109,6 +109,7 @@ func TestStaticCacheControlUsesSafeFallbackForUnhashedRootAssets(t *testing.T) {
 		{path: "assets/app-content-hash.js", want: "public, max-age=31536000, immutable"},
 		{path: "favicon.svg", want: "public, max-age=600"},
 		{path: "site.webmanifest", want: "public, max-age=600"},
+		{path: "social-preview.png", want: "public, max-age=600"},
 		{path: "robots.txt", want: "private, no-cache"},
 	}
 	for _, testCase := range testCases {
