@@ -424,8 +424,8 @@ secret.
 
 | Variable | Required | Meaning |
 | --- | --- | --- |
-| `APP_VIKUNJA_URL` | Yes | Absolute Vikunja base URL. HTTPS is required in production. |
-| `APP_VIKUNJA_PUBLIC_URL` | No | Public native Vikunja frontend URL, including its base path, for recognizing task references. Defaults to `APP_VIKUNJA_URL`; set it when the API uses an internal address. HTTPS is required in production. |
+| `APP_VIKUNJA_URL` | Yes | Backend transport base URL. HTTP is supported on trusted internal networks, including production; use HTTPS across untrusted networks. |
+| `APP_VIKUNJA_PUBLIC_URL` | With HTTP transport in production | Public native Vikunja base URL, including its base path, for task references and stored image URLs. Defaults to `APP_VIKUNJA_URL`. HTTPS is required in production. |
 | `APP_VIKUNJA_API_TOKEN` | Yes | Vikunja token used only by the Go backend. |
 | `APP_AUTH_USERNAME` | Yes | Username accepted by this app. |
 | `APP_AUTH_PASSWORD` | Yes | Password accepted by this app. |
@@ -794,13 +794,27 @@ autoplay; codec support depends on the browser.
 - Native Vikunja displays audio/video as attachment links. Editing there can
   remove the player marker; the link and underlying file remain.
 
-For native image interoperability, `APP_VIKUNJA_URL` must match the API base
+For native image interoperability, `APP_VIKUNJA_PUBLIC_URL` (or its fallback,
+`APP_VIKUNJA_URL`) must match the API base
 used by the native client, including any path prefix. Stored image references
 use native API v1 URLs; Better UI's backend transport uses API v2. Better UI
 displays files only through authenticated same-origin media URLs; the browser
 never receives the Vikunja token. Responses use `Cache-Control: private, no-store`.
 Seeking works only when Vikunja supports the requested byte range.
 Attachment deletion permission is not needed.
+
+For a shared Docker network, configure separate transport and public addresses:
+
+```dotenv
+APP_VIKUNJA_URL=http://vikunja:3456
+APP_VIKUNJA_PUBLIC_URL=https://vikunja.example.com
+```
+
+API requests, uploads and image downloads use the internal address. Stored image
+references use the public address so the native Vikunja editor can recognize them.
+Better UI browsers fetch images through its authenticated same-origin media endpoint.
+Existing public image references continue to work without rewriting stored content.
+Keep `APP_ENV=production`; public HTTPS and secure session cookie requirements remain.
 
 Drafts stay in this browser, separately for each Vikunja user, task and edited
 comment. **Restore draft** is explicit and disabled once you start editing.

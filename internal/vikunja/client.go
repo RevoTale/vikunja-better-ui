@@ -34,6 +34,7 @@ const (
 // Client owns upstream credentials and coalesces only concurrent metadata reads.
 type Client struct {
 	baseURL             *url.URL
+	publicURL           *url.URL
 	apiToken            string
 	httpClient          *http.Client
 	logger              *slog.Logger
@@ -44,6 +45,17 @@ type Client struct {
 
 // Option customizes client construction without exposing its credentials.
 type Option func(*Client)
+
+// WithPublicURL sets the validated native API base used for stored attachment references.
+// Requests and credentials continue to use the transport URL passed to NewClient.
+func WithPublicURL(publicURL *url.URL) Option {
+	return func(client *Client) {
+		if publicURL != nil {
+			cloned := *publicURL
+			client.publicURL = &cloned
+		}
+	}
+}
 
 // WithLogger enables safe upstream timing diagnostics.
 func WithLogger(logger *slog.Logger) Option {
@@ -71,8 +83,9 @@ func (err *Error) Error() string {
 func NewClient(baseURL *url.URL, apiToken string, options ...Option) *Client {
 	clonedURL := *baseURL
 	client := &Client{
-		baseURL:  &clonedURL,
-		apiToken: apiToken,
+		baseURL:   &clonedURL,
+		publicURL: &clonedURL,
+		apiToken:  apiToken,
 		httpClient: &http.Client{
 			Timeout: requestTimeout,
 			Transport: &http.Transport{

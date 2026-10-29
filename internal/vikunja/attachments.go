@@ -125,7 +125,7 @@ func (client *Client) UploadTaskAttachment(
 func (client *Client) attachmentSourceURL(taskID, attachmentID int64) string {
 	// Vikunja 2.5's native editor stores API v1 attachment URLs even though
 	// this client's transport uses v2. Both address the same attachment.
-	value := client.baseURL.JoinPath("api/v1", attachmentPath(taskID), strconv.FormatInt(attachmentID, 10))
+	value := client.publicURL.JoinPath("api/v1", attachmentPath(taskID), strconv.FormatInt(attachmentID, 10))
 	return value.String()
 }
 
