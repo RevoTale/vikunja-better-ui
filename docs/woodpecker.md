@@ -58,7 +58,9 @@ on `main`, validating the production Dockerfile without Docker-in-Docker or
 privileged mode. The tag pipeline repeats
 `required-checks`; only then does its production Buildx step publish the image.
 `task image:smoke` remains the local release-candidate check: it starts an
-isolated Vikunja info fixture and verifies the running image.
+isolated Go TLS fixture and verifies the running image, including its non-root
+user and embedded frontend. It runs probes inside the containers without
+publishing host ports, then removes both containers and their network.
 
 The official `ready-release-go` plugin keeps a reviewed release PR up to date.
 It calculates the version from merged PR labels; merging that PR creates the
@@ -83,6 +85,37 @@ release script is maintained.
 Multi-platform Docker builds use native build stages and Go cross-compilation;
 the final distroless image is unchanged. Neither QEMU nor host binfmt changes
 are needed. Nothing is published from PRs or from separate tag events.
+
+## Vikunja test service
+
+PostgreSQL 18.6 runs as a digest-pinned Woodpecker service. The Go readiness
+command waits for a ready database session after the required checks. Vikunja 2.7.0
+then starts as a native detached step named `vikunja`, using the official
+non-root image. This is Woodpecker's service mechanism with explicit startup
+ordering: the scratch image has no shell to wait for PostgreSQL itself.
+Neither service publishes host ports or needs the Docker socket in CI.
+Trust authentication is confined to this disposable workflow network.
+
+Both browser steps set `E2E_VIKUNJA_SERVICE=1`. The Go harness waits for
+`/api/v2/info`, creates a random fixture account and removes its onboarding
+Inbox and saved filter. Registration is enabled only on the test service;
+mail is disabled. Fixtures and reply chains are created through Vikunja's API.
+There are no direct SQL writes or shared database files. The discussion helper
+checks its temporary ownership marker and the exact fixture origin before
+using the test token. It stops on API errors without retrying mutations.
+
+SQLite was replaced because concurrent API transactions and asynchronous
+Vikunja event handlers can fail with `database is locked` despite WAL and
+busy_timeout. A concurrent comment/relation contract test guards this failure.
+The pagination fixture separates its quote ancestors and last comment across
+server timestamp seconds; Vikunja persists comments at second precision.
+
+Woodpecker removes both services and its workspace at completion. Local
+`task e2e`, `task e2e:pr` and `task demo` retain the signed Vikunja binary
+and launch one temporary PostgreSQL container sharing the Dev Container's
+network namespace. PostgreSQL listens only on a random loopback port, stores
+its data in tmpfs, and is removed by the Go harness on success or failure.
+These local commands require access to Docker from the existing Dev Container.
 
 ## Diagnostics and verification
 

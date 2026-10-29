@@ -145,7 +145,9 @@ test("login displays the GraphQL error returned by the app", async ({ page }) =>
   });
 
   await page.goto("/login");
-  await login(page);
+  await page.getByLabel("Username").fill("app-user");
+  await page.getByLabel("Password").fill("app-password-strong");
+  await page.getByRole("button", { name: "Sign in" }).click();
 
   await expect(page.getByText("Vikunja is unavailable. Try again shortly.")).toBeVisible();
   await expect(page).toHaveURL(/\/login/);

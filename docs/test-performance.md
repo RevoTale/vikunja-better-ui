@@ -48,19 +48,19 @@ Run inside the already-running Dev Container, with no competing test/build job:
 
 ```sh
 # Any command: elapsed wall time and sampled descendant RSS.
-node tests/e2e/harness/measure.mjs pnpm --dir frontend run test
-node tests/e2e/harness/measure.mjs go test -race -count=2 -shuffle=on ./...
+go run ./tests/e2e/harness measure pnpm --dir frontend run test
+go run ./tests/e2e/harness measure go test -race -count=2 -shuffle=on ./...
 
 # Browser processes only, excluding fixture/build preparation and server siblings.
-E2E_MEASURE=1 tests/e2e/harness/run.sh \
+E2E_MEASURE=1 go run ./tests/e2e/harness run \
   task-discussion-controls.spec.ts task-list-size.spec.ts \
   task-discussion-rich-text.spec.ts --reporter=line
 
 # Entire harness, including fixture servers and builds.
-node tests/e2e/harness/measure.mjs task e2e
+go run ./tests/e2e/harness measure task e2e
 
 # Fast PR browser matrix.
-node tests/e2e/harness/measure.mjs task e2e:pr
+go run ./tests/e2e/harness measure task e2e:pr
 ```
 
 The Linux sampler uses `ps` every 250 ms and writes JSON to stderr. It propagates

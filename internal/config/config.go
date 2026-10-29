@@ -65,7 +65,7 @@ func Load(lookup LookupFunc) (Config, error) {
 		return Config{}, err
 	}
 
-	vikunjaURL, err := parseVikunjaURL(required(lookup, "APP_VIKUNJA_URL"), environment)
+	vikunjaURL, err := parseVikunjaURL(required(lookup, "APP_VIKUNJA_URL"))
 	if err != nil {
 		return Config{}, err
 	}
@@ -195,11 +195,14 @@ func parseBooleanFlag(lookup LookupFunc, name string) (bool, error) {
 func parsePublicURL(lookup LookupFunc, environment Environment, fallback *url.URL) (*url.URL, error) {
 	value := required(lookup, "APP_VIKUNJA_PUBLIC_URL")
 	if value == "" {
-		return fallback, nil
+		value = fallback.String()
 	}
-	parsed, err := parseVikunjaURL(value, environment)
+	parsed, err := parseVikunjaURL(value)
 	if err != nil {
 		return nil, errors.New(strings.ReplaceAll(err.Error(), "APP_VIKUNJA_URL", "APP_VIKUNJA_PUBLIC_URL"))
+	}
+	if environment == EnvironmentProduction && parsed.Scheme != httpsScheme {
+		return nil, errors.New("APP_VIKUNJA_PUBLIC_URL must use HTTPS in production; set it explicitly for HTTP transport")
 	}
 	return parsed, nil
 }
@@ -256,7 +259,7 @@ func parseLogLevel(value string) (LogLevel, error) {
 	}
 }
 
-func parseVikunjaURL(value string, environment Environment) (*url.URL, error) {
+func parseVikunjaURL(value string) (*url.URL, error) {
 	if value == "" {
 		return nil, errors.New("APP_VIKUNJA_URL is required")
 	}
@@ -267,9 +270,6 @@ func parseVikunjaURL(value string, environment Environment) (*url.URL, error) {
 	}
 	if parsed.Scheme != httpScheme && parsed.Scheme != httpsScheme {
 		return nil, errors.New("APP_VIKUNJA_URL must use HTTP or HTTPS")
-	}
-	if environment == EnvironmentProduction && parsed.Scheme != httpsScheme {
-		return nil, errors.New("APP_VIKUNJA_URL must use HTTPS in production")
 	}
 	if parsed.User != nil {
 		return nil, errors.New("APP_VIKUNJA_URL must not contain user information")

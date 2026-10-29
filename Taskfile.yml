@@ -11,14 +11,7 @@ tasks:
   gen:check:
     desc: Verify generated backend and frontend files are current
     cmds:
-      - |
-        before="$(mktemp)"
-        after="$(mktemp)"
-        trap 'rm -f "$before" "$after"' EXIT
-        find internal/graphql/generated internal/graphql/model internal/graphql/resolver frontend/src/graphql frontend/src/routeTree.gen.ts -type f -print0 | sort -z | xargs -0 sha256sum > "$before"
-        task gen
-        find internal/graphql/generated internal/graphql/model internal/graphql/resolver frontend/src/graphql frontend/src/routeTree.gen.ts -type f -print0 | sort -z | xargs -0 sha256sum > "$after"
-        cmp "$before" "$after"
+      - go run ./tests/quality generated-check
 
   fix:
     desc: Format project files
@@ -32,16 +25,13 @@ tasks:
       - task: quality:test
       - task: go:format:check
       - task: go:fix:check
-      - node tests/quality/go-file-size.mjs
+      - go run ./tests/quality size
       - go vet ./...
       - golangci-lint run ./...
       - pnpm --dir frontend run lint
       - pnpm --dir frontend run typecheck
       - pnpm --dir frontend run build
-      - |
-        output="$(mktemp)"
-        trap 'rm -f "$output"' EXIT
-        go build -o "$output" ./cmd/server
+      - go run ./tests/quality build
 
   test:
     desc: Run backend and frontend tests with race detection
@@ -59,29 +49,32 @@ tasks:
 
   quality:test:
     desc: Verify quality gates reject invalid inputs
+    env:
+      QUALITY_TOOL_TESTS: "1"
     cmds:
-      - node --test tests/quality/*.test.mjs
+      - go test -count=1 ./tests/quality
+      - go test -count=1 ./tests/e2e/harness/...
       - node --test tests/e2e/harness/*.test.mjs
 
   go:format:check:
     desc: Check Go formatting without modifying files
     cmds:
-      - sh tests/quality/empty-output.sh golangci-lint fmt --diff
+      - go run ./tests/quality empty-output golangci-lint fmt --diff
 
   go:fix:check:
     desc: Reject pending Go modernization changes
     cmds:
-      - sh tests/quality/empty-output.sh go fix -diff ./...
+      - go run ./tests/quality empty-output go fix -diff ./...
 
   e2e:
-    desc: Run the full Playwright matrix against an isolated Vikunja 2.7.0 binary
+    desc: Run the full Playwright matrix against an isolated Vikunja 2.7.0 instance
     cmds:
-      - tests/e2e/harness/run.sh --project=phone-320 --project=phone-webkit --project=desktop-1440 --project=timezone-webkit
+      - go run ./tests/e2e/harness run --project=phone-320 --project=phone-webkit --project=desktop-1440 --project=timezone-webkit
 
   e2e:pr:
-    desc: Run the fast PR Playwright matrix against an isolated Vikunja 2.7.0 binary
+    desc: Run the fast PR Playwright matrix against an isolated Vikunja 2.7.0 instance
     cmds:
-      - tests/e2e/harness/run.sh --project=pr-chromium --project=pr-webkit
+      - go run ./tests/e2e/harness run --project=pr-chromium --project=pr-webkit
 
   demo:
     desc: Run the complete isolated demo on port 4180
@@ -93,12 +86,12 @@ tasks:
       E2E_APP_PORT: "{{.DEMO_PORT}}"
       E2E_DEMO_ORIGIN: "{{.DEMO_ORIGIN}}"
     cmds:
-      - tests/e2e/harness/run.sh
+      - go run ./tests/e2e/harness run
 
   image:smoke:
     desc: Build and smoke-test the non-root production image
     cmds:
-      - tests/image/smoke.sh
+      - go run ./tests/image
 
   dev:
     desc: Run the development application

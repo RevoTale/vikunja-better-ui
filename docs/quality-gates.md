@@ -27,6 +27,11 @@ strict generated detection. Biome excludes generated GraphQL, routes and
 CLI-generated shadcn from handwritten lint/format rules. Those frontend files
 remain typechecked and built; `gen:check` verifies reproducible generated source.
 
+The Go command in `tests/quality` owns size checks, empty-output gates,
+generated-source snapshots and temporary build outputs. `task quality:test`
+runs its real-tool probes with `QUALITY_TOOL_TESTS=1`; ordinary Go tests run
+the pure gate tests without repeating external lint probes.
+
 Strict TypeScript covers source, configuration and E2E. Biome recommended
 correctness, React and accessibility checks remain enabled. `useLiteralKeys`
 is disabled because strict index-signature access requires bracket notation.
