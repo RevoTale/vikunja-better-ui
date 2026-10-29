@@ -7,7 +7,7 @@ test("discussion supports pagination, lazy reply chains, and recovery of an empt
   page,
 }) => {
   const { taskId, csrfToken } = await discussionFixture(page);
-  const source = seedDiscussionReplyChain(taskId);
+  const source = await seedDiscussionReplyChain(taskId);
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.getByRole("article")).toHaveCount(50);
   await page.getByRole("button", { name: "Next comments", exact: true }).click();

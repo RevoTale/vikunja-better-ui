@@ -1,0 +1,435 @@
+{
+  "schedule": [
+    {
+      "title": "Prepare weekly status update",
+      "description": "Review progress, blockers, and the next priorities.",
+      "priority": 4,
+      "labels": [
+        "vbu:job",
+        "work"
+      ],
+      "history": {
+        "hour": 9,
+        "minute": 0,
+        "duration": 90
+      },
+      "active": {
+        "start_date": {
+          "kind": "after",
+          "minutes": 15
+        },
+        "end_date": {
+          "kind": "after",
+          "minutes": 105
+        },
+        "due_date": {
+          "kind": "after",
+          "minutes": 135
+        }
+      }
+    },
+    {
+      "title": "Client follow-up and invoices",
+      "description": "Reply to open questions and send this week's invoices.",
+      "priority": 3,
+      "labels": [
+        "vbu:job",
+        "work"
+      ],
+      "history": {
+        "hour": 14,
+        "minute": 0,
+        "duration": 60
+      },
+      "active": {
+        "start_date": {
+          "kind": "after",
+          "minutes": 180
+        },
+        "end_date": {
+          "kind": "after",
+          "minutes": 240
+        },
+        "due_date": {
+          "kind": "after",
+          "minutes": 300
+        }
+      }
+    },
+    {
+      "title": "Recurring editorial Job",
+      "description": "A completion-relative Job that retains its local start time.",
+      "priority": 3,
+      "labels": [
+        "vbu:job",
+        "work",
+        "vbu:fixed-due-time"
+      ],
+      "historyLabels": [
+        "vbu:job",
+        "work"
+      ],
+      "history": {
+        "hour": 16,
+        "minute": 0,
+        "duration": 60
+      },
+      "active": {
+        "start_date": {
+          "kind": "after",
+          "minutes": 360
+        },
+        "end_date": {
+          "kind": "after",
+          "minutes": 420
+        },
+        "due_date": {
+          "kind": "after",
+          "minutes": 480
+        },
+        "repeat_after": 172800,
+        "repeat_mode": 2
+      }
+    },
+    {
+      "title": "Morning run",
+      "priority": 2,
+      "labels": [
+        "sport"
+      ],
+      "history": {
+        "hour": 7,
+        "minute": 30
+      },
+      "active": {
+        "due_date": {
+          "kind": "at",
+          "hour": 7,
+          "minute": 30,
+          "dayOffset": 0
+        },
+        "repeat_after": 86400,
+        "repeat_mode": 0
+      }
+    },
+    {
+      "title": "Take daily vitamins",
+      "description": "A fixed daily recurring task for previewing the weekly schedule.",
+      "priority": 1,
+      "labels": [
+        "focus"
+      ],
+      "history": {
+        "hour": 8,
+        "minute": 0
+      },
+      "active": {
+        "due_date": {
+          "kind": "at",
+          "hour": 8,
+          "minute": 0,
+          "dayOffset": 0
+        },
+        "repeat_after": 86400,
+        "repeat_mode": 0
+      }
+    },
+    {
+      "title": "Scheduled-cycle task (every 2 days)",
+      "description": "Repeats on its fixed two-day schedule, independently of completion time.",
+      "priority": 2,
+      "labels": [
+        "work"
+      ],
+      "history": {
+        "hour": 11,
+        "minute": 0
+      },
+      "active": {
+        "due_date": {
+          "kind": "at",
+          "hour": 11,
+          "minute": 0,
+          "dayOffset": 0
+        },
+        "repeat_after": 172800,
+        "repeat_mode": 0
+      }
+    },
+    {
+      "title": "From-completion task (after 2 days)",
+      "description": "Repeats two days after the current occurrence is completed.",
+      "priority": 1,
+      "labels": [
+        "reading"
+      ],
+      "history": {
+        "hour": 12,
+        "minute": 0
+      },
+      "active": {
+        "due_date": {
+          "kind": "at",
+          "hour": 12,
+          "minute": 0,
+          "dayOffset": 0
+        },
+        "repeat_after": 172800,
+        "repeat_mode": 2
+      }
+    },
+    {
+      "title": "Strength training",
+      "priority": 3,
+      "labels": [
+        "sport"
+      ],
+      "history": {
+        "hour": 18,
+        "minute": 30
+      },
+      "active": {
+        "due_date": {
+          "kind": "at",
+          "hour": 18,
+          "minute": 30,
+          "dayOffset": 0
+        },
+        "repeat_after": 259200,
+        "repeat_mode": 2
+      }
+    },
+    {
+      "title": "Practice vocal warm-ups",
+      "priority": 2,
+      "labels": [
+        "practice"
+      ],
+      "history": {
+        "hour": 19,
+        "minute": 15
+      },
+      "active": {
+        "due_date": {
+          "kind": "at",
+          "hour": 19,
+          "minute": 15,
+          "dayOffset": 0
+        },
+        "repeat_after": 86400,
+        "repeat_mode": 2
+      }
+    },
+    {
+      "title": "Read 20 pages",
+      "priority": 0,
+      "labels": [
+        "reading"
+      ],
+      "history": {
+        "hour": 21,
+        "minute": 30
+      },
+      "active": {
+        "due_date": {
+          "kind": "at",
+          "hour": 21,
+          "minute": 30,
+          "dayOffset": 0
+        },
+        "repeat_after": 86400,
+        "repeat_mode": 2
+      }
+    },
+    {
+      "title": "Plan tomorrow",
+      "priority": 1,
+      "labels": [
+        "focus"
+      ],
+      "history": {
+        "hour": 22,
+        "minute": 0
+      },
+      "active": {
+        "due_date": {
+          "kind": "at",
+          "hour": 22,
+          "minute": 0,
+          "dayOffset": 0
+        }
+      }
+    }
+  ],
+  "week": [
+    {
+      "title": "Plan the current week",
+      "description": "Set priorities and reserve focused work blocks for the week.",
+      "priority": 4,
+      "labels": [
+        "vbu:job",
+        "focus"
+      ],
+      "active": {
+        "start_date": {
+          "kind": "week",
+          "weekday": 0,
+          "hour": 9,
+          "minute": 0
+        },
+        "end_date": {
+          "kind": "week",
+          "weekday": 0,
+          "hour": 10,
+          "minute": 0
+        },
+        "due_date": {
+          "kind": "week",
+          "weekday": 0,
+          "hour": 10,
+          "minute": 30
+        }
+      }
+    },
+    {
+      "title": "Review open commitments",
+      "priority": 2,
+      "labels": [
+        "work"
+      ],
+      "active": {
+        "due_date": {
+          "kind": "week",
+          "weekday": 1,
+          "hour": 17,
+          "minute": 30
+        }
+      }
+    },
+    {
+      "title": "Fixed-cycle reading session",
+      "priority": 1,
+      "labels": [
+        "reading"
+      ],
+      "active": {
+        "due_date": {
+          "kind": "week",
+          "weekday": 2,
+          "hour": 20,
+          "minute": 0
+        },
+        "repeat_after": 172800,
+        "repeat_mode": 0
+      }
+    },
+    {
+      "title": "Strength session after completion",
+      "priority": 3,
+      "labels": [
+        "sport"
+      ],
+      "active": {
+        "due_date": {
+          "kind": "week",
+          "weekday": 3,
+          "hour": 18,
+          "minute": 30
+        },
+        "repeat_after": 172800,
+        "repeat_mode": 2
+      }
+    },
+    {
+      "title": "Weekly administration block",
+      "priority": 2,
+      "labels": [
+        "vbu:job",
+        "work"
+      ],
+      "active": {
+        "start_date": {
+          "kind": "week",
+          "weekday": 4,
+          "hour": 14,
+          "minute": 0
+        },
+        "end_date": {
+          "kind": "week",
+          "weekday": 4,
+          "hour": 15,
+          "minute": 0
+        },
+        "due_date": {
+          "kind": "week",
+          "weekday": 4,
+          "hour": 15,
+          "minute": 30
+        }
+      }
+    },
+    {
+      "title": "Scheduled recurring Job",
+      "description": "Projects complete Job intervals on a fixed two-day cycle.",
+      "priority": 3,
+      "labels": [
+        "vbu:job",
+        "work"
+      ],
+      "active": {
+        "start_date": {
+          "kind": "week",
+          "weekday": 1,
+          "hour": 13,
+          "minute": 0
+        },
+        "end_date": {
+          "kind": "week",
+          "weekday": 1,
+          "hour": 14,
+          "minute": 0
+        },
+        "due_date": {
+          "kind": "week",
+          "weekday": 1,
+          "hour": 14,
+          "minute": 30
+        },
+        "repeat_after": 172800,
+        "repeat_mode": 0
+      }
+    },
+    {
+      "title": "Daily practice session",
+      "priority": 1,
+      "labels": [
+        "practice"
+      ],
+      "active": {
+        "due_date": {
+          "kind": "week",
+          "weekday": 5,
+          "hour": 11,
+          "minute": 0
+        },
+        "repeat_after": 86400,
+        "repeat_mode": 0
+      }
+    },
+    {
+      "title": "Prepare the next week",
+      "priority": 2,
+      "labels": [
+        "focus"
+      ],
+      "active": {
+        "due_date": {
+          "kind": "week",
+          "weekday": 6,
+          "hour": 19,
+          "minute": 0
+        }
+      }
+    }
+  ]
+}

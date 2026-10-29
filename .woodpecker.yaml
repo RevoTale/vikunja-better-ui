@@ -7,6 +7,19 @@ when:
   - event: tag
     ref: refs/tags/v*
 
+# Fixed path because CI_WORKSPACE is available at runtime, not YAML interpolation.
+workspace:
+  base: /woodpecker
+  path: src
+
+services:
+  - name: postgres
+    image: postgres:18.6-trixie@sha256:979bccfde35445db618c65107d27d08c6c21339d8dc3ad4c830c6633947be0e4
+    environment:
+      POSTGRES_USER: vikunja_test
+      POSTGRES_DB: vikunja_test
+      POSTGRES_HOST_AUTH_METHOD: trust
+
 steps:
   - name: go-tools
     image: golang:1.27.2-trixie@sha256:e58d6f83b3416618d8bcac2b3dde1b7f7e3c4a77d25e88637f8bbae81536c48d
@@ -49,11 +62,12 @@ steps:
     commands:
       - export PATH="$${PWD}/.cache/ci/go/bin:$${PWD}/.cache/ci/bin:$${PWD}/.cache/ci/pnpm:$${PATH}"
       - export GOMODCACHE="$${PWD}/.cache/ci/mod" GOCACHE="$${PWD}/.cache/ci/build" GOTOOLCHAIN=local
-      - apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev git curl ca-certificates openssl gnupg unzip procps
+      - apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev git curl ca-certificates procps
       - pnpm --dir frontend install --frozen-lockfile
       - task gen:check
       - task validate
       - task test:ci
+      - go run ./tests/e2e/harness wait-postgres
     when:
       - event: pull_request
       - event: push
@@ -61,12 +75,32 @@ steps:
       - event: tag
         ref: refs/tags/v*
 
+  # Native detached service: start after PostgreSQL readiness, without a shell in the scratch image.
+  - name: vikunja
+    image: vikunja/vikunja:2.7.0@sha256:e2204a1c1c6a81e833c2b3a5442be182ca2335b54c2e7e37578cc3fe12a27cfc
+    detach: true
+    environment:
+      VIKUNJA_DATABASE_TYPE: postgres
+      VIKUNJA_DATABASE_HOST: postgres:5432
+      VIKUNJA_DATABASE_USER: vikunja_test
+      VIKUNJA_DATABASE_PASSWORD: ""
+      VIKUNJA_DATABASE_DATABASE: vikunja_test
+      VIKUNJA_DATABASE_SSLMODE: disable
+      VIKUNJA_FILES_BASEPATH: /tmp/vikunja-files
+      VIKUNJA_SERVICE_INTERFACE: ":3456"
+      VIKUNJA_SERVICE_PUBLICURL: http://vikunja:3456
+      VIKUNJA_SERVICE_FRONTENDURL: http://vikunja:3456
+      VIKUNJA_SERVICE_ENABLEREGISTRATION: "true"
+      VIKUNJA_MAILER_ENABLED: "false"
+
   - name: e2e-pr
     image: *node
+    environment:
+      E2E_VIKUNJA_SERVICE: "1"
     commands:
       - export PATH="$${PWD}/.cache/ci/go/bin:$${PWD}/.cache/ci/bin:$${PWD}/.cache/ci/pnpm:$${PATH}"
       - export GOMODCACHE="$${PWD}/.cache/ci/mod" GOCACHE="$${PWD}/.cache/ci/build" GOTOOLCHAIN=local
-      - apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg unzip
+      - apt-get update && apt-get install -y --no-install-recommends ca-certificates curl
       - pnpm --dir frontend exec playwright install --with-deps chromium webkit
       - task e2e:pr
     when:
@@ -74,10 +108,12 @@ steps:
 
   - name: e2e-full
     image: *node
+    environment:
+      E2E_VIKUNJA_SERVICE: "1"
     commands:
       - export PATH="$${PWD}/.cache/ci/go/bin:$${PWD}/.cache/ci/bin:$${PWD}/.cache/ci/pnpm:$${PATH}"
       - export GOMODCACHE="$${PWD}/.cache/ci/mod" GOCACHE="$${PWD}/.cache/ci/build" GOTOOLCHAIN=local
-      - apt-get update && apt-get install -y --no-install-recommends ca-certificates curl gnupg unzip
+      - apt-get update && apt-get install -y --no-install-recommends ca-certificates curl
       - pnpm --dir frontend exec playwright install --with-deps chromium webkit
       - task e2e
     when:

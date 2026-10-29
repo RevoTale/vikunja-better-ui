@@ -1083,23 +1083,37 @@ elements. Runtime style attributes used for popup positioning are allowed
 separately; `style-src` includes that allowance as a WebKit fallback, while
 `style-src-elem` remains nonce-restricted and `script-src` stays self-only.
 
-`task e2e` downloads the official Vikunja 2.7.0 binary for Linux amd64 or
+Locally, `task e2e` downloads the official Vikunja 2.7.0 binary for Linux amd64 or
 arm64, verifies its pinned SHA-256 digest and detached signature, and runs it
-directly with an isolated SQLite directory. Every run creates deterministic
-fixtures and a short-lived scoped token, then removes its temporary data.
+directly with a temporary PostgreSQL 18.6 container. Docker access from the
+existing Dev Container is required. PostgreSQL shares its network namespace,
+listens only on a random loopback port, and stores data in tmpfs. Every run
+creates deterministic fixtures and a short-lived scoped token, then removes
+its processes, database container and temporary data.
+
+The Go harness in `tests/e2e/harness` owns process startup, signed downloads,
+fixture API calls, demo history and resource measurements. Schedule definitions
+live in `fixtures.json`; JavaScript is retained for Playwright and its direct
+configuration tests.
+
+Woodpecker runs the pinned official `vikunja/vikunja:2.7.0` image as a service
+at `http://vikunja:3456`. Both CI browser steps set `E2E_VIKUNJA_SERVICE=1`:
+the harness waits for readiness and registers a fresh user through the API,
+without downloading or launching a binary. Woodpecker owns service shutdown
+and workspace cleanup. See [CI setup](docs/woodpecker.md).
 
 See [Test resource policy](docs/test-performance.md) for bounded unit workers,
 cache-aware builds, browser diagnostics and repeatable RAM/time measurements.
 Set `E2E_MEASURE=1` to report browser-process measurements without fixture/build
 preparation; all browser scenarios and first-failure diagnostics remain enabled.
 
-The discussion pagination scenario seeds its 51 historical comments in one
-`BEGIN IMMEDIATE` transaction in that temporary database. This avoids a pinned
-Vikunja 2.7 SQLite read/write-upgrade race during bulk API setup. A checked
-fixture marker, loopback origin and exact database path prevent using this
-helper outside the isolated harness. Pagination, reply navigation and deletion
-still exercise the real API and UI; separate scenarios verify comment creation
-and edits. Uncertain production writes are never automatically resubmitted.
+The discussion pagination scenario creates its 51 comments through the Vikunja
+API. A private fixture marker and validated loopback/CI origin protect the
+helper from targeting another instance. The two quote ancestors and final
+comment are separated by server timestamp seconds so pagination is stable.
+Setup stops on an API error without retrying mutations. The concurrent-write
+contract test protects against the SQLite locking failure that prompted the
+switch to PostgreSQL. Production writes are never automatically resubmitted.
 
 Playwright uses its bundled browsers by default. To verify an upstream Chromium
 runtime fix, set `E2E_CHROMIUM_EXECUTABLE` to an already-installed browser's
@@ -1157,6 +1171,11 @@ Build and smoke-test the same non-root image used for releases:
 ```sh
 task image:smoke
 ```
+
+The Go smoke harness creates an isolated TLS upstream and checks the production
+container's health, embedded frontend and non-root user. Probes run inside the
+containers; no host ports are published. Temporary containers and the network
+are removed on completion.
 
 To run a built image, pass the variables above and publish port 8080:
 

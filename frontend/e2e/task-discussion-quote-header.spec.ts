@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { requiredEnv } from "./app-fixture";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 
 test("discussion supports stable comment dimensions when focused", async ({ page }, testInfo) => {
@@ -171,7 +172,10 @@ async function uploadProfileAvatar(page: Page) {
   const upstream = process.env["E2E_VIKUNJA_URL"];
   if (!upstream) throw new Error("Missing isolated Vikunja URL");
   const login = await page.request.post(`${upstream}/api/v2/login`, {
-    data: { username: "e2e-user", password: "e2e-password-strong" },
+    data: {
+      username: requiredEnv("E2E_VIKUNJA_USERNAME"),
+      password: requiredEnv("E2E_VIKUNJA_PASSWORD"),
+    },
   });
   expect(login.ok()).toBe(true);
   const { token } = await login.json();
