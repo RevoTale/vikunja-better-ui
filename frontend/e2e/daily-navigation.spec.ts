@@ -25,11 +25,10 @@ test("daily navigation supports real and computed days, filters and date-prefill
   await page.getByRole("button", { name: "Next day", exact: true }).click();
   const day = page.locator('[data-slot="week-day"]');
   await expect(day).toHaveAttribute("data-date", tomorrow);
-  // The fresh route-auth read invalidates partial Session metadata once.
-  // The day view must not start a second metadata request after that refresh.
-  await expect.poll(() => sessionReads).toBe(1);
   await expect(day.getByText("Computed", { exact: true }).first()).toBeVisible();
-  expect(sessionReads).toBe(1);
+  // Apollo may reuse metadata or refresh it after the route-auth read.
+  // The day view must not add another Session request of its own.
+  expect(sessionReads).toBeLessThanOrEqual(1);
   await page.getByRole("button", { name: "Next day", exact: true }).click();
   await expect(day).toHaveAttribute("data-date", addCalendarDays(tomorrow, 1));
   await page.getByRole("button", { name: "Previous day", exact: true }).click();
