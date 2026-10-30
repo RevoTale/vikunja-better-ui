@@ -1,5 +1,31 @@
 # Changelog
 
+## [2.11.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.11.0) - 2026-10-30
+
+### ❤️ Thanks to all contributors! ❤️
+
+@l-you
+
+### 🐛 Bug Fixes
+
+- fix(test): synchronize overlapping activity reads deterministically [[#142](https://github.com/RevoTale/vikunja-better-ui/pull/142)]
+- fix(test): stabilize month-boundary dates and session request checks [[#141](https://github.com/RevoTale/vikunja-better-ui/pull/141)]
+
+### 📈 Enhancement
+
+- feat: support internal Vikunja HTTP and PostgreSQL-backed E2E services [[#140](https://github.com/RevoTale/vikunja-better-ui/pull/140)]
+
+### Misc
+
+- chore(deps): lock file maintenance [[#113](https://github.com/RevoTale/vikunja-better-ui/pull/113)]
+- fix(deps): update tanstack-router monorepo [[#124](https://github.com/RevoTale/vikunja-better-ui/pull/124)]
+- fix(deps): update dependency lucide-react to v1.61.0 [[#125](https://github.com/RevoTale/vikunja-better-ui/pull/125)]
+- chore(deps): update node.js runtime [[#126](https://github.com/RevoTale/vikunja-better-ui/pull/126)]
+- chore(deps): update dependency @playwright/test to v1.64.1 [[#127](https://github.com/RevoTale/vikunja-better-ui/pull/127)]
+- chore(deps): update dependency shadcn to v4.22.1 [[#128](https://github.com/RevoTale/vikunja-better-ui/pull/128)]
+- fix(deps): update dependency dompurify to v3.4.17 [[#123](https://github.com/RevoTale/vikunja-better-ui/pull/123)]
+- chore(deps): update pnpm to v12.14.0 [[#95](https://github.com/RevoTale/vikunja-better-ui/pull/95)]
+
 ## [2.10.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.10.0) - 2026-10-25
 
 ### ❤️ Thanks to all contributors! ❤️
