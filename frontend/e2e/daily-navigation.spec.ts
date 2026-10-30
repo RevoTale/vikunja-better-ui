@@ -7,7 +7,13 @@ test("daily navigation supports real and computed days, filters and date-prefill
   page,
 }) => {
   await page.goto("/login");
+  const initialMetadata = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/graphql") &&
+      response.request().postDataJSON()?.operationName === "Session",
+  );
   await login(page);
+  await (await initialMetadata).finished();
   await expect(page).toHaveURL(/\/today/);
   const tomorrow = addCalendarDays(localDate(), 1);
   await expect(page.getByRole("button", { name: "Next day", exact: true })).toBeEnabled();
@@ -19,10 +25,10 @@ test("daily navigation supports real and computed days, filters and date-prefill
   await page.getByRole("button", { name: "Next day", exact: true }).click();
   const day = page.locator('[data-slot="week-day"]');
   await expect(day).toHaveAttribute("data-date", tomorrow);
-  // The fresh route-auth read invalidates partial Session metadata once.
-  // The day view must not start a second metadata request after that refresh.
-  expect(sessionReads).toBe(1);
   await expect(day.getByText("Computed", { exact: true }).first()).toBeVisible();
+  // Apollo may reuse metadata or refresh it after the route-auth read.
+  // The day view must not add another Session request of its own.
+  expect(sessionReads).toBeLessThanOrEqual(1);
   await page.getByRole("button", { name: "Next day", exact: true }).click();
   await expect(day).toHaveAttribute("data-date", addCalendarDays(tomorrow, 1));
   await page.getByRole("button", { name: "Previous day", exact: true }).click();
