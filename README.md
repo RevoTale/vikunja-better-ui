@@ -1209,7 +1209,9 @@ mode. Its CI agent must allow the exact pinned official Buildx plugin; see
 [Woodpecker setup](docs/woodpecker.md).
 
 After checks pass on `main`, Woodpecker's release plugin maintains a release PR;
-merging it creates the version tag. Its tag pipeline repeats the complete test
+merge it with a commit title starting exactly with `🎉 Release X.Y.Z` (for example,
+`🎉 Release 2.11.0`). The default `Merge pull request ...` title does not trigger
+tag creation. Its tag pipeline repeats the complete test
 suite, publishes `ghcr.io/revotale/vikunja-better-ui` with that exact `vX.Y.Z`
 tag and `latest` for `linux/amd64` and `linux/arm64`, then creates the GitHub
 Release. GitHub generates the release summary from merged pull requests. Ordinary

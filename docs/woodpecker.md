@@ -63,8 +63,12 @@ user and embedded frontend. It runs probes inside the containers without
 publishing host ports, then removes both containers and their network.
 
 The official `ready-release-go` plugin keeps a reviewed release PR up to date.
-It calculates the version from merged PR labels; merging that PR creates the
-release tag. Only the resulting `v*` tag event can publish an image, so
+It calculates the version from merged PR labels. Merge its PR with the commit
+title `🎉 Release X.Y.Z`, matching the reviewed version. The pinned plugin checks
+that the commit message starts with `🎉 Release`; GitHub's default `Merge pull
+request ...` title creates another release PR instead of a tag. Set the merge
+commit title explicitly, or squash-merge while retaining the release PR title.
+Only the resulting `v*` tag event can publish an image, so
 ordinary `main` pushes cannot move `latest`. After that publish succeeds,
 official `plugin-release` creates the matching GitHub Release with GitHub's
 generated release notes. The release title can still be edited before merging
