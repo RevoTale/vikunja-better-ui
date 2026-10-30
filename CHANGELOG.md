@@ -17,6 +17,7 @@
 
 ### Misc
 
+- 🎉 Release 2.11.0 [[#136](https://github.com/RevoTale/vikunja-better-ui/pull/136)]
 - chore(deps): lock file maintenance [[#113](https://github.com/RevoTale/vikunja-better-ui/pull/113)]
 - fix(deps): update tanstack-router monorepo [[#124](https://github.com/RevoTale/vikunja-better-ui/pull/124)]
 - fix(deps): update dependency lucide-react to v1.61.0 [[#125](https://github.com/RevoTale/vikunja-better-ui/pull/125)]
