@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { vikunjaTimezone } from "./app-fixture";
 
 export function localDate() {
@@ -57,7 +57,18 @@ export async function selectDate(page: Page, label: string, value: string) {
     await page.getByRole("button", { name: "Clear date" }).click();
     return;
   }
-  await page.locator(`button[data-day="${value}"]`).click();
+  const target = page.locator(`button[data-day="${value}"]`);
+  const grid = page.getByRole("grid");
+  await expect(grid).toBeVisible();
+  for (let months = 0; months < 24 && !(await target.isVisible()); months++) {
+    const firstDay = await grid.locator("button[data-day]").first().getAttribute("data-day");
+    const month = await grid.getAttribute("aria-label");
+    if (!firstDay || !month) throw new Error("Calendar month is unavailable");
+    const direction = value < firstDay ? "Previous" : "Next";
+    await page.getByRole("button", { name: `Go to the ${direction} Month`, exact: true }).click();
+    await expect(grid).not.toHaveAttribute("aria-label", month);
+  }
+  await target.click();
 }
 
 export function datePickerButton(page: Page, label: string) {
