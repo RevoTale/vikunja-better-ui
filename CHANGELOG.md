@@ -1,9 +1,23 @@
 # Changelog
 
-## [2.10.1](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.10.1) - 2026-10-28
+## [2.11.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.11.0) - 2026-10-30
+
+### ❤️ Thanks to all contributors! ❤️
+
+@l-you
+
+### 🐛 Bug Fixes
+
+- fix(test): synchronize overlapping activity reads deterministically [[#142](https://github.com/RevoTale/vikunja-better-ui/pull/142)]
+- fix(test): stabilize month-boundary dates and session request checks [[#141](https://github.com/RevoTale/vikunja-better-ui/pull/141)]
+
+### 📈 Enhancement
+
+- feat: support internal Vikunja HTTP and PostgreSQL-backed E2E services [[#140](https://github.com/RevoTale/vikunja-better-ui/pull/140)]
 
 ### Misc
 
+- chore(deps): lock file maintenance [[#113](https://github.com/RevoTale/vikunja-better-ui/pull/113)]
 - fix(deps): update tanstack-router monorepo [[#124](https://github.com/RevoTale/vikunja-better-ui/pull/124)]
 - fix(deps): update dependency lucide-react to v1.61.0 [[#125](https://github.com/RevoTale/vikunja-better-ui/pull/125)]
 - chore(deps): update node.js runtime [[#126](https://github.com/RevoTale/vikunja-better-ui/pull/126)]
