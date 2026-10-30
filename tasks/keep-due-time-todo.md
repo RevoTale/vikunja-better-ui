@@ -401,9 +401,9 @@ fresh isolated Vikunja instance.
 
 **Files likely touched:**
 
-- `tests/e2e/harness/fixtures.mjs`
+- `tests/e2e/harness/fixture_seed.go`
 - `frontend/e2e/app.spec.ts`
-- `tests/e2e/harness/run.sh` only if deterministic failure injection needs a
+- `tests/e2e/harness/runner.go` only if deterministic failure injection needs a
   harness control.
 - Focused Go integration tests if network-boundary fault injection is clearer
   there.
@@ -432,7 +432,7 @@ terminology against the generated schema and passing E2E behavior.
 
 - `README.md`
 - `docs/specs/keep-due-time.md`
-- `tests/e2e/harness/fixtures.mjs`
+- `tests/e2e/harness/fixture_seed.go`
 
 **Estimated scope:** Small, 3 files.
 

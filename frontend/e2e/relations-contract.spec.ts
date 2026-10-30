@@ -78,3 +78,35 @@ test("pinned Vikunja recurring renewal preserves independent children", async ()
   expect(child.due_date).toBe(before.due_date);
   expect(child.repeat_after).toBe(0);
 });
+
+test("pinned Vikunja accepts concurrent comment and relation writes", async () => {
+  const pairs: Array<{ source: number; target: number }> = [];
+  const created: number[] = [];
+  try {
+    for (let index = 0; index < 20; index++) {
+      const source = await task(`Concurrent source ${index}`);
+      created.push(source);
+      const target = await task(`Concurrent target ${index}`);
+      created.push(target);
+      pairs.push({ source, target });
+    }
+    const responses = await Promise.all(
+      pairs.flatMap(({ source, target }) => [
+        write(`/tasks/${source}/comments`, "POST", { comment: "<p>Concurrent comment</p>" }),
+        relate(source, target, "related"),
+      ]),
+    );
+    expect(responses.map((response) => response.status)).toEqual(
+      Array.from({ length: pairs.length * 2 }, () => 201),
+    );
+    for (const { source, target } of pairs) {
+      expect(
+        (await api<RelatedTask>(`/tasks/${source}`)).related_tasks["related"]?.map(
+          (item) => item.id,
+        ),
+      ).toEqual([target]);
+    }
+  } finally {
+    for (const id of created) expect((await write(`/tasks/${id}`, "DELETE")).ok).toBe(true);
+  }
+});

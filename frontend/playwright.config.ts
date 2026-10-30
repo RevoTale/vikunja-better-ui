@@ -7,6 +7,9 @@ const chromiumLaunchOptions = chromiumExecutable ? { executablePath: chromiumExe
 const prChromiumSmoke = new RegExp(
   [
     "Today count supports ready-now rules",
+    "date selection crosses month boundaries",
+    "daily navigation supports real and computed days",
+    "pinned Vikunja accepts concurrent comment and relation writes",
     "task creation and display use the Vikunja timezone",
     "PWA caches only the build",
     "discussion supports bare code fences with Enter",
@@ -49,6 +52,9 @@ export default defineConfig({
     {
       name: "pr-chromium",
       testMatch: [
+        "calendar-navigation.spec.ts",
+        "daily-navigation.spec.ts",
+        "relations-contract.spec.ts",
         "app-creation.ts",
         "app-navigation-more.spec.ts",
         "app-recurring-jobs.ts",

@@ -41,6 +41,12 @@ test("PR smoke projects retain representative workflow and browser-risk coverage
   assert.match("task creation and display use the Vikunja timezone", chromium.grep);
   assert.doesNotMatch("desktop workflows match Vikunja state", chromium.grep);
   assert.match("task editing preserves drafts on conflict", chromium.grep);
+  assert.match("pinned Vikunja accepts concurrent comment and relation writes", chromium.grep);
+  assert.ok(chromium.testMatch.includes("relations-contract.spec.ts"));
+  assert.match("date selection crosses month boundaries", chromium.grep);
+  assert.match("daily navigation supports real and computed days", chromium.grep);
+  assert.ok(chromium.testMatch.includes("calendar-navigation.spec.ts"));
+  assert.ok(chromium.testMatch.includes("daily-navigation.spec.ts"));
   assert.match("PWA keeps authenticated reads", webkit.grep);
   assert.match("discussion supports code and table controls on mobile and desktop", webkit.grep);
 });

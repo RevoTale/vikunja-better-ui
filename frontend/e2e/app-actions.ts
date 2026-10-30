@@ -8,6 +8,7 @@ export async function login(page: Page) {
   await page.getByLabel("Username").fill("app-user");
   await page.getByLabel("Password").fill("app-password-strong");
   await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(page).not.toHaveURL(/\/login/);
 }
 
 export async function createTask(

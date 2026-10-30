@@ -47,7 +47,7 @@ func TestLoadRejectsInvalidConfiguration(t *testing.T) {
 		{"missing token", "APP_VIKUNJA_API_TOKEN", "", "APP_VIKUNJA_API_TOKEN"},
 		{"short secret", "APP_SESSION_SECRET", base64.StdEncoding.EncodeToString([]byte("short")), "APP_SESSION_SECRET"},
 		{"invalid base64 secret", "APP_SESSION_SECRET", "not base64!", "APP_SESSION_SECRET"},
-		{"production Vikunja requires https", "APP_VIKUNJA_URL", "http://vikunja.example.test", "HTTPS"},
+		{"HTTP transport needs public URL", "APP_VIKUNJA_URL", "http://vikunja:3456", "APP_VIKUNJA_PUBLIC_URL"},
 		{"Vikunja URL rejects credentials", "APP_VIKUNJA_URL", "https://user:pass@vikunja.example.test", "user information"},
 		{"Vikunja URL rejects query", "APP_VIKUNJA_URL", "https://vikunja.example.test?secret=value", "query"},
 		{"origin rejects path", "APP_ALLOWED_ORIGIN", "https://tasks.example.test/graphql", "origin"},

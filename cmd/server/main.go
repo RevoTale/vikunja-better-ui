@@ -46,8 +46,8 @@ func main() {
 func run(configuration config.Config, logger *slog.Logger) error {
 	now := time.Now
 	production := configuration.Environment == config.EnvironmentProduction
-	vikunjaClient := vikunja.NewClient(
-		configuration.VikunjaURL, configuration.VikunjaAPIToken, vikunja.WithLogger(logger),
+	vikunjaClient := vikunja.NewClient(configuration.VikunjaURL, configuration.VikunjaAPIToken,
+		vikunja.WithLogger(logger), vikunja.WithPublicURL(configuration.VikunjaPublicURL),
 	)
 	if err := vikunjaClient.RequireSupportedVersion(context.Background()); err != nil {
 		return err

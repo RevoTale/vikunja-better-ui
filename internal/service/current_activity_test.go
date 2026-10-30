@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
-	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
@@ -59,25 +59,23 @@ func TestCurrentAllTimeActivityDoesNotReusePublicSnapshotCache(t *testing.T) {
 
 func TestCurrentActivityCoalescesOnlyOverlappingReads(t *testing.T) {
 	t.Parallel()
-	release := make(chan struct{})
-	client := &currentActivityClient{gate: release}
-	reader := NewCurrentActivity(client, time.Now)
-	var wait sync.WaitGroup
-	wait.Add(2)
-	for range 2 {
-		go func() {
-			defer wait.Done()
-			if _, err := reader.Read(t.Context()); err != nil {
-				t.Errorf("read activity: %v", err)
-			}
-		}()
-	}
-	for client.pageCalls.Load() == 0 {
-		time.Sleep(time.Millisecond)
-	}
-	close(release)
-	wait.Wait()
-	if client.pageCalls.Load() != 1 {
-		t.Fatalf("overlapping page calls = %d, want 1", client.pageCalls.Load())
-	}
+	synctest.Test(t, func(t *testing.T) {
+		release := make(chan struct{})
+		client := &currentActivityClient{gate: release}
+		reader := NewCurrentActivity(client, time.Now)
+		for range 2 {
+			go func() {
+				if _, err := reader.Read(t.Context()); err != nil {
+					t.Errorf("read activity: %v", err)
+				}
+			}()
+		}
+		// Both reads must be blocked before the upstream response can finish.
+		synctest.Wait()
+		close(release)
+		synctest.Wait()
+		if client.pageCalls.Load() != 1 {
+			t.Fatalf("overlapping page calls = %d, want 1", client.pageCalls.Load())
+		}
+	})
 }

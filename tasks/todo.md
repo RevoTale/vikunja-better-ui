@@ -236,7 +236,7 @@ visible outcome with direct upstream state.
 
 **Files likely touched:**
 
-- `tests/e2e/harness/fixtures.mjs`
+- `tests/e2e/harness/fixture_seed.go`
 - `frontend/e2e/app.spec.ts`
 - Supporting test helpers only when existing helpers cannot express the state.
 

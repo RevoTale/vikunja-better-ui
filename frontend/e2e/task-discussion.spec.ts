@@ -13,8 +13,11 @@ test("discussion supports comments, replies, edits, drafts and deletion", async 
   await expect(editor).toBeVisible();
   await editor.fill("First journal entry");
   await page.getByRole("button", { name: "Post comment", exact: true }).click();
-  const first = page.getByRole("article").filter({ hasText: "First journal entry" }).first();
-  await expect(first).toBeVisible();
+  const original = page.getByRole("article").filter({ hasText: "First journal entry" });
+  await expect(original).toBeVisible();
+  const originalID = await original.getAttribute("id");
+  expect(originalID).toMatch(/^comment-\d+$/);
+  const first = page.locator(`[id="${originalID}"]`);
   await first.getByRole("button", { name: "Reply", exact: true }).click();
   await expect(editor).toBeFocused();
   await editor.fill("A useful follow-up");
