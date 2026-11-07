@@ -147,3 +147,9 @@ upgrade uses golangci-lint 2.15.0; pipeline 129 still used the previous image
 and rejected suppressions for checks it did not yet implement. Update the
 multi-platform digest instead of weakening lint rules or deleting justified
 suppressions. Registry metadata confirms linux/amd64 and linux/arm64 images.
+
+The rerun (134) exposed a second distinction: a source build using upgraded
+`tools/go.mod` transitive dependencies can contain newer gosec rules than the
+official linter binary of the same version. The five justified gosec exceptions
+now use rule-specific `#nosec Gxxx -- reason` annotations. This preserves the
+security rule scope and rationale without unused cross-linter `nolint` directives.

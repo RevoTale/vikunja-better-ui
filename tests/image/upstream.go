@@ -54,7 +54,7 @@ func certificates(directory, hostname string) error {
 		return err
 	}
 	publicPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
-	//nolint:gosec // G306: the container reads this public certificate. Its private key is written separately.
+	// #nosec G306 -- the container reads this public certificate. Its private key is written separately.
 	if err = os.WriteFile(filepath.Join(directory, "cert.pem"), publicPEM, publicCertificateMode); err != nil {
 		return err
 	}

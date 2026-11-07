@@ -50,7 +50,7 @@ func (handler *jobsHandler) mapJob(
 	if err != nil {
 		return jobResponse{}, err
 	}
-	//nolint:gosec // G125: the only variable path element is a decimal task ID.
+	// #nosec G125 -- the only variable path element is a decimal task ID.
 	taskURL, err := url.JoinPath(handler.appURL.String(), "tasks", strconv.FormatInt(item.Task.ID, 10))
 	if err != nil {
 		return jobResponse{}, err

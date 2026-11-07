@@ -75,7 +75,7 @@ func (h *harness) localBinary(ctx context.Context) (string, error) {
 		return "", err
 	}
 	// Only the owner may execute the binary after its pinned digest and signature are verified.
-	//nolint:gosec // G302: owner execute permission is required to run this verified fixture.
+	// #nosec G302 -- owner execute permission is required to run this verified fixture.
 	return binary, os.Chmod(binary, privateExecutableMode)
 }
 
