@@ -63,6 +63,10 @@ user and embedded frontend. It runs probes inside the containers without
 publishing host ports, then removes both containers and their network.
 
 The official `ready-release-go` plugin keeps a reviewed release PR up to date.
+It derives release changes from pull requests and skips direct commits without
+an associated PR. If approved changes were pushed directly to `main`, prepare
+a release PR with their changelog after the full main pipeline passes. Merge it
+with the exact release title below; the normal tag verification still applies.
 It calculates the version from merged PR labels. Merge its PR with the commit
 title `🎉 Release X.Y.Z`, matching the reviewed version. The pinned plugin checks
 that the commit message starts with `🎉 Release`; GitHub's default `Merge pull
