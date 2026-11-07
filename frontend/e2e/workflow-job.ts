@@ -20,7 +20,7 @@ export async function workflowJob(page: Page) {
   await chooseSelectOption(page, "Duration unit", "Minutes");
   await page.getByLabel("Duration", { exact: true }).fill("45");
   await chooseSelectOption(page, "Extra time unit", "Minutes");
-  await page.getByLabel("Extra time to finish").fill("60");
+  await page.getByLabel("Extra time to finish", { exact: true }).fill("60");
   await page.getByRole("button", { name: "Create timed session", exact: true }).click();
   await expect(page.getByRole("heading", { name: job })).toBeVisible();
   const jobIDMatch = page.url().match(/\/tasks\/(\d+)/);
@@ -37,9 +37,15 @@ export async function workflowJob(page: Page) {
   expect(new Date(jobTask.due_date).getTime() - new Date(jobTask.end_date).getTime()).toBe(
     60 * 60_000,
   );
-  await expect(page.getByText(`${displayDate(jobDate)} - 10:15`, { exact: true })).toBeVisible();
-  await expect(page.getByText(`${displayDate(jobDate)} - 11:00`, { exact: true })).toBeVisible();
-  await expect(page.getByText(`${displayDate(jobDate)} - 12:00`, { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: `Edit start: ${displayDate(jobDate)} - 10:15`, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: `Edit end: ${displayDate(jobDate)} - 11:00`, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: `Edit due: ${displayDate(jobDate)} - 12:00`, exact: true }),
+  ).toBeVisible();
   await page.goto("/jobs");
   await findTaskInPaginatedList(page, job);
   const jobCard = page.locator('[data-slot="card"]').filter({ hasText: job });

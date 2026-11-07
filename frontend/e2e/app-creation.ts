@@ -94,14 +94,24 @@ test("task creation and display use the Vikunja timezone", async ({ page }) => {
   await page.getByRole("button", { name: "Create one-time task", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
-  await expect(page.getByText(`${displayDate(dueDate)} - 00:30`, { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: `Edit deadline: ${displayDate(dueDate)} - 00:30`,
+      exact: true,
+    }),
+  ).toBeVisible();
   const taskID = page.url().match(/\/tasks\/(\d+)/)?.[1];
   if (!taskID) throw new Error("created timezone task ID is missing from the URL");
   const task = await vikunjaTask(taskID);
   expect(localDateTime(task.due_date)).toBe(`${dueDate}T00:30`);
 
   await page.reload();
-  await expect(page.getByText(`${displayDate(dueDate)} - 00:30`, { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: `Edit deadline: ${displayDate(dueDate)} - 00:30`,
+      exact: true,
+    }),
+  ).toBeVisible();
   await page.goto("/today");
   const taskCard = page.locator('[data-slot="card"]').filter({ hasText: title });
   const schedule = taskCard.locator('[data-slot="task-schedule"]');

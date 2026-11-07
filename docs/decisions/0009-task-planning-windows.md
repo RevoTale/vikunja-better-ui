@@ -361,3 +361,11 @@ describes the current controls for one-time, recurring, and timed work.
 - Show a placeholder while loading and an unavailable indicator on failure or
   incomplete results. Zero appears only after a successful empty response.
 - No additional request, native field or persistence is needed.
+
+## Release accessibility check — 2026-11-07
+
+- Empty calendar buttons include their visible “Choose date” text in their
+  accessible name. Inline property buttons announce both the edit action and
+  displayed value; browser checks assert that full name, including the distinction
+  between a one-time Deadline and a recurring task or timed session Due date.
+- Scheduling choices and stored Vikunja dates remain unchanged.

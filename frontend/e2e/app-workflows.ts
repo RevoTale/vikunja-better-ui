@@ -30,7 +30,9 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   await expectVikunjaTask(oneTimeId, { title: oneTime, done: false });
   await expectDateOnlyTask(oneTimeId);
   expect((await vikunjaTask(oneTimeId)).priority).toBe(3);
-  await expect(page.getByText(displayDate(localDate()), { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: `Edit deadline: ${displayDate(localDate())}`, exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "More task actions", exact: true }).click();
   await page.getByRole("menuitem", { name: "Extended", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Extended properties" })).toBeVisible();

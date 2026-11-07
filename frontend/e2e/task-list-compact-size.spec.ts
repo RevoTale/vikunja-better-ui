@@ -13,7 +13,16 @@ for (const compact of [true, false]) {
     });
     await page.route("**/graphql", async (route) => {
       if (route.request().postDataJSON()?.operationName !== "TaskList") return route.continue();
-      const response = await route.fetch();
+      const request = route.request().postDataJSON();
+      const response = await route.fetch({
+        postData: {
+          ...request,
+          variables: {
+            ...request.variables,
+            input: { scope: "TODAY", page: 1, pageSize: 30 },
+          },
+        },
+      });
       const body = (await response.json()) as { data: TaskListQuery };
       const source = body.data.tasks.items[0];
       if (!source) throw new Error("Expected a fixture task");
@@ -44,7 +53,8 @@ for (const compact of [true, false]) {
       await gate;
       await route.fulfill({ response, json: body });
     });
-    await page.goto("/today?project=all&page=1");
+    // Compare row geometry in an ungrouped list; Today adds data-dependent headings.
+    await page.goto("/active?project=all&page=1");
     const skeletons = page.locator('[data-slot="task-loading-row"]');
     await expect(skeletons).toHaveCount(3);
     const pending = await Promise.all((await skeletons.all()).map((row) => row.boundingBox()));

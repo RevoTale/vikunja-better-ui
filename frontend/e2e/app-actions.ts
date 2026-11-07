@@ -90,5 +90,7 @@ export async function expectStatusMessage(page: Page, message: string) {
 export async function expectRenewedDate(page: Page, id: string, dueDate: string) {
   await page.goto(`/tasks/${id}?returnTo=%2Ftoday`);
   const localDueDate = localDateTime(dueDate).slice(0, 10);
-  await expect(page.getByText(displayDate(localDueDate), { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: `Edit due: ${displayDate(localDueDate)}`, exact: true }),
+  ).toBeVisible();
 }

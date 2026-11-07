@@ -76,6 +76,10 @@ confirmation that every existing loading state implements it.
   may wrap to two lines or grow further for longer content; never clip text to
   force an exact skeleton height. Responsive regression tests require equal row
   width, position, and height for short content and the controlled two-line fixture.
+  The compact-row check uses the ungrouped Active work list; Today inserts
+  data-dependent section headings after the response arrives. This keeps exact
+  row geometry assertions separate from completion grouping (release check,
+  2026-11-07).
   Badge list items use flex layout so inline baseline space cannot enlarge the
   metadata rows differently across platform fonts. Tests also vary the inherited
   line box without relaxing exact skeleton-to-content geometry checks.

@@ -172,7 +172,7 @@ function DateTrigger({
       data-form-field={name}
       aria-label={
         triggerText ??
-        `${formattedDate ? `Change ${label}, ${formattedDate}` : `Choose ${label}`}${required ? ", required" : ""}`
+        `${formattedDate ? `Change ${label}, ${formattedDate}` : `Choose ${label}, Choose date`}${required ? ", required" : ""}`
       }
       {...attributes}
     >

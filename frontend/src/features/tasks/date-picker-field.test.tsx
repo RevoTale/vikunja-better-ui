@@ -36,7 +36,7 @@ describe("DatePickerField", () => {
       />,
     );
 
-    expect(markup).toContain('aria-label="Choose Due date"');
+    expect(markup).toContain('aria-label="Choose Due date, Choose date"');
     expect(markup).toContain("Choose date");
     expect(markup).toContain('name="dueDate" value=""');
   });
