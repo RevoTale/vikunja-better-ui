@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openTaskLabels } from "./app-layout";
 import { discussionGraphQL } from "./discussion-fixture";
 
 test("task labels support create, deselect, edit and inclusion filtering", async ({ page }) => {
@@ -14,13 +15,14 @@ test("task labels support create, deselect, edit and inclusion filtering", async
   );
   const labelTitle = "job";
   await page.goto("/tasks/new?type=one-time&returnTo=%2Funscheduled");
+  await openTaskLabels(page);
   await page.getByLabel("Find or create label").fill(labelTitle);
-  await page.getByRole("button", { name: "Create or reuse label" }).click();
+  await page.getByRole("button", { name: /^(Create|Select) label “/ }).click();
   await expect(page.getByRole("checkbox", { name: labelTitle, exact: true })).toBeChecked();
   await page.getByRole("checkbox", { name: labelTitle, exact: true }).uncheck();
   await expect(page.locator('input[name="labelIds"]')).toHaveCount(0);
   await page.getByLabel("Find or create label").fill(labelTitle);
-  await page.getByRole("button", { name: "Create or reuse label" }).click();
+  await page.getByRole("button", { name: /^(Create|Select) label “/ }).click();
   await expect(page.getByRole("checkbox", { name: labelTitle, exact: true })).toBeChecked();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
@@ -43,6 +45,7 @@ test("task labels support create, deselect, edit and inclusion filtering", async
   ).toBeVisible();
   await page.getByRole("link", { name: "Task with ordinary label", exact: true }).click();
   await page.getByRole("link", { name: "Edit", exact: true }).click();
+  await openTaskLabels(page);
   await expect(page.getByRole("checkbox", { name: labelTitle, exact: true })).toBeChecked();
   await page.getByRole("checkbox", { name: labelTitle, exact: true }).uncheck();
   await page.getByRole("button", { name: "Save changes" }).click();

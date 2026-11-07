@@ -16,6 +16,9 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 	if _, err := requireSession(ctx); err != nil {
 		return nil, err
 	}
+	if input.ActiveOrder != nil && input.Scope != model.TaskScopeActive {
+		return nil, clientError("VALIDATION_FAILED", "Active work ordering requires the Active work view.")
+	}
 	priority, err := selectedTaskPriority(input.Priority, input.Scope)
 	if err != nil {
 		return nil, err
@@ -26,7 +29,6 @@ func (r *queryResolver) Tasks(ctx context.Context, input model.TaskListInput) (*
 func (r *queryResolver) filteredTasks(
 	ctx context.Context, input model.TaskListInput, priority *int64,
 ) (*model.TaskPage, error) {
-	includeLabels := input.Scope == model.TaskScopeJobs
 	userRead := concurrent.Start(func() (vikunja.User, error) { return r.users.CurrentUser(ctx) })
 	projectsRead := concurrent.Start(func() ([]vikunja.Project, error) { return r.projects.Projects(ctx) })
 	filterLabelIDs, labelErr := r.selectedTaskLabel(ctx, input.LabelID, input.Scope)
@@ -34,7 +36,7 @@ func (r *queryResolver) filteredTasks(
 		return nil, labelErr
 	}
 	var labelsRead *concurrent.Future[[]vikunja.Label]
-	if includeLabels {
+	if input.Scope == model.TaskScopeJobs {
 		labelsRead = concurrent.Start(func() ([]vikunja.Label, error) { return r.tasks.Labels(ctx) })
 	}
 
@@ -61,9 +63,14 @@ func (r *queryResolver) filteredTasks(
 	if err != nil {
 		return nil, err
 	}
+	periodFrom, periodBefore, err := planningPeriod(input, location)
+	if err != nil {
+		return nil, err
+	}
 	result, err := service.ListTasks(ctx, r.tasks, service.ListRequest{
-		IncludeCommentCount: true,
-		Scope:               service.TaskScope(input.Scope), ProjectID: selectedProjectID,
+		Scope: service.TaskScope(input.Scope), ActiveOrder: activeWorkOrder(input.ActiveOrder),
+		PeriodFrom: periodFrom, PeriodBefore: periodBefore,
+		ProjectID: selectedProjectID, IncludeCommentCount: true,
 		Page: input.Page, PageSize: input.PageSize, Now: r.now(),
 		Location: location, Timezone: user.Settings.Timezone,
 		WeekStart: time.Weekday(user.Settings.WeekStart), ProjectTitles: projectTitleMap(projects),

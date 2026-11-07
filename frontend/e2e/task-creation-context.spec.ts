@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { chooseSelectOption } from "./app-layout";
+import { chooseSelectOption, openTaskLabels } from "./app-layout";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 
 test("task labels support creation from filters without overwriting edits on label refresh", async ({
@@ -32,12 +32,15 @@ test("task labels support creation from filters without overwriting edits on lab
   await page.getByRole("link", { name: "New task", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`project=${project?.id}`));
   await expect(page).toHaveURL(new RegExp(`label=${work?.id}`));
+  await openTaskLabels(page);
   await expect(page.getByRole("combobox", { name: "Priority", exact: true })).toContainText("High");
   await chooseSelectOption(page, "Priority", "Low");
   await expect(page.getByRole("combobox", { name: "Project", exact: true })).toContainText(
     "E2E Empty Project",
   );
-  await expect(page.locator('input[name="dueDate"]')).toHaveValue("2026-10-18");
+  await expect(page.locator('input[name="planningStartsOn"]')).toHaveValue("2026-10-18");
+  await expect(page.locator('input[name="planningEndsOn"]')).toHaveValue("2026-10-18");
+  await expect(page.locator('input[name="dueDate"]')).toHaveValue("");
   await expect(page.getByRole("checkbox", { name: "work", exact: true })).toBeChecked();
   await page.getByLabel("Title", { exact: true }).fill("Keep current input");
   await page.getByRole("checkbox", { name: "work", exact: true }).uncheck();

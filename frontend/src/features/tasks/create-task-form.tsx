@@ -4,13 +4,17 @@ import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button } from "@/components/ui/button";
 import type { ProjectsQuery, TaskPriority } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
-import { SharedFields } from "./create-shared-fields";
+import { createStorageRows } from "./create-storage-rows";
 import { TaskTypeFields } from "./create-type-fields";
 import { taskTypeLabel } from "./creation-type";
+import { StoragePreview } from "./edit-storage-preview";
 import { jobTitlePlaceholder } from "./job-title";
 import type { LocalDateTimeParts } from "./local-date-time";
+import { creationReminderAnchors } from "./reminder-anchors";
+import { ReminderFields } from "./reminder-fields";
 import { ScheduleShift } from "./schedule-shift";
 import { type ChangeTaskCreationField, defaultTaskCreationValues } from "./task-creation-values";
+import { TaskFormSections } from "./task-form-sections";
 import {
   type CreationBaseType,
   hasTaskFormErrors,
@@ -18,10 +22,11 @@ import {
   validateTaskForm,
 } from "./task-form-validation";
 import type { TaskLabel } from "./task-label-options";
-import { TaskLabelPicker } from "./task-label-picker";
+import { TaskFrequencyChoice } from "./task-plan-choice";
 import { TaskReuseProvider } from "./task-reuse";
 
 export function CreateTaskForm({
+  onFrequencyChange,
   type,
   initialJob,
   projects,
@@ -42,6 +47,7 @@ export function CreateTaskForm({
 }: {
   type: CreationBaseType;
   initialJob: boolean;
+  onFrequencyChange: (recurring: boolean) => void;
   projects: ProjectsQuery["projects"]["items"];
   defaultProject: string;
   timezone: string | null | undefined;
@@ -92,6 +98,7 @@ export function CreateTaskForm({
   }
   return (
     <ReadyCreateTaskForm
+      onFrequencyChange={onFrequencyChange}
       type={type}
       initialJob={initialJob}
       projects={projects}
@@ -111,6 +118,7 @@ export function CreateTaskForm({
 }
 
 function ReadyCreateTaskForm({
+  onFrequencyChange,
   timezone,
   type,
   initialJob,
@@ -129,6 +137,7 @@ function ReadyCreateTaskForm({
   timezone: string;
   type: CreationBaseType;
   initialJob: boolean;
+  onFrequencyChange: (recurring: boolean) => void;
   projects: ProjectsQuery["projects"]["items"];
   defaultProject: string;
   defaultDate: string;
@@ -170,28 +179,11 @@ function ReadyCreateTaskForm({
       }}
       noValidate
     >
-      <div className="rounded-md border bg-muted/30 p-4">
-        <label className="flex cursor-pointer items-start gap-3" htmlFor="job">
-          <input
-            id="job"
-            name="job"
-            type="checkbox"
-            checked={values.job}
-            onChange={(event) => changeField("job", event.currentTarget.checked)}
-            className="mt-1 size-4 accent-primary"
-            aria-label="Job"
-            aria-describedby="job-description"
-          />
-          <span>
-            <span className="block text-sm font-medium">Job</span>
-            <span id="job-description" className="mt-1 block text-sm text-muted-foreground">
-              Add a start, duration, and completion window.
-            </span>
-          </span>
-        </label>
-      </div>
+      <TaskFrequencyChoice recurring={type === "recurring"} onChange={onFrequencyChange} />
       <TaskReuseProvider job={values.job} recurring={type === "recurring"}>
-        <SharedFields
+        <TaskFormSections
+          initialLabels={initialLabels}
+          onLabelsPending={setLabelsPending}
           disabled={loading}
           projects={projects}
           errors={fieldErrors}
@@ -199,43 +191,57 @@ function ReadyCreateTaskForm({
           titlePlaceholder={jobTitlePlaceholder({ date: values.startDate, time: values.startTime })}
           values={values}
           onFieldChange={changeField}
-        />
-        <TaskTypeFields
-          type={type}
-          errors={fieldErrors}
-          defaultDate={defaultDate}
-          values={values}
-          onFieldChange={changeField}
-        />
-        <ScheduleShift
-          timezone={timezone}
-          fields={
-            values.job
-              ? { start: `${values.startDate}T${values.startTime}` }
-              : {
-                  due: `${type === "recurring" ? values.firstDueDate : values.dueDate}${values.dueTime ? `T${values.dueTime}` : ""}`,
+        >
+          <TaskTypeFields
+            type={type}
+            errors={fieldErrors}
+            defaultDate={defaultDate}
+            values={values}
+            onFieldChange={changeField}
+          />
+          {(values.job || (type === "recurring" ? values.firstDueDate : values.dueDate)) && (
+            <ScheduleShift
+              timezone={timezone}
+              fields={
+                values.job
+                  ? { start: `${values.startDate}T${values.startTime}` }
+                  : {
+                      due: `${type === "recurring" ? values.firstDueDate : values.dueDate}${values.dueTime ? `T${values.dueTime}` : ""}`,
+                    }
+              }
+              onChange={(next) => {
+                if (values.job && next.start) {
+                  changeField("startDate", next.start.slice(0, 10));
+                  changeField("startTime", next.start.slice(11));
+                } else if (next.due) {
+                  changeField(
+                    type === "recurring" ? "firstDueDate" : "dueDate",
+                    next.due.slice(0, 10),
+                  );
+                  changeField("dueTime", next.due.slice(11));
                 }
-          }
-          onChange={(next) => {
-            if (values.job && next.start) {
-              changeField("startDate", next.start.slice(0, 10));
-              changeField("startTime", next.start.slice(11));
-            } else if (next.due) {
-              changeField(type === "recurring" ? "firstDueDate" : "dueDate", next.due.slice(0, 10));
-              changeField("dueTime", next.due.slice(11));
-            }
-          }}
-        />
-        <TaskLabelPicker initialLabels={initialLabels} onPendingChange={setLabelsPending} />
+              }}
+            />
+          )}
+          <ReminderFields
+            timezone={timezone}
+            anchors={creationReminderAnchors(values, type === "recurring")}
+          />
+        </TaskFormSections>
       </TaskReuseProvider>
       <Button type="submit" disabled={loading || labelsPending}>
         {loading ? "Creating…" : creationButtonLabel(type, values.job)}
       </Button>
+      <StoragePreview
+        timezone={timezone}
+        disabled={loading || labelsPending}
+        readRows={(form) => createStorageRows(new FormData(form), type, timezone)}
+      />
     </form>
   );
 }
 
 function creationButtonLabel(type: CreationBaseType, isJob: boolean): string {
   if (!isJob) return `Create ${taskTypeLabel(type)}`;
-  return type === "recurring" ? "Create recurring Job" : "Create job";
+  return type === "recurring" ? "Create recurring timed session" : "Create timed session";
 }

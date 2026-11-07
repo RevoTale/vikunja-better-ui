@@ -60,6 +60,50 @@ describe("mergeWeekEntries", () => {
   });
 });
 
+describe("flexible weekly schedule ordering", () => {
+  it("orders one-time tasks with a start but no planned finish by the deadline on the selected day", () => {
+    const common = { kind: "ONE_TIME" as const, timezone: "UTC" };
+    const entries = mergeWeekEntries(
+      [
+        { ...common, id: "later", startAt: "2026-11-01T08:00:00Z", dueAt: "2026-11-30T17:00:00Z" },
+        { ...common, id: "earlier", dueAt: "2026-11-30T09:00:00Z" },
+      ],
+      [],
+      "2026-11-30",
+    );
+    expect(entries.map((entry) => entry.kind === "task" && entry.task.id)).toEqual([
+      "earlier",
+      "later",
+    ]);
+  });
+  it("orders flexible work by the completion relevant to this day, not the beginning of its month", () => {
+    const entries = mergeWeekEntries(
+      [
+        {
+          id: "month-plan",
+          kind: "ONE_TIME" as const,
+          timezone: "UTC",
+          startAt: "2026-11-01T00:00:00Z",
+          endAt: "2026-11-30T23:59:59Z",
+          dueAt: null,
+        },
+        {
+          id: "morning",
+          kind: "ONE_TIME" as const,
+          timezone: "UTC",
+          dueAt: "2026-11-30T09:00:00Z",
+        },
+      ],
+      [],
+      "2026-11-30",
+    );
+    expect(entries.map((entry) => (entry.kind === "task" ? entry.task.id : "projection"))).toEqual([
+      "morning",
+      "month-plan",
+    ]);
+  });
+});
+
 describe("active weekly schedule ordering", () => {
   it("uses start, otherwise end, otherwise due as each active task's sort time", () => {
     const entries = mergeWeekEntries(

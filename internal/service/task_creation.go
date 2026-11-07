@@ -48,6 +48,7 @@ type JobInput struct {
 
 // OneTimeInput describes a task with an optional local due date and time.
 type OneTimeInput struct {
+	Planning    *PlanningWindowInput
 	Title       string
 	Description string
 	Priority    int64
@@ -57,15 +58,17 @@ type OneTimeInput struct {
 
 // RecurringInput includes the initial occurrence and subsequent renewal rule.
 type RecurringInput struct {
-	Title        string
-	Description  string
-	Priority     int64
-	FirstDueDate string
-	DueTime      string
-	Interval     int
-	Unit         RecurrenceUnit
-	Mode         RecurrenceMode
-	KeepDueTime  bool
+	AvailableFrom     string
+	AvailableFromTime string
+	Title             string
+	Description       string
+	Priority          int64
+	FirstDueDate      string
+	DueTime           string
+	Interval          int
+	Unit              RecurrenceUnit
+	Mode              RecurrenceMode
+	KeepDueTime       bool
 }
 
 // RecurrenceWrite is the validated native Vikunja repeat interval and mode.
@@ -85,6 +88,9 @@ func BuildOneTimeTask(input OneTimeInput, location *time.Location) (vikunja.Task
 		return vikunja.TaskWrite{}, false, err
 	}
 	base.DueDate = due
+	if err := applyPlanningWindow(&base, input.Planning, location); err != nil {
+		return vikunja.TaskWrite{}, false, err
+	}
 	return base, dateOnly, nil
 }
 
@@ -110,6 +116,16 @@ func BuildRecurringTask(input RecurringInput, location *time.Location) (vikunja.
 		return vikunja.TaskWrite{}, false, errors.New("keep due time requires a timed day or week recurrence from completion")
 	}
 	base.DueDate = due
+	if input.AvailableFrom == "" && input.AvailableFromTime != "" {
+		return vikunja.TaskWrite{}, false, errors.New("available from time requires a date")
+	}
+	if input.AvailableFrom != "" {
+		start, startErr := resolveRecurringStart(input.AvailableFrom, input.AvailableFromTime, location)
+		if startErr != nil || start.After(*due) {
+			return vikunja.TaskWrite{}, false, errors.New("available from must be a valid day on or before the first due date")
+		}
+		base.StartDate = &start
+	}
 	base.RepeatAfter = rule.RepeatAfter
 	base.RepeatMode = rule.RepeatMode
 	return base, dateOnly, nil

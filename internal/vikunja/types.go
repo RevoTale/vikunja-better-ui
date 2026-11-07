@@ -51,24 +51,25 @@ type LabelWrite struct {
 
 // Task preserves upstream scheduling, recurrence, ownership, and permission fields.
 type Task struct {
-	CommentCount  *int64    `json:"comment_count,omitempty"`
-	ID            int64     `json:"id"`
-	Title         string    `json:"title"`
-	Description   string    `json:"description"`
-	Done          bool      `json:"done"`
-	DoneAt        time.Time `json:"done_at"`
-	DueDate       time.Time `json:"due_date"`
-	ProjectID     int64     `json:"project_id"`
-	RepeatAfter   int64     `json:"repeat_after"`
-	RepeatMode    int       `json:"repeat_mode"`
-	Priority      int64     `json:"priority"`
-	StartDate     time.Time `json:"start_date"`
-	EndDate       time.Time `json:"end_date"`
-	Labels        []Label   `json:"labels"`
-	Created       time.Time `json:"created"`
-	Updated       time.Time `json:"updated"`
-	CreatedBy     User      `json:"created_by"`
-	MaxPermission *int      `json:"max_permission"`
+	Reminders     []TaskReminder `json:"reminders"`
+	CommentCount  *int64         `json:"comment_count,omitempty"`
+	ID            int64          `json:"id"`
+	Title         string         `json:"title"`
+	Description   string         `json:"description"`
+	Done          bool           `json:"done"`
+	DoneAt        time.Time      `json:"done_at"`
+	DueDate       time.Time      `json:"due_date"`
+	ProjectID     int64          `json:"project_id"`
+	RepeatAfter   int64          `json:"repeat_after"`
+	RepeatMode    int            `json:"repeat_mode"`
+	Priority      int64          `json:"priority"`
+	StartDate     time.Time      `json:"start_date"`
+	EndDate       time.Time      `json:"end_date"`
+	Labels        []Label        `json:"labels"`
+	Created       time.Time      `json:"created"`
+	Updated       time.Time      `json:"updated"`
+	CreatedBy     User           `json:"created_by"`
+	MaxPermission *int           `json:"max_permission"`
 }
 
 // TaskComment is the comment representation returned by Vikunja.
@@ -99,6 +100,7 @@ type CommentPage = page[TaskComment]
 
 // TaskWrite contains task creation fields; absent timestamps retain upstream defaults.
 type TaskWrite struct {
+	Reminders *[]TaskReminder `json:"reminders,omitempty"`
 	// DescriptionHTML opts out of Markdown conversion; it is a transport option, not an API body field.
 	DescriptionHTML bool       `json:"-"`
 	Title           string     `json:"title"`
@@ -114,20 +116,22 @@ type TaskWrite struct {
 
 // TaskPatch distinguishes omitted fields from explicit zero-value replacements.
 type TaskPatch struct {
-	Title       *string    `json:"title,omitempty"`
-	Description *string    `json:"description,omitempty"`
-	ProjectID   *int64     `json:"project_id,omitempty"`
-	Priority    *int64     `json:"priority,omitempty"`
-	Done        *bool      `json:"done,omitempty"`
-	DueDate     *time.Time `json:"due_date,omitempty"`
-	StartDate   *time.Time `json:"start_date,omitempty"`
-	EndDate     *time.Time `json:"end_date,omitempty"`
-	RepeatAfter *int64     `json:"repeat_after,omitempty"`
-	RepeatMode  *int       `json:"repeat_mode,omitempty"`
+	Reminders   *[]TaskReminder `json:"reminders,omitempty"`
+	Title       *string         `json:"title,omitempty"`
+	Description *string         `json:"description,omitempty"`
+	ProjectID   *int64          `json:"project_id,omitempty"`
+	Priority    *int64          `json:"priority,omitempty"`
+	Done        *bool           `json:"done,omitempty"`
+	DueDate     *time.Time      `json:"due_date,omitempty"`
+	StartDate   *time.Time      `json:"start_date,omitempty"`
+	EndDate     *time.Time      `json:"end_date,omitempty"`
+	RepeatAfter *int64          `json:"repeat_after,omitempty"`
+	RepeatMode  *int            `json:"repeat_mode,omitempty"`
 }
 
 // TaskCheck supplies expected values for atomic JSON Patch preconditions.
 type TaskCheck struct {
+	Reminders   *[]TaskReminder
 	Updated     *time.Time
 	Title       *string
 	Description *string

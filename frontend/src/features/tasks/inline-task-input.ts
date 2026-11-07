@@ -4,6 +4,14 @@ import { visibleTaskLabels } from "./visible-task-labels";
 
 export type InlineTask = NonNullable<TaskDetailsQuery["task"]>;
 export type InlineTaskInput = Omit<UpdateTaskInput, "csrfToken">;
+
+export function inlinePlanningDates(input: InlineTaskInput) {
+  return {
+    from: input.planningWindow?.startsOn ?? input.startAt?.slice(0, 10) ?? "",
+    through: input.planningWindow?.endsOn ?? input.endAt?.slice(0, 10) ?? "",
+  };
+}
+
 export type InlineTaskField =
   | "title"
   | "description"
@@ -12,6 +20,7 @@ export type InlineTaskField =
   | "labels"
   | "type"
   | "due"
+  | "planning"
   | "start"
   | "end";
 

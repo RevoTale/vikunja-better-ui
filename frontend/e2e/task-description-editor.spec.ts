@@ -9,6 +9,7 @@ test("discussion supports rich descriptions, emoji and automatic links without r
   const { taskId: target } = await discussionFixture(page);
   const title = `Rich description ${Date.now()}`;
   const id = await createTask(page, "one-time task", title, async () => {
+    await page.getByText("Add description", { exact: true }).click();
     const editor = page.getByRole("textbox", { name: "Description", exact: true });
     await editor.fill("Plan 👩‍💻 👍🏽 ");
     await editor.press("End");

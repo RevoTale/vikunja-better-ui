@@ -108,13 +108,14 @@ func buildWeekView(request WeekRequest, taskGroups ...[]vikunja.Task) WeekResult
 		for index := range tasks {
 			task := &tasks[index]
 			classification := ClassifyTask(*task)
-			if task.Done || task.DueDate.IsZero() || !matchesCalendarLabels(*task, request.LabelIDs) ||
+			if task.Done || !matchesCalendarLabels(*task, request.LabelIDs) ||
 				!matchesPriority(task.Priority, request.Priority) {
 				continue
 			}
 			candidate := taskListCandidate{Task: task, Classification: classification}
-			if !task.DueDate.Before(start) && task.DueDate.Before(end) {
-				dayIndex := weekDayIndex(start, task.DueDate, location)
+			finish := finishInPeriod(*task, classification, ListRequest{PeriodFrom: start, PeriodBefore: end})
+			if !finish.IsZero() {
+				dayIndex := weekDayIndex(start, finish, location)
 				if dayIndex >= 0 {
 					result.Days[dayIndex].Items = append(
 						result.Days[dayIndex].Items,
@@ -129,8 +130,8 @@ func buildWeekView(request WeekRequest, taskGroups ...[]vikunja.Task) WeekResult
 		}
 	}
 
-	compareItems := compareWeekTaskListItem(request.Now)
 	for index := range result.Days {
+		compareItems := compareWeekTaskListItem(request.Now, result.Days[index].Date)
 		slices.SortFunc(result.Days[index].Items, compareItems)
 		slices.SortFunc(result.Days[index].Projections, compareWeekProjection)
 	}
@@ -145,12 +146,13 @@ func weekTaskListItem(candidate taskListCandidate) TaskListItem {
 	}
 }
 
-func compareWeekTaskListItem(now time.Time) func(TaskListItem, TaskListItem) int {
+func compareWeekTaskListItem(now, day time.Time) func(TaskListItem, TaskListItem) int {
+	period := ListRequest{PeriodFrom: day, PeriodBefore: day.AddDate(0, 0, 1)}
 	return func(left TaskListItem, right TaskListItem) int {
+		leftAt := finishInPeriod(left.Task, left.Classification, period)
+		rightAt := finishInPeriod(right.Task, right.Classification, period)
 		return compareDateScope(
-			taskListCandidate{Task: &left.Task, Classification: left.Classification},
-			taskListCandidate{Task: &right.Task, Classification: right.Classification},
-			now,
+			taskListCandidate{Task: &left.Task}, taskListCandidate{Task: &right.Task}, leftAt, rightAt, now,
 		)
 	}
 }
@@ -168,18 +170,16 @@ func requestedWeekRange(request WeekRequest) (time.Time, time.Time) {
 }
 
 func weekTaskQuery(request WeekRequest, start time.Time, end time.Time) vikunja.TaskQuery {
-	filterParts := appendDueBoundary([]string{"done = false"}, end)
+	dateFilter := boundedPlanningFilter(start, end)
 	currentStart, _ := weekRange(request.Now, request.Location, request.WeekStart)
 	if request.singleDay {
 		currentStart = nextLocalDay(request.Now, request.Location).AddDate(0, 0, -1)
 	}
 	if start.After(currentStart) {
-		filterParts = append(filterParts,
-			"(due_date >= '"+start.Format(time.RFC3339)+"' || repeat_after > 0)",
-		)
-	} else {
-		filterParts = append(filterParts, "due_date >= '"+start.Format(time.RFC3339)+"'")
+		dateFilter = "(" + dateFilter + " || (repeat_after > 0 && due_date < '" +
+			end.Format(time.RFC3339) + "'))"
 	}
+	filterParts := []string{"done = false", dateFilter}
 	filterParts = appendProjectFilter(filterParts, request.ProjectID)
 	filterParts = appendPriorityFilter(filterParts, request.Priority)
 	if len(request.LabelIDs) > 0 {

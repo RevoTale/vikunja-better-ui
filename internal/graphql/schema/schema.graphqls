@@ -20,7 +20,10 @@ enum TaskPriority {
 }
 
 enum TaskScope {
+  RECURRING
   TODAY
+  ACTIVE
+  PERIOD
   WEEK
   MONTH
   JOBS
@@ -51,6 +54,7 @@ enum MarkerKind {
   RECURRENCE_HISTORY
   SKIPPED
   FIXED_DUE_TIME
+  RECURRING_AVAILABILITY
 }
 
 enum RepairStep {
@@ -62,6 +66,7 @@ enum RepairStep {
   NORMALIZE_DUE
   NORMALIZE_JOB_SCHEDULE
   ATTACH_FIXED_DUE_TIME
+  ATTACH_RECURRING_AVAILABILITY
 }
 
 enum TaskMutationStatus {
@@ -117,7 +122,21 @@ type RecurrenceRule {
   keepDueTime: Boolean!
 }
 
+type TaskReminder {
+ at: DateTime
+ relativeTo: String!
+ relativePeriod: Int!
+}
+
+input TaskReminderInput {
+ at: DateTime
+ localAt: LocalDateTime
+ relativeTo: String! = ""
+ relativePeriod: Int! = 0
+}
+
 type Task {
+ reminders: [TaskReminder!]!
   "Total discussion comments, including replies; null when unavailable."
   commentCount: Int
   id: ID!
@@ -232,7 +251,26 @@ type TaskDiagnostics {
   maxPermission: String
 }
 
+enum ActiveWorkSort {
+  END_ASC
+  END_DESC
+  START_ASC
+  START_DESC
+  LABEL_ASC
+  LABEL_DESC
+}
+
+input ActiveWorkOrderInput {
+  sort: ActiveWorkSort! = END_ASC
+  revisitFirst: Boolean! = false
+}
+
 input TaskListInput {
+  "Ordering within ACTIVE, applied before pagination."
+  activeOrder: ActiveWorkOrderInput
+  "Inclusive local calendar bounds, required only for PERIOD."
+  from: LocalDate
+  through: LocalDate
   priority: TaskPriority
   labelId: ID
   scope: TaskScope!
@@ -270,6 +308,11 @@ enum TaskDescriptionFormat {
 }
 
 input CreateOneTimeTaskInput {
+  "Use server creation time for automatic availability when the plan has not ended."
+  startNow: Boolean! = false
+ "Omitted preserves reminders; an empty list clears them."
+ reminders: [TaskReminderInput!]
+  planningWindow: PlanningWindowInput
   descriptionFormat: TaskDescriptionFormat! = MARKDOWN
   labelIds: [ID!]
   csrfToken: String!
@@ -282,6 +325,14 @@ input CreateOneTimeTaskInput {
 }
 
 input CreateRecurringTaskInput {
+  "Use server creation time for automatic availability when the first occurrence has not ended."
+  startNow: Boolean! = false
+ "Omitted preserves reminders; an empty list clears them."
+ reminders: [TaskReminderInput!]
+  "Start day of the first flexible occurrence, in the user's timezone."
+  availableFrom: LocalDate
+  "Optional local clock time for availability; retained on managed renewal."
+  availableFromTime: LocalTime
   descriptionFormat: TaskDescriptionFormat! = MARKDOWN
   labelIds: [ID!]
   csrfToken: String!
@@ -298,6 +349,8 @@ input CreateRecurringTaskInput {
 }
 
 input CreateJobInput {
+ "Omitted preserves reminders; an empty list clears them."
+ reminders: [TaskReminderInput!]
   descriptionFormat: TaskDescriptionFormat! = MARKDOWN
   labelIds: [ID!]
   csrfToken: String!
@@ -375,6 +428,8 @@ type TaskReuseValues {
 type Query {
   "Unfinished tasks that are overdue or have reached their explicit start, across all projects."
   actionableTaskCount: Int!
+  "Fresh count using the same completion and backlog policy as Today."
+  todayTaskCount: Int!
   "Newest task by the token owner matching both flags; null when none exists."
   taskReuseValues(job: Boolean!, recurring: Boolean!): TaskReuseValues
   taskLabels: [Label!]!
@@ -404,6 +459,10 @@ type Mutation {
 }
 
 input UpdateTaskInput {
+ "Omitted preserves reminders; an empty list clears them."
+ reminders: [TaskReminderInput!]
+  "Sets both native start/end timestamps as an inclusive date-only window."
+  planningWindow: PlanningWindowInput
   labelIds: [ID!]
   csrfToken: String!
   taskId: ID!
@@ -418,4 +477,13 @@ input UpdateTaskInput {
   startAt: LocalDateTime
   endAt: LocalDateTime
   recurrence: RecurrenceInput
+}
+
+input PlanningWindowInput {
+  "Optional local start clock time. Defaults to midnight."
+  startsAtTime: LocalTime
+  "Optional local clock time for the planned finish. Defaults to the last second of the finish day."
+  endsAtTime: LocalTime
+  startsOn: LocalDate!
+  endsOn: LocalDate!
 }

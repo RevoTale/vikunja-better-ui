@@ -53,13 +53,13 @@ test("login restores the requested route and core navigation is accessible", asy
   await expect(page).toHaveURL(/\/login\?returnTo=/);
   await login(page);
   await expect(page).toHaveURL(/\/jobs/);
-  await expect(page.getByRole("heading", { name: "Jobs" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Timed sessions" })).toBeVisible();
   await expect(page.getByText("Prepare weekly status update", { exact: true })).toBeVisible();
   await expectBrandTimezone(page);
-  await page.getByRole("link", { name: "New job" }).click();
+  await page.getByRole("link", { name: "New timed session" }).click();
   await expect(page).toHaveURL(/\/tasks\/new\?type=job/);
   await expect(page.getByRole("heading", { name: "New one-time task" })).toBeVisible();
-  await expect(page.getByLabel("Job", { exact: true })).toBeChecked();
+  await expect(page.getByLabel("Schedule a timed session", { exact: true })).toBeChecked();
   await expect(page.getByLabel("Title (optional)")).toBeFocused();
   await expect(datePickerButton(page, "Start date")).toBeVisible();
   const startTime = page.getByLabel("Start time", { exact: true });
@@ -192,7 +192,9 @@ async function expectCreationControlSizes(page: Page) {
     ].map(async (control) => (await control.boundingBox())?.height),
   );
   expect(controlHeights).toEqual([44, 44, 44, 44]);
-  const taskTypeButtons = page.getByRole("group", { name: "Task type" }).getByRole("button");
+  const taskTypeButtons = page
+    .getByRole("group", { name: "How often will you do this?" })
+    .getByRole("button");
   await expect(taskTypeButtons).toHaveCount(2);
   for (const button of await taskTypeButtons.all()) {
     expect(

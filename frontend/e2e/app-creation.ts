@@ -29,12 +29,14 @@ test("week add rows preserve their day and selected project across task types", 
 
   await expect(page).toHaveURL(new RegExp(`date=${date}`));
   await expect(page).toHaveURL(new RegExp(`project=${projectID}`));
-  await expect(page.locator('input[name="dueDate"]')).toHaveValue(date);
+  await expect(page.locator('input[name="planningStartsOn"]')).toHaveValue(date);
+  await expect(page.locator('input[name="planningEndsOn"]')).toHaveValue(date);
+  await expect(page.locator('input[name="dueDate"]')).toHaveValue("");
   await expect(page.getByLabel("Project", { exact: true })).toContainText("E2E Daily Tasks");
 
-  await page.getByRole("button", { name: "recurring task" }).click();
+  await page.getByRole("button", { name: "Repeat" }).click();
   await expect(page.locator('input[name="firstDueDate"]')).toHaveValue(date);
-  await page.getByLabel("Job", { exact: true }).check();
+  await page.getByLabel("Schedule a timed session", { exact: true }).check();
   await expect(page.locator('input[name="startDate"]')).toHaveValue(date);
 });
 
@@ -52,12 +54,9 @@ test("task creation identifies invalid fields and clears corrected errors", asyn
   await expect(page.getByText("Check the highlighted fields below.")).toBeVisible();
   await expect(page.getByText("Enter a title.", { exact: true })).toBeVisible();
   await expect(page.getByText("Choose the first due date.", { exact: true })).toBeVisible();
-  await expect(
-    page.getByText("Monthly recurrence supports every 1 month.", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText("Monthly recurrence must use Scheduled cycle.", { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByLabel("Every", { exact: true })).toHaveValue("1");
+  await expect(page.getByLabel("Every", { exact: true })).not.toBeEditable();
+  await expect(page.getByLabel("Repeat timing")).toContainText("Fixed schedule");
   await expect(page.getByRole("textbox", { name: /^Title/ })).toHaveAttribute(
     "aria-invalid",
     "true",
@@ -71,8 +70,6 @@ test("task creation identifies invalid fields and clears corrected errors", asyn
   await page.getByRole("textbox", { name: /^Title/ }).fill("Valid recurring task");
   await chooseSelectOption(page, "Priority", "No priority");
   await selectDate(page, "First due date", localDate());
-  await page.getByLabel("Every").fill("1");
-  await chooseSelectOption(page, "Renewal", "Scheduled cycle");
 
   await expect(page.getByRole("alert")).toHaveCount(0);
   await expect(page.getByText("Enter a title.", { exact: true })).toHaveCount(0);
@@ -92,8 +89,8 @@ test("task creation and display use the Vikunja timezone", async ({ page }) => {
   const dueDate = addCalendarDays(localDate(), -1);
   const title = `Timezone E2E ${Date.now()}`;
   await page.getByRole("textbox", { name: /^Title/ }).fill(title);
-  await selectDate(page, "Due date", dueDate);
-  await page.getByLabel("Due time", { exact: true }).fill("00:30");
+  await selectDate(page, "Deadline (optional)", dueDate);
+  await page.getByLabel("Deadline time (optional)", { exact: true }).fill("00:30");
   await page.getByRole("button", { name: "Create one-time task", exact: true }).click();
 
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
@@ -130,8 +127,8 @@ test("successful creation leaves the next form at defaults and preserves explici
   await page.getByRole("textbox", { name: /^Title/ }).fill(title);
   await chooseSelectOption(page, "Project", "E2E Empty Project");
   await chooseSelectOption(page, "Priority", "High");
-  await selectDate(page, "Due date", dueDate);
-  await page.getByLabel("Due time", { exact: true }).fill("18:15");
+  await selectDate(page, "Deadline (optional)", dueDate);
+  await page.getByLabel("Deadline time (optional)", { exact: true }).fill("18:15");
   await page.getByRole("button", { name: "Create one-time task", exact: true }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
 
@@ -140,7 +137,7 @@ test("successful creation leaves the next form at defaults and preserves explici
   await expect(page.getByLabel("Project", { exact: true })).toContainText("E2E Daily Tasks");
   await expect(page.getByLabel("Priority", { exact: true })).toContainText("No priority");
   await expect(page.locator('input[name="dueDate"]')).toHaveValue("");
-  await expect(page.getByLabel("Due time", { exact: true })).toHaveValue("");
+  await expect(page.getByLabel("Deadline time (optional)", { exact: true })).toHaveValue("");
   expect(
     await page.evaluate(() =>
       Object.keys(localStorage).filter((key) => key.startsWith("vbu:task-create-autofill:")),
@@ -160,8 +157,10 @@ test("successful creation leaves the next form at defaults and preserves explici
     `/tasks/new?type=one-time&returnTo=%2Ftoday&date=${contextualDate}&project=${projectID}`,
   );
   await expect(page.getByRole("textbox", { name: /^Title/ })).toHaveValue("");
-  await expect(page.locator('input[name="dueDate"]')).toHaveValue(contextualDate);
-  await expect(datePickerButton(page, "Due date")).not.toHaveAttribute(
+  await expect(page.locator('input[name="planningStartsOn"]')).toHaveValue(contextualDate);
+  await expect(page.locator('input[name="planningEndsOn"]')).toHaveValue(contextualDate);
+  await expect(page.locator('input[name="dueDate"]')).toHaveValue("");
+  await expect(datePickerButton(page, "Deadline (optional)")).not.toHaveAttribute(
     "aria-describedby",
     /dueDate-autofill/,
   );

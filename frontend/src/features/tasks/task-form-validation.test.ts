@@ -33,7 +33,7 @@ describe("validateTaskForm", () => {
     ).toEqual({
       firstDueDate: "Choose the first due date.",
       interval: "Monthly recurrence supports every 1 month.",
-      mode: "Monthly recurrence must use Scheduled cycle.",
+      mode: "Monthly recurrence must use Fixed schedule.",
     });
   });
 
@@ -105,7 +105,7 @@ describe("job form validation", () => {
           completionWindowMinutes: "60",
         }),
       ),
-    ).toMatchObject({ durationMinutes: "The job end must be before year 10000." });
+    ).toMatchObject({ durationMinutes: "The timed session must end before year 10000." });
   });
 
   it("accepts valid values for every task type", () => {
@@ -138,6 +138,19 @@ describe("job form validation", () => {
 });
 
 describe("server validation field mapping", () => {
+  it("rejects invalid or late recurring availability without affecting Job dates", () => {
+    expect(validateTaskForm("recurring", values({ availableFrom: "2026-08-15" }))).toMatchObject({
+      availableFrom: "Available from must be on or before the first due date.",
+    });
+    expect(
+      validateTaskForm("recurring", values({ availableFrom: "invalid" })).availableFrom,
+    ).toBeTruthy();
+    expect(validateTaskForm("recurring", values({ availableFrom: "2026-08-14" }))).toEqual({});
+    expect(validateTaskForm("recurring", values({ job: "on", availableFrom: "invalid" }))).toEqual(
+      {},
+    );
+  });
+
   it("places rare timezone validation failures beside the responsible field", () => {
     expect(
       serverTaskFormErrors(

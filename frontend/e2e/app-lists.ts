@@ -28,7 +28,7 @@ test("task lists expose loading, empty, error, and project-filter states", async
   });
   await page.goto(`/today?project=${emptyProjectID}&page=1`);
   await expect(page.getByText("Loading tasks…", { exact: true })).toBeVisible();
-  await expect(page.getByText("No tasks here.", { exact: true })).toBeVisible();
+  await expect(page.getByText("No tasks match these filters.", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Project", { exact: true })).toContainText("E2E Empty Project");
 
   await page.unroute("**/graphql");
@@ -52,7 +52,7 @@ test("task lists expose loading, empty, error, and project-filter states", async
   );
   await chooseSelectOption(page, "Project", "E2E Empty Project");
   await expect(page.getByText("Refreshing tasks…", { exact: true })).toBeVisible();
-  await expect(page.getByText("No tasks here.", { exact: true })).toBeVisible();
+  await expect(page.getByText("No tasks match these filters.", { exact: true })).toBeVisible();
   await refreshResponse;
   await expect(page.getByText("Refreshing tasks…", { exact: true })).toHaveCount(0);
 

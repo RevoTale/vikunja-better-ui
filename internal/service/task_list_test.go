@@ -171,3 +171,18 @@ func assertTaskIDs(t *testing.T, items []TaskListItem, want ...int64) {
 		t.Fatalf("task IDs = %v, want %v", got, want)
 	}
 }
+
+func TestRecurringOverviewOrdersLiveSeriesByCadenceThenDue(t *testing.T) {
+	t.Parallel()
+	now := time.Date(2026, time.November, 5, 9, 0, 0, 0, time.UTC)
+	tasks := []vikunja.Task{
+		{ID: 1},
+		{ID: 2, RepeatMode: 1},
+		{ID: 3, RepeatAfter: 86400, DueDate: now.Add(time.Hour)},
+		{ID: 4, RepeatAfter: 86400, DueDate: now, Labels: labels(jobLabel)},
+		{ID: 5, Done: true, Labels: labels(recurrenceHistoryLabel)},
+		{ID: 6, Done: true, RepeatAfter: 86400},
+		{ID: 7, Labels: labels(jobLabel)},
+	}
+	assertTaskIDs(t, BuildTaskList(tasks, nil, TaskScopeRecurring, now, time.UTC, time.Monday), 4, 3, 2)
+}

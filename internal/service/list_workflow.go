@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -37,6 +38,9 @@ type ListIssue struct {
 
 // ListRequest defines a fresh task query with caller-resolved timezone and project context.
 type ListRequest struct {
+	ActiveOrder         ActiveWorkOrder
+	PeriodFrom          time.Time
+	PeriodBefore        time.Time
 	IncludeCommentCount bool
 	Scope               TaskScope
 	ProjectID           *int64
@@ -151,7 +155,7 @@ func listCandidates(ctx context.Context, client taskListClient, request ListRequ
 	}
 	candidates = filterCandidatesByAnyLabelID(candidates, request.FilterLabelIDs)
 	candidates = filterCandidatesByPriority(candidates, request.Priority)
-	sortTaskList(candidates, request.Scope, request.Now)
+	candidates = orderPlanningCandidates(candidates, request)
 	return completeCandidateList(request, candidates), nil
 }
 
@@ -329,8 +333,10 @@ func candidateTaskQuery(request ListRequest) vikunja.TaskQuery {
 		}
 	}
 	switch request.Scope {
-	case TaskScopeToday:
-		filterParts = appendDueBoundary(filterParts, nextLocalDay(request.Now, request.Location))
+	case TaskScopeRecurring:
+		// Native monthly series may have repeat_after=0. Classify unfinished candidates locally.
+	case TaskScopeToday, TaskScopeActive, TaskScopePeriod:
+		filterParts = append(filterParts, planningCandidateFilter(request))
 	case TaskScopeWeek:
 		filterParts = appendDueBoundary(filterParts, nextWeekBoundary(request.Now, request.Location, request.WeekStart))
 	case TaskScopeMonth:
@@ -351,8 +357,10 @@ func candidateTaskQuery(request ListRequest) vikunja.TaskQuery {
 	}
 	filterParts = appendProjectFilter(filterParts, request.ProjectID)
 	filterParts = appendPriorityFilter(filterParts, request.Priority)
-	if len(request.FilterLabelIDs) > 0 &&
-		(request.Scope == TaskScopeToday || request.Scope == TaskScopeUnscheduled || request.Scope == TaskScopeLongTerm) {
+	labelScopes := []TaskScope{
+		TaskScopeToday, TaskScopeUnscheduled, TaskScopeLongTerm, TaskScopeActive, TaskScopePeriod, TaskScopeRecurring,
+	}
+	if len(request.FilterLabelIDs) > 0 && slices.Contains(labelScopes, request.Scope) {
 		filterParts = append(filterParts, "labels in "+joinIDs(request.FilterLabelIDs))
 	}
 	query := vikunja.TaskQuery{
@@ -442,6 +450,9 @@ func validateListRequest(request ListRequest) error {
 			return errors.New("filter label ID must be positive")
 		}
 	}
+	if err := validatePlanningPeriod(request); err != nil {
+		return err
+	}
 	return validateListScope(request)
 }
 
@@ -461,8 +472,8 @@ func validateListScope(request ListRequest) error {
 			return errors.New("sort order is invalid")
 		}
 		return nil
-	case TaskScopeToday, TaskScopeWeek, TaskScopeMonth, TaskScopeJobs,
-		TaskScopeUnscheduled, TaskScopeLongTerm, TaskScopeHistory:
+	case TaskScopeToday, TaskScopeActive, TaskScopePeriod, TaskScopeWeek, TaskScopeMonth, TaskScopeJobs,
+		TaskScopeUnscheduled, TaskScopeLongTerm, TaskScopeHistory, TaskScopeRecurring:
 		if !request.CompletedFrom.IsZero() || !request.CompletedBefore.IsZero() {
 			return errors.New("completion range is only valid for completed jobs")
 		}

@@ -15,6 +15,12 @@ const maxTaskTitleCharacters = 250
 
 // BuildEditedTask resolves local times and validates the requested workflow before writing.
 func BuildEditedTask(input EditTaskInput, location *time.Location) (vikunja.TaskWrite, map[string]bool, error) {
+	return buildEditedTask(input, location, vikunja.Task{})
+}
+
+func buildEditedTask(
+	input EditTaskInput, location *time.Location, before vikunja.Task,
+) (vikunja.TaskWrite, map[string]bool, error) {
 	write, dateOnly, err := BuildOneTimeTask(OneTimeInput{
 		Title: input.Title, Description: input.Description, Priority: input.Priority,
 		DueDate: input.DueDate, DueTime: input.DueTime,
@@ -28,26 +34,65 @@ func BuildEditedTask(input EditTaskInput, location *time.Location) (vikunja.Task
 	if utf8.RuneCountInString(write.Title) > maxTaskTitleCharacters {
 		return write, nil, errors.Join(ErrInvalidEdit, errors.New("title must contain at most 250 characters"))
 	}
-	start, err := editLocalTime(input.StartLocal, location)
-	if err != nil {
+	if err := applyEditedDates(&write, input, location); err != nil {
 		return write, nil, errors.Join(ErrInvalidEdit, err)
 	}
-	end, err := editLocalTime(input.EndLocal, location)
-	if err != nil {
-		return write, nil, errors.Join(ErrInvalidEdit, err)
-	}
-	write.StartDate, write.EndDate = &start, &end
 	if write.DueDate == nil {
 		write.DueDate = new(time.Time)
 	}
-	if err := validateEditedSchedule(start, end, *write.DueDate, input.Job, dateOnly); err != nil {
+	// Resolve unchanged minutes against the stored instants before checking their order.
+	if input.Planning == nil {
+		preserveEditPrecision(write.StartDate, before.StartDate)
+		preserveEditPrecision(write.EndDate, before.EndDate)
+	}
+	if hasLabel(before.Labels, dateOnlyLabel) == dateOnly {
+		preserveEditPrecision(write.DueDate, before.DueDate)
+	}
+	if err := validateEditedSchedule(*write.StartDate, *write.EndDate, *write.DueDate, input.Job, dateOnly); err != nil {
 		return write, nil, errors.Join(ErrInvalidEdit, err)
 	}
 	keep, err := applyEditRecurrence(&write, input.Recurrence, dateOnly)
 	if err != nil {
 		return write, nil, errors.Join(ErrInvalidEdit, err)
 	}
-	return write, map[string]bool{jobLabel: input.Job, dateOnlyLabel: dateOnly, fixedDueTimeLabel: keep}, nil
+	markers := map[string]bool{jobLabel: input.Job, dateOnlyLabel: dateOnly, fixedDueTimeLabel: keep}
+	if err := retainRecurringAvailability(before, input, write, markers); err != nil {
+		return write, nil, errors.Join(ErrInvalidEdit, err)
+	}
+	return write, markers, nil
+}
+
+func retainRecurringAvailability(
+	before vikunja.Task, input EditTaskInput, write vikunja.TaskWrite, markers map[string]bool,
+) error {
+	if !hasLabel(before.Labels, recurringAvailabilityLabel) || input.Job || input.Recurrence == nil ||
+		write.StartDate.IsZero() || !write.EndDate.IsZero() {
+		return nil
+	}
+	if write.StartDate.After(*write.DueDate) {
+		return errors.New("available from must be on or before the due date")
+	}
+	markers[recurringAvailabilityLabel] = true
+	return nil
+}
+
+func applyEditedDates(write *vikunja.TaskWrite, input EditTaskInput, location *time.Location) error {
+	if input.Planning != nil {
+		if input.Job || input.Recurrence != nil {
+			return errors.New("planning windows require a one-time task")
+		}
+		return applyPlanningWindow(write, input.Planning, location)
+	}
+	start, err := editLocalTime(input.StartLocal, location)
+	if err != nil {
+		return err
+	}
+	end, err := editLocalTime(input.EndLocal, location)
+	if err != nil {
+		return err
+	}
+	write.StartDate, write.EndDate = &start, &end
+	return nil
 }
 
 func validateEditedSchedule(start, end, due time.Time, job, dateOnly bool) error {

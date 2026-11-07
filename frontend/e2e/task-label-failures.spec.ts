@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openTaskLabels } from "./app-layout";
 
 test("label creation retries preserve newer input and prevent concurrent submission", async ({
   page,
@@ -35,11 +36,12 @@ test("label creation retries preserve newer input and prevent concurrent submiss
     await delay;
     await route.continue();
   });
+  await openTaskLabels(page);
   const search = page.getByLabel("Find or create label");
   await search.fill("Retry-safe label");
-  await page.getByRole("button", { name: "Create or reuse label" }).click();
+  await page.getByRole("button", { name: /^(Create|Select) label “/ }).click();
   await expect(page.getByRole("alert")).toContainText("Label service unavailable");
-  await page.getByRole("button", { name: "Create or reuse label" }).click();
+  await page.getByRole("button", { name: /^(Create|Select) label “/ }).click();
   await expect(
     page.getByRole("button", { name: "Create one-time task", exact: true }),
   ).toBeDisabled();

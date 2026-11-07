@@ -21,7 +21,10 @@ type TaskScope string
 
 // Supported task scopes include integration-only unified/completed job views.
 const (
+	TaskScopeRecurring     TaskScope = "RECURRING"
 	TaskScopeToday         TaskScope = "TODAY"
+	TaskScopeActive        TaskScope = "ACTIVE"
+	TaskScopePeriod        TaskScope = "PERIOD"
 	TaskScopeWeek          TaskScope = "WEEK"
 	TaskScopeMonth         TaskScope = "MONTH"
 	TaskScopeJobs          TaskScope = "JOBS"
@@ -56,7 +59,7 @@ func BuildTaskList(
 ) []TaskListItem {
 	candidates := make([]taskListCandidate, 0, len(tasks))
 	candidates = appendTaskListCandidates(candidates, tasks, projectTitles, scope, now, location, weekStart)
-	sortTaskList(candidates, scope, now)
+	sortTaskList(candidates, scope, now, location)
 	return materializeTaskList(candidates)
 }
 
@@ -107,6 +110,8 @@ func taskMatchesScope(
 	weekStart time.Weekday,
 ) bool {
 	switch scope {
+	case TaskScopeRecurring:
+		return !task.Done && classification.Recurring
 	case TaskScopeHistory:
 		return task.Done
 	case TaskScopeJobs, TaskScopeCompletedJobs, TaskScopeAllJobs:
@@ -116,7 +121,11 @@ func taskMatchesScope(
 	case TaskScopeLongTerm:
 		return matchesLongTerm(task, now.In(location))
 	case TaskScopeToday:
-		return dueBeforeBoundary(task, nextLocalDay(now, location))
+		return finishBeforeBoundary(task, classification, nextLocalDay(now, location))
+	case TaskScopeActive:
+		return classification.Kind != TaskKindInvalid && activePlanningWindow(task, now)
+	case TaskScopePeriod:
+		return !task.Done
 	case TaskScopeWeek:
 		return dueBeforeBoundary(task, nextWeekBoundary(now, location, weekStart))
 	case TaskScopeMonth:
@@ -169,9 +178,11 @@ func nextMonthBoundary(now time.Time, location *time.Location) time.Time {
 	return start.AddDate(0, 1, 0)
 }
 
-func sortTaskList(items []taskListCandidate, scope TaskScope, now time.Time) {
-	comparison := compareScopedTask(scope, now)
-	slices.SortFunc(items, comparison)
+func sortTaskList(items []taskListCandidate, scope TaskScope, now time.Time, location *time.Location) {
+	if location == nil {
+		location = time.UTC
+	}
+	slices.SortFunc(items, compareScopedTask(scope, now, location))
 }
 
 func sortAllJobs(items []taskListCandidate, sortBy JobSort, order SortOrder) {
@@ -201,15 +212,21 @@ func JobFinishAt(task vikunja.Task) time.Time {
 	return task.DueDate
 }
 
-func compareScopedTask(scope TaskScope, now time.Time) func(taskListCandidate, taskListCandidate) int {
+func compareScopedTask(
+	scope TaskScope, now time.Time, location *time.Location,
+) func(taskListCandidate, taskListCandidate) int {
 	switch scope {
+	case TaskScopeRecurring:
+		return compareRecurring
+	case TaskScopeActive:
+		return compareActiveFinish
 	case TaskScopeToday:
 		return func(left taskListCandidate, right taskListCandidate) int {
-			return compareToday(left, right, now)
+			return compareToday(left, right, now, location)
 		}
 	case TaskScopeWeek, TaskScopeMonth:
 		return func(left taskListCandidate, right taskListCandidate) int {
-			return compareDateScope(left, right, now)
+			return compareDateScope(left, right, left.Task.DueDate, right.Task.DueDate, now)
 		}
 	case TaskScopeJobs:
 		return func(left taskListCandidate, right taskListCandidate) int {
@@ -223,7 +240,7 @@ func compareScopedTask(scope TaskScope, now time.Time) func(taskListCandidate, t
 		return compareLongTerm
 	case TaskScopeHistory:
 		return compareHistory
-	case TaskScopeAllJobs:
+	case TaskScopeAllJobs, TaskScopePeriod:
 		return compareTaskID
 	default:
 		return compareTaskID
@@ -234,36 +251,44 @@ func compareTaskID(left taskListCandidate, right taskListCandidate) int {
 	return cmp.Compare(left.Task.ID, right.Task.ID)
 }
 
-func compareToday(left taskListCandidate, right taskListCandidate, now time.Time) int {
-	leftGroup := todayGroup(left, now)
-	rightGroup := todayGroup(right, now)
+func compareToday(left, right taskListCandidate, now time.Time, location *time.Location) int {
+	leftAt := taskFinishAt(*left.Task, left.Classification)
+	rightAt := taskFinishAt(*right.Task, right.Classification)
+	leftGroup := todayGroup(left, leftAt, now, location)
+	rightGroup := todayGroup(right, rightAt, now, location)
 	if result := cmp.Compare(leftGroup, rightGroup); result != 0 {
 		return result
 	}
 
 	switch leftGroup {
-	case 0:
-		return comparePriorityDueTitleID(left, right)
-	case 1:
-		return compareDuePriorityTitleID(left, right)
+	case todayOverdue:
+		return comparePriorityDateTitleID(left, right, leftAt, rightAt)
+	case todayTimed:
+		return compareDatePriorityTitleID(left, right, leftAt, rightAt)
 	default:
 		return comparePriorityTitleID(left, right)
 	}
 }
 
-func todayGroup(item taskListCandidate, now time.Time) int {
-	if item.Task.DueDate.Before(now) {
+func todayGroup(item taskListCandidate, finish, now time.Time, location *time.Location) int {
+	if finish.Before(now) {
 		return todayOverdue
 	}
-	if !item.Classification.DateOnly {
+	dateOnly := item.Classification.DateOnly
+	if !finish.Equal(item.Task.DueDate) {
+		const lastHour, lastMinute, lastSecond = 23, 59, 59
+		hour, minute, second := finish.In(location).Clock()
+		dateOnly = hour == lastHour && minute == lastMinute && second == lastSecond
+	}
+	if !dateOnly {
 		return todayTimed
 	}
 	return todayDateOnly
 }
 
-func compareDateScope(left taskListCandidate, right taskListCandidate, now time.Time) int {
-	leftOverdue := left.Task.DueDate.Before(now)
-	rightOverdue := right.Task.DueDate.Before(now)
+func compareDateScope(left, right taskListCandidate, leftAt, rightAt, now time.Time) int {
+	leftOverdue := leftAt.Before(now)
+	rightOverdue := rightAt.Before(now)
 	if leftOverdue != rightOverdue {
 		if leftOverdue {
 			return -1
@@ -271,9 +296,9 @@ func compareDateScope(left taskListCandidate, right taskListCandidate, now time.
 		return 1
 	}
 	if leftOverdue {
-		return comparePriorityDueTitleID(left, right)
+		return comparePriorityDateTitleID(left, right, leftAt, rightAt)
 	}
-	return compareDuePriorityTitleID(left, right)
+	return compareDatePriorityTitleID(left, right, leftAt, rightAt)
 }
 
 func compareJobs(left taskListCandidate, right taskListCandidate, now time.Time) int {
@@ -286,7 +311,7 @@ func compareJobs(left taskListCandidate, right taskListCandidate, now time.Time)
 		return 1
 	}
 	if leftOverdue {
-		return comparePriorityDueTitleID(left, right)
+		return comparePriorityDateTitleID(left, right, left.Task.DueDate, right.Task.DueDate)
 	}
 	if result := compareTimeZeroLast(left.Task.StartDate, right.Task.StartDate); result != 0 {
 		return result
@@ -323,18 +348,18 @@ func compareHistory(left taskListCandidate, right taskListCandidate) int {
 	return cmp.Compare(right.Task.ID, left.Task.ID)
 }
 
-func comparePriorityDueTitleID(left taskListCandidate, right taskListCandidate) int {
+func comparePriorityDateTitleID(left, right taskListCandidate, leftAt, rightAt time.Time) int {
 	if result := cmp.Compare(right.Task.Priority, left.Task.Priority); result != 0 {
 		return result
 	}
-	if result := left.Task.DueDate.Compare(right.Task.DueDate); result != 0 {
+	if result := leftAt.Compare(rightAt); result != 0 {
 		return result
 	}
 	return compareTitleID(left, right)
 }
 
-func compareDuePriorityTitleID(left taskListCandidate, right taskListCandidate) int {
-	if result := left.Task.DueDate.Compare(right.Task.DueDate); result != 0 {
+func compareDatePriorityTitleID(left, right taskListCandidate, leftAt, rightAt time.Time) int {
+	if result := leftAt.Compare(rightAt); result != 0 {
 		return result
 	}
 	return comparePriorityTitleID(left, right)
@@ -376,4 +401,25 @@ func compareTimeZeroLastOrdered(left time.Time, right time.Time, order SortOrder
 		return -result
 	}
 	return result
+}
+
+func compareRecurring(left, right taskListCandidate) int {
+	// Calendar months have their own native mode, independent of the seconds interval.
+	leftMonthly := left.Task.RepeatMode == vikunja.RepeatModeMonthly
+	rightMonthly := right.Task.RepeatMode == vikunja.RepeatModeMonthly
+	if leftMonthly != rightMonthly {
+		if leftMonthly {
+			return 1
+		}
+		return -1
+	}
+	if !leftMonthly {
+		if result := cmp.Compare(left.Task.RepeatAfter, right.Task.RepeatAfter); result != 0 {
+			return result
+		}
+	}
+	if result := compareTimeZeroLast(left.Task.DueDate, right.Task.DueDate); result != 0 {
+		return result
+	}
+	return compareTaskID(left, right)
 }

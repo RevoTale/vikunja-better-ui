@@ -20,9 +20,7 @@ export function EditJobDuration({
   const [nextWindow, setNextWindow] = useState(window);
   return (
     <details className="rounded-md border p-3">
-      <summary className="cursor-pointer text-sm font-medium">
-        Set duration and completion window
-      </summary>
+      <summary className="cursor-pointer text-sm font-medium">Set duration and extra time</summary>
       <p className="mt-2 text-sm text-muted-foreground">
         Apply duration to update End and Due in the form, then Save changes to persist them. One day
         is 24 hours.
@@ -38,10 +36,10 @@ export function EditJobDuration({
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="edit-window">Completion window</FieldLabel>
+          <FieldLabel htmlFor="edit-window">Extra time to finish</FieldLabel>
           <DurationInput
             id="edit-window"
-            unitLabel="Completion window unit"
+            unitLabel="Extra time unit"
             name="completionWindowMinutes"
             value={nextWindow}
             onChange={setNextWindow}

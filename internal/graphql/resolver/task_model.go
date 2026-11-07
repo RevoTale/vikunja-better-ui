@@ -38,6 +38,7 @@ func taskModel(
 	}
 
 	return &model.Task{
+		Reminders:    reminderModels(task.Reminders),
 		CommentCount: commentCountModel(task.CommentCount),
 		Version:      service.TaskVersion(task),
 		ID:           strconv.FormatInt(task.ID, 10), Title: task.Title, Description: task.Description,

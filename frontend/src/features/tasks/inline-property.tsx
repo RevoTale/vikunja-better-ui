@@ -3,7 +3,8 @@ import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/ui/popover";
 import type { RecurrenceMode, RecurrenceUnit } from "@/graphql/graphql";
 import { InlineEditorActions, InlineEditorFeedback } from "./inline-editor-actions";
-import type { InlineTask, InlineTaskField } from "./inline-task-input";
+import { type InlineTask, type InlineTaskField, inlinePlanningDates } from "./inline-task-input";
+import { planningWindowError } from "./planning-dates";
 import type { InlineTaskEditing } from "./use-inline-task-editing";
 
 const Fields = lazy(() =>
@@ -26,6 +27,10 @@ export function InlineProperty({
   const [labelsPending, setLabelsPending] = useState(false);
   if (task.isDone) return children;
   const open = editor.active === field;
+  const dates = inlinePlanningDates(editor.input);
+  const invalidPlanning =
+    field === "planning" &&
+    Boolean(planningWindowError(dates.from, dates.through, editor.input.dueDate ?? ""));
   return (
     <Popover
       open={open}
@@ -39,10 +44,10 @@ export function InlineProperty({
       }}
     >
       <PopoverTrigger
-        aria-label={`Edit ${label.toLowerCase()}`}
         disabled={editor.pending || editor.blocked || (editor.active !== null && !open)}
         className="-mx-1 min-h-9 w-full max-w-full rounded-sm px-1 text-left hover:bg-muted/70 focus-visible:outline-2 focus-visible:outline-ring"
       >
+        <span className="sr-only">Edit {label.toLowerCase()}: </span>
         {children}
       </PopoverTrigger>
       <PopoverContent
@@ -55,7 +60,7 @@ export function InlineProperty({
             className="grid min-w-0 gap-3"
             onSubmit={(event) => {
               event.preventDefault();
-              if (labelsPending) return;
+              if (labelsPending || invalidPlanning) return;
               const form = new FormData(event.currentTarget);
               const input = { ...editor.input };
               if (field === "labels") input.labelIds = form.getAll("labelIds").map(String);
@@ -79,7 +84,11 @@ export function InlineProperty({
                   onLabelsPending={setLabelsPending}
                 />
               </fieldset>
-              <InlineEditorActions editor={editor} disabled={labelsPending} />
+              <InlineEditorActions
+                editor={editor}
+                disabled={labelsPending}
+                saveDisabled={invalidPlanning}
+              />
             </Suspense>
             <InlineEditorFeedback editor={editor} />
           </form>

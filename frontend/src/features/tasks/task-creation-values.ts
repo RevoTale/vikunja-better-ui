@@ -7,7 +7,15 @@ export type TaskCreationValues = {
   priority: TaskPriority;
   dueDate: string;
   dueTime: string;
+  planningStartsOn: string;
+  planningEndsOn: string;
+  planningFinishTime: string;
+  planningStartTime: string;
+  availableFromTime: string;
+  planningSpecific: boolean;
   firstDueDate: string;
+  availableFrom: string;
+  availabilitySpecific: boolean;
   startDate: string;
   startTime: string;
   durationMinutes: string;
@@ -32,9 +40,17 @@ export function defaultTaskCreationValues(context: {
     title: "",
     projectId: context.projectId,
     priority: context.priority ?? "UNSET",
-    dueDate: context.date ?? "",
+    dueDate: "",
     dueTime: "",
+    planningStartsOn: context.date ?? "",
+    planningEndsOn: context.date ?? "",
+    planningFinishTime: "",
+    planningStartTime: "",
+    availableFromTime: "",
+    planningSpecific: Boolean(context.date),
     firstDueDate: context.date ?? context.today,
+    availableFrom: context.date ?? "",
+    availabilitySpecific: Boolean(context.date),
     startDate: context.date ?? context.jobStart.date,
     startTime: context.jobStart.time,
     durationMinutes: "60",

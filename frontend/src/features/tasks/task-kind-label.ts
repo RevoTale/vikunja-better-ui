@@ -10,7 +10,7 @@ type TaskKindSource = {
 const labels: Record<Exclude<TaskKind, "INVALID">, string> = {
   ONE_TIME: "One-time",
   RECURRING: "Recurring",
-  JOB: "Job",
+  JOB: "Timed session",
 };
 
 export function taskKindLabel(task: TaskKindSource): string {

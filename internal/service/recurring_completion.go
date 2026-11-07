@@ -73,31 +73,17 @@ func completeRecurring(
 	if err != nil {
 		return RecurringCompletion{}, err
 	}
-	if ClassifyTask(before).Kind == TaskKindJob {
-		normalized, updatedGrant, normalizeErr := normalizeRecurringJob(
-			ctx, client, before, renewed, renewedMetadata.ETag, location, repairGrant,
-		)
-		repairGrant = updatedGrant
-		if normalizeErr != nil {
-			//nolint:nilerr // Renewal succeeded; expose normalization failure through RepairCause.
-			return RecurringCompletion{
-				LiveTask: renewed, CompletionKey: key, RepairRequired: true,
-				RepairCause: normalizeErr, RepairGrant: repairGrant,
-			}, nil
+	normalized, repairGrant, err := normalizeRecurringSchedule(
+		ctx, client, before, renewed, renewedMetadata.ETag, fixedTarget, location, repairGrant,
+	)
+	if err != nil {
+		if repairGrant.TargetDueAt.IsZero() {
+			return RecurringCompletion{}, fmt.Errorf("renewed schedule has no safe repair target: %w", err)
 		}
-		renewed = normalized
-	} else if !fixedTarget.IsZero() {
-		normalized, normalizeErr := normalizeRenewedDue(ctx, client, renewed, renewedMetadata.ETag, fixedTarget)
-		err = normalizeErr
-		if err != nil {
-			//nolint:nilerr // Renewal succeeded; expose normalization failure through RepairCause.
-			return RecurringCompletion{
-				LiveTask: renewed, CompletionKey: key, RepairRequired: true,
-				RepairCause: err, RepairGrant: repairGrant,
-			}, nil
-		}
-		renewed = normalized
+		return RecurringCompletion{LiveTask: renewed, CompletionKey: key, RepairRequired: true,
+			RepairCause: err, RepairGrant: repairGrant}, nil
 	}
+	renewed = normalized
 	_, err = normalizeRenewedDateOnly(ctx, client, renewed, renewedMetadata.ETag, location)
 	if err != nil {
 		return RecurringCompletion{}, err
@@ -109,6 +95,23 @@ func completeRecurring(
 
 	repairGrant.LiveETag = finalMetadata.ETag
 	return completeRecurringSnapshot(ctx, client, before, renewed, key, repairGrant, outcome)
+}
+
+func normalizeRecurringSchedule(
+	ctx context.Context, client recurringCompletionClient, before, renewed vikunja.Task, etag string,
+	fixedTarget time.Time, location *time.Location, grant RecurringRepairGrant,
+) (vikunja.Task, RecurringRepairGrant, error) {
+	switch {
+	case hasLabel(before.Labels, recurringAvailabilityLabel):
+		return normalizeRecurringAvailability(ctx, client, before, renewed, etag, fixedTarget, location, grant)
+	case ClassifyTask(before).Kind == TaskKindJob:
+		return normalizeRecurringJob(ctx, client, before, renewed, etag, location, grant)
+	case !fixedTarget.IsZero():
+		normalized, err := normalizeRenewedDue(ctx, client, renewed, etag, fixedTarget)
+		return normalized, grant, err
+	default:
+		return renewed, grant, nil
+	}
 }
 
 func normalizeRecurringJob(
@@ -149,6 +152,11 @@ func prepareRecurringCompletion(
 	}
 	if expectedDueAt.IsZero() || !task.DueDate.Equal(expectedDueAt) {
 		return vikunja.Task{}, time.Time{}, ErrTaskStateChanged
+	}
+	if hasLabel(task.Labels, recurringAvailabilityLabel) {
+		if _, err := recurringAvailabilityDays(task, location); err != nil {
+			return vikunja.Task{}, time.Time{}, err
+		}
 	}
 	if !classification.FixedDueTime {
 		return task, time.Time{}, nil

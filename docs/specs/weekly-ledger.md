@@ -4,7 +4,7 @@
 
 The Week view answers two questions without becoming a general calendar:
 
-1. What active work is due on each day?
+1. What active work is planned to finish or due on each day?
 2. Which scheduled recurring occurrences are computed later in the week?
 
 It uses day rows instead of seven narrow columns so task titles, metadata, and
@@ -22,8 +22,10 @@ completion controls remain readable on phone, tablet, and desktop.
 - Selected dates are limited to ten years before or after today to keep
   recurrence expansion bounded.
 - Project filtering remains URL-backed.
-- Every real task appears only under the day on which it is due, including when
-  that task is overdue. Tasks due outside the selected week are not shown.
+- One-time tasks appear once under the earliest planned finish or hard deadline
+  within the selected range. A start date alone does not select a task. Jobs and
+  recurring tasks remain due-based. Dates outside the range are not shown; the
+  weekly ledger does not add the completion-period view's older backlog.
 - All seven days remain visible. Every day ends with a low-emphasis `Add task`
   row, including empty days.
 - The current week remains chronological from its configured start. Past dates
@@ -52,9 +54,11 @@ task. It:
 - is recalculated from fresh Vikunja data on every Week query.
 
 Active and computed entries share one chronological order. Active tasks compare
-start time first, then end time, then due time; absent values fall through to
-the next available schedule time. Computed occurrences use their projected due
-time. Date-only work is shown as `Anytime` without inventing a time.
+start time first, then end time, then due time for Jobs and recurring schedules;
+absent values fall through to the next available schedule time. Flexible
+one-time work uses the finish/deadline relevant to its displayed day, not the
+start of a broad window. Computed occurrences use their projected due time.
+Date-only work is shown as `Anytime` without inventing a time.
 
 ## Projection rules
 

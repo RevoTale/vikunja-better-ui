@@ -3,11 +3,12 @@ package service
 import "github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 
 const (
-	jobLabel               = "vbu:job"
-	dateOnlyLabel          = "vbu:date-only"
-	recurrenceHistoryLabel = "vbu:recurrence-history"
-	skippedLabel           = "vbu:skipped"
-	fixedDueTimeLabel      = "vbu:fixed-due-time"
+	recurringAvailabilityLabel = "vbu:recurring-availability"
+	jobLabel                   = "vbu:job"
+	dateOnlyLabel              = "vbu:date-only"
+	recurrenceHistoryLabel     = "vbu:recurrence-history"
+	skippedLabel               = "vbu:skipped"
+	fixedDueTimeLabel          = "vbu:fixed-due-time"
 )
 
 // TaskKind describes the supported workflow, independently of active recurrence.

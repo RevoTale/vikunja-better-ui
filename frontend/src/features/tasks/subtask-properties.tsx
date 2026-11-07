@@ -45,7 +45,9 @@ export function SubtaskProperties({
         />
       </Field>
       <TaskLabelPicker initialLabels={parent.labels} onPendingChange={onPendingChange} />
-      <p className="text-xs text-muted-foreground">Dates, Job and recurrence are not copied.</p>
+      <p className="text-xs text-muted-foreground">
+        Dates, timed session mode and recurrence are not copied.
+      </p>
     </details>
   );
 }

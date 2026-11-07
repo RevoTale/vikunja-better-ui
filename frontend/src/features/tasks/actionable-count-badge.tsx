@@ -16,7 +16,7 @@ export function ActionableCountBadge({ count, loading, error }: ActionableCountS
       data-slot="actionable-count"
       aria-label={label}
       aria-busy={pending}
-      title={`${label}. Unfinished tasks that are overdue or have reached Start from. All projects.`}
+      title={`${label}. Planned finishes and deadlines through today, including earlier unfinished work. All projects.`}
       className={cn(
         "flex h-5 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-[0.625rem] font-semibold text-foreground tabular-nums",
         pending && count !== undefined && "text-muted-foreground",
@@ -36,7 +36,7 @@ export function ActionableCountBadge({ count, loading, error }: ActionableCountS
 
 function countLabel(count: number | undefined, pending: boolean, error: unknown) {
   if (pending) {
-    return `Updating tasks ready now${count === undefined ? "" : `; last known count: ${count}`}`;
+    return `Updating tasks to finish today${count === undefined ? "" : `; last known count: ${count}`}`;
   }
-  return error ? "Task count unavailable" : `${count} tasks ready now`;
+  return error ? "Task count unavailable" : `${count} tasks to finish today`;
 }

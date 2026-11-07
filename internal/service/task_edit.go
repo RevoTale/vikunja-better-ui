@@ -16,6 +16,8 @@ var ErrEditPartial = errors.New("task fields saved but metadata could not be con
 
 // EditTaskInput is a complete editor submission tied to the loaded task version.
 type EditTaskInput struct {
+	Reminders       []ReminderInput
+	Planning        *PlanningWindowInput
 	LabelIDs        []int64
 	TaskID          int64
 	ExpectedVersion string
@@ -75,23 +77,26 @@ func editLoadedTask(
 	if err != nil {
 		return vikunja.Task{}, err
 	}
-	write, markers, err := BuildEditedTask(input, location)
+	write, markers, err := buildEditedTask(input, location, before)
 	if err != nil {
 		return vikunja.Task{}, err
 	}
-	// The UI edits minutes. Preserve upstream seconds when that minute was not changed.
-	preserveEditPrecision(write.StartDate, before.StartDate)
-	preserveEditPrecision(write.EndDate, before.EndDate)
-	if hasLabel(before.Labels, dateOnlyLabel) == markers[dateOnlyLabel] {
-		preserveEditPrecision(write.DueDate, before.DueDate)
+	if err := validateChangedPlanningDates(before, write, input, location); err != nil {
+		return vikunja.Task{}, errors.Join(ErrInvalidEdit, err)
+	}
+	write.Reminders, err = BuildReminders(input.Reminders, write, location)
+	if err != nil {
+		return vikunja.Task{}, errors.Join(ErrInvalidEdit, err)
 	}
 	patch := vikunja.TaskPatch{
-		Title: &write.Title, Description: &write.Description, ProjectID: &input.ProjectID, Priority: &write.Priority,
+		Reminders: write.Reminders,
+		Title:     &write.Title, Description: &write.Description, ProjectID: &input.ProjectID, Priority: &write.Priority,
 		DueDate: write.DueDate, StartDate: write.StartDate, EndDate: write.EndDate,
 		RepeatAfter: &write.RepeatAfter, RepeatMode: &write.RepeatMode,
 	}
 	check := vikunja.TaskCheck{
-		Updated: &before.Updated, Title: &before.Title, Description: &before.Description,
+		Reminders: &before.Reminders,
+		Updated:   &before.Updated, Title: &before.Title, Description: &before.Description,
 		ProjectID: &before.ProjectID, Priority: &before.Priority, Done: &before.Done,
 		DueDate: &before.DueDate, StartDate: &before.StartDate, EndDate: &before.EndDate,
 		RepeatAfter: &before.RepeatAfter, RepeatMode: &before.RepeatMode,
@@ -139,6 +144,9 @@ func confirmEditedTask(
 	projectID int64,
 	markers map[string]bool,
 ) error {
+	if !RemindersMatch(confirmed.Reminders, write.Reminders) {
+		return errors.Join(ErrEditPartial, vikunja.ErrRejectedResponse)
+	}
 	if confirmed.Done || confirmed.Title != write.Title ||
 		confirmed.Description != write.Description ||
 		confirmed.ProjectID != projectID ||
@@ -162,7 +170,7 @@ func preserveEditPrecision(next *time.Time, before time.Time) {
 }
 
 func updateEditMarkers(ctx context.Context, client taskEditClient, before vikunja.Task, desired map[string]bool) error {
-	for _, title := range []string{jobLabel, dateOnlyLabel, fixedDueTimeLabel} {
+	for _, title := range []string{jobLabel, dateOnlyLabel, fixedDueTimeLabel, recurringAvailabilityLabel} {
 		if !desired[title] {
 			for _, label := range exactLabels(before.Labels, title) {
 				if err := client.DetachLabel(ctx, before.ID, label.ID); err != nil {

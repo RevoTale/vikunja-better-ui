@@ -2,6 +2,12 @@
 
 Status: Accepted on 2026-08-12.
 
+Planning follow-up accepted on 2026-11-02:
+[ADR-009](../decisions/0009-task-planning-windows.md) replaces the due-only
+planning direction with planning windows and separate completion/active-work
+views. Implemented on 2026-11-03 except saved named filters; the original list
+rules remain below as historical context and are superseded by ADR-009.
+
 ## Problem statement
 
 How might we make completing and creating recurring Vikunja tasks predictable

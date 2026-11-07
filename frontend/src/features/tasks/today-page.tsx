@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { SessionDocument } from "@/graphql/graphql";
 import { type DaySearch, navigateDaySearch } from "./day-search";
 import { FutureDayPage } from "./future-day-page";
-import { currentDateInTimeZone } from "./local-date-time";
 import { TaskListLoading } from "./task-list-loading";
 import { TaskListPage } from "./task-list-page";
+import { useCalendarToday } from "./use-calendar-today";
 
 export function TodayPage({
   search,
@@ -18,7 +18,7 @@ export function TodayPage({
 }) {
   const { data, error } = useQuery(SessionDocument);
   const timezone = data?.session.vikunjaUser?.timezone;
-  const today = timezone ? currentDateInTimeZone(timezone) : undefined;
+  const today = useCalendarToday(timezone);
   const date = search.date ?? today;
   const navigate = (offset: number | null) => {
     const next = navigateDaySearch(search, timezone, offset);
@@ -59,7 +59,7 @@ export function TodayPage({
   return (
     <TaskListPage
       title="Today"
-      description="Due now or before the end of today."
+      description="Finish today. Earlier unfinished plans and deadlines stay visible."
       scope="TODAY"
       search={search}
       setSearch={setSearch}

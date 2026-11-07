@@ -53,7 +53,7 @@ func SetTaskRelation(
 		return nil
 	}
 	if !remove && kind == vikunja.RelationChild {
-		if err := validateParentRelation(ctx, client, baseID, otherID); err != nil {
+		if err := validateParentRelation(ctx, client, baseID, otherID, relations); err != nil {
 			return err
 		}
 	}
@@ -99,7 +99,10 @@ func validateRelationTasks(ctx context.Context, client relationTaskReader, ids .
 	return errors.Join(errs...)
 }
 
-func validateParentRelation(ctx context.Context, client relationClient, parentID, childID int64) error {
+func validateParentRelation(
+	ctx context.Context, client relationClient, parentID, childID int64,
+	parentRelations map[vikunja.RelationKind][]vikunja.RelatedTask,
+) error {
 	child, err := client.TaskRelations(ctx, childID)
 	if err != nil {
 		return err
@@ -115,9 +118,12 @@ func validateParentRelation(ctx context.Context, client relationClient, parentID
 		if id == childID {
 			return ErrRelationConflict
 		}
-		relations, err := client.TaskRelations(ctx, id)
-		if err != nil {
-			return err
+		relations := parentRelations
+		if id != parentID {
+			relations, err = client.TaskRelations(ctx, id)
+			if err != nil {
+				return err
+			}
 		}
 		for _, parent := range relations[vikunja.RelationParent] {
 			if queued[parent.ID] {

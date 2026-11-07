@@ -4,4 +4,4 @@ minimumReleaseAge: 1440
 
 peerDependencyRules:
   allowedVersions:
-    'graphql-config@5.1.6>graphql': '17'
+    "graphql-config@5.1.6>graphql": "17"

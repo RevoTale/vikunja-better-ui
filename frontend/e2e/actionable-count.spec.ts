@@ -1,19 +1,21 @@
 import { expect, type Page, test } from "@playwright/test";
 import { discussionGraphQL } from "./discussion-fixture";
 
-test("Today count supports ready-now rules and completion without delaying the page", async ({
+test("Today count supports planned finishes and deadlines and completion without delaying the page", async ({
   page,
 }, testInfo) => {
   await login(page);
-  const before = await count(page);
+  const { todayTaskCount: before, actionableTaskCount: beforeActionable } = await counts(page);
   const past = new Date(Date.now() - 3_600_000).toISOString();
   const future = new Date(Date.now() + 86_400_000).toISOString();
   const inputs = [
     { title: "Count overdue without start", due_date: past },
     { title: "Count started with future deadline", start_date: past, due_date: future },
     { title: "Count started without deadline", start_date: past },
-    { title: "Count overlapping once", start_date: past, due_date: past },
+    { title: "Count overlapping once", start_date: past, end_date: past, due_date: past },
     { title: "Count overdue with future start", start_date: future, due_date: past },
+    { title: "Count plan-only finish", end_date: past },
+    { title: "Count plan before future deadline", end_date: past, due_date: future },
     { title: "Exclude no dates" },
     { title: "Exclude deadline without start", due_date: future },
     { title: "Exclude future start", start_date: future },
@@ -30,7 +32,10 @@ test("Today count supports ready-now rules and completion without delaying the p
       const task: { id: number } = await response.json();
       ids.push(task.id);
     }
-    expect(await count(page)).toBe(before + 5);
+    expect(await counts(page)).toEqual({
+      todayTaskCount: before + 5,
+      actionableTaskCount: beforeActionable + 5,
+    });
     await page.reload();
     const badge = page.locator('[data-slot="actionable-count"]:visible');
     await expect(badge).toHaveText(String(before + 5));
@@ -184,9 +189,11 @@ function readGate() {
   return { promise, resolve: () => release?.() };
 }
 
-async function count(page: Page) {
-  return (await discussionGraphQL<{ actionableTaskCount: number }>(page, "{ actionableTaskCount }"))
-    .actionableTaskCount;
+async function counts(page: Page) {
+  return discussionGraphQL<{ actionableTaskCount: number; todayTaskCount: number }>(
+    page,
+    "{ actionableTaskCount todayTaskCount }",
+  );
 }
 
 async function upstream(path: string, method: string, body?: unknown) {

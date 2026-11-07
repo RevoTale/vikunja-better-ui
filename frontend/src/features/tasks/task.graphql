@@ -2,6 +2,11 @@ query TaskDetails($id: ID!) {
   task(id: $id) {
     id
     version
+    reminders {
+      at
+      relativeTo
+      relativePeriod
+    }
     title
     description
     kind

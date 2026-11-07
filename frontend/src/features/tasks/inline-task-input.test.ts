@@ -3,6 +3,7 @@ import type { TaskDetailsQuery } from "@/graphql/graphql";
 import { inlineTaskInput } from "./inline-task-input";
 
 const task: NonNullable<TaskDetailsQuery["task"]> = {
+  reminders: [],
   id: "42",
   version: "original",
   title: "Read",

@@ -1,9 +1,11 @@
 import type { TaskKind } from "@/graphql/graphql";
 import { displayTime as formatTime } from "@/lib/time-format";
+import { localTaskDate, planningRangeLabel } from "./planning-dates";
+import { planningSchedule, type ScheduleContext } from "./planning-schedule";
 
 const soonThresholdMilliseconds = 2 * 60 * 60 * 1_000;
 
-type ScheduleTask = {
+export type ScheduleTask = {
   kind: TaskKind;
   dueAt: string | null;
   hasDueTime: boolean;
@@ -18,7 +20,7 @@ export type TaskUrgency = "muted" | "normal" | "soon" | "overdue";
 export type TaskSchedule = {
   date: string;
   time: string | null;
-  status: "Overdue" | null;
+  status: "Overdue" | "Planned finish" | "Missed plan" | null;
   urgency: TaskUrgency;
   completeBy: string | null;
 };
@@ -27,7 +29,10 @@ export function taskSchedule(
   task: ScheduleTask,
   now = new Date(),
   use12HourTime = false,
+  context: ScheduleContext = {},
 ): TaskSchedule {
+  const planning = planningSchedule(task, now, use12HourTime, context);
+  if (planning) return planning;
   const interval = jobInterval(task, use12HourTime);
   if (!task.dueAt) {
     return interval && task.startAt
@@ -44,8 +49,16 @@ export function taskSchedule(
     time: interval ?? (task.hasDueTime ? formatTime(due, task.timezone, use12HourTime) : null),
     status: urgency === "overdue" ? "Overdue" : null,
     urgency,
-    completeBy: interval ? `Complete by ${formatTime(due, task.timezone, use12HourTime)}` : null,
+    completeBy: interval
+      ? `Complete by ${formatTime(due, task.timezone, use12HourTime)}`
+      : availabilityRange(task, context),
   };
+}
+
+function availabilityRange(task: ScheduleTask, context: ScheduleContext): string | null {
+  if (!context.active || task.kind !== "RECURRING" || !task.startAt || task.endAt || !task.dueAt)
+    return null;
+  return `Available ${planningRangeLabel(localTaskDate(task.startAt, task.timezone) ?? "", localTaskDate(task.dueAt, task.timezone) ?? "")}`;
 }
 
 function jobWithoutDeadline(startAt: string, timezone: string, interval: string): TaskSchedule {

@@ -24,7 +24,7 @@ test("desktop workflows match Vikunja state", async ({ page }) => {
   const unscheduled = `No deadline E2E ${suffix}`;
 
   const oneTimeId = await createTask(page, "one-time task", oneTime, async () => {
-    await selectDate(page, "Due date", localDate());
+    await selectDate(page, "Deadline (optional)", localDate());
     await chooseSelectOption(page, "Priority", "High");
   });
   await expectVikunjaTask(oneTimeId, { title: oneTime, done: false });

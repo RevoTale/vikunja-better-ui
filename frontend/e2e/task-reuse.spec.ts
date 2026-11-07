@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { openTaskLabels } from "./app-layout";
 import { discussionGraphQL } from "./discussion-fixture";
 
 test("task labels support explicit reuse without overwriting typed fields", async ({ page }) => {
@@ -32,6 +33,7 @@ test("task labels support explicit reuse without overwriting typed fields", asyn
   await expect(page.getByLabel("Title (optional)")).toHaveValue("Keep my text");
   await expect(page.locator('input[name="startDate"]')).toHaveValue("2026-10-08");
   await reuseStartSchedule(page);
+  await openTaskLabels(page);
   await page.getByRole("checkbox", { name: "focus", exact: true }).check();
   await page.getByRole("button", { name: "Use last labels", exact: true }).click();
   await page.getByRole("button", { name: "Use last labels", exact: true }).click();
@@ -40,7 +42,7 @@ test("task labels support explicit reuse without overwriting typed fields", asyn
   await expect(page.locator('input[name="labelIds"]')).toHaveCount(2);
   await page.getByRole("button", { name: "Use last title", exact: true }).click();
   await expect(page.getByLabel("Title (optional)")).toHaveValue("Last work shift");
-  await page.getByRole("button", { name: "recurring task", exact: true }).click();
+  await page.getByRole("button", { name: "Repeat", exact: true }).click();
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Last work shift");
   await expect(page.getByRole("button", { name: "Use last title", exact: true })).toHaveAttribute(
     "title",
@@ -156,7 +158,7 @@ test("task reuse cancels the pending request for the previous type", async ({ pa
     const body = request.postDataJSON();
     return body?.operationName === "TaskReuseValues" && !body.variables.recurring;
   });
-  await page.getByRole("button", { name: "recurring task", exact: true }).click();
+  await page.getByRole("button", { name: "Repeat", exact: true }).click();
   const reuse = page.getByRole("button", { name: "Use last title", exact: true });
   await expect(reuse).toHaveAttribute("title", "Use last title: Recurring suggestion");
   await cancelledRequest;

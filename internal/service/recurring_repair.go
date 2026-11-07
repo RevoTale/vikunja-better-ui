@@ -64,6 +64,11 @@ func repairRenewedSchedule(
 	ctx context.Context, client recurringCompletionClient, live vikunja.Task, etag string, grant RecurringRepairGrant,
 ) (vikunja.Task, error) {
 	if !grant.TargetStartAt.IsZero() && repairScheduleMatches(live, grant, false) {
+		if grant.TargetEndAt.IsZero() {
+			return normalizeRenewedAvailability(ctx, client, live, etag, jobSchedule{
+				StartAt: grant.TargetStartAt, EndAt: grant.TargetEndAt, DueAt: grant.TargetDueAt,
+			})
+		}
 		return normalizeRenewedJobSchedule(ctx, client, live, etag, jobSchedule{
 			StartAt: grant.TargetStartAt, EndAt: grant.TargetEndAt, DueAt: grant.TargetDueAt,
 		})
@@ -76,6 +81,10 @@ func repairRenewedSchedule(
 
 func repairLiveStateMatches(live vikunja.Task, etag string, grant RecurringRepairGrant) bool {
 	if live.Done || !ClassifyTask(live).Recurring {
+		return false
+	}
+	if !grant.TargetStartAt.IsZero() && grant.TargetEndAt.IsZero() &&
+		!hasLabel(live.Labels, recurringAvailabilityLabel) {
 		return false
 	}
 	if grant.RenewedDoneAt.IsZero() {

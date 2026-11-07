@@ -35,7 +35,8 @@ func TestListTasksMaterializesAndGloballySortsToday(t *testing.T) {
 		t.Fatalf("ListTasks() = %#v", result)
 	}
 	if len(client.queries) != 1 ||
-		client.queries[0].Filter != "done = false && due_date < '2026-08-13T00:00:00Z' && project = 7" {
+		client.queries[0].Filter != "done = false && (due_date < '2026-08-13T00:00:00Z' || "+
+			"end_date < '2026-08-13T00:00:00Z') && project = 7" {
 		t.Fatalf("query = %#v", client.queries)
 	}
 }
@@ -62,7 +63,8 @@ func TestListTasksUsesTheLocalDayBoundaryAcrossDST(t *testing.T) {
 		t.Fatalf("queries = %d", len(client.queries))
 	}
 	query := client.queries[0]
-	if query.Filter != "done = false && due_date < '2026-03-09T00:00:00-04:00'" {
+	if query.Filter != "done = false && (due_date < '2026-03-09T00:00:00-04:00' || "+
+		"end_date < '2026-03-09T00:00:00-04:00')" {
 		t.Fatalf("filter = %q", query.Filter)
 	}
 	if query.FilterTimezone != "America/New_York" {

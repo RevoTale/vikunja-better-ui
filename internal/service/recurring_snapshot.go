@@ -166,7 +166,8 @@ func finalizeRelatedSnapshot(
 }
 
 func snapshotLabelAllowed(title string) bool {
-	return title != recurrenceHistoryLabel && title != skippedLabel && title != fixedDueTimeLabel
+	return title != recurrenceHistoryLabel && title != skippedLabel && title != fixedDueTimeLabel &&
+		title != recurringAvailabilityLabel
 }
 
 func finalizeSnapshot(

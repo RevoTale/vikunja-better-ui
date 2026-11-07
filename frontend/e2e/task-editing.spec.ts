@@ -5,7 +5,7 @@ test("login restores an editor deep link and its return destination", async ({ p
   await signIn(page);
   await page.goto("/tasks/new?type=job");
   await page.getByLabel("Title (optional)").fill("Editor deep link");
-  await page.getByRole("button", { name: "Create job", exact: true }).click();
+  await page.getByRole("button", { name: "Create timed session", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Editor deep link" })).toBeVisible();
   const id = page.url().match(/\/tasks\/(\d+)/)?.[1];
   expect(id).toBeTruthy();
@@ -27,7 +27,7 @@ test("shift and duration reject ambiguous DST results without changing fields", 
   await signIn(page);
   await page.goto("/tasks/new?type=job");
   await page.getByLabel("Title (optional)").fill("DST editor job");
-  await page.getByRole("button", { name: "Create job", exact: true }).click();
+  await page.getByRole("button", { name: "Create timed session", exact: true }).click();
   await expect(page.getByRole("heading", { name: "DST editor job" })).toBeVisible();
   const id = page.url().match(/\/tasks\/(\d+)/)?.[1];
   await upstreamTask(id, {
@@ -39,7 +39,7 @@ test("shift and duration reject ambiguous DST results without changing fields", 
   await page.getByText("Shift schedule", { exact: true }).click();
   await select(page, "Shift target", "Start");
   await expect(page.getByRole("button", { name: "Apply shift to fields" })).toBeDisabled();
-  await page.getByText("Set duration and completion window", { exact: true }).click();
+  await page.getByText("Set duration and extra time", { exact: true }).click();
   await page.getByLabel("Duration", { exact: true }).fill("1");
   await page.getByRole("button", { name: "Apply duration", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("ambiguous");
@@ -51,13 +51,13 @@ test("saving unchanged tasks and label-only edits succeeds", async ({ page }) =>
   await signIn(page);
   await page.goto("/tasks/new?type=job");
   await page.getByLabel("Title (optional)").fill("No-op editor job");
-  await page.getByRole("button", { name: "Create job", exact: true }).click();
+  await page.getByRole("button", { name: "Create timed session", exact: true }).click();
   await expect(page.getByRole("heading", { name: "No-op editor job" })).toBeVisible();
   const id = page.url().match(/\/tasks\/(\d+)/)?.[1];
   const before = await upstreamTask(id);
   for (const job of [true, false, true]) {
     await page.getByRole("link", { name: "Edit", exact: true }).click();
-    await page.getByLabel("Job", { exact: true }).setChecked(job);
+    await page.getByLabel("Schedule a timed session", { exact: true }).setChecked(job);
     await page.getByRole("button", { name: "Save changes" }).click();
     await expect(page.getByRole("heading", { name: "No-op editor job" })).toBeVisible();
     const after = await upstreamTask(id);
@@ -75,7 +75,7 @@ test("task editing preserves drafts on conflict and saves fields and schedule", 
   await page.getByLabel("Title (optional)").fill("Editor test job");
   await page.getByLabel("Duration", { exact: true }).fill("4");
   await expect(page.locator('input[name="durationMinutes"]')).toHaveValue("240");
-  await page.getByRole("button", { name: "Create job", exact: true }).click();
+  await page.getByRole("button", { name: "Create timed session", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Editor test job" })).toBeVisible();
   const id = page.url().match(/\/tasks\/(\d+)/)?.[1];
   expect(id).toBeTruthy();
@@ -83,6 +83,7 @@ test("task editing preserves drafts on conflict and saves fields and schedule", 
   await page.getByRole("link", { name: "Edit", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Edit task" })).toBeVisible();
   await page.getByLabel("Title", { exact: true }).fill("Edited job");
+  await page.getByText("Add description", { exact: true }).click();
   await page.getByLabel("Description", { exact: true }).fill("Changed description");
   await select(page, "Priority", "High");
   await page.getByText("Shift schedule", { exact: true }).click();
@@ -118,15 +119,16 @@ test("fresh tasks do not recall previous Jobs and switching preserves current ed
   await page.goto("/tasks/new?type=job");
   await page.getByLabel("Title (optional)").fill("Remember this job");
   await page.getByLabel("Duration", { exact: true }).fill("4");
-  await page.getByRole("button", { name: "Create job", exact: true }).click();
+  await page.getByRole("button", { name: "Create timed session", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Remember this job" })).toBeVisible();
   await page.goto("/tasks/new?type=one-time");
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("");
+  await page.getByText("Add description", { exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Description", exact: true })).toHaveText("");
-  await expect(page.getByLabel("Job", { exact: true })).not.toBeChecked();
+  await expect(page.getByLabel("Schedule a timed session", { exact: true })).not.toBeChecked();
   await page.getByLabel("Title", { exact: true }).fill("Keep this draft");
   await page.getByLabel("Description").fill("Keep this description");
-  await page.getByLabel("Job", { exact: true }).check();
+  await page.getByLabel("Schedule a timed session", { exact: true }).check();
   await expect(page.getByLabel("Title (optional)")).toHaveValue("Keep this draft");
   await expect(page.getByLabel("Description")).toHaveText("Keep this description");
   await expect(page.locator('input[name="durationMinutes"]')).toHaveValue("60");
@@ -138,9 +140,9 @@ test("editing recurrence and Job mode updates markers while keeping history read
   await signIn(page);
   await page.goto("/tasks/new?type=recurring");
   await page.getByLabel("Title", { exact: true }).fill("Recurring editor job");
-  await page.getByLabel("Job", { exact: true }).check();
+  await page.getByLabel("Schedule a timed session", { exact: true }).check();
   await page.getByLabel("Every").fill("2");
-  await page.getByRole("button", { name: "Create recurring Job", exact: true }).click();
+  await page.getByRole("button", { name: "Create recurring timed session", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Recurring editor job" })).toBeVisible();
   const id = page.url().match(/\/tasks\/(\d+)/)?.[1];
   expect(
@@ -148,7 +150,7 @@ test("editing recurrence and Job mode updates markers while keeping history read
   ).toBe(true);
   await page.getByRole("link", { name: "Edit", exact: true }).click();
   await page.getByLabel("Every").fill("3");
-  await select(page, "Renewal", "Scheduled cycle");
+  await select(page, "Repeat timing", "Fixed schedule");
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByRole("heading", { name: "Recurring editor job" })).toBeVisible();
   const scheduled = await upstreamTask(id);
@@ -158,8 +160,8 @@ test("editing recurrence and Job mode updates markers while keeping history read
     false,
   );
   await page.getByRole("link", { name: "Edit", exact: true }).click();
-  await page.getByLabel("Recurring", { exact: true }).uncheck();
-  await page.getByLabel("Job", { exact: true }).uncheck();
+  await page.getByRole("button", { name: "Do once", exact: true }).click();
+  await page.getByLabel("Schedule a timed session", { exact: true }).uncheck();
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByRole("heading", { name: "Recurring editor job" })).toBeVisible();
   const plain = await upstreamTask(id);
@@ -175,13 +177,13 @@ test("editor controls fit phone tablet and desktop with accessible names", async
   await signIn(page);
   await page.goto("/tasks/new?type=job");
   await page.getByLabel("Title (optional)").fill("Responsive editor");
-  await page.getByRole("button", { name: "Create job", exact: true }).click();
+  await page.getByRole("button", { name: "Create timed session", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Responsive editor" })).toBeVisible();
   await page.getByRole("link", { name: "Edit", exact: true }).click();
   await page.getByText("Shift schedule", { exact: true }).focus();
   await page.keyboard.press("Enter");
   await expect(page.getByLabel("Shift by")).toBeVisible();
-  await page.getByText("Set duration and completion window", { exact: true }).click();
+  await page.getByText("Set duration and extra time", { exact: true }).click();
   for (const width of [320, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     expect(

@@ -19,9 +19,9 @@ export async function workflowJob(page: Page) {
   await page.getByLabel("Title (optional)").fill(job);
   await chooseSelectOption(page, "Duration unit", "Minutes");
   await page.getByLabel("Duration", { exact: true }).fill("45");
-  await chooseSelectOption(page, "Completion window unit", "Minutes");
-  await page.getByLabel("Time to complete after it ends").fill("60");
-  await page.getByRole("button", { name: "Create job", exact: true }).click();
+  await chooseSelectOption(page, "Extra time unit", "Minutes");
+  await page.getByLabel("Extra time to finish").fill("60");
+  await page.getByRole("button", { name: "Create timed session", exact: true }).click();
   await expect(page.getByRole("heading", { name: job })).toBeVisible();
   const jobIDMatch = page.url().match(/\/tasks\/(\d+)/);
   if (!jobIDMatch?.[1]) throw new Error("created job ID is missing from the URL");

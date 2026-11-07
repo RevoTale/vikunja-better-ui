@@ -191,3 +191,19 @@ wasteful.
   TTL. Apollo improves perceived speed while visibly refreshing.
 - Slow upstream resources are identifiable from logs without exposing user data
   or secrets.
+
+## Upstream-call audit — 2026-11-07
+
+- User requested a full call-path review and fewer Vikunja requests without
+  changing business rules. Measure call counts before changing the workflow.
+- Share a label catalogue only during the pre-creation marker-resolution phase.
+  Three existing markers need one Labels read instead of three. A missing
+  marker still requires creation and a fresh catalogue read before selecting
+  its canonical lowest ID. Every new operation starts fresh.
+- Hierarchy validation reuses the parent relations already read in the same
+  pre-write phase. Keep child/ancestor checks, bounds and uncertain-write
+  readback. This does not introduce an atomic hierarchy guarantee.
+- Do not globally coalesce task reads across writes: a confirmation must not
+  join an earlier read and incorrectly confirm stale state. Keep permissions,
+  task versions, post-write confirmation and recurring reconciliation intact.
+- Audit inventory and measured checks: [Upstream API audit](../specs/upstream-api-audit.md).

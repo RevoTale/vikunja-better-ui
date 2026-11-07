@@ -12,6 +12,7 @@ export function TaskListHeader({
   search,
   setSearch,
   navigation,
+  titleSuffix,
 }: {
   title: string;
   description: string;
@@ -21,12 +22,14 @@ export function TaskListHeader({
   search: ListSearch;
   setSearch: (search: ListSearch) => void;
   navigation?: ReactNode;
+  titleSuffix?: ReactNode;
 }) {
   return (
     <div>
       <div>
-        <h1 id="page-title" className="font-serif text-3xl font-semibold">
+        <h1 id="page-title" className="flex items-center gap-3 font-serif text-3xl font-semibold">
           {title}
+          {titleSuffix}
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">{description}</p>
       </div>

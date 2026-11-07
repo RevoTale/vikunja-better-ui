@@ -90,8 +90,9 @@ func CreateTaskWithMarkers(
 	}
 
 	markers := make([]vikunja.Label, 0, len(markerTitles))
+	lookup := markerLookup{client: client}
 	for _, title := range markerTitles {
-		marker, err := ResolveMarker(ctx, client, title)
+		marker, err := lookup.resolve(ctx, title)
 		if err != nil {
 			return CreationResult{}, err
 		}

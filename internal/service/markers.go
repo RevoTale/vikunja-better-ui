@@ -15,30 +15,49 @@ type markerClient interface {
 
 // ResolveMarker resolves the canonical lowest-ID internal marker, rereading after creation.
 func ResolveMarker(ctx context.Context, client markerClient, title string) (vikunja.Label, error) {
+	lookup := markerLookup{client: client}
+	return lookup.resolve(ctx, title)
+}
+
+// markerLookup shares one label catalogue within a marker-resolution phase only.
+// Every label creation refreshes it before canonical IDs are selected.
+type markerLookup struct {
+	client markerClient
+	labels []vikunja.Label
+	loaded bool
+}
+
+func (lookup *markerLookup) resolve(ctx context.Context, title string) (vikunja.Label, error) {
 	if !isMarkerTitle(title) {
 		return vikunja.Label{}, errors.New("unknown marker label")
 	}
 
-	labels, err := client.Labels(ctx)
-	if err != nil {
-		return vikunja.Label{}, err
+	if !lookup.loaded {
+		if err := lookup.refresh(ctx); err != nil {
+			return vikunja.Label{}, err
+		}
 	}
-	if label, ok := lowestExactLabel(labels, title); ok {
+	if label, ok := lowestExactLabel(lookup.labels, title); ok {
 		return label, nil
 	}
 
-	if _, err := client.CreateLabel(ctx, vikunja.LabelWrite{Title: title}); err != nil {
+	if _, err := lookup.client.CreateLabel(ctx, vikunja.LabelWrite{Title: title}); err != nil {
 		return vikunja.Label{}, err
 	}
-	labels, err = client.Labels(ctx)
-	if err != nil {
+	if err := lookup.refresh(ctx); err != nil {
 		return vikunja.Label{}, err
 	}
-	label, ok := lowestExactLabel(labels, title)
+	label, ok := lowestExactLabel(lookup.labels, title)
 	if !ok {
 		return vikunja.Label{}, vikunja.ErrRejectedResponse
 	}
 	return label, nil
+}
+
+func (lookup *markerLookup) refresh(ctx context.Context) error {
+	labels, err := lookup.client.Labels(ctx)
+	lookup.labels, lookup.loaded = labels, err == nil
+	return err
 }
 
 func lowestExactLabel(labels []vikunja.Label, title string) (vikunja.Label, bool) {
@@ -65,5 +84,5 @@ func ExactLabelIDs(labels []vikunja.Label, title string) []int64 {
 
 func isMarkerTitle(title string) bool {
 	return title == jobLabel || title == dateOnlyLabel || title == recurrenceHistoryLabel || title == skippedLabel ||
-		title == fixedDueTimeLabel
+		title == fixedDueTimeLabel || title == recurringAvailabilityLabel
 }

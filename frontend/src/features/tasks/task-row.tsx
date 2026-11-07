@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { TaskListQuery } from "@/graphql/graphql";
 import { useTwelveHourTime } from "@/lib/time-format-context";
 import { cn } from "@/lib/utils";
+import type { ScheduleContext } from "./planning-schedule";
 import { PriorityBadge } from "./priority-badge";
 import { recurrenceHint } from "./recurrence-hint";
 import { TaskDiscussionLink } from "./task-discussion-link";
@@ -29,6 +30,7 @@ export function TaskRow({
   showRecurrenceHint = false,
   dayGrouped = false,
   countLoading = false,
+  scheduleContext,
 }: {
   task: TaskItem;
   returnTo: string;
@@ -38,10 +40,11 @@ export function TaskRow({
   showRecurrenceHint?: boolean;
   dayGrouped?: boolean;
   countLoading?: boolean;
+  scheduleContext?: ScheduleContext | undefined;
 }) {
   const labels = visibleTaskLabels(task.labels);
   const use12Hours = useTwelveHourTime();
-  const schedule = taskSchedule(task, undefined, use12Hours);
+  const schedule = taskSchedule(task, undefined, use12Hours, scheduleContext);
   const overdue = !projection && schedule.urgency === "overdue";
   const hint = showRecurrenceHint ? recurrenceHint(task, use12Hours) : null;
   return (

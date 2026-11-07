@@ -11,6 +11,7 @@ import {
   type TaskPriority,
 } from "@/graphql/graphql";
 import { composeLocalDateTime } from "./local-date-time";
+import { formReminders } from "./reminder-fields";
 import type { CreationBaseType } from "./task-form-validation";
 
 export type CreatePayload =
@@ -25,6 +26,7 @@ export function useCreateTaskMutation(baseType: CreationBaseType) {
 
   async function createValidatedTask(form: FormData, csrfToken: string) {
     const common = {
+      reminders: formReminders(form),
       csrfToken,
       title: text(form, "title").trim(),
       projectId: text(form, "projectId"),
@@ -56,7 +58,18 @@ export function useCreateTaskMutation(baseType: CreationBaseType) {
             input: {
               ...common,
               dueDate: optional(form, "dueDate"),
+              startNow: text(form, "startNow") === "true",
               dueTime: optional(form, "dueTime"),
+              planningWindow: optional(form, "planningStartsOn")
+                ? {
+                    startsOn: text(form, "planningStartsOn"),
+                    endsOn: text(form, "planningEndsOn"),
+                    startsAtTime: optional(form, "planningStartTime"),
+                    ...(optional(form, "planningFinishTime")
+                      ? { endsAtTime: text(form, "planningFinishTime") }
+                      : {}),
+                  }
+                : null,
             },
           },
         })
@@ -68,6 +81,9 @@ export function useCreateTaskMutation(baseType: CreationBaseType) {
           input: {
             ...common,
             firstDueDate: text(form, "firstDueDate"),
+            startNow: text(form, "startNow") === "true",
+            availableFrom: optional(form, "availableFrom"),
+            availableFromTime: optional(form, "availableFromTime"),
             dueTime: optional(form, "dueTime"),
             ...formRecurrence(form),
           },
@@ -99,7 +115,7 @@ function requiredJobStart(form: FormData) {
   return startAt;
 }
 
-function formRecurrence(form: FormData) {
+export function formRecurrence(form: FormData) {
   return {
     interval: Number(text(form, "interval")),
     unit: text(form, "unit") as RecurrenceUnit,

@@ -1,8 +1,13 @@
+import type { TaskKind } from "@/graphql/graphql";
+import { taskFinishInstant } from "./planning-dates";
+
 export type WeekEntry<Task, Projection> =
   | { kind: "task"; task: Task }
   | { kind: "projection"; projection: Projection };
 
 type WeekTaskSchedule = {
+  kind?: TaskKind;
+  timezone?: string;
   isOverdue?: boolean;
   startAt?: string | null;
   endAt?: string | null;
@@ -12,7 +17,7 @@ type WeekTaskSchedule = {
 export function mergeWeekEntries<
   Task extends WeekTaskSchedule,
   Projection extends { dueAt: string },
->(tasks: Task[], projections: Projection[]): Array<WeekEntry<Task, Projection>> {
+>(tasks: Task[], projections: Projection[], date?: string): Array<WeekEntry<Task, Projection>> {
   return [
     ...tasks.map((task): WeekEntry<Task, Projection> => ({ kind: "task", task })),
     ...projections.map(
@@ -25,7 +30,7 @@ export function mergeWeekEntries<
     // The server owns priority/due/title/ID ordering. Do not reorder overdue
     // tasks by start time while merging the future computed occurrences.
     if (leftOverdue && rightOverdue) return 0;
-    const timeOrder = compareTimes(weekEntryTimes(left), weekEntryTimes(right));
+    const timeOrder = compareTimes(weekEntryTimes(left, date), weekEntryTimes(right, date));
     if (timeOrder !== 0 || left.kind === right.kind) return timeOrder;
     return left.kind === "task" ? -1 : 1;
   });
@@ -37,10 +42,22 @@ function compareTimes(left: [number, number, number], right: [number, number, nu
 
 function weekEntryTimes<Task extends WeekTaskSchedule, Projection extends { dueAt: string }>(
   entry: WeekEntry<Task, Projection>,
+  date?: string,
 ): [number, number, number] {
   if (entry.kind === "projection") {
     const due = timestamp(entry.projection.dueAt);
     return [due, due, due];
+  }
+
+  const { kind, endAt, dueAt, timezone } = entry.task;
+  if (kind === "ONE_TIME" && timezone && date) {
+    const finish = timestamp(
+      taskFinishInstant(
+        { kind, endAt: endAt ?? null, dueAt, timezone },
+        { from: date, through: date },
+      ),
+    );
+    return [finish, finish, finish];
   }
 
   const due = timestamp(entry.task.dueAt);

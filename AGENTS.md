@@ -11,6 +11,38 @@ needed by this project instead of copying every Vikunja feature.
 Do not turn this project into a general project-management platform without an
 explicit request.
 
+Ground product and data-model proposals in verified capabilities of the supported
+Vikunja API and data model before presenting them. Explain how proposed semantics
+map to existing Vikunja fields and where any required data will be stored. Do not
+assume custom fields or other unsupported capabilities exist. State limitations
+and uncertainties explicitly, and keep proposals within the stateless architecture.
+
+## Requirements and decision records
+
+- Before changing a workflow, read its decision in `docs/decisions/` and its
+  linked specification in `docs/specs/`.
+- During the same change, record each user clarification that defines or
+  corrects behavior, terminology, scope, or a constraint. Capture the user's
+  reason in plain language. If the reason is unknown, leave it open. Keep
+  suggestions and unresolved questions distinct from accepted requirements.
+- If two interpretations would produce different user-visible results, check
+  existing decisions first. If they do not settle it, ask one concrete question
+  with an example. Record the answer beside the requirement it resolves.
+- Extend the owning ADR with a dated entry. Start a numbered ADR only for an
+  independent decision. Use short points stating the user's need, the agreed
+  behavior, and an observable example or acceptance check. Include relevant
+  defaults, exceptions, and the Vikunja field mapping when persistence changes.
+- When a clarification replaces an earlier choice, identify that choice and
+  why it changed. Keep the history in the ADR and the current behavior in the
+  linked spec. Link between them instead of repeating the decision elsewhere.
+- Before handoff, compare the implementation and checks with those points.
+  Report what was verified and what remains open, and link the updated records.
+- Explain scheduling through concrete user intentions: example → exact form
+  choices → observable behavior → Vikunja fields. Keep the examples in
+  `docs/specs/task-scheduling-examples.md` current. Distinguish “available from”,
+  “finish by”, and a timed session; never infer their meaning from “at 12:00”
+  alone. State unsupported combinations instead of inventing a field or workaround.
+
 ## Architecture
 
 Use these request paths:
@@ -171,6 +203,9 @@ generated files.
 - Use Apollo Client for GraphQL server state.
 - Use local React state only for short-lived view state.
 - Keep components small, semantic, accessible, and keyboard-safe.
+- Keep small groups and individual fields directly visible. Do not add dropdowns
+  or disclosure controls when they save little space; an extra click must earn
+  its place by meaningfully reducing content or complexity.
 - Prefer small files and focused functions. Split components and helpers by
   responsibility before they become multi-workflow modules.
 - Keep shadcn configured for Base UI in `frontend/components.json`. Add or

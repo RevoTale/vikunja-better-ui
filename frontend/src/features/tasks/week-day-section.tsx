@@ -28,7 +28,7 @@ export function WeekDaySection({
   headingLevel: 2 | 3;
   createProjectID: string | undefined;
 }) {
-  const entries = mergeWeekEntries(day.tasks, day.projections);
+  const entries = mergeWeekEntries(day.tasks, day.projections, day.date);
   const Heading = headingLevel === 2 ? "h2" : "h3";
 
   return (
@@ -74,6 +74,7 @@ export function WeekDaySection({
               countLoading={countLoading}
               key={entry.task.id}
               task={entry.task}
+              scheduleContext={{ period: { from: day.date, through: day.date } }}
               returnTo={returnTo}
               completingTaskID={completingTaskID}
               onComplete={onComplete}

@@ -394,6 +394,7 @@ func (client *Client) PatchTaskChecked(
 
 func taskCheckOperations(check TaskCheck) []jsonPatchOperation {
 	operations := make([]jsonPatchOperation, 0, taskCheckFieldCount)
+	operations = appendJSONPatchValue(operations, "test", "/reminders", check.Reminders)
 	operations = appendJSONPatchValue(operations, "test", "/updated", check.Updated)
 	operations = appendJSONPatchValue(operations, "test", "/title", check.Title)
 	operations = appendJSONPatchValue(operations, "test", "/description", check.Description)
@@ -411,6 +412,7 @@ func taskCheckOperations(check TaskCheck) []jsonPatchOperation {
 
 func taskPatchOperations(patch TaskPatch) []jsonPatchOperation {
 	operations := make([]jsonPatchOperation, 0, taskPatchFieldCount)
+	operations = appendJSONPatchValue(operations, "replace", "/reminders", patch.Reminders)
 	operations = appendJSONPatchValue(operations, "replace", "/title", patch.Title)
 	operations = appendJSONPatchValue(operations, "replace", "/description", patch.Description)
 	operations = appendJSONPatchValue(operations, "replace", "/project_id", patch.ProjectID)

@@ -1,18 +1,47 @@
 import { Link } from "@tanstack/react-router";
 import {
   BriefcaseBusiness,
+  CalendarDays,
   ChartNoAxesColumnIncreasing,
   ChartSpline,
   ChevronRight,
   History,
+  Repeat2,
   TimerOff,
 } from "lucide-react";
 
 const moreViews = [
   {
+    to: "/recurring",
+    label: "Recurring",
+    description: "Your daily, weekly, and monthly routines in one place.",
+    icon: Repeat2,
+  },
+  {
+    to: "/plan",
+    search: { period: "month", project: "all", page: 1 },
+    label: "This month",
+    description: "Planned finishes and deadlines by the end of this month.",
+    icon: CalendarDays,
+  },
+  {
+    to: "/plan",
+    search: { period: "year", project: "all", page: 1 },
+    label: "This year",
+    description: "Keep longer plans and yearly commitments in view.",
+    icon: CalendarDays,
+  },
+  {
+    to: "/plan",
+    search: { period: "custom", project: "all", page: 1 },
+    label: "Custom period",
+    description: "Choose any date range, with project, label, and priority filters.",
+    icon: CalendarDays,
+  },
+  {
     to: "/jobs",
-    label: "Jobs",
-    description: "Timed work with a start, duration, and completion window.",
+    label: "Timed sessions",
+    description: "Timed work with a start, duration, and extra time to finish.",
     icon: BriefcaseBusiness,
   },
   {
@@ -51,10 +80,11 @@ export function MorePage() {
         </p>
       </header>
       <nav aria-label="More views" className="overflow-hidden rounded-lg border bg-card">
-        {moreViews.map(({ to, label, description, icon: Icon }) => (
+        {moreViews.map(({ to, label, description, icon: Icon, ...view }) => (
           <Link
-            key={to}
+            key={label}
             to={to}
+            {...view}
             className="group flex min-h-16 items-center gap-3 border-b px-3 py-3 outline-none last:border-b-0 hover:bg-muted/60 focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring sm:px-4"
           >
             <span className="grid size-9 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground group-hover:text-foreground">

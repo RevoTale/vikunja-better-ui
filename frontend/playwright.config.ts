@@ -6,7 +6,7 @@ const chromiumExecutable = process.env["E2E_CHROMIUM_EXECUTABLE"];
 const chromiumLaunchOptions = chromiumExecutable ? { executablePath: chromiumExecutable } : {};
 const prChromiumSmoke = new RegExp(
   [
-    "Today count supports ready-now rules",
+    "Today count supports planned finishes and deadlines",
     "date selection crosses month boundaries",
     "daily navigation supports real and computed days",
     "pinned Vikunja accepts concurrent comment and relation writes",
@@ -108,6 +108,11 @@ export default defineConfig({
     {
       name: "phone-webkit",
       testMatch: [
+        "planning-clock.spec.ts",
+        "task-reminders.spec.ts",
+        "planning-full-edit.spec.ts",
+        "planning-windows.spec.ts",
+        "recurring-overview.spec.ts",
         "pwa-authenticated.spec.ts",
         "pwa.spec.ts",
         "pwa-safe-area.spec.ts",

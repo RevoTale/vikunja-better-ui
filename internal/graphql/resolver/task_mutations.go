@@ -29,15 +29,23 @@ func (r *mutationResolver) CreateOneTimeTask(
 		return nil, clientError("VALIDATION_FAILED", "Choose a valid priority.")
 	}
 	write, dateOnly, err := service.BuildOneTimeTask(service.OneTimeInput{
-		Title: input.Title, Description: optionalString(input.Description), Priority: priority,
+		Planning: planningWindowInput(input.PlanningWindow),
+		Title:    input.Title, Description: optionalString(input.Description), Priority: priority,
 		DueDate: optionalLocalDate(input.DueDate), DueTime: optionalLocalTime(input.DueTime),
 	}, location)
 	if err != nil {
 		return nil, validationClientError(err)
 	}
 	marker := ""
+	if input.StartNow {
+		service.ApplyCreationStartNow(&write, r.now())
+	}
 	if dateOnly {
 		marker = "vbu:date-only"
+	}
+	write.Reminders, err = service.BuildReminders(reminderInputs(input.Reminders), write, location)
+	if err != nil {
+		return nil, validationClientError(err)
 	}
 	write.DescriptionHTML = input.DescriptionFormat == model.TaskDescriptionFormatHTML
 	return r.createTaskPayload(ctx, session, user, projects, projectID, write, marker, input.LabelIds)
@@ -64,7 +72,9 @@ func (r *mutationResolver) CreateRecurringTask(
 		return nil, clientError("VALIDATION_FAILED", "Choose a valid priority.")
 	}
 	write, dateOnly, err := service.BuildRecurringTask(service.RecurringInput{
-		Title: input.Title, Description: optionalString(input.Description), Priority: priority,
+		AvailableFrom:     optionalLocalDate(input.AvailableFrom),
+		AvailableFromTime: optionalLocalTime(input.AvailableFromTime),
+		Title:             input.Title, Description: optionalString(input.Description), Priority: priority,
 		FirstDueDate: string(input.FirstDueDate), DueTime: optionalLocalTime(input.DueTime), Interval: input.Interval,
 		Unit: service.RecurrenceUnit(input.Unit), Mode: service.RecurrenceMode(input.Mode),
 		KeepDueTime: input.KeepDueTime,
@@ -73,13 +83,27 @@ func (r *mutationResolver) CreateRecurringTask(
 		return nil, validationClientError(err)
 	}
 	marker := ""
+	if input.StartNow {
+		service.ApplyCreationStartNow(&write, r.now())
+	}
 	if dateOnly {
 		marker = "vbu:date-only"
 	} else if input.KeepDueTime {
 		marker = "vbu:fixed-due-time"
 	}
+	var markers []string
+	if marker != "" {
+		markers = append(markers, marker)
+	}
+	if input.AvailableFrom != nil {
+		markers = append(markers, "vbu:recurring-availability")
+	}
+	write.Reminders, err = service.BuildReminders(reminderInputs(input.Reminders), write, location)
+	if err != nil {
+		return nil, validationClientError(err)
+	}
 	write.DescriptionHTML = input.DescriptionFormat == model.TaskDescriptionFormatHTML
-	return r.createTaskPayload(ctx, session, user, projects, projectID, write, marker, input.LabelIds)
+	return r.createTaskPayloadWithMarkers(ctx, session, user, projects, projectID, write, markers, input.LabelIds)
 }
 
 // CreateJob is the resolver for the createJob field.
@@ -115,6 +139,10 @@ func (r *mutationResolver) CreateJob(
 	markers := []string{"vbu:job"}
 	if input.Recurrence != nil && input.Recurrence.KeepDueTime {
 		markers = append(markers, "vbu:fixed-due-time")
+	}
+	write.Reminders, err = service.BuildReminders(reminderInputs(input.Reminders), write, location)
+	if err != nil {
+		return nil, validationClientError(err)
 	}
 	write.DescriptionHTML = input.DescriptionFormat == model.TaskDescriptionFormatHTML
 	return r.createTaskPayloadWithMarkers(ctx, session, user, projects, projectID, write, markers, input.LabelIds)

@@ -92,7 +92,7 @@ test("discussion supports a description-first task page and shared draft recover
       ),
     )
     .toBe(true);
-  await page.getByRole("link", { name: "Discussion", exact: true }).click();
+  await page.getByRole("link", { name: "Open separately: Discussion", exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/tasks/${taskId}/discussion`));
   await expect(page.getByRole("article")).toContainText("An inline comment");
   await page.getByRole("button", { name: "Restore draft", exact: true }).click();

@@ -1,6 +1,6 @@
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { CalendarDays, CheckCircle2, LogOut, Menu, Plus } from "lucide-react";
+import { CalendarDays, CheckCircle2, Layers, LogOut, Menu, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
@@ -21,10 +21,11 @@ import { cn } from "@/lib/utils";
 const navigation = [
   { to: "/today", label: "Today", mobileLabel: "Today", icon: CheckCircle2 },
   { to: "/week", label: "Week", mobileLabel: "Week", icon: CalendarDays },
+  { to: "/active", label: "Active work", mobileLabel: "Active", icon: Layers },
   { to: "/more", label: "More", mobileLabel: "More", icon: Menu },
 ] as const;
 
-const morePaths = new Set(["/more", "/jobs", "/unscheduled", "/history"]);
+const morePaths = new Set(["/more", "/recurring", "/jobs", "/unscheduled", "/history", "/plan"]);
 
 export function AppShell() {
   const apollo = useApolloClient();
@@ -118,7 +119,7 @@ export function AppShell() {
         </main>
       </div>
       <nav
-        className="app-safe-navigation fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 border-t bg-background lg:hidden"
+        className="app-safe-navigation fixed inset-x-0 bottom-0 z-20 grid grid-cols-4 border-t bg-background lg:hidden"
         aria-label="Main navigation"
       >
         {navigation.map((item) => (

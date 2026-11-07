@@ -2,10 +2,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { CreateTaskForm } from "./create-task-form";
 
-vi.mock("./create-shared-fields", () => ({ SharedFields: () => <input name="title" /> }));
+vi.mock("./task-form-sections", () => ({ TaskFormSections: () => <input name="title" /> }));
 vi.mock("./create-type-fields", () => ({ TaskTypeFields: () => null }));
 vi.mock("./schedule-shift", () => ({ ScheduleShift: () => null }));
-vi.mock("./task-label-picker", () => ({ TaskLabelPicker: () => null }));
 vi.mock("./task-reuse", () => ({
   TaskReuseProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
@@ -16,6 +15,7 @@ describe("creation settings refresh", () => {
       const html = renderToStaticMarkup(
         <CreateTaskForm
           type="one-time"
+          onFrequencyChange={() => undefined}
           initialJob={false}
           projects={[{ id: "1", title: "Work", isDefault: true }]}
           defaultProject="1"

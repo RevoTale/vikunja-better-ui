@@ -63,47 +63,57 @@ test("discussion supports inline properties, labels and a valid recurring Job sc
     due_date: "2026-10-09T17:00:00Z",
   });
   await page.goto(`/tasks/${taskId}`);
-  await page.getByRole("button", { name: "Edit priority", exact: true }).click();
+  await page.getByRole("button", { name: /^Edit priority:/, exact: true }).click();
   await choose(page, "Priority", "High");
   await saveProperty(page);
-  await expect(page.getByRole("button", { name: "Edit priority", exact: true })).toContainText(
+  await expect(page.getByRole("button", { name: /^Edit priority:/, exact: true })).toContainText(
     "High",
   );
-  await page.getByRole("button", { name: "Edit labels", exact: true }).click();
+  await page.getByRole("button", { name: /^Edit labels:/, exact: true }).click();
   await page.getByLabel("Find or create label").fill("Inline work");
-  await page.getByRole("button", { name: "Create or reuse label" }).click();
+  await page.getByRole("button", { name: /^(Create|Select) label “/ }).click();
   await expect(page.getByLabel("Inline work", { exact: true })).toBeChecked();
   await saveProperty(page);
-  await expect(page.getByRole("button", { name: "Edit labels", exact: true })).toContainText(
+  await expect(page.getByRole("button", { name: /^Edit labels:/, exact: true })).toContainText(
     "Inline work",
   );
-  await page.getByRole("button", { name: "Edit due", exact: true }).click();
-  await page.getByLabel("Due time", { exact: true }).fill("21:00");
+  await page.getByRole("button", { name: /^Edit deadline:/, exact: true }).click();
+  await page.getByLabel("Deadline time", { exact: true }).fill("21:00");
   await saveProperty(page);
-  await page.getByRole("button", { name: "Edit type", exact: true }).click();
-  await page.getByLabel("Job", { exact: true }).check();
-  await page.getByLabel("Recurring", { exact: true }).check();
+  await page.getByRole("button", { name: /^Edit type:/, exact: true }).click();
+  await expect(page.getByLabel("Available from time", { exact: true })).toBeVisible();
+  await page.getByLabel("Schedule a timed session", { exact: true }).check();
+  await expect(page.getByLabel("Start time", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("End time", { exact: true })).toBeVisible();
+  await page.getByLabel("Schedule a timed session", { exact: true }).uncheck();
+  await expect(page.getByLabel("Planned finish time", { exact: true })).toBeVisible();
+  await page.getByLabel("Schedule a timed session", { exact: true }).check();
+  await page.getByRole("button", { name: "Repeat", exact: true }).click();
   await expect(
     page.getByRole("checkbox", { name: "Keep start time of day", exact: true }),
   ).toBeChecked();
   await page.getByLabel("Every", { exact: true }).fill("2");
+  await page.getByRole("button", { name: "Do once", exact: true }).click();
+  await expect(page.getByRole("spinbutton", { name: "Every", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Repeat", exact: true }).click();
+  await expect(page.getByLabel("Every", { exact: true })).toHaveValue("2");
   await saveProperty(page);
   const task = await readTask(page, taskId);
   expect(task.kind).toBe("JOB");
   expect(task.recurrenceRule?.interval).toBe(2);
   expect(task.labels.some((label) => label.title === "Inline work")).toBe(true);
   expect(task.dueAt).toBe("2026-10-09T18:00:00Z");
-  await page.getByRole("button", { name: "Edit project", exact: true }).click();
+  await page.getByRole("button", { name: /^Edit project:/, exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Project", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Edit project", exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Edit project", exact: true }).click();
+  await expect(page.getByRole("button", { name: /^Edit project:/, exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /^Edit project:/, exact: true }).click();
   await choose(page, "Project", "E2E Empty Project");
   await saveProperty(page);
-  await expect(page.getByRole("button", { name: "Edit project", exact: true })).toHaveText(
-    "E2E Empty Project",
-  );
-  await page.getByRole("button", { name: "Edit project", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: /^Edit project:/, exact: true }),
+  ).toHaveAccessibleName("Edit project: E2E Empty Project");
+  await page.getByRole("button", { name: /^Edit project:/, exact: true }).click();
   await choose(page, "Project", "E2E Daily Tasks");
   await saveProperty(page);
   const width = page.viewportSize()?.width ?? 0;
@@ -142,7 +152,7 @@ test("discussion supports read-only history and protects unsupported inline desc
   await patchTask(page, taskId, { description });
   await page.goto(`/tasks/${taskId}`);
   await expect(page.getByRole("button", { name: "Edit description", exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Edit priority", exact: true }).click();
+  await page.getByRole("button", { name: /^Edit priority:/, exact: true }).click();
   await choose(page, "Priority", "Low");
   await saveProperty(page);
   expect((await readTask(page, taskId)).description).toBe(description);
@@ -150,13 +160,13 @@ test("discussion supports read-only history and protects unsupported inline desc
   await expect(page.getByRole("complementary", { name: "Task properties" })).toContainText(
     "Completed",
   );
-  await expect(page.getByRole("button", { name: "Edit priority", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Edit priority:/, exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /^Edit title:/ })).toHaveCount(0);
   await page
     .getByRole("group", { name: "Task completion", exact: true })
     .getByRole("button", { name: "Undo", exact: true })
     .click();
-  await expect(page.getByRole("button", { name: "Edit priority", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Edit priority:/, exact: true })).toBeVisible();
 });
 
 test("discussion supports validation retries and blocks uncertain inline saves", async ({
@@ -168,12 +178,12 @@ test("discussion supports validation retries and blocks uncertain inline saves",
     end_date: "2026-10-09T16:00:00Z",
   });
   await page.goto(`/tasks/${taskId}`);
-  await page.getByRole("button", { name: "Edit end", exact: true }).click();
-  await page.getByLabel("End time", { exact: true }).fill("17:00");
+  await page.getByRole("button", { name: /^Edit planned finish:/, exact: true }).click();
+  await page.getByLabel("Planned finish time", { exact: true }).fill("17:00");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("end must be after start");
   await expect(page.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
-  await page.getByLabel("End time", { exact: true }).fill("20:00");
+  await page.getByLabel("Planned finish time", { exact: true }).fill("20:00");
   await saveProperty(page);
   await page.getByRole("button", { name: "Edit title: Discussion journal" }).click();
   await page

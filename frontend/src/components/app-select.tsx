@@ -62,6 +62,7 @@ export function AppSelect<Value extends string>({
     >
       <SelectTrigger
         id={id}
+        data-form-field={name}
         className={cn("h-11! w-full min-w-0 rounded-md px-3 shadow-xs", className)}
         {...attributes}
       >

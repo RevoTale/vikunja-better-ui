@@ -181,6 +181,7 @@ func (client *Client) newJSONRequest(
 	ifMatch string,
 	contentType string,
 ) (*http.Request, error) {
+	//nolint:gosec // G125: callers build Vikunja routes internally. User search terms are encoded in query.
 	requestURL, err := url.JoinPath(client.baseURL.String(), apiVersionPath, path)
 	if err != nil {
 		return nil, fmt.Errorf("build Vikunja request URL: %w", err)

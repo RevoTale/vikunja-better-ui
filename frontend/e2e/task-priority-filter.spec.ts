@@ -80,7 +80,7 @@ async function assertPriorityList(page: Page, path: string, suffix: string) {
   await expect(page.getByLabel("Filter by priority", { exact: true })).toContainText("High");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const create = page.getByRole("link", {
-    name: path === "/jobs" ? "New job" : "New task",
+    name: path === "/jobs" ? "New timed session" : "New task",
     exact: true,
   });
   await create.click();
@@ -129,8 +129,10 @@ test("discussion supports priority filtering of real and computed future days an
   );
   await day.getByRole("link", { name: /^Add task for/ }).click();
   await expect(page.getByLabel("Priority", { exact: true })).toContainText("Low");
-  await expect(page.locator('input[name="dueDate"]')).toHaveValue(tomorrow);
+  await expect(page.locator('input[name="planningStartsOn"]')).toHaveValue(tomorrow);
+  await expect(page.locator('input[name="planningEndsOn"]')).toHaveValue(tomorrow);
+  await expect(page.locator('input[name="dueDate"]')).toHaveValue("");
   await chooseSelectOption(page, "Priority", "Urgent");
-  await page.getByRole("button", { name: "recurring task", exact: true }).click();
+  await page.getByRole("button", { name: "Repeat", exact: true }).click();
   await expect(page.getByLabel("Priority", { exact: true })).toContainText("Urgent");
 });

@@ -10,10 +10,13 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as ActivityRouteImport } from './routes/activity'
 import { Route as AllTimeActivityRouteImport } from './routes/all-time-activity'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthenticatedActiveRouteImport } from './routes/_authenticated.active'
 import { Route as AuthenticatedHistoryRouteImport } from './routes/_authenticated.history'
 import { Route as AuthenticatedJobsRouteImport } from './routes/_authenticated.jobs'
 import { Route as AuthenticatedMonthRouteImport } from './routes/_authenticated.month'
 import { Route as AuthenticatedMoreRouteImport } from './routes/_authenticated.more'
+import { Route as AuthenticatedPlanRouteImport } from './routes/_authenticated.plan'
+import { Route as AuthenticatedRecurringRouteImport } from './routes/_authenticated.recurring'
 import { Route as AuthenticatedTodayRouteImport } from './routes/_authenticated.today'
 import { Route as AuthenticatedUnscheduledRouteImport } from './routes/_authenticated.unscheduled'
 import { Route as AuthenticatedWeekRouteImport } from './routes/_authenticated.week'
@@ -49,6 +52,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedActiveRoute = AuthenticatedActiveRouteImport.update({
+  id: '/active',
+  path: '/active',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedHistoryRoute = AuthenticatedHistoryRouteImport.update({
   id: '/history',
   path: '/history',
@@ -67,6 +75,16 @@ const AuthenticatedMonthRoute = AuthenticatedMonthRouteImport.update({
 const AuthenticatedMoreRoute = AuthenticatedMoreRouteImport.update({
   id: '/more',
   path: '/more',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedPlanRoute = AuthenticatedPlanRouteImport.update({
+  id: '/plan',
+  path: '/plan',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedRecurringRoute = AuthenticatedRecurringRouteImport.update({
+  id: '/recurring',
+  path: '/recurring',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedTodayRoute = AuthenticatedTodayRouteImport.update({
@@ -132,10 +150,13 @@ export interface FileRoutesByFullPath {
   '/activity': typeof ActivityRoute
   '/all-time-activity': typeof AllTimeActivityRoute
   '/login': typeof LoginRoute
+  '/active': typeof AuthenticatedActiveRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/jobs': typeof AuthenticatedJobsRoute
   '/month': typeof AuthenticatedMonthRoute
   '/more': typeof AuthenticatedMoreRoute
+  '/plan': typeof AuthenticatedPlanRoute
+  '/recurring': typeof AuthenticatedRecurringRoute
   '/today': typeof AuthenticatedTodayRoute
   '/unscheduled': typeof AuthenticatedUnscheduledRoute
   '/week': typeof AuthenticatedWeekRoute
@@ -152,10 +173,13 @@ export interface FileRoutesByTo {
   '/activity': typeof ActivityRoute
   '/all-time-activity': typeof AllTimeActivityRoute
   '/login': typeof LoginRoute
+  '/active': typeof AuthenticatedActiveRoute
   '/history': typeof AuthenticatedHistoryRoute
   '/jobs': typeof AuthenticatedJobsRoute
   '/month': typeof AuthenticatedMonthRoute
   '/more': typeof AuthenticatedMoreRoute
+  '/plan': typeof AuthenticatedPlanRoute
+  '/recurring': typeof AuthenticatedRecurringRoute
   '/today': typeof AuthenticatedTodayRoute
   '/unscheduled': typeof AuthenticatedUnscheduledRoute
   '/week': typeof AuthenticatedWeekRoute
@@ -173,10 +197,13 @@ export interface FileRoutesById {
   '/activity': typeof ActivityRoute
   '/all-time-activity': typeof AllTimeActivityRoute
   '/login': typeof LoginRoute
+  '/_authenticated/active': typeof AuthenticatedActiveRoute
   '/_authenticated/history': typeof AuthenticatedHistoryRoute
   '/_authenticated/jobs': typeof AuthenticatedJobsRoute
   '/_authenticated/month': typeof AuthenticatedMonthRoute
   '/_authenticated/more': typeof AuthenticatedMoreRoute
+  '/_authenticated/plan': typeof AuthenticatedPlanRoute
+  '/_authenticated/recurring': typeof AuthenticatedRecurringRoute
   '/_authenticated/today': typeof AuthenticatedTodayRoute
   '/_authenticated/unscheduled': typeof AuthenticatedUnscheduledRoute
   '/_authenticated/week': typeof AuthenticatedWeekRoute
@@ -195,10 +222,13 @@ export interface FileRouteTypes {
     | '/activity'
     | '/all-time-activity'
     | '/login'
+    | '/active'
     | '/history'
     | '/jobs'
     | '/month'
     | '/more'
+    | '/plan'
+    | '/recurring'
     | '/today'
     | '/unscheduled'
     | '/week'
@@ -215,10 +245,13 @@ export interface FileRouteTypes {
     | '/activity'
     | '/all-time-activity'
     | '/login'
+    | '/active'
     | '/history'
     | '/jobs'
     | '/month'
     | '/more'
+    | '/plan'
+    | '/recurring'
     | '/today'
     | '/unscheduled'
     | '/week'
@@ -235,10 +268,13 @@ export interface FileRouteTypes {
     | '/activity'
     | '/all-time-activity'
     | '/login'
+    | '/_authenticated/active'
     | '/_authenticated/history'
     | '/_authenticated/jobs'
     | '/_authenticated/month'
     | '/_authenticated/more'
+    | '/_authenticated/plan'
+    | '/_authenticated/recurring'
     | '/_authenticated/today'
     | '/_authenticated/unscheduled'
     | '/_authenticated/week'
@@ -296,6 +332,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/active': {
+      id: '/_authenticated/active'
+      path: '/active'
+      fullPath: '/active'
+      preLoaderRoute: typeof AuthenticatedActiveRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/history': {
       id: '/_authenticated/history'
       path: '/history'
@@ -322,6 +365,20 @@ declare module '@tanstack/react-router' {
       path: '/more'
       fullPath: '/more'
       preLoaderRoute: typeof AuthenticatedMoreRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/plan': {
+      id: '/_authenticated/plan'
+      path: '/plan'
+      fullPath: '/plan'
+      preLoaderRoute: typeof AuthenticatedPlanRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/recurring': {
+      id: '/_authenticated/recurring'
+      path: '/recurring'
+      fullPath: '/recurring'
+      preLoaderRoute: typeof AuthenticatedRecurringRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/today': {
@@ -422,10 +479,13 @@ const AuthenticatedTasksTaskIdRouteWithChildren =
   )
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedActiveRoute: typeof AuthenticatedActiveRoute
   AuthenticatedHistoryRoute: typeof AuthenticatedHistoryRoute
   AuthenticatedJobsRoute: typeof AuthenticatedJobsRoute
   AuthenticatedMonthRoute: typeof AuthenticatedMonthRoute
   AuthenticatedMoreRoute: typeof AuthenticatedMoreRoute
+  AuthenticatedPlanRoute: typeof AuthenticatedPlanRoute
+  AuthenticatedRecurringRoute: typeof AuthenticatedRecurringRoute
   AuthenticatedTodayRoute: typeof AuthenticatedTodayRoute
   AuthenticatedUnscheduledRoute: typeof AuthenticatedUnscheduledRoute
   AuthenticatedWeekRoute: typeof AuthenticatedWeekRoute
@@ -434,10 +494,13 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedActiveRoute: AuthenticatedActiveRoute,
   AuthenticatedHistoryRoute: AuthenticatedHistoryRoute,
   AuthenticatedJobsRoute: AuthenticatedJobsRoute,
   AuthenticatedMonthRoute: AuthenticatedMonthRoute,
   AuthenticatedMoreRoute: AuthenticatedMoreRoute,
+  AuthenticatedPlanRoute: AuthenticatedPlanRoute,
+  AuthenticatedRecurringRoute: AuthenticatedRecurringRoute,
   AuthenticatedTodayRoute: AuthenticatedTodayRoute,
   AuthenticatedUnscheduledRoute: AuthenticatedUnscheduledRoute,
   AuthenticatedWeekRoute: AuthenticatedWeekRoute,

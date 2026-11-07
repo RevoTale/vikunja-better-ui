@@ -44,7 +44,7 @@ function isPositiveID(value: string): boolean {
 }
 
 function isApplicationPath(pathname: string): boolean {
-  if (/^\/(today|week|month|jobs|unscheduled|history)$/.test(pathname)) {
+  if (/^\/(today|week|month|active|plan|more|recurring|jobs|unscheduled|history)$/.test(pathname)) {
     return true;
   }
   return /^\/tasks\/(new|[1-9]\d*)(\/(extended|delete|edit|discussion))?$/.test(pathname);

@@ -8,12 +8,12 @@ export async function workflowRecurringJob(page: Page, suffix: string) {
   const recurringJob = `Recurring Job E2E ${suffix}`;
   await page.goto("/tasks/new?type=recurring&returnTo=%2Ftoday");
   await page.getByLabel("Title", { exact: true }).fill(recurringJob);
-  await page.getByLabel("Job", { exact: true }).check();
+  await page.getByLabel("Schedule a timed session", { exact: true }).check();
   await page.getByLabel("Start time", { exact: true }).fill("20:00");
   await page.getByLabel("Every").fill("2");
   await expect(page.getByText("Keep start time of day", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Keep start time of day")).toBeChecked();
-  await page.getByRole("button", { name: "Create recurring Job", exact: true }).click();
+  await page.getByRole("button", { name: "Create recurring timed session", exact: true }).click();
   await expect(page.getByRole("heading", { name: recurringJob })).toBeVisible();
   const recurringJobID = page.url().match(/\/tasks\/(\d+)/)?.[1];
   if (!recurringJobID) throw new Error("created recurring Job ID is missing from the URL");
@@ -24,7 +24,7 @@ export async function workflowRecurringJob(page: Page, suffix: string) {
   await page.goto("/today");
   await findTaskInPaginatedList(page, recurringJob);
   const recurringJobCard = page.locator('[data-slot="card"]').filter({ hasText: recurringJob });
-  await expect(recurringJobCard.getByText("Job", { exact: true })).toBeVisible();
+  await expect(recurringJobCard.getByText("Timed session", { exact: true })).toBeVisible();
   await expect(recurringJobCard.getByText("Recurring", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: `Complete ${recurringJob}` }).click();
   await expectStatusMessage(page, "Recurring task completed and renewed.");

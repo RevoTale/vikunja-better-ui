@@ -58,6 +58,7 @@ func selectedTaskPriority(priority *model.TaskPriority, scope model.TaskScope) (
 	}
 	switch scope {
 	case model.TaskScopeToday, model.TaskScopeLongTerm, model.TaskScopeUnscheduled, model.TaskScopeJobs:
+	case model.TaskScopeActive, model.TaskScopePeriod, model.TaskScopeRecurring:
 	case model.TaskScopeWeek, model.TaskScopeMonth, model.TaskScopeHistory:
 		return nil, clientError("VALIDATION_FAILED", "Priority filtering is not available for this list.")
 	default:

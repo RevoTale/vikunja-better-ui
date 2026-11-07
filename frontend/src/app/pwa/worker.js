@@ -87,7 +87,7 @@ async function readCached(request) {
 
 /** @param {string} path */
 function isAppPath(path) {
-  return /^\/(?:|login|today|week|month|jobs|unscheduled|history|tasks\/(?:new|\d+(?:\/(?:edit|discussion|delete|extended))?))\/?$/.test(
+  return /^\/(?:|login|today|week|month|recurring|jobs|unscheduled|history|tasks\/(?:new|\d+(?:\/(?:edit|discussion|delete|extended))?))\/?$/.test(
     path,
   );
 }

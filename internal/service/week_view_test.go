@@ -71,8 +71,11 @@ func TestListWeekLoadsAllCandidatesThroughTheSelectedWeek(t *testing.T) {
 	if !result.IsComplete || len(client.queries) != 1 {
 		t.Fatalf("ListWeek() = %#v, queries = %#v", result, client.queries)
 	}
-	wantFilter := "done = false && due_date < '2026-08-31T00:00:00+03:00' && " +
-		"(due_date >= '2026-08-24T00:00:00+03:00' || repeat_after > 0) && project = 7"
+	wantFilter := "done = false && " +
+		"(((due_date >= '2026-08-24T00:00:00+03:00' && due_date < '2026-08-31T00:00:00+03:00') || " +
+		"(end_date >= '2026-08-24T00:00:00+03:00' && end_date < '2026-08-31T00:00:00+03:00')) || " +
+		"(repeat_after > 0 && due_date < '2026-08-31T00:00:00+03:00')) && " +
+		"project = 7"
 	if client.queries[0].Filter != wantFilter || client.queries[0].FilterTimezone != "Europe/Kyiv" {
 		t.Fatalf("query = %#v", client.queries[0])
 	}
@@ -91,20 +94,21 @@ func TestWeekTaskQueryNarrowsPastAndFutureWeeksUpstream(t *testing.T) {
 		{
 			name:       "current week keeps only candidates inside its range",
 			containing: localTime(location, 2026, time.August, 12, 0, 0),
-			want: "done = false && due_date < '2026-08-17T00:00:00+03:00' && " +
-				"due_date >= '2026-08-10T00:00:00+03:00'",
+			want: "done = false && ((due_date >= '2026-08-10T00:00:00+03:00' && due_date < '2026-08-17T00:00:00+03:00') || " +
+				"(end_date >= '2026-08-10T00:00:00+03:00' && end_date < '2026-08-17T00:00:00+03:00'))",
 		},
 		{
 			name:       "past week keeps only real occurrences in its range",
 			containing: localTime(location, 2026, time.August, 4, 0, 0),
-			want: "done = false && due_date < '2026-08-10T00:00:00+03:00' && " +
-				"due_date >= '2026-08-03T00:00:00+03:00'",
+			want: "done = false && ((due_date >= '2026-08-03T00:00:00+03:00' && due_date < '2026-08-10T00:00:00+03:00') || " +
+				"(end_date >= '2026-08-03T00:00:00+03:00' && end_date < '2026-08-10T00:00:00+03:00'))",
 		},
 		{
 			name:       "future week also keeps earlier recurrence sources",
 			containing: localTime(location, 2026, time.August, 25, 0, 0),
-			want: "done = false && due_date < '2026-08-31T00:00:00+03:00' && " +
-				"(due_date >= '2026-08-24T00:00:00+03:00' || repeat_after > 0)",
+			want: "done = false && (((due_date >= '2026-08-24T00:00:00+03:00' && due_date < '2026-08-31T00:00:00+03:00') || " +
+				"(end_date >= '2026-08-24T00:00:00+03:00' && end_date < '2026-08-31T00:00:00+03:00')) || " +
+				"(repeat_after > 0 && due_date < '2026-08-31T00:00:00+03:00'))",
 		},
 	}
 

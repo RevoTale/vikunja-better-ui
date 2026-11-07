@@ -12,6 +12,11 @@ import (
 	"github.com/99designs/gqlgen/graphql"
 )
 
+type ActiveWorkOrderInput struct {
+	Sort         ActiveWorkSort `json:"sort"`
+	RevisitFirst bool           `json:"revisitFirst"`
+}
+
 type ActivityDay struct {
 	Date  string `json:"date"`
 	Count int    `json:"count"`
@@ -63,6 +68,8 @@ type CompletionPayload struct {
 }
 
 type CreateJobInput struct {
+	// Omitted preserves reminders; an empty list clears them.
+	Reminders               []*TaskReminderInput  `json:"reminders,omitempty"`
 	DescriptionFormat       TaskDescriptionFormat `json:"descriptionFormat"`
 	LabelIds                []string              `json:"labelIds,omitempty"`
 	CsrfToken               string                `json:"csrfToken"`
@@ -77,6 +84,11 @@ type CreateJobInput struct {
 }
 
 type CreateOneTimeTaskInput struct {
+	// Use server creation time for automatic availability when the plan has not ended.
+	StartNow bool `json:"startNow"`
+	// Omitted preserves reminders; an empty list clears them.
+	Reminders         []*TaskReminderInput  `json:"reminders,omitempty"`
+	PlanningWindow    *PlanningWindowInput  `json:"planningWindow,omitempty"`
 	DescriptionFormat TaskDescriptionFormat `json:"descriptionFormat"`
 	LabelIds          []string              `json:"labelIds,omitempty"`
 	CsrfToken         string                `json:"csrfToken"`
@@ -89,6 +101,14 @@ type CreateOneTimeTaskInput struct {
 }
 
 type CreateRecurringTaskInput struct {
+	// Use server creation time for automatic availability when the first occurrence has not ended.
+	StartNow bool `json:"startNow"`
+	// Omitted preserves reminders; an empty list clears them.
+	Reminders []*TaskReminderInput `json:"reminders,omitempty"`
+	// Start day of the first flexible occurrence, in the user's timezone.
+	AvailableFrom *LocalDate `json:"availableFrom,omitempty"`
+	// Optional local clock time for availability; retained on managed renewal.
+	AvailableFromTime *LocalTime            `json:"availableFromTime,omitempty"`
 	DescriptionFormat TaskDescriptionFormat `json:"descriptionFormat"`
 	LabelIds          []string              `json:"labelIds,omitempty"`
 	CsrfToken         string                `json:"csrfToken"`
@@ -190,6 +210,15 @@ type LogoutPayload struct {
 type Mutation struct {
 }
 
+type PlanningWindowInput struct {
+	// Optional local start clock time. Defaults to midnight.
+	StartsAtTime *LocalTime `json:"startsAtTime,omitempty"`
+	// Optional local clock time for the planned finish. Defaults to the last second of the finish day.
+	EndsAtTime *LocalTime `json:"endsAtTime,omitempty"`
+	StartsOn   LocalDate  `json:"startsOn"`
+	EndsOn     LocalDate  `json:"endsOn"`
+}
+
 type Project struct {
 	ID        string `json:"id"`
 	Title     string `json:"title"`
@@ -288,6 +317,7 @@ type SkipRecurringTaskInput struct {
 }
 
 type Task struct {
+	Reminders []*TaskReminder `json:"reminders"`
 	// Total discussion comments, including replies; null when unavailable.
 	CommentCount      *int                 `json:"commentCount,omitempty"`
 	ID                string               `json:"id"`
@@ -365,6 +395,11 @@ type TaskDiagnostics struct {
 }
 
 type TaskListInput struct {
+	// Ordering within ACTIVE, applied before pagination.
+	ActiveOrder *ActiveWorkOrderInput `json:"activeOrder,omitempty"`
+	// Inclusive local calendar bounds, required only for PERIOD.
+	From      *LocalDate    `json:"from,omitempty"`
+	Through   *LocalDate    `json:"through,omitempty"`
 	Priority  *TaskPriority `json:"priority,omitempty"`
 	LabelID   *string       `json:"labelId,omitempty"`
 	Scope     TaskScope     `json:"scope"`
@@ -416,6 +451,19 @@ type TaskRelationships struct {
 	CanEdit  bool           `json:"canEdit"`
 }
 
+type TaskReminder struct {
+	At             *time.Time `json:"at,omitempty"`
+	RelativeTo     string     `json:"relativeTo"`
+	RelativePeriod int        `json:"relativePeriod"`
+}
+
+type TaskReminderInput struct {
+	At             *time.Time     `json:"at,omitempty"`
+	LocalAt        *LocalDateTime `json:"localAt,omitempty"`
+	RelativeTo     string         `json:"relativeTo"`
+	RelativePeriod int            `json:"relativePeriod"`
+}
+
 // Explicit per-field reuse, never automatic form defaults. Schedule values use the Vikunja user's timezone.
 type TaskReuseValues struct {
 	TaskID                  string       `json:"taskId"`
@@ -444,20 +492,24 @@ type UpdateTaskCommentInput struct {
 }
 
 type UpdateTaskInput struct {
-	LabelIds        []string         `json:"labelIds,omitempty"`
-	CsrfToken       string           `json:"csrfToken"`
-	TaskID          string           `json:"taskId"`
-	ExpectedVersion string           `json:"expectedVersion"`
-	Title           string           `json:"title"`
-	Description     string           `json:"description"`
-	ProjectID       string           `json:"projectId"`
-	Priority        TaskPriority     `json:"priority"`
-	Job             bool             `json:"job"`
-	DueDate         *LocalDate       `json:"dueDate,omitempty"`
-	DueTime         *LocalTime       `json:"dueTime,omitempty"`
-	StartAt         *LocalDateTime   `json:"startAt,omitempty"`
-	EndAt           *LocalDateTime   `json:"endAt,omitempty"`
-	Recurrence      *RecurrenceInput `json:"recurrence,omitempty"`
+	// Omitted preserves reminders; an empty list clears them.
+	Reminders []*TaskReminderInput `json:"reminders,omitempty"`
+	// Sets both native start/end timestamps as an inclusive date-only window.
+	PlanningWindow  *PlanningWindowInput `json:"planningWindow,omitempty"`
+	LabelIds        []string             `json:"labelIds,omitempty"`
+	CsrfToken       string               `json:"csrfToken"`
+	TaskID          string               `json:"taskId"`
+	ExpectedVersion string               `json:"expectedVersion"`
+	Title           string               `json:"title"`
+	Description     string               `json:"description"`
+	ProjectID       string               `json:"projectId"`
+	Priority        TaskPriority         `json:"priority"`
+	Job             bool                 `json:"job"`
+	DueDate         *LocalDate           `json:"dueDate,omitempty"`
+	DueTime         *LocalTime           `json:"dueTime,omitempty"`
+	StartAt         *LocalDateTime       `json:"startAt,omitempty"`
+	EndAt           *LocalDateTime       `json:"endAt,omitempty"`
+	Recurrence      *RecurrenceInput     `json:"recurrence,omitempty"`
 }
 
 type UploadTaskMediaInput struct {
@@ -499,6 +551,69 @@ type WeekView struct {
 	Days       []*WeekDay       `json:"days"`
 	IsComplete bool             `json:"isComplete"`
 	Issues     []*TaskPageIssue `json:"issues"`
+}
+
+type ActiveWorkSort string
+
+const (
+	ActiveWorkSortEndAsc    ActiveWorkSort = "END_ASC"
+	ActiveWorkSortEndDesc   ActiveWorkSort = "END_DESC"
+	ActiveWorkSortStartAsc  ActiveWorkSort = "START_ASC"
+	ActiveWorkSortStartDesc ActiveWorkSort = "START_DESC"
+	ActiveWorkSortLabelAsc  ActiveWorkSort = "LABEL_ASC"
+	ActiveWorkSortLabelDesc ActiveWorkSort = "LABEL_DESC"
+)
+
+var AllActiveWorkSort = []ActiveWorkSort{
+	ActiveWorkSortEndAsc,
+	ActiveWorkSortEndDesc,
+	ActiveWorkSortStartAsc,
+	ActiveWorkSortStartDesc,
+	ActiveWorkSortLabelAsc,
+	ActiveWorkSortLabelDesc,
+}
+
+func (e ActiveWorkSort) IsValid() bool {
+	switch e {
+	case ActiveWorkSortEndAsc, ActiveWorkSortEndDesc, ActiveWorkSortStartAsc, ActiveWorkSortStartDesc, ActiveWorkSortLabelAsc, ActiveWorkSortLabelDesc:
+		return true
+	}
+	return false
+}
+
+func (e ActiveWorkSort) String() string {
+	return string(e)
+}
+
+func (e *ActiveWorkSort) UnmarshalGQL(v any) error {
+	str, ok := v.(string)
+	if !ok {
+		return fmt.Errorf("enums must be strings")
+	}
+
+	*e = ActiveWorkSort(str)
+	if !e.IsValid() {
+		return fmt.Errorf("%s is not a valid ActiveWorkSort", str)
+	}
+	return nil
+}
+
+func (e ActiveWorkSort) MarshalGQL(w io.Writer) {
+	_, _ = fmt.Fprint(w, strconv.Quote(e.String()))
+}
+
+func (e *ActiveWorkSort) UnmarshalJSON(b []byte) error {
+	s, err := strconv.Unquote(string(b))
+	if err != nil {
+		return err
+	}
+	return e.UnmarshalGQL(s)
+}
+
+func (e ActiveWorkSort) MarshalJSON() ([]byte, error) {
+	var buf bytes.Buffer
+	e.MarshalGQL(&buf)
+	return buf.Bytes(), nil
 }
 
 type CompletionOutcome string
@@ -669,11 +784,12 @@ func (e DiscussionOrder) MarshalJSON() ([]byte, error) {
 type MarkerKind string
 
 const (
-	MarkerKindJob               MarkerKind = "JOB"
-	MarkerKindDateOnly          MarkerKind = "DATE_ONLY"
-	MarkerKindRecurrenceHistory MarkerKind = "RECURRENCE_HISTORY"
-	MarkerKindSkipped           MarkerKind = "SKIPPED"
-	MarkerKindFixedDueTime      MarkerKind = "FIXED_DUE_TIME"
+	MarkerKindJob                   MarkerKind = "JOB"
+	MarkerKindDateOnly              MarkerKind = "DATE_ONLY"
+	MarkerKindRecurrenceHistory     MarkerKind = "RECURRENCE_HISTORY"
+	MarkerKindSkipped               MarkerKind = "SKIPPED"
+	MarkerKindFixedDueTime          MarkerKind = "FIXED_DUE_TIME"
+	MarkerKindRecurringAvailability MarkerKind = "RECURRING_AVAILABILITY"
 )
 
 var AllMarkerKind = []MarkerKind{
@@ -682,11 +798,12 @@ var AllMarkerKind = []MarkerKind{
 	MarkerKindRecurrenceHistory,
 	MarkerKindSkipped,
 	MarkerKindFixedDueTime,
+	MarkerKindRecurringAvailability,
 }
 
 func (e MarkerKind) IsValid() bool {
 	switch e {
-	case MarkerKindJob, MarkerKindDateOnly, MarkerKindRecurrenceHistory, MarkerKindSkipped, MarkerKindFixedDueTime:
+	case MarkerKindJob, MarkerKindDateOnly, MarkerKindRecurrenceHistory, MarkerKindSkipped, MarkerKindFixedDueTime, MarkerKindRecurringAvailability:
 		return true
 	}
 	return false
@@ -897,14 +1014,15 @@ func (e RecurrenceUnit) MarshalJSON() ([]byte, error) {
 type RepairStep string
 
 const (
-	RepairStepCreateHistorySnapshot   RepairStep = "CREATE_HISTORY_SNAPSHOT"
-	RepairStepAttachJob               RepairStep = "ATTACH_JOB"
-	RepairStepAttachDateOnly          RepairStep = "ATTACH_DATE_ONLY"
-	RepairStepAttachRecurrenceHistory RepairStep = "ATTACH_RECURRENCE_HISTORY"
-	RepairStepAttachSkipped           RepairStep = "ATTACH_SKIPPED"
-	RepairStepNormalizeDue            RepairStep = "NORMALIZE_DUE"
-	RepairStepNormalizeJobSchedule    RepairStep = "NORMALIZE_JOB_SCHEDULE"
-	RepairStepAttachFixedDueTime      RepairStep = "ATTACH_FIXED_DUE_TIME"
+	RepairStepCreateHistorySnapshot       RepairStep = "CREATE_HISTORY_SNAPSHOT"
+	RepairStepAttachJob                   RepairStep = "ATTACH_JOB"
+	RepairStepAttachDateOnly              RepairStep = "ATTACH_DATE_ONLY"
+	RepairStepAttachRecurrenceHistory     RepairStep = "ATTACH_RECURRENCE_HISTORY"
+	RepairStepAttachSkipped               RepairStep = "ATTACH_SKIPPED"
+	RepairStepNormalizeDue                RepairStep = "NORMALIZE_DUE"
+	RepairStepNormalizeJobSchedule        RepairStep = "NORMALIZE_JOB_SCHEDULE"
+	RepairStepAttachFixedDueTime          RepairStep = "ATTACH_FIXED_DUE_TIME"
+	RepairStepAttachRecurringAvailability RepairStep = "ATTACH_RECURRING_AVAILABILITY"
 )
 
 var AllRepairStep = []RepairStep{
@@ -916,11 +1034,12 @@ var AllRepairStep = []RepairStep{
 	RepairStepNormalizeDue,
 	RepairStepNormalizeJobSchedule,
 	RepairStepAttachFixedDueTime,
+	RepairStepAttachRecurringAvailability,
 }
 
 func (e RepairStep) IsValid() bool {
 	switch e {
-	case RepairStepCreateHistorySnapshot, RepairStepAttachJob, RepairStepAttachDateOnly, RepairStepAttachRecurrenceHistory, RepairStepAttachSkipped, RepairStepNormalizeDue, RepairStepNormalizeJobSchedule, RepairStepAttachFixedDueTime:
+	case RepairStepCreateHistorySnapshot, RepairStepAttachJob, RepairStepAttachDateOnly, RepairStepAttachRecurrenceHistory, RepairStepAttachSkipped, RepairStepNormalizeDue, RepairStepNormalizeJobSchedule, RepairStepAttachFixedDueTime, RepairStepAttachRecurringAvailability:
 		return true
 	}
 	return false
@@ -1253,7 +1372,10 @@ func (e TaskRelationKind) MarshalJSON() ([]byte, error) {
 type TaskScope string
 
 const (
+	TaskScopeRecurring   TaskScope = "RECURRING"
 	TaskScopeToday       TaskScope = "TODAY"
+	TaskScopeActive      TaskScope = "ACTIVE"
+	TaskScopePeriod      TaskScope = "PERIOD"
 	TaskScopeWeek        TaskScope = "WEEK"
 	TaskScopeMonth       TaskScope = "MONTH"
 	TaskScopeJobs        TaskScope = "JOBS"
@@ -1263,7 +1385,10 @@ const (
 )
 
 var AllTaskScope = []TaskScope{
+	TaskScopeRecurring,
 	TaskScopeToday,
+	TaskScopeActive,
+	TaskScopePeriod,
 	TaskScopeWeek,
 	TaskScopeMonth,
 	TaskScopeJobs,
@@ -1274,7 +1399,7 @@ var AllTaskScope = []TaskScope{
 
 func (e TaskScope) IsValid() bool {
 	switch e {
-	case TaskScopeToday, TaskScopeWeek, TaskScopeMonth, TaskScopeJobs, TaskScopeUnscheduled, TaskScopeLongTerm, TaskScopeHistory:
+	case TaskScopeRecurring, TaskScopeToday, TaskScopeActive, TaskScopePeriod, TaskScopeWeek, TaskScopeMonth, TaskScopeJobs, TaskScopeUnscheduled, TaskScopeLongTerm, TaskScopeHistory:
 		return true
 	}
 	return false

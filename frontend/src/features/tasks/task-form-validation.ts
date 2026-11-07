@@ -1,4 +1,5 @@
 import { composeLocalDateTime, isValidLocalDate, isValidLocalTime } from "./local-date-time";
+import { planningWindowError } from "./planning-dates";
 import { isTaskPriority } from "./task-priority";
 
 export type CreationType = "one-time" | "recurring" | "job";
@@ -10,7 +11,11 @@ export type TaskFormField =
   | "priority"
   | "dueDate"
   | "dueTime"
+  | "planningStartsOn"
+  | "planningEndsOn"
+  | "planningFinishTime"
   | "firstDueDate"
+  | "availableFrom"
   | "interval"
   | "unit"
   | "mode"
@@ -54,6 +59,9 @@ export function serverTaskFormErrors(
     return { projectId: "Choose an accessible project." };
   }
   if (normalized.includes("title is required")) return { title: "Enter a title." };
+  if (/available from|availability/.test(normalized)) {
+    return { availableFrom: "Choose an available date on or before the first due date." };
+  }
   if (normalized.includes("first due date")) {
     return { firstDueDate: "Choose the first due date." };
   }
@@ -73,7 +81,7 @@ export function serverTaskFormErrors(
     return { durationMinutes: "Choose a shorter duration." };
   }
   if (normalized.includes("completion window is too large")) {
-    return { completionWindowMinutes: "Choose a shorter completion window." };
+    return { completionWindowMinutes: "Choose less extra time to finish." };
   }
   if (normalized.includes("timezone transition")) {
     const detail = normalized.includes("ambiguous")
@@ -109,6 +117,15 @@ function validateOneTimeFields(form: FormData, errors: TaskFormErrors): void {
   if (dueDate && !isValidLocalDate(dueDate)) errors.dueDate = "Enter a valid date.";
   if (dueTime && !dueDate) errors.dueTime = "Choose a due date before setting a time.";
   else if (dueTime && !isValidLocalTime(dueTime)) errors.dueTime = "Enter a valid time.";
+  const planningError = planningWindowError(
+    value(form, "planningStartsOn"),
+    value(form, "planningEndsOn"),
+    dueDate,
+  );
+  if (planningError) errors.planningEndsOn = planningError;
+  const finishTime = value(form, "planningFinishTime");
+  if (finishTime && !isValidLocalTime(finishTime))
+    errors.planningFinishTime = "Enter a valid finish time.";
 }
 
 function validateRecurrenceFields(form: FormData, errors: TaskFormErrors, isJob: boolean): void {
@@ -129,6 +146,11 @@ function validateRecurringDateFields(form: FormData, errors: TaskFormErrors): vo
   if (!firstDueDate) errors.firstDueDate = "Choose the first due date.";
   else if (!isValidLocalDate(firstDueDate)) errors.firstDueDate = "Enter a valid date.";
   if (dueTime && !isValidLocalTime(dueTime)) errors.dueTime = "Enter a valid time.";
+  const availableFrom = value(form, "availableFrom");
+  if (availableFrom && !isValidLocalDate(availableFrom))
+    errors.availableFrom = "Enter a valid date.";
+  else if (availableFrom && isValidLocalDate(firstDueDate) && availableFrom > firstDueDate)
+    errors.availableFrom = "Available from must be on or before the first due date.";
 }
 
 function validateRecurrenceRule(
@@ -155,7 +177,7 @@ function validateRecurrenceRule(
     errors.interval = "Monthly recurrence supports every 1 month.";
   }
   if (unit === "MONTH" && mode === "FROM_COMPLETION") {
-    errors.mode = "Monthly recurrence must use Scheduled cycle.";
+    errors.mode = "Monthly recurrence must use Fixed schedule.";
   }
 }
 
@@ -204,7 +226,7 @@ function validateJobFields(form: FormData, errors: TaskFormErrors): void {
 
   const end = localMinute(startAt) + duration * 60_000;
   if (end > lastSupportedMinute()) {
-    errors.durationMinutes = "The job end must be before year 10000.";
+    errors.durationMinutes = "The timed session must end before year 10000.";
     return;
   }
   if (completionWindow !== undefined && end + completionWindow * 60_000 > lastSupportedMinute()) {

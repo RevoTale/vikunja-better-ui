@@ -31,7 +31,9 @@ describe("task creation defaults", () => {
   });
   it("keeps the selected day for every schedule variant", () => {
     expect(defaultTaskCreationValues({ ...context, date: "2026-10-06" })).toMatchObject({
-      dueDate: "2026-10-06",
+      dueDate: "",
+      planningStartsOn: "2026-10-06",
+      planningEndsOn: "2026-10-06",
       firstDueDate: "2026-10-06",
       startDate: "2026-10-06",
     });

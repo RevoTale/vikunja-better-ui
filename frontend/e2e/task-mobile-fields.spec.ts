@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { openTaskLabels } from "./app-layout";
 import { discussionFixture } from "./discussion-fixture";
 
 test("discussion supports long project and label values in task creation, detail and editing", async ({
@@ -9,27 +10,30 @@ test("discussion supports long project and label values in task creation, detail
   const label = `mobile-${"unbroken".repeat(12)}`;
   await page.goto("/tasks/new?type=job");
   await page.getByLabel("Title (optional)").fill(title);
+  await openTaskLabels(page);
   await page.getByRole("combobox", { name: "Project", exact: true }).click();
   await page.getByRole("option", { name: /^E2E Project With A Deliberately Long/ }).click();
   await expectFieldsWithinViewport(page);
   await page.getByLabel("Start time", { exact: true }).fill("23:59");
   await page.getByLabel("Find or create label").fill(label);
-  await page.getByRole("button", { name: "Create or reuse label", exact: true }).click();
+  await page.getByRole("button", { name: /^(Create|Select) label “/ }).click();
   await expect(page.getByRole("checkbox", { name: label, exact: true })).toBeChecked();
   await expectFieldsWithinViewport(page);
-  await page.getByRole("button", { name: "Create job", exact: true }).click();
+  await page.getByRole("button", { name: "Create timed session", exact: true }).click();
   await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   await expect(page.getByText(label, { exact: true })).toBeVisible();
   await expectFieldsWithinViewport(page);
   const id = /\/tasks\/(\d+)/.exec(page.url())?.[1];
   expect(id).toBeDefined();
   await page.goto(`/tasks/${id}/edit`);
+  await page.getByText("Add description", { exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Description", exact: true })).toBeVisible();
   await expect(page.getByLabel("Start time", { exact: true })).toHaveValue("23:59");
   for (const name of ["Start time", "End time", "Due time"]) {
     await page.getByLabel(name, { exact: true }).focus();
     await expectFieldsWithinViewport(page);
   }
+  await openTaskLabels(page);
   await expect(page.getByRole("checkbox", { name: label, exact: true })).toBeChecked();
 });
 

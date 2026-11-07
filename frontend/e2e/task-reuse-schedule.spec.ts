@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { selectDate } from "./app-calendar";
 import { discussionFixture } from "./discussion-fixture";
 
 test("task labels support explicit independent reuse of deadline date and time with late responses", async ({
@@ -35,18 +36,19 @@ test("task labels support explicit independent reuse of deadline date and time w
   });
   await page.goto("/tasks/new?type=one-time&date=2026-10-18");
   await page.getByLabel("Title", { exact: true }).fill("Do not replace my title");
-  await page.getByLabel("Due time", { exact: true }).fill("10:15");
+  await selectDate(page, "Deadline (optional)", "2026-10-18");
+  await page.getByLabel("Deadline time (optional)", { exact: true }).fill("10:15");
   await expect(page.getByRole("button", { name: "Use last due time", exact: true })).toBeDisabled();
   release();
   await expect(page.getByRole("button", { name: "Use last due time", exact: true })).toBeEnabled();
-  await expect(page.getByLabel("Due time", { exact: true })).toHaveValue("10:15");
+  await expect(page.getByLabel("Deadline time (optional)", { exact: true })).toHaveValue("10:15");
   await page.getByRole("button", { name: "Use last due time", exact: true }).click();
-  await expect(page.getByLabel("Due time", { exact: true })).toHaveValue("14:30");
+  await expect(page.getByLabel("Deadline time (optional)", { exact: true })).toHaveValue("14:30");
   await expect(page.locator('input[name="dueDate"]')).toHaveValue("2026-10-18");
-  await page.getByRole("button", { name: "Use last due date", exact: true }).click();
+  await page.getByRole("button", { name: "Use last deadline", exact: true }).click();
   await expect(page.locator('input[name="dueDate"]')).toHaveValue("2026-10-06");
-  await expect(page.getByLabel("Due time", { exact: true })).toHaveValue("14:30");
-  await page.getByRole("button", { name: "recurring task", exact: true }).click();
+  await expect(page.getByLabel("Deadline time (optional)", { exact: true })).toHaveValue("14:30");
+  await page.getByRole("button", { name: "Repeat", exact: true }).click();
   await expect(
     page.getByRole("button", { name: "Use last first due date", exact: true }),
   ).toBeEnabled();

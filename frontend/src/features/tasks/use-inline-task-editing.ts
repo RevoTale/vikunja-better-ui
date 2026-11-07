@@ -50,7 +50,7 @@ export function useInlineTaskEditing(task: InlineTask, refetch: () => Promise<un
       if (!result.data?.updateTask) throw new Error("Update was not confirmed.");
       confirmed = true;
       feedback(result.data.updateTask.referenceLinking, csrfToken);
-      for (const fieldName of ["tasks", "week"]) client.cache.evict({ fieldName });
+      for (const fieldName of ["tasks", "week", "day"]) client.cache.evict({ fieldName });
       await refetch();
       setActive(null);
       setNotice("Changes saved.");

@@ -22,7 +22,7 @@ export function EditorMedia({
   const { editor, insert, uploadFile, busy, uncertain, message, setMessage, allowRetry } =
     useMediaUpload(taskId, csrfToken, onBusyChange);
   useMediaClipboard(editor, uploadFile, setMessage);
-  function useAttachment(attachment: DiscussionAttachmentFragment) {
+  function insertAttachment(attachment: DiscussionAttachmentFragment) {
     const kind = mediaKind(attachment.mimeType);
     if (kind) void insert({ source: attachment.sourceUrl, kind, name: attachment.name, alt: "" });
   }
@@ -64,7 +64,9 @@ export function EditorMedia({
             <PaperclipIcon aria-hidden="true" className="size-4" />
             {showAttachments ? "Hide attachments" : "Choose task attachment"}
           </Button>
-          {showAttachments ? <AttachmentPicker taskId={taskId} onSelect={useAttachment} /> : null}
+          {showAttachments ? (
+            <AttachmentPicker taskId={taskId} onSelect={insertAttachment} />
+          ) : null}
         </div>
       </details>
       {message ? (

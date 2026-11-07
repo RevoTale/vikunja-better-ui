@@ -30,7 +30,9 @@ func (r *mutationResolver) UpdateTask(ctx context.Context, input model.UpdateTas
 		return nil, clientError("VALIDATION_FAILED", "Choose a valid priority.")
 	}
 	edit := service.EditTaskInput{
-		TaskID: taskID, ExpectedVersion: input.ExpectedVersion, ProjectID: projectID,
+		Reminders: reminderInputs(input.Reminders),
+		Planning:  planningWindowInput(input.PlanningWindow),
+		TaskID:    taskID, ExpectedVersion: input.ExpectedVersion, ProjectID: projectID,
 		Title: input.Title, Description: input.Description, Priority: priority, Job: input.Job,
 		DueDate: optionalLocalDate(input.DueDate), DueTime: optionalLocalTime(input.DueTime),
 	}

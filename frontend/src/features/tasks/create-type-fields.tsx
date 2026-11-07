@@ -1,14 +1,14 @@
-import { useState } from "react";
-
-import { AppInput } from "@/components/app-input";
-import { AppSelect } from "@/components/app-select";
 import { DurationInput } from "@/components/duration-input";
 import { CreateDueFields } from "./create-due-fields";
 import { JobStartFields } from "./job-start-fields";
 import type { LocalDateTimeParts } from "./local-date-time";
+import { defaultPlanningStart, PlanningWindowFields } from "./planning-window-fields";
+import { RecurrenceFields } from "./recurrence-fields";
+import { RecurringAvailabilityFields } from "./recurring-availability-fields";
 import type { ChangeTaskCreationField, TaskCreationValues } from "./task-creation-values";
 import type { CreationBaseType, TaskFormErrors } from "./task-form-validation";
 import { ReuseValueButton, useTaskReuseValues } from "./task-reuse";
+import { TimeInput24 } from "./time-input-24";
 import { ValidatedField } from "./validated-field";
 
 export function TaskTypeFields({
@@ -24,9 +24,22 @@ export function TaskTypeFields({
   values: TaskCreationValues;
   onFieldChange: ChangeTaskCreationField;
 }) {
-  if (values.job)
-    return (
-      <>
+  const recurring = type === "recurring";
+  const planningStart = values.planningSpecific
+    ? values.planningStartsOn
+    : defaultPlanningStart(values.planningEndsOn, defaultDate);
+  const deadline = (
+    <CreateDueFields
+      type={type}
+      errors={errors}
+      defaultDate={defaultDate}
+      values={values}
+      onFieldChange={onFieldChange}
+    />
+  );
+  return (
+    <>
+      {values.job ? (
         <JobFields
           errors={errors}
           defaultDate={defaultDate}
@@ -34,118 +47,58 @@ export function TaskTypeFields({
           values={values}
           onFieldChange={onFieldChange}
         />
-        {type === "recurring" ? (
-          <RecurrenceFields errors={errors} timeOfDay={values.startTime} isJob />
-        ) : null}
-      </>
-    );
-  return (
-    <>
-      <CreateDueFields
-        type={type}
+      ) : !recurring ? (
+        <PlanningWindowFields
+          createNow
+          startTime={values.planningStartTime}
+          onStartTimeChange={(time) => {
+            onFieldChange("planningStartTime", time);
+            if (time) {
+              onFieldChange("planningSpecific", true);
+              onFieldChange("planningStartsOn", planningStart);
+            }
+          }}
+          finishTimeField={
+            <FinishTimeField values={values} errors={errors} onFieldChange={onFieldChange} />
+          }
+          today={defaultDate}
+          deadline={values.dueDate}
+          specificStart={values.planningSpecific}
+          value={{
+            from: planningStart,
+            through: values.planningEndsOn,
+          }}
+          onChange={({ from, through }, specific) => {
+            onFieldChange("planningStartsOn", from);
+            onFieldChange("planningEndsOn", through);
+            if (!through) onFieldChange("planningFinishTime", "");
+            onFieldChange("planningSpecific", Boolean(specific));
+          }}
+        />
+      ) : null}
+      <RecurrenceFields
         errors={errors}
-        defaultDate={defaultDate}
-        values={values}
-        onFieldChange={onFieldChange}
+        timeOfDay={values.job ? values.startTime : values.dueTime}
+        isJob={values.job}
+        enabled={recurring}
       />
-      {type === "recurring" ? (
-        <RecurrenceFields errors={errors} timeOfDay={values.dueTime} isJob={false} />
-      ) : null}
-    </>
-  );
-}
-
-export function RecurrenceFields({
-  errors,
-  timeOfDay,
-  isJob,
-  initial,
-}: {
-  errors: TaskFormErrors;
-  timeOfDay: string;
-  isJob: boolean;
-  initial?: { interval: number; unit: string; mode: string; keepDueTime: boolean } | null;
-}) {
-  const [unit, setUnit] = useState(initial?.unit ?? "DAY");
-  const [mode, setMode] = useState(initial?.mode ?? "FROM_COMPLETION");
-  const [keepDueTime, setKeepDueTime] = useState(initial?.keepDueTime ?? true);
-  const canKeepDueTime = Boolean(timeOfDay) && mode === "FROM_COMPLETION" && unit !== "MONTH";
-  return (
-    <>
-      <div className="grid gap-5 sm:grid-cols-3">
-        <ValidatedField name="interval" label="Every" error={errors.interval}>
-          {(attributes) => (
-            <AppInput
-              id="interval"
-              name="interval"
-              type="number"
-              min="1"
-              defaultValue={initial?.interval ?? 1}
-              required
-              {...attributes}
-            />
-          )}
-        </ValidatedField>
-        <ValidatedField name="unit" label="Unit" error={errors.unit}>
-          {(attributes) => (
-            <AppSelect
-              id="unit"
-              name="unit"
-              value={unit}
-              options={[
-                { value: "DAY", label: "Days" },
-                { value: "WEEK", label: "Weeks" },
-                { value: "MONTH", label: "Months" },
-              ]}
-              onValueChange={setUnit}
-              {...attributes}
-            />
-          )}
-        </ValidatedField>
-        <ValidatedField name="mode" label="Renewal" error={errors.mode}>
-          {(attributes) => (
-            <AppSelect
-              id="mode"
-              name="mode"
-              value={mode}
-              options={[
-                { value: "FROM_COMPLETION", label: "From completion" },
-                { value: "SCHEDULED_CYCLE", label: "Scheduled cycle" },
-              ]}
-              onValueChange={setMode}
-              {...attributes}
-            />
-          )}
-        </ValidatedField>
-      </div>
-      {canKeepDueTime ? (
-        <div className="rounded-md border bg-muted/30 p-4">
-          <label className="flex cursor-pointer items-start gap-3" htmlFor="keepDueTime">
-            <input
-              id="keepDueTime"
-              name="keepDueTime"
-              type="checkbox"
-              checked={keepDueTime}
-              onChange={(event) => setKeepDueTime(event.currentTarget.checked)}
-              className="mt-1 size-4 accent-primary"
-              aria-label={isJob ? "Keep start time of day" : "Keep due time"}
-              aria-describedby="keepDueTime-description"
-            />
-            <span>
-              <span className="block text-sm font-medium">
-                {isJob ? "Keep start time of day" : "Keep due time"}
-              </span>
-              <span
-                id="keepDueTime-description"
-                className="mt-1 block text-sm text-muted-foreground"
-              >
-                Schedule from the completion date while keeping this local time. Turn it off for an
-                exact elapsed interval.
-              </span>
-            </span>
-          </label>
-        </div>
-      ) : null}
+      {!values.job &&
+        (recurring ? (
+          <RecurringAvailabilityFields
+            values={values}
+            defaultDate={defaultDate}
+            errors={errors}
+            onFieldChange={onFieldChange}
+          />
+        ) : (
+          <div className="grid gap-2">
+            {deadline}
+            <p className="text-sm text-muted-foreground">
+              Need it done by 12:00? Set a deadline date and time. It becomes overdue after that; no
+              duration is needed.
+            </p>
+          </div>
+        ))}
     </>
   );
 }
@@ -204,11 +157,11 @@ function JobFields({
         </ValidatedField>
         <ValidatedField
           name="completionWindowMinutes"
-          label="Time to complete after it ends"
+          label="Extra time to finish"
           error={errors.completionWindowMinutes}
           action={
             <ReuseValueButton
-              label="completion window"
+              label="extra time to finish"
               value={
                 previous?.completionWindowMinutes ? `${previous.completionWindowMinutes} min` : null
               }
@@ -225,7 +178,7 @@ function JobFields({
           {(attributes) => (
             <DurationInput
               id="completionWindowMinutes"
-              unitLabel="Completion window unit"
+              unitLabel="Extra time unit"
               name="completionWindowMinutes"
               value={values.completionWindowMinutes}
               onChange={(value) => onFieldChange("completionWindowMinutes", value)}
@@ -236,5 +189,34 @@ function JobFields({
         </ValidatedField>
       </div>
     </>
+  );
+}
+
+function FinishTimeField({
+  values,
+  errors,
+  onFieldChange,
+}: {
+  values: TaskCreationValues;
+  errors: TaskFormErrors;
+  onFieldChange: ChangeTaskCreationField;
+}) {
+  if (!values.planningEndsOn) return null;
+  return (
+    <ValidatedField
+      name="planningFinishTime"
+      label="Planned finish time"
+      error={errors.planningFinishTime}
+    >
+      {(attributes) => (
+        <TimeInput24
+          id="planningFinishTime"
+          name="planningFinishTime"
+          value={values.planningFinishTime}
+          onChange={(time) => onFieldChange("planningFinishTime", time)}
+          {...attributes}
+        />
+      )}
+    </ValidatedField>
   );
 }

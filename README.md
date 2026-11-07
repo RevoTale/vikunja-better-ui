@@ -17,8 +17,8 @@ the whole repository.
 
 ## What it does
 
-- Shows overdue and due-today tasks first, with week and project
-  filters.
+- Shows work to finish today, including earlier unfinished plans and deadlines.
+- Keeps flexible work accessible throughout its planning window in Active work.
 - Presents Week as a responsive day-row ledger with read-only scheduled-cycle
   projections and honest completion-based recurrence explanations.
 - Keeps jobs in both Today and their own view.
@@ -75,10 +75,10 @@ For a task due at 20:00 every two days:
 | From completion date; Keep due time on | Sunday 10:00 | Tuesday 20:00 |
 | From completion date; Keep due time on | Sunday 21:00 | Tuesday 20:00 |
 | From completion date; Keep due time off | Sunday 21:00 | Tuesday 21:00 |
-| Scheduled cycle; current due Monday 20:00 | Tuesday 10:00 | Wednesday 20:00 |
+| Fixed schedule; current due Monday 20:00 | Tuesday 10:00 | Wednesday 20:00 |
 
 Turning **Keep due time** off retains strict elapsed recurrence: two days means
-exactly 48 hours. Scheduled cycle remains anchored to the existing schedule.
+exactly 48 hours. Fixed schedule remains anchored to the existing schedule.
 Complete and Skip use the same calculation. Date-only tasks do not show this
 option.
 
@@ -105,7 +105,7 @@ endAt = startAt + duration
 dueAt = endAt + completion window
 ```
 
-- **Scheduled cycle** advances from the previous `startAt`, skipping elapsed
+- **Fixed schedule** advances from the previous `startAt`, skipping elapsed
   intervals when overdue.
 - **From completion** normally starts after the exact elapsed interval.
 - **Keep start time of day** instead advances the completion date by calendar
@@ -119,8 +119,10 @@ full creation, renewal, repair, projection, and History contracts.
 
 ### Task creation defaults
 
-New task starts from normal defaults and the date/project/ordinary label selected
-in the originating list filters. Suggestions never fill fields automatically. Choose Job above the fields;
+New task starts from the project, ordinary label and priority selected in the
+originating view. A selected calendar day initializes a one-day plan for a
+one-time task, the first due date for recurrence or the start date for a Job.
+Suggestions never fill fields automatically. Choose Job above the fields;
 changing Job or recurring mode preserves shared values entered in this form.
 
 Use the history icon beside title, project, priority, labels, dates, times, or Job
@@ -141,9 +143,9 @@ unknown, inaccessible and internal `vbu:*` labels are never preselected.
 
 ### Task list priority filter
 
-Today, Long term and Jobs support one selected priority. **All priorities**
+Today, Active work, Finish in period, Long term and Jobs support one selected priority. **All priorities**
 disables the filter; **No priority** selects only unset priority, not all tasks.
-The filter combines with project and, in Today/Long term, label filters.
+The filter combines with project and, outside Jobs, label filters.
 Changing a filter resets pagination to page one without clearing other filters.
 The URL retains the selection across reloads and Today day navigation.
 
@@ -166,16 +168,66 @@ No task-creation values are saved in localStorage and there is no Reset autosave
 Old task-creation localStorage records are ignored; they are not read, updated,
 or used to change a form. Discussion draft recovery is separate and unchanged.
 
-### Today: tasks ready now
+### Recurring routines
+
+Open **More → Recurring** to see your current routines grouped by how often they repeat.
+Within each group, the earliest due task appears first. Use the project or label filter
+to focus on one part of your life. **New recurring task** opens the form with Repeat selected.
+
+
+### Planning windows and active work
+
+**Which dates should I choose?** See the [step-by-step scheduling examples](docs/specs/task-scheduling-examples.md):
+shopping by 12:00, a one-hour session, any time from 12:00–18:00, and once during
+a month. For “done by 12:00, overdue afterwards”, choose **Do once**, set
+**Deadline** and **Deadline time**, and leave Job off. No duration is needed.
+
+Create and full Edit include **Reminders → Add reminder**. Choose a date and time
+in your Vikunja timezone; edit or remove rows before saving. Reminders do not
+change the plan or Today membership. Existing relative reminders are preserved
+and can be removed or explicitly replaced with a specific date/time. Delivery
+depends on Vikunja notification settings. See [reminder semantics and verification](docs/specs/task-reminders.md).
+
+Frequency and availability can be combined. For a weekly report, choose
+**Repeat**, set the first due date to Friday, and choose Monday via **Change availability**. The report appears in Active work from Monday through its due
+time. Completing or skipping it advances the same Vikunja task. Its next start
+keeps the same number of local calendar days before the next due date and preserves an optional local start time. By default the first occurrence is available today, or on its due day for a backdated entry.
+
+One-time tasks can have a **Planning window** independently of an optional
+**Deadline**. On New task, choose **Do once** and set **Planned finish**.
+The availability row shows the effective start. Choose **Change availability** for a different day or **Use automatic start** in the calendar to restore the default. The calendar offers an optional start time. Full Edit keeps Start, End and Due date/time fields directly visible; inline Plan preserves existing clock times when changing dates.
+
+- **Available from** is native `start_date`; **Planned finish** is `end_date`.
+  A flexible date range ends at 23:59:59 on its final local day unless you set a finish time.
+- **Deadline** remains `due_date`. A planned finish cannot move beyond its
+  calendar day. The deadline's exact time remains binding.
+- **Active work** shows unfinished bounded windows available now, ordered by
+  planned finish. Finish the whole task once; returning for another session does
+  not require completing or recreating it.
+- **Today** includes one-time planned finishes and all deadlines before
+  tomorrow. Earlier unfinished work stays in **Needs attention**. **Missed plan**
+  differs from a red **Overdue** deadline. Reaching the start alone does not
+  put a month-wide plan in Today.
+- **More → This month / This year / Custom period** opens **Finish in period**.
+  A task matches either its planned finish or deadline and appears once. Current
+  periods retain earlier backlog; historical/future periods show only their range.
+  Filters and custom dates remain in the URL; saved named tabs are not implemented.
+
+Today, Active work and period lists refresh each minute while visible. Dates use
+the Vikunja user's timezone and configured week start. Existing timed or partial
+schedules remain unchanged until edited. No new persistence or planning labels
+are introduced. Jobs and recurring-task completion rules remain unchanged.
+See [ADR-009](docs/decisions/0009-task-planning-windows.md) and the
+[implementation contract](docs/specs/task-planning-ui-proposal.md).
+
+### Today badge
 
 The Today navigation badge counts unfinished tasks across all accessible
-projects whose deadline has passed **or** whose explicit **Start from** has
-arrived. A task meeting both conditions counts once. Without Start from, a task
-does not count until it is overdue—even when its deadline is today. Completed
-tasks and computed future occurrences do not count.
-
-This is an action signal, not a duration estimate or the total number of rows in
-Today. The Today list and its project/label filters are unchanged.
+projects using the same planned-finish/deadline policy as Today, including its
+backlog. A task meeting both conditions counts once. Completed tasks and
+computed future occurrences do not count. Page filters do not narrow the badge.
+The additive GraphQL `todayTaskCount` supplies it; `actionableTaskCount` retains
+its previous overdue-or-started contract for existing consumers.
 
 The badge loads independently of the page. It refreshes after task mutations,
 page navigation, returning to the browser tab, and every minute while visible.
@@ -244,7 +296,7 @@ marker label. A failed confirmation remains an error, not a successful save.
 
 Duration and completion-window inputs accept **minutes, hours, or days**. Four
 hours is stored as 240 minutes; changing units preserves the duration. In the
-editor, **Set duration and completion window** recalculates End and Due from
+editor, **Set duration and extra time** recalculates End and Due from
 Start. Timed durations use elapsed time: one day is 24 hours, including across
 DST. Whole-day shifts of a date-only deadline use calendar days. Ambiguous or
 nonexistent local times are rejected; the Vikunja user timezone is authoritative.
@@ -257,9 +309,9 @@ data. Vikunja stores task fields and marker labels through separate requests;
 if a metadata update fails, the app reports partial success and asks you to
 reload before retrying. It never reports that failure as a successful save.
 
-Primary navigation contains **Today**, **Week**, and **More**. **More** keeps
-Jobs, Long term, History, Last 14 days, and All-time activity in one secondary
-navigation page, reducing the phone bottom bar without hiding any view.
+Primary navigation contains **Today**, **Week**, **Active work** (Active on
+mobile), and **More**. More includes This month, This year, Custom period,
+Jobs, Long term, History, Last 14 days, and All-time activity.
 
 Month is no longer a navigation tab. Existing `/month` links redirect to Week.
 The GraphQL `MONTH` scope remains available for existing consumers.

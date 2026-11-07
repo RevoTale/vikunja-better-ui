@@ -57,7 +57,7 @@ test("completing a scheduled recurring Job advances from its configured schedule
   const taskID = await createRecurringJob(page, title, {
     startDate: firstDate,
     startTime: "13:15",
-    renewal: "Scheduled cycle",
+    renewal: "Fixed schedule",
   });
   const before = await vikunjaTask(taskID);
   expect(before.repeat_mode).toBe(0);

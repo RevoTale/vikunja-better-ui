@@ -278,6 +278,8 @@ func markerModels(title string) (model.MarkerKind, model.RepairStep) {
 		return model.MarkerKindSkipped, model.RepairStepAttachSkipped
 	case "vbu:fixed-due-time":
 		return model.MarkerKindFixedDueTime, model.RepairStepAttachFixedDueTime
+	case "vbu:recurring-availability":
+		return model.MarkerKindRecurringAvailability, model.RepairStepAttachRecurringAvailability
 	default:
 		return model.MarkerKindDateOnly, model.RepairStepAttachDateOnly
 	}

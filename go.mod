@@ -5,14 +5,14 @@ go 1.27.2
 tool github.com/99designs/gqlgen
 
 require (
-	github.com/99designs/gqlgen v0.17.95
-	github.com/vektah/gqlparser/v2 v2.5.62
-	golang.org/x/net v0.61.0
+	github.com/99designs/gqlgen v0.17.98
+	github.com/vektah/gqlparser/v2 v2.5.64
+	golang.org/x/net v0.62.0
 	golang.org/x/sync v0.24.0
 )
 
 require (
-	github.com/agnivade/levenshtein v1.2.1 // indirect
+	github.com/agnivade/levenshtein v1.2.2 // indirect
 	github.com/coder/websocket v1.8.15 // indirect
 	github.com/dgryski/trifles v0.0.0-20260922202040-4f260e6f130b // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect

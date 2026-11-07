@@ -52,6 +52,7 @@ export function EditTaskPage({ taskId, returnTo }: { taskId: string; returnTo: s
     }
     client.cache.evict({ fieldName: "tasks" });
     client.cache.evict({ fieldName: "week" });
+    client.cache.evict({ fieldName: "day" });
     try {
       await navigate({ to: "/tasks/$taskId", params: { taskId }, search: { returnTo } });
     } catch {

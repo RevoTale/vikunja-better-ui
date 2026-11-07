@@ -30,7 +30,7 @@ export async function workflowRecurrence(page: Page, recurring: string, schedule
   expect(snapshots.some((task) => task.done && task.repeat_after === 0)).toBe(true);
 
   const scheduledId = await createTask(page, "recurring task", scheduled, async () => {
-    await chooseSelectOption(page, "Renewal", "Scheduled cycle");
+    await chooseSelectOption(page, "Repeat timing", "Fixed schedule");
   });
   const scheduledBefore = await vikunjaTask(scheduledId);
   expect(scheduledBefore.repeat_mode).toBe(0);

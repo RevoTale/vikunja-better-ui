@@ -3,11 +3,14 @@ import { AppSelect } from "@/components/app-select";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { ProjectsDocument } from "@/graphql/graphql";
-import { RecurrenceFields } from "./create-type-fields";
 import { EditDateTimeField } from "./edit-date-time-field";
+import { InlinePlanningField } from "./inline-planning-field";
 import type { InlineTask, InlineTaskField } from "./inline-task-input";
 import { currentDateInTimeZone } from "./local-date-time";
+import { RecurrenceFields } from "./recurrence-fields";
+import { scheduleFieldLabels } from "./schedule-field-labels";
 import { TaskLabelPicker } from "./task-label-picker";
+import { TaskFrequencyChoice } from "./task-plan-choice";
 import { taskPriorityOptions } from "./task-priority";
 import type { InlineTaskEditing } from "./use-inline-task-editing";
 
@@ -38,6 +41,7 @@ export function InlinePropertyFields({
   if (field === "labels")
     return <TaskLabelPicker initialLabels={task.labels} onPendingChange={onLabelsPending} />;
   if (field === "type") return <InlineTypeFields task={task} editor={editor} />;
+  if (field === "planning") return <InlinePlanningField task={task} editor={editor} />;
   if (field === "due" || field === "start" || field === "end")
     return <InlineDateField field={field} task={task} editor={editor} />;
   return null;
@@ -87,53 +91,41 @@ function InlineTypeFields({ task, editor }: { task: InlineTask; editor: InlineTa
   const { input, setInput } = editor;
   return (
     <>
-      <div className="flex flex-wrap gap-4">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={input.job}
-            onChange={(event) => {
-              const job = event.currentTarget.checked;
-              setInput((current) => ({ ...current, job }));
-            }}
-          />{" "}
-          Job
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={Boolean(input.recurrence)}
-            onChange={(event) => {
-              const recurring = event.currentTarget.checked;
-              setInput((current) => ({
-                ...current,
-                recurrence: recurring
-                  ? { interval: 1, unit: "DAY", mode: "FROM_COMPLETION", keepDueTime: true }
-                  : null,
-              }));
-            }}
-          />{" "}
-          Recurring
-        </label>
-      </div>
+      <TaskFrequencyChoice
+        recurring={Boolean(input.recurrence)}
+        onChange={(recurring) =>
+          setInput((current) => ({
+            ...current,
+            recurrence: recurring
+              ? { interval: 1, unit: "DAY", mode: "FROM_COMPLETION", keepDueTime: true }
+              : null,
+          }))
+        }
+      />
+      <label className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          checked={input.job}
+          onChange={(event) => {
+            const job = event.currentTarget.checked;
+            setInput((current) => ({ ...current, job }));
+          }}
+        />{" "}
+        Schedule a timed session
+      </label>
       {(["start", "end", "due"] as const).map((field) => (
         <InlineDateField key={field} field={field} task={task} editor={editor} />
       ))}
-      {input.recurrence ? (
-        <RecurrenceFields
-          initial={{
-            ...input.recurrence,
-            mode: input.recurrence.mode ?? "FROM_COMPLETION",
-            keepDueTime: input.recurrence.keepDueTime ?? false,
-          }}
-          errors={{}}
-          timeOfDay={input.job ? (input.startAt?.slice(11) ?? "") : (input.dueTime ?? "")}
-          isJob={input.job}
-        />
-      ) : null}
+      <RecurrenceFields
+        enabled={Boolean(input.recurrence)}
+        initial={task.recurrenceRule}
+        errors={{}}
+        timeOfDay={input.job ? (input.startAt?.slice(11) ?? "") : (input.dueTime ?? "")}
+        isJob={input.job}
+      />
       <p className="text-xs text-muted-foreground">
-        Job needs Start, End and Due. Recurrence changes apply to this task and its future schedule;
-        completed history stays unchanged.
+        A timed session needs Start, End and Due. Recurrence changes apply to this task and its
+        future schedule; completed history stays unchanged.
       </p>
     </>
   );
@@ -157,7 +149,7 @@ function InlineDateField({
     <>
       <EditDateTimeField
         name={`inline-${field}`}
-        label={{ due: "Due", start: "Start", end: "End" }[field]}
+        label={scheduleFieldLabels(!input.job && !input.recurrence)[field]}
         value={value}
         defaultDate={currentDateInTimeZone(task.timezone) ?? ""}
         onChange={(next) =>

@@ -2,6 +2,7 @@ import { expect, type Page } from "@playwright/test";
 import { appURL, projectID, vikunjaTimezone, vikunjaToken, vikunjaURL } from "./app-fixture";
 
 export type VikunjaTask = {
+  reminders: Array<{ reminder: string; relative_to: string; relative_period: number }> | null;
   id: number;
   title: string;
   done: boolean;

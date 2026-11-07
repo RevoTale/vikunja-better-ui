@@ -5,13 +5,13 @@ import { ActionableCountBadge } from "./actionable-count-badge";
 describe("actionable count badge", () => {
   it("shows the exact count with an accessible meaning", () => {
     const html = renderToStaticMarkup(<ActionableCountBadge count={1234} loading={false} />);
-    expect(html).toContain("1234 tasks ready now");
+    expect(html).toContain("1234 tasks to finish today");
     expect(html).toContain(">999+</span>");
   });
 
   it("retains cached counts while explicitly revalidating", () => {
     const html = renderToStaticMarkup(<ActionableCountBadge count={4} loading />);
-    expect(html).toContain("Updating tasks ready now");
+    expect(html).toContain("Updating tasks to finish today");
     expect(html).toContain(">4<");
     expect(html).toContain('aria-busy="true"');
     expect(html).not.toContain('aria-hidden="true"');
@@ -35,6 +35,6 @@ describe("actionable count badge", () => {
   it("hides a confirmed zero while reserving its space", () => {
     const html = renderToStaticMarkup(<ActionableCountBadge count={0} loading={false} />);
     expect(html).toContain("invisible");
-    expect(html).toContain("0 tasks ready now");
+    expect(html).toContain("0 tasks to finish today");
   });
 });

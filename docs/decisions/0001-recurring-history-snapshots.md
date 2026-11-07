@@ -71,3 +71,26 @@ durable application data store.
   not be completed by this app.
 - Deleting or editing snapshots in Vikunja intentionally changes available
   history because Vikunja remains authoritative.
+
+## Recurring overview — 2026-11-05
+
+- The user wants to see which commitments make up their regular routine, including
+  those with a future due date. **More → Recurring** shows each live repeating
+  series once, including repeating Jobs. One-time work and history stay out.
+- Group by the actual repeat interval. For example, a weekly grocery run and a
+  fortnightly review appear under **Weekly** and **Every 2 weeks**. Within each
+  group the earliest due occurrence comes first. Calendar-month rules have
+  their own group because month length varies.
+- Use the native recurrence rule and current stored occurrence. Project, label,
+  and priority filters narrow the overview. Creating from this page selects
+  **Repeat**. Completing a task follows the existing renewal contract.
+
+## Habit frequency across periods — 2026-11-06
+
+- The user wants to understand their life system: how often each habit happens
+  over a period, with room for restrained visual improvements.
+- Add a visible week/month/year comparison and per-habit frequency alongside
+  existing groups. Preserve task cards. Distinguish average rhythm from actual
+  completions and completion-dependent schedules from fixed cycles.
+- Keep pagination honest: group counts cover the current page and filters.
+- Mapping and acceptance examples: [Recurring rhythm](../specs/recurring-rhythm.md).

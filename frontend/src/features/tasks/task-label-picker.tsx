@@ -12,6 +12,17 @@ export function TaskLabelPicker({
   initialLabels?: readonly Label[];
   onPendingChange: (pending: boolean) => void;
 }) {
+  const picker = useTaskLabelPicker(initialLabels, onPendingChange);
+  return <TaskLabelFields picker={picker} />;
+}
+
+export function TaskLabelFields({
+  picker,
+  showEstimateHint = false,
+}: {
+  picker: ReturnType<typeof useTaskLabelPicker>;
+  showEstimateHint?: boolean;
+}) {
   const previous = useTaskReuseValues();
   const {
     data,
@@ -29,11 +40,16 @@ export function TaskLabelPicker({
     matching,
     failure,
     addLabel,
-  } = useTaskLabelPicker(initialLabels, onPendingChange);
+  } = picker;
 
   return (
     <fieldset className="grid min-w-0 gap-2" aria-busy={pending || loading}>
       <legend className="mb-2 text-sm font-medium">Labels</legend>
+      {showEstimateHint ? (
+        <p id="label-estimate-hint" className="text-sm text-muted-foreground">
+          Use a label such as 1h for the time you need, or Revisit for work you want to return to.
+        </p>
+      ) : null}
       <ReuseValueButton
         label="labels"
         value={previous?.labels.map((label) => label.title).join(", ")}
@@ -41,15 +57,11 @@ export function TaskLabelPicker({
         onApply={() => {
           if (!previous || !data) return;
           const accessible = new Set(data.taskLabels.map((label) => label.id));
+          const reusable = previous.labels.filter(
+            (label) => accessible.has(label.id) && !isInternalTaskLabel(label.title),
+          );
           setSelected((current) => [
-            ...new Map(
-              [
-                ...current,
-                ...previous.labels.filter(
-                  (label) => accessible.has(label.id) && !isInternalTaskLabel(label.title),
-                ),
-              ].map((label) => [label.id, label]),
-            ).values(),
+            ...new Map([...current, ...reusable].map((label) => [label.id, label])).values(),
           ]);
         }}
       />
@@ -58,7 +70,8 @@ export function TaskLabelPicker({
       ))}
       <Input
         aria-label="Find or create label"
-        placeholder="Find or create label"
+        aria-describedby={showEstimateHint ? "label-estimate-hint" : undefined}
+        placeholder="Search labels or type a new name"
         value={search}
         maxLength={250}
         onChange={(event) => setSearch(event.currentTarget.value)}
@@ -115,12 +128,13 @@ export function TaskLabelPicker({
       <Button
         type="button"
         variant="outline"
+        className="h-auto min-h-11 max-w-full min-w-0 wrap-anywhere whitespace-normal"
         disabled={
           pending || !session?.session.csrfToken || !search.trim() || isInternalTaskLabel(search)
         }
         onClick={addLabel}
       >
-        {pending ? "Creating label…" : "Create or reuse label"}
+        {pending ? "Saving label…" : labelAction(search, labels)}
       </Button>
       <p className="text-xs text-muted-foreground">
         New labels remain in Vikunja if you leave without saving the task. Internal labels are
@@ -128,4 +142,12 @@ export function TaskLabelPicker({
       </p>
     </fieldset>
   );
+}
+
+function labelAction(search: string, labels: readonly Label[]) {
+  const title = search.trim();
+  if (!title) return "Create label";
+  return labels.some((label) => label.title === title)
+    ? `Select label “${title}”`
+    : `Create label “${title}”`;
 }

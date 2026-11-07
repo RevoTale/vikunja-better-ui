@@ -1,6 +1,13 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { invalidTitle, vikunjaTimezone } from "./app-fixture";
 
+export async function openTaskLabels(page: Page) {
+  const button = page
+    .getByRole("region", { name: "Labels", exact: true })
+    .getByRole("button", { name: /^(Add|Edit) or create labels$/ });
+  await button.click();
+}
+
 export function elementPadding(locator: Locator) {
   return locator.evaluate((element) => {
     const style = getComputedStyle(element);

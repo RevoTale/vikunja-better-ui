@@ -5,13 +5,19 @@ import type { InlineTaskEditing } from "./use-inline-task-editing";
 export function InlineEditorActions({
   editor,
   disabled = false,
+  saveDisabled = false,
 }: {
   editor: InlineTaskEditing;
   disabled?: boolean;
+  saveDisabled?: boolean;
 }) {
   return (
     <div className="flex flex-wrap gap-2">
-      <Button type="submit" size="sm" disabled={editor.pending || editor.blocked || disabled}>
+      <Button
+        type="submit"
+        size="sm"
+        disabled={editor.pending || editor.blocked || disabled || saveDisabled}
+      >
         <Check /> {editor.pending ? "Saving…" : "Save"}
       </Button>
       <Button

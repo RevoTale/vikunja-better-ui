@@ -22,10 +22,10 @@ test("discussion supports the configured clock independently of browser locale",
   }
   await expect(page.locator('input[name="startTime"]')).toHaveValue("21:07");
   await start.fill(twelve ? "13:07" : "24:07");
-  await page.getByRole("button", { name: "Create job", exact: true }).click();
+  await page.getByRole("button", { name: "Create timed session", exact: true }).click();
   await expect(page.getByText("Enter a valid time.", { exact: true })).toBeVisible();
   await start.fill(twelve ? "09:07" : "21:07");
-  await page.getByRole("button", { name: "Create job", exact: true }).click();
+  await page.getByRole("button", { name: "Create timed session", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Configured clock job", exact: true }),
   ).toBeVisible();

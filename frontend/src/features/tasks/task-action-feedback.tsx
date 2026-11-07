@@ -27,7 +27,8 @@ export function TaskActionFeedback({ actions }: { actions: TaskActions }) {
       {actions.repairInfo ? (
         <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-4">
           <p className="text-sm">
-            Renewal is complete. Repair the due-time adjustment or missing Vikunja History entry.
+            The next occurrence is ready. Repair the due-time adjustment or missing Vikunja History
+            entry.
           </p>
           <Button
             className="mt-3"

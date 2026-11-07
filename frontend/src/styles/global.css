@@ -50,6 +50,13 @@
 }
 
 @layer base {
+  summary,
+  button[aria-expanded],
+  button[aria-haspopup] {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
   * {
     border-color: var(--border);
     @apply border-border outline-ring/50;

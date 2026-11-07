@@ -104,7 +104,7 @@ function TaskDetailContent({
               to="/tasks/$taskId/discussion"
               params={{ taskId: task.id }}
               search={{ returnTo }}
-              aria-label="Discussion"
+              aria-label="Open separately: Discussion"
               className="inline-flex min-h-11 items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             >
               Open separately <ArrowUpRight aria-hidden="true" className="size-3.5" />

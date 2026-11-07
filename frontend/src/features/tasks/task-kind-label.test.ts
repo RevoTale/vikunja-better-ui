@@ -11,7 +11,7 @@ describe("taskKindLabel", () => {
         recurrenceRule: { interval: 1, unit: "DAY", mode: "FROM_COMPLETION" },
         labels: [{ title: "job" }],
       }),
-    ).toEqual(["Job", "Recurring"]);
+    ).toEqual(["Timed session", "Recurring"]);
   });
 
   it("keeps ordinary task-kind labels concise", () => {

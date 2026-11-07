@@ -18,11 +18,11 @@ export async function createTask(
   fill?: () => Promise<void>,
 ) {
   await page.goto("/tasks/new?type=one-time&returnTo=%2Ftoday");
-  const baseType = type === "job" ? "one-time task" : type;
+  const baseType = type === "recurring task" ? "Repeat" : "Do once";
   const typeButton = page.getByRole("button", { name: baseType, exact: true });
   await typeButton.click();
   await expect(typeButton).toHaveAttribute("aria-pressed", "true");
-  const job = page.getByLabel("Job", { exact: true });
+  const job = page.getByLabel("Schedule a timed session", { exact: true });
   if (type === "job") await job.check();
   else await job.uncheck();
   await page
@@ -30,7 +30,10 @@ export async function createTask(
     .fill(title);
   if (fill) await fill();
   await page
-    .getByRole("button", { name: type === "job" ? "Create job" : `Create ${type}`, exact: true })
+    .getByRole("button", {
+      name: type === "job" ? "Create timed session" : `Create ${type}`,
+      exact: true,
+    })
     .click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const match = page.url().match(/\/tasks\/(\d+)/);
@@ -44,21 +47,21 @@ export async function createRecurringJob(
   options: {
     startDate: string;
     startTime: string;
-    renewal?: "Scheduled cycle";
+    renewal?: "Fixed schedule";
     keepStartTime?: boolean;
   },
 ) {
   await page.goto("/tasks/new?type=recurring&returnTo=%2Fjobs");
   await page.getByLabel("Title", { exact: true }).fill(title);
-  await page.getByLabel("Job", { exact: true }).check();
+  await page.getByLabel("Schedule a timed session", { exact: true }).check();
   await selectDate(page, "Start date", options.startDate);
   await page.getByLabel("Start time", { exact: true }).fill(options.startTime);
   await page.getByLabel("Every").fill("2");
-  if (options.renewal) await chooseSelectOption(page, "Renewal", options.renewal);
+  if (options.renewal) await chooseSelectOption(page, "Repeat timing", options.renewal);
   if (options.keepStartTime === false) {
     await page.getByLabel("Keep start time of day").uncheck();
   }
-  await page.getByRole("button", { name: "Create recurring Job", exact: true }).click();
+  await page.getByRole("button", { name: "Create recurring timed session", exact: true }).click();
   await expect(page.getByRole("heading", { name: title })).toBeVisible();
   const match = page.url().match(/\/tasks\/(\d+)/);
   if (!match?.[1]) throw new Error("created recurring Job ID is missing from the URL");

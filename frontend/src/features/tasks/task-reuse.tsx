@@ -23,26 +23,20 @@ export function TaskReuseProvider({
   const values = !loading && !error ? data?.taskReuseValues : undefined;
   return (
     <ReuseContext value={{ values }}>
-      <div className="min-h-6 text-xs text-muted-foreground" aria-live="polite">
-        {error ? (
-          <>
-            Previous values unavailable.{" "}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => void refetch().catch(() => undefined)}
-            >
-              Retry previous values
-            </Button>
-          </>
-        ) : !loading && !values ? (
-          "No previous task of this type."
-        ) : (
-          "Use the history icon beside a field to reuse its last value."
-        )}
-      </div>
       {children}
+      {error ? (
+        <div className="text-xs text-muted-foreground" role="status">
+          Previous values unavailable.{" "}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => void refetch().catch(() => undefined)}
+          >
+            Retry previous values
+          </Button>
+        </div>
+      ) : null}
     </ReuseContext>
   );
 }

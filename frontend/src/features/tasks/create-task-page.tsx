@@ -1,7 +1,7 @@
 import { useQuery } from "@apollo/client/react";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/field";
 import {
   ProjectsDocument,
@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CreateTaskForm } from "./create-task-form";
 import { CreationLabelWarningPanel, CreationRepairPanel } from "./creation-outcome";
-import { shortTaskTypeLabel, taskTypeLabel } from "./creation-type";
+import { taskTypeLabel } from "./creation-type";
 import { defaultJobStart } from "./job-title";
 import { currentDateInTimeZone } from "./local-date-time";
 import {
@@ -75,26 +75,6 @@ export function CreateTaskPage({
         <ArrowLeft /> Back
       </a>
       <h1 className="font-serif text-3xl font-semibold">New {taskTypeLabel(baseType)}</h1>
-      <fieldset className="mt-4 grid grid-cols-2 gap-2">
-        <legend className="sr-only">Task type</legend>
-        {(["one-time", "recurring"] as const).map((value) => (
-          <Button
-            key={value}
-            aria-label={taskTypeLabel(value)}
-            aria-pressed={value === baseType}
-            variant={value === baseType ? "default" : "outline"}
-            className="min-w-0 whitespace-nowrap px-2"
-            onClick={() => {
-              if (value === baseType) return;
-              setError("");
-              setFieldErrors({});
-              setBaseType(value);
-            }}
-          >
-            {shortTaskTypeLabel(value)}
-          </Button>
-        ))}
-      </fieldset>
       {error ? (
         <div
           className="mt-5 rounded-md border border-destructive/40 bg-destructive/5 p-3"
@@ -114,6 +94,11 @@ export function CreateTaskPage({
       <CreateTaskForm
         key={`${initialDate ?? ""}:${initialProjectID ?? ""}:${initialLabelID ?? ""}:${initialPriority ?? ""}`}
         type={baseType}
+        onFrequencyChange={(recurring) => {
+          setError("");
+          setFieldErrors({});
+          setBaseType(recurring ? "recurring" : "one-time");
+        }}
         initialJob={type === "job"}
         {...settings}
         initialDate={initialDate}

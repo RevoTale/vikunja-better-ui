@@ -34,8 +34,10 @@ func TestListDayPushesProjectAndLabelFiltersUpstream(t *testing.T) {
 	if err != nil || !result.IsComplete || len(client.queries) != 1 {
 		t.Fatalf("ListDay: result=%+v error=%v queries=%+v", result, err, client.queries)
 	}
-	want := "done = false && due_date < '2026-10-03T00:00:00Z' && " +
-		"(due_date >= '2026-10-02T00:00:00Z' || repeat_after > 0) && project = 7 && labels in 3"
+	want := "done = false && (((due_date >= '2026-10-02T00:00:00Z' && due_date < '2026-10-03T00:00:00Z') || " +
+		"(end_date >= '2026-10-02T00:00:00Z' && end_date < '2026-10-03T00:00:00Z')) || " +
+		"(repeat_after > 0 && due_date < '2026-10-03T00:00:00Z')) && " +
+		"project = 7 && labels in 3"
 	if client.queries[0].Filter != want {
 		t.Fatalf("query = %s, want %s", client.queries[0].Filter, want)
 	}

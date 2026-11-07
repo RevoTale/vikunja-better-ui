@@ -18,10 +18,19 @@ export function TaskDescriptionField({
 }) {
   // Preserve the exact upstream value until a content edit, including while the editor loads.
   const [html, setHtml] = useState(initialHtml);
+  const [activated, setActivated] = useState(Boolean(initialHtml));
   const [unsupported] = useState(() => hasUnsupportedContent(initialHtml));
   return (
-    <div className="min-w-0 space-y-2">
-      <span className="text-sm font-medium">Description</span>
+    <details
+      className="min-w-0 space-y-2"
+      open={Boolean(initialHtml)}
+      onToggle={(event) => {
+        if (event.currentTarget.open) setActivated(true);
+      }}
+    >
+      <summary className="w-fit cursor-pointer rounded-sm py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-ring">
+        {html ? "Description" : "Add description"}
+      </summary>
       <input type="hidden" name="description" value={html} />
       {unsupported ? (
         <>
@@ -31,7 +40,7 @@ export function TaskDescriptionField({
             Saving other fields keeps the original description unchanged.
           </p>
         </>
-      ) : (
+      ) : activated ? (
         <Suspense fallback={<EditorLoading media={false} />}>
           <Editor
             initialHtml={initialHtml}
@@ -40,10 +49,10 @@ export function TaskDescriptionField({
             onChange={setHtml}
           />
         </Suspense>
-      )}
+      ) : null}
       <p className="text-xs text-muted-foreground">
         Media uploads are available in the task discussion after creation.
       </p>
-    </div>
+    </details>
   );
 }

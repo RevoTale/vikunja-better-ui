@@ -2,6 +2,12 @@
 
 Status: Accepted on 2026-08-12.
 
+Planning follow-up accepted on 2026-11-02:
+[ADR-009](../decisions/0009-task-planning-windows.md) defines planning windows
+separately from hard deadlines and completion views separately from active work.
+Implemented on 2026-11-03 except saved named filters. The original due-based
+list rules below are superseded where the follow-up defines planning views.
+
 The legacy `job` marker references below are superseded by the 2026-09-29
 breaking contract: only `vbu:job` identifies Jobs; `job` is ordinary metadata.
 No automatic data migration is performed. See the README label contract.

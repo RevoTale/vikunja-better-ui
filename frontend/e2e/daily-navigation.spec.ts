@@ -38,7 +38,9 @@ test("daily navigation supports real and computed days, filters and date-prefill
   await expect(page).toHaveURL(/label=/);
   await expect(day).toHaveAttribute("data-date", tomorrow);
   await day.getByRole("link", { name: /Add task for/ }).click();
-  await expect(page.locator('input[name="dueDate"]')).toHaveValue(tomorrow);
+  await expect(page.locator('input[name="planningStartsOn"]')).toHaveValue(tomorrow);
+  await expect(page.locator('input[name="planningEndsOn"]')).toHaveValue(tomorrow);
+  await expect(page.locator('input[name="dueDate"]')).toHaveValue("");
   await page.goto("/today");
   await page.getByRole("button", { name: "Next day", exact: true }).click();
   await expect(day).toHaveAttribute("data-date", tomorrow);

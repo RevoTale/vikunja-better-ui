@@ -4,7 +4,7 @@ import { createActionForPath } from "./create-action";
 
 describe("createActionForPath", () => {
   it("creates a job from the Jobs tab", () => {
-    expect(createActionForPath("/jobs")).toEqual({ label: "New job", type: "job" });
+    expect(createActionForPath("/jobs")).toEqual({ label: "New timed session", type: "job" });
   });
 
   it.each(["/today", "/week", "/month", "/unscheduled", "/history"])(

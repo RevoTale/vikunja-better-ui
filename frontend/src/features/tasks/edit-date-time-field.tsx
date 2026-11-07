@@ -8,12 +8,14 @@ export function EditDateTimeField({
   value,
   defaultDate,
   onChange,
+  required = false,
 }: {
   name: string;
   label: string;
   value: string;
   defaultDate: string;
   onChange: (value: string) => void;
+  required?: boolean;
 }) {
   const date = value.slice(0, 10);
   const time = value.slice(11);
@@ -36,7 +38,8 @@ export function EditDateTimeField({
           id={`${name}-time`}
           name={`${name}-time`}
           value={time}
-          disabled={!date}
+          disabled={!date && !required}
+          required={required}
           onChange={(next) => onChange(`${date}${next ? `T${next}` : ""}`)}
         />
       </Field>

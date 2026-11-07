@@ -6,7 +6,9 @@ import { useTwelveHourTime } from "@/lib/time-format-context";
 import { formatDateTime } from "./format-date-time";
 import { InlineProperty } from "./inline-property";
 import type { InlineTaskField } from "./inline-task-input";
+import { isWholePlanningWindow, localTaskDate, planningRangeLabel } from "./planning-dates";
 import { PriorityBadge } from "./priority-badge";
+import { scheduleFieldLabels } from "./schedule-field-labels";
 import { taskKindLabels } from "./task-kind-label";
 import { TaskRecurrenceSetting } from "./task-recurrence-setting";
 import type { InlineTaskEditing } from "./use-inline-task-editing";
@@ -28,7 +30,7 @@ export function TaskProperties({
   const emptyLabelsText = task.isDone ? "—" : "Add labels";
   const status = taskStatus(task);
   const format = (value: string | null, withTime = true) =>
-    value ? formatDateTime(value, withTime, task.timezone, use12Hours) : "—";
+    propertyDate(value, withTime, task.timezone, use12Hours);
   const edit = (field: InlineTaskField, label: string, children: ReactNode) => (
     <InlineProperty field={field} label={label} task={task} editor={editor}>
       {children}
@@ -94,28 +96,7 @@ export function TaskProperties({
           )}
         </Property>
       </dl>
-      <div className="space-y-2 border-t pt-3">
-        <h3 className="text-xs font-medium text-muted-foreground">Schedule</h3>
-        <dl className="space-y-1">
-          {task.isDone && task.doneAt ? (
-            <Property label="Completed" icon={<CalendarDays />}>
-              {format(task.doneAt)}
-            </Property>
-          ) : null}
-          <Property label="Due" icon={<CalendarDays />}>
-            {edit("due", "Due", format(task.dueAt, task.hasDueTime))}
-          </Property>
-          <Property label="Start" icon={<Clock3 />}>
-            {edit("start", "Start", format(task.startAt))}
-          </Property>
-          <Property label="End" icon={<Clock3 />}>
-            {edit("end", "End", format(task.endAt))}
-          </Property>
-          <Property label="Timezone" icon={<Clock3 />}>
-            {task.timezone}
-          </Property>
-        </dl>
-      </div>
+      <ScheduleProperties task={task} edit={edit} format={format} />
       {task.recurrenceRule ? (
         <p className="mt-5 border-t pt-4 text-sm leading-relaxed text-muted-foreground">
           Repeats every {task.recurrenceRule.interval} {task.recurrenceRule.unit.toLowerCase()} from{" "}
@@ -137,6 +118,19 @@ function taskStatus(task: TaskDetail): string {
   return "Open";
 }
 
+function hasTimedPlan(task: TaskDetail): boolean {
+  return Boolean((task.startAt || task.endAt) && !isWholePlanningWindow(task));
+}
+
+function propertyDate(
+  value: string | null,
+  withTime: boolean,
+  timezone: string,
+  use12Hours: boolean,
+): string {
+  return value ? formatDateTime(value, withTime, timezone, use12Hours) : "—";
+}
+
 function Property({
   label,
   icon,
@@ -155,6 +149,60 @@ function Property({
         {label}
       </dt>
       <dd className="min-w-0 wrap-anywhere">{children}</dd>
+    </div>
+  );
+}
+
+function ScheduleProperties({
+  task,
+  edit,
+  format,
+}: {
+  task: TaskDetail;
+  edit: (field: InlineTaskField, label: string, children: ReactNode) => ReactNode;
+  format: (value: string | null, withTime?: boolean) => string;
+}) {
+  const flexible = task.kind === "ONE_TIME";
+  const names = scheduleFieldLabels(flexible);
+  const showTimes = !flexible || hasTimedPlan(task);
+  return (
+    <div className="space-y-2 border-t pt-3">
+      <h3 className="text-xs font-medium text-muted-foreground">Schedule</h3>
+      <dl className="space-y-1">
+        {task.isDone && task.doneAt ? (
+          <Property label="Completed" icon={<CalendarDays />}>
+            {format(task.doneAt)}
+          </Property>
+        ) : null}
+        <Property label={names.due} icon={<CalendarDays />}>
+          {edit("due", names.due, format(task.dueAt, task.hasDueTime))}
+        </Property>
+        {flexible ? (
+          <Property label="Plan" icon={<CalendarDays />}>
+            {edit(
+              "planning",
+              "Planning window",
+              planningRangeLabel(
+                localTaskDate(task.startAt, task.timezone) ?? "",
+                localTaskDate(task.endAt, task.timezone) ?? "",
+              ),
+            )}
+          </Property>
+        ) : null}
+        {showTimes ? (
+          <>
+            <Property label={names.start} icon={<Clock3 />}>
+              {edit("start", names.start, format(task.startAt))}
+            </Property>
+            <Property label={names.end} icon={<Clock3 />}>
+              {edit("end", names.end, format(task.endAt))}
+            </Property>
+          </>
+        ) : null}
+        <Property label="Timezone" icon={<Clock3 />}>
+          {task.timezone}
+        </Property>
+      </dl>
     </div>
   );
 }

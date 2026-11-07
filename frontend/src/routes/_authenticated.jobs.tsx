@@ -10,8 +10,8 @@ function Page() {
   const navigate = useNavigate({ from: Route.fullPath });
   return (
     <TaskListPage
-      title="Jobs"
-      description="Timed work with a start, duration, and completion window."
+      title="Timed sessions"
+      description="Timed work with a start, duration, and extra time to finish."
       scope="JOBS"
       search={search}
       setSearch={(next) => navigate({ search: next })}

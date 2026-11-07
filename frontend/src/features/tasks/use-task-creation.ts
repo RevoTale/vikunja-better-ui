@@ -69,7 +69,12 @@ function focusFirstInvalid(form: HTMLFormElement, errors: TaskFormErrors) {
   const field =
     form.querySelector<HTMLElement>(`[data-form-field="${firstName}"]`) ??
     form.elements.namedItem(firstName);
-  if (field instanceof HTMLElement) requestAnimationFrame(() => field.focus());
+  if (field instanceof HTMLElement)
+    requestAnimationFrame(() => {
+      const details = field.closest("details");
+      if (details) details.open = true;
+      field.focus();
+    });
 }
 function graphQLValidationMessage(error: unknown): string | undefined {
   if (!CombinedGraphQLErrors.is(error)) return undefined;

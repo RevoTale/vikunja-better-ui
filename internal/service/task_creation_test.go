@@ -144,6 +144,29 @@ func TestBuildRecurringTaskCombinesDueAndRule(t *testing.T) {
 	}
 }
 
+func TestCreateRecurringAvailability(t *testing.T) {
+	t.Parallel()
+	location := kyivLocation(t)
+	input := RecurringInput{Title: "Report", FirstDueDate: "2026-11-06", DueTime: "09:15",
+		Interval: 1, Unit: RecurrenceUnitWeek, Mode: RecurrenceModeScheduled}
+	for _, start := range []string{"", "2026-11-02", "2026-11-06", "2026-11-07", "invalid"} {
+		input.AvailableFrom = start
+		got, _, err := BuildRecurringTask(input, location)
+		if start == "2026-11-07" || start == "invalid" {
+			if err == nil {
+				t.Fatalf("accepted invalid start %q", start)
+			}
+			continue
+		}
+		if err != nil || got.EndDate != nil || (got.StartDate == nil) != (start == "") {
+			t.Fatalf("start %q: unexpected schedule %#v, %v", start, got, err)
+		}
+		if start != "" && got.StartDate.In(location).Format("2006-01-02T15:04") != start+"T00:00" {
+			t.Fatalf("start %q saved at %s", start, got.StartDate)
+		}
+	}
+}
+
 func TestBuildRecurringTaskValidatesFixedDueTimeEligibility(t *testing.T) {
 	t.Parallel()
 
