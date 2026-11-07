@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { createTask, login } from "./app-actions";
 import { chooseSelectOption } from "./app-layout";
+import { findTaskInPaginatedList } from "./app-pagination";
 
 test("recurring overview groups live routines and opens creation with Repeat selected", async ({
   page,
@@ -18,21 +19,24 @@ test("recurring overview groups live routines and opens creation with Repeat sel
   );
   await page.goto("/more");
   await page.getByRole("link", { name: /^Recurring/ }).click();
+  await findTaskInPaginatedList(page, daily);
   await expect(
     page.getByRole("region", { name: "Daily" }).getByRole("link", { name: daily }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Monthly" }).getByRole("link", { name: monthly }),
-  ).toBeVisible();
   await expect(page.getByRole("link", { name: once })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Daily", exact: true })).toContainText("7× / week");
-  await page.getByRole("button", { name: "Year", exact: true }).click();
-  await expect(page.getByRole("region", { name: "Monthly", exact: true })).toContainText(
-    "12× / year",
-  );
   await page.getByRole("button", { name: "Month", exact: true }).click();
   await expect(page.getByRole("region", { name: "Daily", exact: true })).toContainText(
     "≈ 30.4× / month",
+  );
+  await page.goto("/recurring");
+  await findTaskInPaginatedList(page, monthly);
+  await expect(
+    page.getByRole("region", { name: "Monthly" }).getByRole("link", { name: monthly }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Year", exact: true }).click();
+  await expect(page.getByRole("region", { name: "Monthly", exact: true })).toContainText(
+    "12× / year",
   );
   await page.getByRole("link", { name: "New recurring task" }).click();
   await expect(page.getByRole("button", { name: "Repeat", exact: true })).toHaveAttribute(
