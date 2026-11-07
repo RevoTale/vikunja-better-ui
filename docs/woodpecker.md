@@ -139,3 +139,11 @@ Official references: [workflow syntax](https://woodpecker-ci.org/docs/usage/work
 [Docker Buildx plugin](https://woodpecker-ci.org/plugins/docker-buildx),
 [Release plugin](https://woodpecker-ci.org/plugins/release), and
 [Docker cross-compilation](https://docs.docker.com/build/building/multi-platform/#cross-compilation).
+
+### Linter alignment — 2026-11-07
+
+Keep the official linter image aligned with `tools/go.mod`. The dependency
+upgrade uses golangci-lint 2.15.0; pipeline 129 still used the previous image
+and rejected suppressions for checks it did not yet implement. Update the
+multi-platform digest instead of weakening lint rules or deleting justified
+suppressions. Registry metadata confirms linux/amd64 and linux/arm64 images.
