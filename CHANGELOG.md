@@ -1,5 +1,28 @@
 # Changelog
 
+## [2.12.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.12.0) - 2026-11-07
+
+### Features
+
+- Plan work with availability and planned finish dates while keeping Today focused
+  on tasks to finish today and deadlines separate.
+- Add Active work with a total count, label filters, start/finish sorting and
+  Revisit ordering, plus custom planning periods and a recurring-task overview.
+- Create and edit native reminders using relative presets or a specific date.
+- Simplify create/edit sections, expose scheduling help and native Vikunja field
+  mappings, and preserve the existing task-card layout.
+
+### Fixes and maintenance
+
+- Reduce repeated upstream label and relation reads without changing workflows.
+- Preserve accessible calendar labels and validate date/time controls, recurring
+  workflows and paginated overviews across Chromium and WebKit.
+- Upgrade dependencies and align CI lint tooling with the development environment.
+
+Verification: full required checks, 225 E2E scenarios against Vikunja/PostgreSQL,
+and the amd64/arm64 production-image build passed in
+[CI #138](https://ci.revotale.com/repos/3/pipeline/138).
+
 ## [2.11.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.11.0) - 2026-10-30
 
 ### ❤️ Thanks to all contributors! ❤️
