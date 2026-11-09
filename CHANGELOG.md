@@ -1,5 +1,29 @@
 # Changelog
 
+## [2.13.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.13.0) - 2026-11-09
+
+### Features
+
+- Add an optional remote MCP endpoint with 23 typed tools for planning, task
+  lifecycle, recurring work, discussion, relations and caller-bound recovery.
+  Connect with a Vikunja API token; enable with `APP_MCP_ENABLED=true`.
+- Explain Better UI concepts through MCP resources and GraphQL descriptions,
+  keeping Today obligations separate from availability and booked sessions.
+- Share tasks, comments and filtered pages through native sharing, clipboard
+  copying or a selectable link without changing access permissions.
+
+### Reliability and efficiency
+
+- Preserve omitted dates exactly in partial MCP edits, including DST folds.
+- Enforce caller permissions, bounded responses, cancellation and recovery-token
+  isolation; report incomplete reads and partial writes explicitly.
+- Reduce MCP discovery schema size by 32% and allocation count by about 35% in
+  the documented synthetic benchmark.
+
+Verification: strict validation, generated-code checks, Go race/shuffle tests,
+374 frontend tests and 234 browser scenarios passed locally. Native MCP OAuth
+and model decision accuracy are not claimed; supported clients supply Bearer tokens.
+
 ## [2.12.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.12.0) - 2026-11-07
 
 ### Features
