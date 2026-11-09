@@ -1,4 +1,5 @@
 import { type ReactNode, useRef, useState } from "react";
+import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
 import type { DiscussionCommentFragment } from "@/graphql/graphql";
 import { displayTimestamp } from "@/lib/time-format";
@@ -114,6 +115,10 @@ export function CommentCard({
               <Button variant="ghost" className="min-h-11" onClick={() => onReply(comment)}>
                 Reply
               </Button>
+              <ShareButton
+                path={`/tasks/${taskId}/discussion?comment=${comment.id}`}
+                label="Share comment"
+              />
             </div>
           ) : null}
         </>

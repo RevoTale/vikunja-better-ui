@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { BrandMark } from "@/components/brand-mark";
 import { LoadingPlaceholder } from "@/components/loading-placeholder";
+import { PageShare } from "@/components/page-share";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
   ActionableCountBadge,
@@ -102,17 +103,20 @@ export function AppShell() {
           <p className="hidden text-sm text-muted-foreground sm:block">
             {data?.session.vikunjaUser?.username}
           </p>
-          <Link
-            className={cn(buttonVariants({ size: "sm" }))}
-            to="/tasks/new"
-            search={{
-              type: createAction.type,
-              returnTo,
-              ...creationContext(location.pathname, location.searchStr),
-            }}
-          >
-            <Plus /> {createAction.label}
-          </Link>
+          <div className="flex items-center gap-1">
+            <PageShare />
+            <Link
+              className={cn(buttonVariants({ size: "sm" }))}
+              to="/tasks/new"
+              search={{
+                type: createAction.type,
+                returnTo,
+                ...creationContext(location.pathname, location.searchStr),
+              }}
+            >
+              <Plus /> {createAction.label}
+            </Link>
+          </div>
         </header>
         <main className="app-safe-content mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
           <Outlet />

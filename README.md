@@ -1310,3 +1310,12 @@ clients and model decision accuracy are not certified. See the
 Disabling the flag removes the endpoint without altering tasks already changed
 by explicitly requested operations. See [the MCP contract](docs/specs/mcp-interface.md)
 for date semantics, partial results, recovery boundaries and implementation status.
+
+### Share tasks, comments and filtered pages
+
+Use Share in the top bar to send the current page with its filters, period and
+ordering. On a task detail page it shares that task's direct link. Comments have
+Share next to Reply; Copy link remains in the comment menu. Supported devices open
+their share sheet; other browsers copy the link or offer manual copying. Shared
+links retain existing access requirements and do not publish private data.
+See [Share links](docs/specs/share-links.md) for behavior and limitations.

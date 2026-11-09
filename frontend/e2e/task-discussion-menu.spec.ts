@@ -122,7 +122,9 @@ test("discussion copies rich content without dropping tables and reports clipboa
   await (await commentMenu(page, article))
     .getByRole("menuitem", { name: "Copy link to comment" })
     .click();
-  await expect(article.getByRole("status")).toContainText("Copy unavailable");
+  await expect(article.getByRole("status").filter({ hasText: "Copy unavailable" })).toContainText(
+    "Copy unavailable",
+  );
   await expect(
     article.getByRole("button", { name: "Comment actions" }).locator("svg"),
   ).not.toHaveClass(/text-emerald/);
