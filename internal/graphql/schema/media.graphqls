@@ -1,5 +1,7 @@
+"Multipart binary upload handled by the authenticated GraphQL transport; not a remote URL to fetch."
 scalar Upload
 
+"Attachment metadata. contentUrl uses the Better UI cookie-authenticated media route; it is not a public or MCP bearer download."
 type TaskAttachment {
   id: ID!
   taskId: ID!
@@ -10,6 +12,7 @@ type TaskAttachment {
   sourceUrl: String!
 }
 
+"One upstream attachment metadata page; binary contents are fetched separately."
 type TaskAttachmentPage {
   items: [TaskAttachment!]!
   page: Int!
@@ -17,6 +20,7 @@ type TaskAttachmentPage {
   hasMore: Boolean!
 }
 
+"Upload supported media to a visible task with bounded input and upstream permission checks."
 input UploadTaskMediaInput {
   csrfToken: String!
   taskId: ID!
@@ -24,9 +28,11 @@ input UploadTaskMediaInput {
 }
 
 extend type Query {
+  "Read attachment metadata without loading binary contents."
   taskAttachments(taskId: ID!, page: Int! = 1): TaskAttachmentPage!
 }
 
 extend type Mutation {
+  "Upload task media and return its metadata; does not accept arbitrary fetch URLs."
   uploadTaskMedia(input: UploadTaskMediaInput!): TaskAttachment!
 }

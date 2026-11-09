@@ -53,6 +53,7 @@ type Config struct {
 	PublicActivityEnabled        bool
 	PublicAllTimeActivityEnabled bool
 	Use12HourTime                bool
+	MCPEnabled                   bool
 }
 
 // LookupFunc reads an environment variable without coupling validation to the process.
@@ -113,7 +114,7 @@ func Load(lookup LookupFunc) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	if err := loadPresentationFlags(&configuration, lookup); err != nil {
+	if err := loadFeatureFlags(&configuration, lookup); err != nil {
 		return Config{}, err
 	}
 
@@ -152,8 +153,12 @@ func isLoopbackHost(host string) bool {
 	return address != nil && address.IsLoopback()
 }
 
-func loadPresentationFlags(configuration *Config, lookup LookupFunc) error {
+func loadFeatureFlags(configuration *Config, lookup LookupFunc) error {
 	var err error
+	configuration.MCPEnabled, err = parseBooleanFlag(lookup, "APP_MCP_ENABLED")
+	if err != nil {
+		return err
+	}
 	configuration.PublicActivityEnabled, err = parsePublicActivity(lookup)
 	if err != nil {
 		return err

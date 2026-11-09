@@ -1,15 +1,18 @@
+"Native relationship direction relative to taskId; hierarchy is unrelated to overlapping task times."
 enum TaskRelationKind {
   RELATED
   SUBTASK
   PARENT
 }
 
+"Compact persisted relationship target; fetch task details explicitly when needed."
 type RelatedTask {
   id: ID!
   title: String!
   isDone: Boolean!
 }
 
+"Visible native links; canEdit describes this workflow's edit eligibility, not a grant overriding upstream permissions."
 type TaskRelationships {
   taskId: ID!
   parents: [RelatedTask!]!
@@ -18,12 +21,14 @@ type TaskRelationships {
   canEdit: Boolean!
 }
 
+"One bounded search page of eligible relationship targets. Follow hasMore rather than assuming all matches are shown."
 type RelationCandidatePage {
   items: [RelatedTask!]!
   page: Int!
   hasMore: Boolean!
 }
 
+"Add or remove one directed native relation. Self-links, cycles and conflicting parents are rejected."
 input SetTaskRelationInput {
   csrfToken: String!
   taskId: ID!
@@ -33,13 +38,18 @@ input SetTaskRelationInput {
 }
 
 extend type Query {
+  "Read visible parent/child/related links without changing them."
   taskRelationships(taskId: ID!): TaskRelationships!
+  "Search eligible link targets in bounded pages; excludes invalid hierarchy candidates."
   relationCandidates(taskId: ID!, search: String!, page: Int! = 1): RelationCandidatePage!
 }
 
 extend type Mutation {
+  "Retry linking explicit references after a content save; saved content remains even if some links fail."
   repairTaskReferences(input: RepairTaskReferencesInput!): TaskReferenceResult!
+  "Add/remove one native relationship with hierarchy and access validation."
   setTaskRelation(input: SetTaskRelationInput!): TaskRelationships!
+  "Create a child task; inspect relationError/labelError because task creation may succeed before linking fails."
   createSubtask(input: CreateSubtaskInput!): CreateSubtaskPayload!
 }
 
@@ -52,6 +62,7 @@ type TaskReferenceResult {
   limited: Boolean!
 }
 
+"Retry a bounded explicit set of reference targets in saved task/comment content; not arbitrary metadata recovery."
 input RepairTaskReferencesInput {
   csrfToken: String!
   taskId: ID!
@@ -67,6 +78,7 @@ extend type TaskComment {
   referenceLinking: TaskReferenceResult
 }
 
+"Create a one-time child with optional project/priority/ordinary labels using the subtask workflow defaults."
 input CreateSubtaskInput {
   csrfToken: String!
   parentTaskId: ID!
@@ -76,6 +88,7 @@ input CreateSubtaskInput {
   labelIds: [ID!]
 }
 
+"Created child and any subsequent relation/label failure; do not duplicate the child to retry a failed link."
 type CreateSubtaskPayload {
   task: RelatedTask!
   relationError: String

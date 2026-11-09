@@ -21,10 +21,7 @@ func BuildEditedTask(input EditTaskInput, location *time.Location) (vikunja.Task
 func buildEditedTask(
 	input EditTaskInput, location *time.Location, before vikunja.Task,
 ) (vikunja.TaskWrite, map[string]bool, error) {
-	write, dateOnly, err := BuildOneTimeTask(OneTimeInput{
-		Title: input.Title, Description: input.Description, Priority: input.Priority,
-		DueDate: input.DueDate, DueTime: input.DueTime,
-	}, location)
+	write, dateOnly, err := buildEditBase(input, location, before)
 	if err != nil {
 		return write, nil, errors.Join(ErrInvalidEdit, err)
 	}
@@ -34,7 +31,7 @@ func buildEditedTask(
 	if utf8.RuneCountInString(write.Title) > maxTaskTitleCharacters {
 		return write, nil, errors.Join(ErrInvalidEdit, errors.New("title must contain at most 250 characters"))
 	}
-	if err := applyEditedDates(&write, input, location); err != nil {
+	if err := applyEditedDates(&write, input, location, before); err != nil {
 		return write, nil, errors.Join(ErrInvalidEdit, err)
 	}
 	if write.DueDate == nil {
@@ -76,18 +73,20 @@ func retainRecurringAvailability(
 	return nil
 }
 
-func applyEditedDates(write *vikunja.TaskWrite, input EditTaskInput, location *time.Location) error {
+func applyEditedDates(
+	write *vikunja.TaskWrite, input EditTaskInput, location *time.Location, before vikunja.Task,
+) error {
 	if input.Planning != nil {
 		if input.Job || input.Recurrence != nil {
 			return errors.New("planning windows require a one-time task")
 		}
 		return applyPlanningWindow(write, input.Planning, location)
 	}
-	start, err := editLocalTime(input.StartLocal, location)
+	start, err := retainedEditTime(input.StartLocal, location, before.StartDate, input.PreserveDates.Start)
 	if err != nil {
 		return err
 	}
-	end, err := editLocalTime(input.EndLocal, location)
+	end, err := retainedEditTime(input.EndLocal, location, before.EndDate, input.PreserveDates.End)
 	if err != nil {
 		return err
 	}

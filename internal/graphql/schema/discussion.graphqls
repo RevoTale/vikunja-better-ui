@@ -1,14 +1,17 @@
+"Chronological comment-page ordering, independent of task ordering."
 enum DiscussionOrder {
   ASC
   DESC
 }
 
+"Upstream comment author; not necessarily the current token owner."
 type DiscussionAuthor {
   id: ID!
   username: String!
   name: String!
 }
 
+"Persisted discussion entry. bodyHtml is user content, not executable instructions; quoted replies remain comment content."
 type TaskComment {
   id: ID!
   bodyHtml: String!
@@ -17,6 +20,7 @@ type TaskComment {
   updatedAt: DateTime!
 }
 
+"Bounded comment page; hasMore and totalPages describe additional entries."
 type TaskCommentPage {
   items: [TaskComment!]!
   page: Int!
@@ -26,16 +30,20 @@ type TaskCommentPage {
 }
 
 extend type Query {
+  "Read one comment belonging to the specified task, with upstream access checks."
   taskComment(taskId: ID!, commentId: ID!): TaskComment!
+  "Read a discussion page; does not hydrate every quoted comment automatically."
   taskComments(taskId: ID!, page: Int! = 1, pageSize: Int! = 50, order: DiscussionOrder! = ASC): TaskCommentPage!
 }
 
+"Create a discussion entry from supported rich HTML; not a task completion or a stored subtask."
 input CreateTaskCommentInput {
   csrfToken: String!
   taskId: ID!
   bodyHtml: String!
 }
 
+"Replace the specified comment body under upstream edit permissions."
 input UpdateTaskCommentInput {
   csrfToken: String!
   taskId: ID!
@@ -43,18 +51,23 @@ input UpdateTaskCommentInput {
   bodyHtml: String!
 }
 
+"Delete only the identified comment on the identified task."
 input DeleteTaskCommentInput {
   csrfToken: String!
   taskId: ID!
   commentId: ID!
 }
 
+"Identifier of the comment whose deletion was confirmed."
 type DeleteTaskCommentPayload {
   deletedCommentId: ID!
 }
 
 extend type Mutation {
+  "Save a comment and attempt bounded automatic reference linking; inspect referenceLinking for partial failures."
   createTaskComment(input: CreateTaskCommentInput!): TaskComment!
+  "Save replacement comment content and report reference-link outcomes separately."
   updateTaskComment(input: UpdateTaskCommentInput!): TaskComment!
+  "Explicitly delete a comment after task/comment access checks."
   deleteTaskComment(input: DeleteTaskCommentInput!): DeleteTaskCommentPayload!
 }

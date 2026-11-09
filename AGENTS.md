@@ -50,6 +50,7 @@ Use these request paths:
 ```text
 Authenticated React UI -> Go GraphQL API -> Vikunja REST API
 Anonymous activity UI -> fixed Go public snapshot GET -> Vikunja REST API
+AI client -> optional Go MCP /mcp -> shared services -> Vikunja REST API
 ```
 
 The browser must never call Vikunja directly. The Go backend is the only code
@@ -64,6 +65,12 @@ The app has two separate authentication boundaries:
 
 Do not use the app username and password to authenticate with Vikunja. Do not
 support Vikunja username/password authentication.
+
+MCP is a separate approved caller-token boundary (ADR-010). Accept only the
+Vikunja API token supplied in its Authorization header, check native MCP access
+and retain upstream route permissions. Never substitute the app token. Tokens
+are issued only in Vikunja. The custom Bearer profile does not claim MCP OAuth
+support; recheck native OAuth support when upgrading Vikunja.
 
 Keep the app stateless. After app login, use a signed, expiring, HTTP-only
 session cookie. Do not add a database for sessions or application data.
@@ -186,6 +193,19 @@ generated files.
 ## GraphQL rules
 
 - Treat the schema as the contract between frontend and backend.
+- When business behavior changes, update the affected GraphQL schema descriptions,
+  examples and contract tests in the same change. Explain defaults, omitted/null/
+  empty inputs, timezone rules, side effects, conflicts and partial results where
+  relevant; field names alone do not explain the workflow.
+- Keep every product concept and its relationships understandable through MCP,
+  following ADR-010. Update existing tool/resource descriptions and behavior tests
+  when semantics change; add a tool only when an existing action cannot express
+  the capability clearly. Record implemented and pending coverage in its specification.
+  Reuse service rules instead of teaching models to reconstruct them from raw dates.
+- Keep MCP tools focused on user intentions, with explicit inputs, effects,
+  prerequisites, compact bounded results and actionable errors. Essential rules
+  must be discoverable without resource support. Test protocol and business
+  behavior; do not claim model accuracy from deterministic checks alone.
 - Use Vikunja domain names when they make the API clearer.
 - Design mutations around user actions, especially recurring-task actions.
 - Return enough data from mutations to update Apollo's cache.
@@ -272,6 +292,20 @@ the frontend bundle, GraphQL responses, URLs, logs, metrics, or user-visible
 errors.
 
 ## Workflow
+
+### Resource efficiency
+
+- Consider allocations, external request count, RAM and CPU throughout development,
+  across all request paths, not only MCP or simple/public requests. Follow
+  `docs/performance.md`; do not invent performance budgets without a baseline.
+- For changes affecting substantial data processing, fan-out or resource lifetime,
+  measure the affected paths with representative inputs. Report applicable before/
+  after allocation, request-count, memory and CPU evidence, and what remains unmeasured.
+- Avoid redundant upstream reads, repeated parsing, unbounded concurrency and
+  unnecessary full-data copies. Preserve permission isolation, freshness, pagination,
+  cancellation, confirmation reads and business semantics while optimizing.
+- Keep optimizations proportional and reviewable. Use profiles or deterministic
+  call-count tests to justify complexity; do not claim gains from timing noise.
 
 ### Enforced quality limits
 

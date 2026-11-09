@@ -5,6 +5,7 @@ extend type Query {
   publicAllTimeActivity: PublicAllTimeActivity
 }
 
+"Aggregate completion history; authenticated GraphQL reads are fresh and separate from cached anonymous HTTP snapshots."
 type PublicAllTimeActivity {
   weeks: [ActivityWeek!]!
   priorities: [ActivityPriority!]!
@@ -14,6 +15,7 @@ type PublicAllTimeActivity {
   refreshAt: DateTime!
 }
 
+"Completion facts grouped into a local week, not scheduled effort or future obligations."
 type ActivityWeek {
   "Monday calendar date in the token owner's timezone; the current week is partial."
   date: String!
@@ -24,6 +26,7 @@ type ActivityWeek {
   priorities: [ActivityPriorityTimeliness!]!
 }
 
+"Completion and deadline-timeliness counts within one priority cohort."
 type ActivityPriorityTimeliness {
   priority: TaskPriority!
   count: Int!
@@ -31,6 +34,7 @@ type ActivityPriorityTimeliness {
   completedOnTime: Int!
 }
 
+"Fixed-window completion totals. A public-style result type does not make this authenticated query anonymous."
 type PublicActivity {
   days: [ActivityDay!]!
   priorities: [ActivityPriority!]!
@@ -40,6 +44,7 @@ type PublicActivity {
   refreshAt: DateTime!
 }
 
+"Local day of completion, not due day; deadline counts include only eligible completions."
 type ActivityDay {
   date: String!
   count: Int!
@@ -49,6 +54,7 @@ type ActivityDay {
   completedOnTime: Int!
 }
 
+"Completion count for one native priority value within the aggregate window."
 type ActivityPriority {
   priority: TaskPriority!
   count: Int!

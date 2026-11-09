@@ -484,6 +484,7 @@ secret.
 | `APP_SESSION_SECRET` | Yes | Base64 value decoding to at least 32 random bytes. |
 | `APP_HTTP_ADDR` | No | Listen address; defaults to `:8080`. |
 | `APP_LOG_LEVEL` | No | `debug`, `info`, `warn`, or `error`; defaults to `info`. |
+| `APP_MCP_ENABLED` | No | `true` enables the in-development remote `/mcp` endpoint; `false` by default. Uses each caller's Vikunja API token, never the app token. |
 | `APP_TIME_FORMAT` | No | `24h` (default) or `12h` (AM/PM). Controls displayed times and time inputs independently of browser/OS preference. Restart the service and reload the app/PWA after changing it; no frontend rebuild is needed. |
 | `APP_PUBLIC_URL` | No | Canonical public origin and explicit SEO opt-in. HTTPS is required outside development; only loopback HTTP is accepted in development. Paths, query strings, fragments and credentials are rejected. Leave unset to keep root out of the sitemap and search indexes. |
 | `APP_PUBLIC_ACTIVITY_ENABLED` | No | `true` enables anonymous `/activity`; `false` (default) still allows signed-in users. |
@@ -1278,3 +1279,34 @@ timeouts, PR cancellation and the browser artifact-storage limitation.
 
 See [AGENTS.md](AGENTS.md) for the repository rules and
 [the MVP specification](docs/specs/mvp.md) for the complete product contract.
+
+### Remote MCP
+
+Set `APP_MCP_ENABLED=true` to expose `/mcp` on the Better UI origin. Use HTTPS
+outside local development. The client must support Streamable HTTP with a manual
+`Authorization: Bearer YOUR_VIKUNJA_API_TOKEN` request header. Create that token in
+Vikunja Settings → MCP, with MCP access plus the route permissions needed for the
+requested actions. Better UI never creates tokens or falls back to its app token.
+Do not put tokens in URLs, tool arguments or task descriptions.
+
+This follows native Vikunja's manual Bearer connection profile. Vikunja currently
+[does not support MCP OAuth](https://vikunja.io/help/mcp/); its general OAuth login
+is not an MCP authorization flow. Clients requiring OAuth cannot use this endpoint.
+
+The endpoint exposes 23 typed tools: concept help, context, classified task lists,
+task details, day agendas, recurring rhythm and activity; creation, explicit-field
+editing, completion, skip, Undo, repair, relations, subtasks, labels and comments.
+Calendar operations use the token owner's Vikunja timezone. `get_context` reports
+`schedulingReady: false` when it is missing, including newly created bot accounts.
+Configure that account's timezone before calendar operations.
+Tokens retain upstream rights on every request. Read-only tokens can discover
+write tools but cannot execute their writes. Discovery is not a permissions grant.
+
+Connect to `https://YOUR_BETTER_UI_HOST/mcp`. No cookies, app login, OAuth flow or
+local process are needed. The SDK HTTP client is tested; individual desktop AI
+clients and model decision accuracy are not certified. See the
+[tool and permission reference](docs/specs/mcp-interface.md#implemented-surface).
+
+Disabling the flag removes the endpoint without altering tasks already changed
+by explicitly requested operations. See [the MCP contract](docs/specs/mcp-interface.md)
+for date semantics, partial results, recovery boundaries and implementation status.

@@ -16,6 +16,7 @@ var ErrEditPartial = errors.New("task fields saved but metadata could not be con
 
 // EditTaskInput is a complete editor submission tied to the loaded task version.
 type EditTaskInput struct {
+	PreserveDates   EditDatePreservation
 	Reminders       []ReminderInput
 	Planning        *PlanningWindowInput
 	LabelIDs        []int64
@@ -32,6 +33,10 @@ type EditTaskInput struct {
 	EndLocal        string
 	Recurrence      *RecurringInput
 }
+
+// EditDatePreservation lets partial adapters retain stored instants without reinterpreting local DST folds.
+// The full-form editor leaves these flags false; values are taken only from the version-checked task.
+type EditDatePreservation struct{ Due, Start, End bool }
 
 type taskEditClient interface {
 	recurrenceSettingClient

@@ -118,6 +118,13 @@ func (client *Client) CloseIdleConnections() {
 	client.httpClient.CloseIdleConnections()
 }
 
+// ForToken shares only the immutable endpoint and HTTP connection pool with a new caller.
+// Metadata coalescing groups are deliberately fresh to keep authorization scopes isolated.
+func (client *Client) ForToken(token string) *Client {
+	return &Client{baseURL: client.baseURL, publicURL: client.publicURL, apiToken: token,
+		httpClient: client.httpClient, logger: client.logger}
+}
+
 func (client *Client) doJSON(
 	ctx context.Context,
 	method string,

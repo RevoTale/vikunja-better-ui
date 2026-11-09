@@ -1,5 +1,13 @@
 # Plan status
 
+## Semantic API and MCP — 2026-11-09
+
+- [Semantic API and remote MCP plan](semantic-api-mcp-plan.md) and
+  [checklist](semantic-api-mcp-todo.md): GraphQL semantics, project-wide resource
+  efficiency and remote Streamable HTTP MCP are implemented. Authorization and
+  native workflows are verified; final full-check evidence is kept in the checklist.
+  The older records below remain historical and are not overwritten.
+
 Audit: 2026-10-01. This index distinguishes current work from historical
 checklists. An unchecked box in an old plan is not by itself a missing feature.
 Do not restore superseded behavior to satisfy an old checklist.

@@ -103,7 +103,7 @@ func (h *harness) configureApp(ctx context.Context, upstream string, fixtures ma
 	}
 	h.address = address
 	h.environment = append(h.environment,
-		"APP_ENV=test", "APP_PUBLIC_ACTIVITY_ENABLED=true", "PUBLIC_ALL_TIME_ACTIVITY=true",
+		"APP_ENV=test", "APP_PUBLIC_ACTIVITY_ENABLED=true", "PUBLIC_ALL_TIME_ACTIVITY=true", "APP_MCP_ENABLED=true",
 		"APP_VIKUNJA_URL="+upstream, "APP_VIKUNJA_API_TOKEN="+fixtures["token"],
 		"APP_AUTH_USERNAME=app-user", "APP_AUTH_PASSWORD=app-password-strong",
 		"APP_SESSION_SECRET=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",

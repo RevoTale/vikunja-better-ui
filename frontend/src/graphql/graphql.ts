@@ -4,11 +4,13 @@ type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
 /** Internal type. DO NOT USE DIRECTLY. */
 export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' | '__typename' ? T[P] : never };
 import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/core';
+/** Active ordering; revisitFirst groups tasks carrying the ordinary Revisit label before the selected sort. */
 export type ActiveWorkOrderInput = {
   revisitFirst?: boolean;
   sort?: ActiveWorkSort;
 };
 
+/** Ordering keys for Active work, applied before pagination. */
 export type ActiveWorkSort =
   | 'END_ASC'
   | 'END_DESC'
@@ -17,6 +19,7 @@ export type ActiveWorkSort =
   | 'START_ASC'
   | 'START_DESC';
 
+/** Complete the displayed task with workflow/occurrence preconditions. Renewal can already have succeeded when related history needs repair. */
 export type CompleteTaskInput = {
   csrfToken: string;
   expectedDueAt?: string | null | undefined;
@@ -25,14 +28,17 @@ export type CompleteTaskInput = {
   taskId: string | number;
 };
 
+/** Recorded outcome of completed work; a skipped recurrence is not productive completion. */
 export type CompletionOutcome =
   | 'COMPLETED'
   | 'SKIPPED';
 
+/** Completion has been confirmed; repair-required means related metadata/history remains incomplete, not that completion should be repeated. */
 export type CompletionStatus =
   | 'CONFIRMED'
   | 'CONFIRMED_REPAIR_REQUIRED';
 
+/** Create a timed session: end = start + duration; due = end + completion window. Both intervals must be positive. Recurrence is optional. */
 export type CreateJobInput = {
   completionWindowMinutes?: number;
   csrfToken: string;
@@ -43,12 +49,13 @@ export type CreateJobInput = {
   priority: TaskPriority;
   projectId: string | number;
   recurrence?: RecurrenceInput | null | undefined;
-  /** Omitted preserves reminders; an empty list clears them. */
+  /** Omitted/null creates no reminders; a supplied list defines the initial native reminders. */
   reminders?: Array<TaskReminderInput> | null | undefined;
   startAt: string;
   title?: string | null | undefined;
 };
 
+/** Create one-time work with optional availability/finish and a separate deadline. No duration is inferred from a planning window. */
 export type CreateOneTimeTaskInput = {
   csrfToken: string;
   description?: string | null | undefined;
@@ -59,13 +66,14 @@ export type CreateOneTimeTaskInput = {
   planningWindow?: PlanningWindowInput | null | undefined;
   priority: TaskPriority;
   projectId: string | number;
-  /** Omitted preserves reminders; an empty list clears them. */
+  /** Omitted/null creates no reminders; a supplied list defines the initial native reminders. */
   reminders?: Array<TaskReminderInput> | null | undefined;
   /** Use server creation time for automatic availability when the plan has not ended. */
   startNow?: boolean;
   title: string;
 };
 
+/** Create a live recurring task, optionally with first-occurrence availability. Completing it renews the live task and records history. */
 export type CreateRecurringTaskInput = {
   /** Start day of the first flexible occurrence, in the user's timezone. */
   availableFrom?: string | null | undefined;
@@ -82,7 +90,7 @@ export type CreateRecurringTaskInput = {
   mode?: RecurrenceMode;
   priority: TaskPriority;
   projectId: string | number;
-  /** Omitted preserves reminders; an empty list clears them. */
+  /** Omitted/null creates no reminders; a supplied list defines the initial native reminders. */
   reminders?: Array<TaskReminderInput> | null | undefined;
   /** Use server creation time for automatic availability when the first occurrence has not ended. */
   startNow?: boolean;
@@ -90,6 +98,7 @@ export type CreateRecurringTaskInput = {
   unit: RecurrenceUnit;
 };
 
+/** Create a one-time child with optional project/priority/ordinary labels using the subtask workflow defaults. */
 export type CreateSubtaskInput = {
   csrfToken: string;
   labelIds?: Array<string | number> | null | undefined;
@@ -99,12 +108,14 @@ export type CreateSubtaskInput = {
   title: string;
 };
 
+/** Create a discussion entry from supported rich HTML; not a task completion or a stored subtask. */
 export type CreateTaskCommentInput = {
   bodyHtml: string;
   csrfToken: string;
   taskId: string | number;
 };
 
+/** A specific local day and optional filters for tasks and recurrence projections. */
 export type DayInput = {
   date: string;
   labelId?: string | number | null | undefined;
@@ -112,26 +123,31 @@ export type DayInput = {
   projectId?: string | number | null | undefined;
 };
 
+/** Delete only the identified comment on the identified task. */
 export type DeleteTaskCommentInput = {
   commentId: string | number;
   csrfToken: string;
   taskId: string | number;
 };
 
+/** Delete an active task explicitly; completed tasks/history are not editable through this workflow. */
 export type DeleteTaskInput = {
   csrfToken: string;
   taskId: string | number;
 };
 
+/** Chronological comment-page ordering, independent of task ordering. */
 export type DiscussionOrder =
   | 'ASC'
   | 'DESC';
 
+/** Configured Better UI login credentials; never use a Vikunja password here. */
 export type LoginInput = {
   password: string;
   username: string;
 };
 
+/** Internal metadata required by the workflow. These are not ordinary user labels or planning horizons. */
 export type MarkerKind =
   | 'DATE_ONLY'
   | 'FIXED_DUE_TIME'
@@ -140,10 +156,12 @@ export type MarkerKind =
   | 'RECURRING_AVAILABILITY'
   | 'SKIPPED';
 
+/** Why a bounded response cannot be treated as the complete matching result set. */
 export type PageIssueCode =
   | 'RESULT_SET_TOO_LARGE'
   | 'UPSTREAM_PARTIAL';
 
+/** Availability-to-planned-finish window, stored in native start_date/end_date. Finish must follow start; its local date cannot be after the deadline date. */
 export type PlanningWindowInput = {
   /** Optional local clock time for the planned finish. Defaults to the last second of the finish day. */
   endsAtTime?: string | null | undefined;
@@ -153,6 +171,7 @@ export type PlanningWindowInput = {
   startsOn: string;
 };
 
+/** Native recurrence settings. keepDueTime requires a timed day/week rule from completion; disable it for other combinations. */
 export type RecurrenceInput = {
   interval: number;
   keepDueTime?: boolean;
@@ -160,15 +179,20 @@ export type RecurrenceInput = {
   unit: RecurrenceUnit;
 };
 
+/** How native recurrence chooses the next occurrence when this one is completed. */
 export type RecurrenceMode =
+  /** Advance relative to completion; eligible timed day/week rules may retain their clock time. */
   | 'FROM_COMPLETION'
+  /** Advance using the existing schedule rather than shifting the series to completion time. */
   | 'SCHEDULED_CYCLE';
 
+/** Native supported recurrence interval unit; a month is not a fixed number of seconds. */
 export type RecurrenceUnit =
   | 'DAY'
   | 'MONTH'
   | 'WEEK';
 
+/** Remaining recovery work after a partially confirmed mutation. Use its scoped repair capability, not a fresh completion. */
 export type RepairStep =
   | 'ATTACH_DATE_ONLY'
   | 'ATTACH_FIXED_DUE_TIME'
@@ -180,11 +204,13 @@ export type RepairStep =
   | 'NORMALIZE_DUE'
   | 'NORMALIZE_JOB_SCHEDULE';
 
+/** Use the unexpired session-bound capability to finish only the authorized recovery steps. */
 export type RepairTaskMetadataInput = {
   capability: string;
   csrfToken: string;
 };
 
+/** Retry a bounded explicit set of reference targets in saved task/comment content; not arbitrary metadata recovery. */
 export type RepairTaskReferencesInput = {
   commentId?: string | number | null | undefined;
   csrfToken: string;
@@ -192,12 +218,14 @@ export type RepairTaskReferencesInput = {
   taskId: string | number;
 };
 
+/** Change the eligible live series' keep-clock-time setting, not a historical occurrence. */
 export type SetRecurringKeepDueTimeInput = {
   csrfToken: string;
   enabled: boolean;
   taskId: string | number;
 };
 
+/** Add or remove one directed native relation. Self-links, cycles and conflicting parents are rejected. */
 export type SetTaskRelationInput = {
   csrfToken: string;
   kind: TaskRelationKind;
@@ -206,22 +234,30 @@ export type SetTaskRelationInput = {
   taskId: string | number;
 };
 
+/** Skip only the displayed recurring occurrence. A stale expectedDueAt is rejected before renewal. */
 export type SkipRecurringTaskInput = {
   csrfToken: string;
   expectedDueAt: string;
   taskId: string | number;
 };
 
+/** Accepted description encoding at creation; Markdown is converted to stored HTML. */
 export type TaskDescriptionFormat =
   | 'HTML'
   | 'MARKDOWN';
 
+/** Workflow classification from native recurrence and reserved markers, never from the length of a planning window. */
 export type TaskKind =
+  /** Contradictory reserved metadata; do not infer a safe mutation from the dates alone. */
   | 'INVALID'
+  /** A timed session. It may also recur; inspect recurrenceRule rather than assuming JOB means one-time. */
   | 'JOB'
+  /** Ordinary one-time work, optionally available within a flexible planning window. */
   | 'ONE_TIME'
+  /** Flexible recurring work or its completed history snapshot; inspect recurrenceRule and isDone. */
   | 'RECURRING';
 
+/** Fresh bounded list request. Filters combine with scope; period dates and Active ordering are scope-specific. */
 export type TaskListInput = {
   /** Ordering within ACTIVE, applied before pagination. */
   activeOrder?: ActiveWorkOrderInput | null | undefined;
@@ -236,10 +272,12 @@ export type TaskListInput = {
   through?: string | null | undefined;
 };
 
+/** Whether creation or metadata changes were fully confirmed upstream. A repair result may already contain saved data. */
 export type TaskMutationStatus =
   | 'CONFIRMED'
   | 'REPAIR_REQUIRED';
 
+/** Native Vikunja priority. UNSET is a real priority value, not an omitted update field. */
 export type TaskPriority =
   | 'DO_NOW'
   | 'HIGH'
@@ -248,11 +286,13 @@ export type TaskPriority =
   | 'UNSET'
   | 'URGENT';
 
+/** Native relationship direction relative to taskId; hierarchy is unrelated to overlapping task times. */
 export type TaskRelationKind =
   | 'PARENT'
   | 'RELATED'
   | 'SUBTASK';
 
+/** Absolute: supply exactly one of at/localAt. Relative: supply a native anchor and signed seconds; do not supply localAt. */
 export type TaskReminderInput = {
   at?: string | null | undefined;
   localAt?: string | null | undefined;
@@ -260,23 +300,36 @@ export type TaskReminderInput = {
   relativeTo?: string;
 };
 
+/** Named server-side membership and ordering policies. Scopes overlap; they are not task types. */
 export type TaskScope =
+  /** Unfinished valid tasks available at the current instant within a bounded window. Includes short windows and Jobs; use an ordinary Revisit label to select work to revisit. */
   | 'ACTIVE'
+  /** Completed tasks and recorded recurrence snapshots; history is read-only through task editing. */
   | 'HISTORY'
+  /** Unfinished timed Jobs, including recurring Jobs. */
   | 'JOBS'
+  /** Unfinished tasks with no due date or due more than seven local calendar days from now. Not a duration classification. */
   | 'LONG_TERM'
+  /** Unfinished tasks due before next month, including backlog. Use PERIOD for planned-finish membership. */
   | 'MONTH'
+  /** Unfinished work with planned finish or due in inclusive from/through dates. A period containing now also includes earlier backlog. */
   | 'PERIOD'
+  /** Unfinished recurring tasks, including recurring Jobs. */
   | 'RECURRING'
+  /** Unfinished work whose effective finish is before tomorrow, including backlog. One-time work uses the earlier planned end or due; other kinds use due. */
   | 'TODAY'
+  /** Unfinished tasks with no due date; they may still have availability and planned-finish dates. */
   | 'UNSCHEDULED'
+  /** Unfinished tasks due before the next configured week boundary, including backlog. Not the projected week query. */
   | 'WEEK';
 
+/** Use the unexpired session-bound capability from a supported completion; no arbitrary task reopening. */
 export type UndoTaskCompletionInput = {
   capability: string;
   csrfToken: string;
 };
 
+/** Replace the specified comment body under upstream edit permissions. */
 export type UpdateTaskCommentInput = {
   bodyHtml: string;
   commentId: string | number;
@@ -284,6 +337,7 @@ export type UpdateTaskCommentInput = {
   taskId: string | number;
 };
 
+/** Full-form replacement, not a patch. Omitted/null dates clear their fields and omitted/null recurrence removes recurrence. Only reminders and ordinary label IDs preserve on omission/null. */
 export type UpdateTaskInput = {
   csrfToken: string;
   description: string;
@@ -293,7 +347,7 @@ export type UpdateTaskInput = {
   expectedVersion: string;
   job: boolean;
   labelIds?: Array<string | number> | null | undefined;
-  /** Sets both native start/end timestamps as an inclusive date-only window. */
+  /** Sets native start/end with optional clocks; one-time tasks only. When supplied, replaces startAt/endAt inputs. Does not change due. */
   planningWindow?: PlanningWindowInput | null | undefined;
   priority: TaskPriority;
   projectId: string | number;
@@ -305,12 +359,14 @@ export type UpdateTaskInput = {
   title: string;
 };
 
+/** Upload supported media to a visible task with bounded input and upstream permission checks. */
 export type UploadTaskMediaInput = {
   csrfToken: string;
   file: File;
   taskId: string | number;
 };
 
+/** Week containing a local date, defaulting to the current week; optional project filter. */
 export type WeekInput = {
   containing?: string | null | undefined;
   projectId?: string | number | null | undefined;

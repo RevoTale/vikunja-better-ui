@@ -17,6 +17,7 @@ import (
 	graphqlserver "github.com/RevoTale/vikunja-better-ui/internal/graphql"
 	"github.com/RevoTale/vikunja-better-ui/internal/graphql/resolver"
 	"github.com/RevoTale/vikunja-better-ui/internal/integration"
+	mcpserver "github.com/RevoTale/vikunja-better-ui/internal/mcp"
 	"github.com/RevoTale/vikunja-better-ui/internal/service"
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 	"github.com/RevoTale/vikunja-better-ui/internal/web"
@@ -74,6 +75,7 @@ func run(configuration config.Config, logger *slog.Logger) error {
 		Activity: currentActivity, AllTimeActivity: currentAllTimeActivity,
 	})
 	mux := http.NewServeMux()
+	registerTokenIntegrations(mux, configuration, logger, now)
 	graphQL := graphqlserver.NewHandler(root, production, logger)
 	mux.Handle(
 		"/graphql",
@@ -82,10 +84,6 @@ func run(configuration config.Config, logger *slog.Logger) error {
 	mux.Handle(
 		"GET /media/tasks/{task}/attachments/{attachment}",
 		auth.HTTPContext(sessions, cookies)(web.NewTaskMediaHandler(vikunjaClient, logger)),
-	)
-	mux.Handle(
-		"/integrations/v1/jobs",
-		integration.NewJobsHandler(configuration.VikunjaURL, configuration.AllowedOrigin, logger, now),
 	)
 	mux.Handle("/public/v1/", web.NewPublicActivityAPI(
 		activity, allTimeActivity, configuration.PublicActivityEnabled,
@@ -104,6 +102,18 @@ func run(configuration config.Config, logger *slog.Logger) error {
 	registerPublicRoutes(mux, publicPages, privatePages, spa, configuration)
 	server := newHTTPServer(configuration.HTTPAddr, production, mux)
 	return serve(server, logger)
+}
+
+func registerTokenIntegrations(
+	mux *http.ServeMux, configuration config.Config, logger *slog.Logger, now func() time.Time,
+) {
+	mux.Handle("/integrations/v1/jobs",
+		integration.NewJobsHandler(configuration.VikunjaURL, configuration.AllowedOrigin, logger, now))
+	if configuration.MCPEnabled {
+		mux.Handle("/mcp", mcpserver.NewHandler(mcpserver.Options{Upstream: configuration.VikunjaURL,
+			PublicUpstream: configuration.VikunjaPublicURL, AppURL: configuration.AllowedOrigin,
+			Secret: configuration.SessionSecret, Logger: logger, Now: now}))
+	}
 }
 
 func registerPublicRoutes(

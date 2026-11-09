@@ -5,6 +5,36 @@ paths instead of adding caches or changing Vikunja semantics.
 
 ## Current baseline
 
+### Ongoing development requirement — 2026-11-09
+
+Resource efficiency applies across the project, including MCP, private workflows,
+public responses and background processing. Consider allocations, external request
+count, RAM and CPU when designing changes; it is not limited to simple requests.
+For affected expensive paths, compare representative before/after measurements
+and record unmeasured dimensions. Use deterministic call-count tests for request
+fan-out, `-benchmem` for allocations, CPU profiles for computation and idle/peak
+RSS under load for process memory. These metrics are related but not interchangeable.
+
+Keep permission isolation, freshness, cancellation, bounded work and correctness.
+Do not remove validation/confirmation reads merely to lower a count. Set new
+numeric budgets from evidence rather than inventing targets. See
+[ADR-010](decisions/0010-semantic-api-and-mcp.md).
+
+### Historical measurements
+
+Fresh pre-MCP baseline, 2026-11-09, Linux arm64 Dev Container, Go 1.27.2,
+three runs (`-benchmem -count=3`), existing 5000-task fixtures:
+
+| Benchmark | Median ns/op | B/op range | allocs/op |
+| --- | --- | --- | --- |
+| BenchmarkListActiveTasks | 4,314,865 | 342,771–342,869 | 24 |
+| BenchmarkListWeek | 7,607,349 | 8,677,032–8,677,053 | 54 |
+
+This is a new baseline, not evidence of an optimization or a controlled comparison
+with older toolchains. CPU profiles, loaded process RSS and MCP overhead remain
+unmeasured at this checkpoint. External request-count evidence remains in the
+upstream audit until new adapter-specific measurements are available.
+
 Measurements were taken in the Linux arm64 Dev Container with Go 1.26.6. The
 current app binary used 9.76 MiB RSS while idle. RSS is the relevant
 physical-memory metric for Go; VSS includes large virtual address-space
@@ -140,3 +170,53 @@ diagnostic listener only as an explicitly reviewed change.
 
 Re-run the same benchmark before and after each future optimization. Revert
 changes whose improvement stays within measurement noise.
+
+## MCP measurement — 2026-11-09
+
+Uncommitted semantic-MCP revision, Go 1.27.2 linux/arm64 in the project Dev
+Container. `BenchmarkMCPDiscovery` serves one fake native authorization response
+per request and exercises the real SDK/adapter with an HTTP recorder. No production
+latency or model-token claim follows from this fixture.
+
+| Measurement | Full detail in mutation schemas | Compact mutation references |
+| --- | --- | --- |
+| tools/list wire JSON, 23 tools | 56,256 bytes | 38,085 bytes |
+| Three-run ns/op range | 4,715,116–5,011,957 | 4,277,789–4,502,820 |
+| B/op range | 3,177,348–3,181,309 | 2,133,537–2,145,531 |
+| allocs/op range | 22,098–22,102 | 14,317–14,323 |
+
+The schema reduction is about 32%; allocation count fell about 35%. Mutation
+responses still carry task identity/version and partial/recovery outcomes; full
+rule/reminder/content data remains available through get_task. Do not cache token
+identity or remove native authorization to make the synthetic benchmark faster.
+
+Reproduce:
+
+```sh
+go test ./internal/mcp -run TestDiscoveryPublishesSchemasAndIntentAnnotations -v
+go test ./internal/mcp -run '^$' -bench BenchmarkMCPDiscovery -benchmem -count=3
+go test -c -o /tmp/vbu-mcp.test ./internal/mcp
+go run ./tests/e2e/harness measure /tmp/vbu-mcp.test -test.run '^$' -test.bench BenchmarkMCPDiscovery -test.benchtime 5s -test.cpuprofile /tmp/mcp.cpu -test.memprofile /tmp/mcp.mem
+go tool pprof -top /tmp/vbu-mcp.test /tmp/mcp.cpu
+```
+
+The separate profiled run took 6.36 s, sampled peak process-tree RSS 29.3 MiB
+(26 samples at 250 ms), and recorded 6.50 CPU sample-seconds. The benchmark process
+includes the fake upstream, HTTP recorder and profiling overhead, not the full
+application. JSON struct serialization accounted for 67.38% cumulative CPU samples;
+this supports reducing repeated schemas rather than adding a credential cache.
+Timing differs with concurrent validation load; allocation/wire size is stronger
+comparison evidence here.
+
+External calls: discovery and static explanations make one native MCP authorization
+probe and zero task reads; malformed/JWT credentials make none. Unknown tool input
+is rejected before task reads. Read/write tools add the existing bounded service
+calls, plus the same authorization probe. Create readback is intentional: native
+POST and GET representations differed in a version fixture. Recovery rechecks
+rights, so partial writes must not be optimized into blind retries.
+
+Existing service benchmarks above cover 5,000 candidates and recurrence. Native
+E2E covers read/write/partial/denied behavior; it does not measure their production
+CPU/RSS or establish a sustained-concurrency latency budget. Those remain explicit
+measurement limits, not claims of zero overhead. Bounds (16 concurrent requests,
+30 s lifetime, 1 MiB request, bounded pages/text) prevent unbounded adapter work.
