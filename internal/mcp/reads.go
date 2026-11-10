@@ -58,7 +58,8 @@ type listOutput struct {
 
 func addReadTools(server *sdk.Server) {
 	addTool(server, readTool("get_context",
-		"Find caller timezone and paged visible project/ordinary-label IDs. No task reads."), getContext)
+		"Find effective timezone, timezoneSource, schedulingReady and paged visible project/ordinary-label IDs. "+
+			"Profile timezone wins; only an empty bot timezone may use the operator's fallback. No task reads."), getContext)
 	addTool(server, readTool("get_activity",
 		"Read caller-scoped completion totals; RECENT includes 14 days, ALL_TIME totals only. "+
 			"Not planned effort."), getActivity)
@@ -156,27 +157,36 @@ func boundedListRequest(input listInput, request service.ListRequest, location *
 }
 
 func taskContext(ctx context.Context) (*caller, vikunja.User, *time.Location, error) {
-	c, user, err := userContext(ctx)
+	c, user, _, err := userContext(ctx)
 	if err != nil {
 		return nil, user, nil, err
 	}
 	location, err := time.LoadLocation(user.Settings.Timezone)
 	if err != nil || user.Settings.Timezone == "" {
-		return nil, user, nil, errorsForTool("Set a valid timezone in Vikunja before scheduling tasks.")
+		return nil, user, nil, errorsForTool("Set a valid timezone in Vikunja; for a bot with an empty timezone, " +
+			"the operator can configure APP_MCP_FALLBACK_TIMEZONE.")
 	}
 	return c, user, location, nil
 }
 
-func userContext(ctx context.Context) (*caller, vikunja.User, error) {
+func userContext(ctx context.Context) (*caller, vikunja.User, string, error) {
 	c, err := requestCaller(ctx)
 	if err != nil {
-		return nil, vikunja.User{}, err
+		return nil, vikunja.User{}, "", err
 	}
 	user, err := c.client.CurrentUser(ctx)
 	if err != nil {
-		return nil, user, errorsForTool("Cannot read the token owner's profile; check user-read permission.")
+		return nil, user, "", errorsForTool("Cannot read the token owner's profile; check user-read permission.")
 	}
-	return c, user, nil
+	source := timezoneVikunja
+	if user.Settings.Timezone == "" {
+		source = timezoneUnavailable
+		if user.BotOwnerID > 0 && c.fallbackTimezone != "" {
+			user.Settings.Timezone = c.fallbackTimezone
+			source = timezoneBotFallback
+		}
+	}
+	return c, user, source, nil
 }
 
 func checkProject(ctx context.Context, client *vikunja.Client, id int64) error {

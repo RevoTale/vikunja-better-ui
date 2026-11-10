@@ -8,6 +8,12 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+const (
+	timezoneVikunja     = "VIKUNJA"
+	timezoneBotFallback = "BOT_FALLBACK"
+	timezoneUnavailable = "UNAVAILABLE"
+)
+
 type contextInput struct {
 	Page int `json:"page,omitempty" jsonschema:"One-based catalogue page; default 1, 30 items per catalogue"`
 }
@@ -17,6 +23,7 @@ type projectSummary struct {
 }
 type contextOutput struct {
 	Timezone        string           `json:"timezone"`
+	TimezoneSource  string           `json:"timezoneSource"  jsonschema:"VIKUNJA or BOT_FALLBACK or UNAVAILABLE"`
 	SchedulingReady bool             `json:"schedulingReady"`
 	Now             time.Time        `json:"now"`
 	WeekStart       int              `json:"weekStart"`
@@ -36,7 +43,7 @@ func getContext(ctx context.Context, _ *sdk.CallToolRequest, input contextInput)
 	if input.Page < 1 || input.Page > 1000 {
 		return nil, contextOutput{}, errorsForTool("Use page between 1 and 1000.")
 	}
-	c, user, err := userContext(ctx)
+	c, user, source, err := userContext(ctx)
 	if err != nil {
 		return nil, contextOutput{}, err
 	}
@@ -49,7 +56,8 @@ func getContext(ctx context.Context, _ *sdk.CallToolRequest, input contextInput)
 		return nil, contextOutput{}, errorsForTool("Labels could not be read; check permissions.")
 	}
 	output := contextOutput{Timezone: user.Settings.Timezone, Now: c.now, WeekStart: user.Settings.WeekStart,
-		Page: input.Page, Projects: []projectSummary{}, Labels: []labelSummary{}}
+		TimezoneSource: source,
+		Page:           input.Page, Projects: []projectSummary{}, Labels: []labelSummary{}}
 	_, zoneErr := time.LoadLocation(user.Settings.Timezone)
 	output.SchedulingReady = user.Settings.Timezone != "" && zoneErr == nil
 	start := (input.Page - 1) * defaultPageSize

@@ -1,5 +1,20 @@
 # Changelog
 
+## [2.13.1](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.13.1) - 2026-11-10
+
+### Fixes
+
+- Allow MCP bots with an empty Vikunja profile timezone to use an explicitly
+  configured `APP_MCP_FALLBACK_TIMEZONE`, preserving their identity and permissions.
+- Apply the effective timezone consistently to calendar reads, activity and task
+  mutations; expose `timezoneSource` and readiness through `get_context`.
+- Keep populated profile timezones authoritative and exclude ordinary users from
+  fallback. Reject invalid configured zones at startup.
+
+The fallback is disabled by default. Set it to an IANA timezone such as
+`Europe/Kyiv` and restart Better UI to enable it. Vikunja settings and native
+reminder processing are unchanged.
+
 ## [2.13.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.13.0) - 2026-11-09
 
 ### Features

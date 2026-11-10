@@ -3,6 +3,16 @@
 Правила: [ADR-009](../decisions/0009-task-planning-windows.md).
 Кроки «Створити» стосуються Create; кроки «Редагувати» — повного Edit
 (посилання Edit на сторінці задачі). Дати й час — у часовому поясі Vikunja.
+
+Для MCP-бота з порожнім timezone адміністратор може явно задати
+`APP_MCP_FALLBACK_TIMEZONE=Europe/Kyiv`. `get_context` тоді повертає цей пояс,
+`timezoneSource=BOT_FALLBACK` і `schedulingReady=true`. Намір «завершити
+29 березня 2026 о 12:00» → `create_one_time_task` з `dueDate=2026-03-29`,
+`dueTime=12:00` → дедлайн о 12:00 за Києвом → Vikunja `due_date=2026-03-29T09:00:00Z`.
+Це не сеанс; `start_date` і `end_date` не додаються без відповідних параметрів.
+Заповнений timezone профілю завжди має пріоритет, а звичайні користувачі fallback
+не використовують. Налаштування профілю Vikunja не змінюються.
+Правила: [ADR-010](../decisions/0010-semantic-api-and-mcp.md#clarification--bot-timezone-fallback-2026-11-10).
 Після створення натиснути Create one-time task / Create timed session / Create recurring task;
 після редагування — Save changes. Незбережені поля не змінюють задачу.
 

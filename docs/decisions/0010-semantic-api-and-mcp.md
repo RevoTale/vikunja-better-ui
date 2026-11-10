@@ -120,3 +120,37 @@ See the linked specification for sources, coverage and remaining verification.
 7. Keep calendar/list bounds explicit and work bounded: pagination rejects integer
    overflow; completed-job scopes carry local completion bounds; independent agenda
    failures stay visible. Request limits are 1 MiB, 30 seconds and 16 concurrent calls.
+
+### Clarification — bot timezone fallback, 2026-11-10
+
+- The user confirmed their MCP token belongs to a bot. A live `get_context` read
+  succeeded but returned an empty timezone and `schedulingReady=false`. They
+  approved `APP_MCP_FALLBACK_TIMEZONE` only for bots with an empty timezone, to
+  keep the existing bot identity and permissions without replacing the token.
+- This replaces the absolute profile-only rule in implementation decision 3
+  with one explicit exception. A populated profile timezone stays authoritative,
+  even if invalid. Ordinary users never use fallback. Identify bots by native
+  `bot_owner_id > 0`, not username. The optional fallback is deployment-wide,
+  disabled when empty and validated at startup as a named IANA timezone; reject
+  host-dependent `Local`. Never infer the app account's or host's timezone.
+- Resolve effective timezone on a request-local profile copy after a successful
+  caller-authorized profile read. Reuse it for MCP reads, activity, local date
+  mutations and recurrence. No profile write, persistence, new service,
+  privileged credential fallback or additional upstream read is introduced.
+  GraphQL, public activity, Jobs HTTP integration and Vikunja's own reminder
+  processing keep their existing behavior.
+- `get_context` exposes `timezoneSource=VIKUNJA|BOT_FALLBACK|UNAVAILABLE` beside
+  effective `timezone` and `schedulingReady`. A populated invalid profile has
+  source `VIKUNJA` and readiness false. Missing permissions still fail normally.
+- Acceptance: an empty-timezone bot with fallback `Europe/Kyiv` is ready; at
+  `2026-11-09T23:30:00Z` its agenda defaults to November 10. A bot with profile
+  `UTC` instead sees November 9. A local noon deadline on March 28/29, 2026 stores
+  `10:00Z`/`09:00Z` respectively. Empty human profiles, invalid populated profiles
+  and bots without configured fallback remain unready. Reads do not write
+  upstream; task creation retains the caller token and one profile read.
+
+Upstream evidence (Vikunja 2.7.1):
+[new bot timezone defaults](https://github.com/go-vikunja/vikunja/blob/v2.7.1/pkg/user/user_create.go#L165-L170),
+[limited bot update fields](https://github.com/go-vikunja/vikunja/blob/v2.7.1/pkg/models/bot_users.go#L89-L127),
+and [user-settings routes excluded from API-token scopes](https://github.com/go-vikunja/vikunja/blob/v2.7.1/pkg/models/api_routes.go#L242-L251).
+Current contract and checks: [MCP interface](../specs/mcp-interface.md#bot-timezone-fallback).

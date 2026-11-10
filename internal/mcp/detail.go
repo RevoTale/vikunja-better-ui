@@ -47,7 +47,7 @@ func mutationDetail(task vikunja.Task, timezone string, c *caller) taskReference
 }
 
 func getTask(ctx context.Context, _ *sdk.CallToolRequest, input taskInput) (*sdk.CallToolResult, taskDetail, error) {
-	c, user, err := userContext(ctx)
+	c, user, _, err := userContext(ctx)
 	if err != nil {
 		return nil, taskDetail{}, err
 	}

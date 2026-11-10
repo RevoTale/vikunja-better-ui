@@ -23,6 +23,10 @@ GraphQL signatures, input defaults, business rules or native storage.
    'clear'. For collections explain replacement versus append semantics.
 4. Explain local dates/times versus instants, the Vikunja user's timezone, DST
    rejection and date-only end boundaries. Start/end/due mappings stay unchanged.
+   MCP alone supports an explicitly configured fallback for bots with an empty
+   profile timezone; expose its source as specified in
+   [the MCP contract](mcp-interface.md#bot-timezone-fallback). UI/GraphQL and
+   Vikunja's own reminder processing keep the native profile timezone.
 5. Explain Job recurrence as orthogonal to Job kind, invalid marker combinations,
    recurring renewal/history, skip, repair and the limited Undo window. Do not
    imply all mutations are safely retryable or all completions are undoable.

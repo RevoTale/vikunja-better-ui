@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const (
@@ -54,6 +55,7 @@ type Config struct {
 	PublicAllTimeActivityEnabled bool
 	Use12HourTime                bool
 	MCPEnabled                   bool
+	MCPFallbackTimezone          string
 }
 
 // LookupFunc reads an environment variable without coupling validation to the process.
@@ -155,6 +157,10 @@ func isLoopbackHost(host string) bool {
 
 func loadFeatureFlags(configuration *Config, lookup LookupFunc) error {
 	var err error
+	configuration.MCPFallbackTimezone, err = parseMCPFallbackTimezone(lookup)
+	if err != nil {
+		return err
+	}
 	configuration.MCPEnabled, err = parseBooleanFlag(lookup, "APP_MCP_ENABLED")
 	if err != nil {
 		return err
@@ -169,6 +175,17 @@ func loadFeatureFlags(configuration *Config, lookup LookupFunc) error {
 	}
 	configuration.Use12HourTime, err = parseTimeFormat(lookup)
 	return err
+}
+
+func parseMCPFallbackTimezone(lookup LookupFunc) (string, error) {
+	zone := required(lookup, "APP_MCP_FALLBACK_TIMEZONE")
+	if zone == "" {
+		return "", nil
+	}
+	if _, err := time.LoadLocation(zone); err != nil || zone == "Local" {
+		return "", errors.New("APP_MCP_FALLBACK_TIMEZONE must be a valid IANA timezone, such as Europe/Kyiv")
+	}
+	return zone, nil
 }
 
 func parseTimeFormat(lookup LookupFunc) (bool, error) {
