@@ -1,5 +1,11 @@
 # Changelog
 
+## [3.0.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v3.0.0) - 2026-11-10
+
+### 💥 Breaking changes
+
+- chore(deps): update woodpeckerci/plugin-release docker tag to v1 [[#150](https://github.com/RevoTale/vikunja-better-ui/pull/150)]
+
 ## [2.13.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.13.0) - 2026-11-09
 
 ### Features
