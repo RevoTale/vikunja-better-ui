@@ -12,7 +12,7 @@ import { addCalendarDays, localDate, localDateTime, selectDate } from "./app-cal
 import { emptyProjectID, labeledTitle } from "./app-fixture";
 import { chooseSelectOption } from "./app-layout";
 import { findTaskInPaginatedList } from "./app-pagination";
-import { fixtureEnv, nativeSession } from "./mcp-fixture";
+import { fixtureEnv } from "./mcp-fixture";
 
 test("task lists expose loading, empty, error, and project-filter states", async ({ page }) => {
   await blockBrowserVikunjaCalls(page);
@@ -145,7 +145,7 @@ test("skip and delete actions preserve recurring history in Vikunja", async ({ p
   await page.getByRole("button", { name: "Delete task", exact: true }).click();
   await expect(page).toHaveURL(/\/today/);
   expect(await vikunjaTaskStatus(taskID)).toBe(404);
-  const session = await nativeSession(page.request);
+  const session = fixtureEnv("E2E_FIXTURE_SESSION");
   const trashResponse = await page.request.get(
     `${fixtureEnv("E2E_VIKUNJA_URL")}/api/v2/tasks/deleted?per_page=100`,
     {

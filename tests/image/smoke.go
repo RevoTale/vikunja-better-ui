@@ -109,9 +109,8 @@ func (run smokeRun) startApp(ctx context.Context) error {
 	args = append(args, "create", "--name", run.container, "--network", run.network)
 	for _, variable := range []string{
 		"APP_ENV=production", "APP_VIKUNJA_URL=https://" + run.upstream + ":3456", "SSL_CERT_FILE=" + certPath,
-		"APP_VIKUNJA_API_TOKEN=smoke-token", "APP_AUTH_USERNAME=smoke-user", "APP_AUTH_PASSWORD=smoke-password",
 		"APP_SESSION_SECRET=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
-		"APP_HTTP_ADDR=:8080", "APP_ALLOWED_ORIGIN=https://tasks.example.invalid",
+		"APP_HTTP_ADDR=:8080",
 	} {
 		args = append(args, "--env", variable)
 	}

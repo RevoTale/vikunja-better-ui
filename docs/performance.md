@@ -20,6 +20,16 @@ Do not remove validation/confirmation reads merely to lower a count. Set new
 numeric budgets from evidence rather than inventing targets. See
 [ADR-010](decisions/0010-semantic-api-and-mcp.md).
 
+### Personal sessions — 2026-11-18
+
+On the linux/arm64 Dev Container, three runs of `BenchmarkSessionParse` with
+10,000 iterations measured 1,595–1,597 B/op and 19 allocations for the old
+signed cookie, and 256 B/op and 4 allocations for the AES-GCM credential.
+This measures parsing only. HTTP cookie handling, frontend latency and
+whole-process RSS are outside the benchmark. Private GraphQL operations and
+Jobs callers share the transport but scope metadata coalescing to their own
+request. Public aggregates retain their separate configured client.
+
 ### Historical measurements
 
 Fresh pre-MCP baseline, 2026-11-09, Linux arm64 Dev Container, Go 1.27.2,
@@ -63,6 +73,16 @@ Real RSS depends on concurrent requests and Vikunja response sizes. The client
 rejects each upstream response body above 4 MiB, and active views reject more
 than 10,000 candidate tasks. These are safety bounds, not a promise that every
 allowed input fits a fixed small memory limit.
+
+## Production image build context — 2026-11-18
+
+On the arm64 development checkout with local tooling installed, matched
+BuildKit COPY exports contained 94,011,322 regular-file bytes across 3,577
+files before narrowing the inputs and 3,781,698 bytes across 789 files after
+the change. All Node module directories are excluded from the context. The Go
+stage now copies `cmd/` and `internal/` alongside its module manifests. These
+figures describe the checkout’s eligible inputs. BuildKit transfer counters
+also reflect earlier cached transfers. Clean CI checkout speed was not measured.
 
 ## Static frontend delivery
 
@@ -113,7 +133,7 @@ as a successful fresh response.
 
 The backend minimizes critical-path waits:
 
-- app-session route guards validate the signed cookie without calling Vikunja;
+- app-session route guards open the origin-bound encrypted credential without calling Vikunja;
 - user, projects, and Jobs labels start concurrently;
 - an unfiltered task request starts as soon as the user timezone and any
   required Jobs labels are available, without waiting for projects;
@@ -121,12 +141,12 @@ The backend minimizes critical-path waits:
   or project-title sorting requires them first;
 - active-task page 1 establishes the authoritative total, then pages 2 through
   N load with at most four concurrent requests and are assembled in page order;
-- identical user, project, or label reads overlap into one upstream request only
+- within one browser GraphQL operation, identical user, project or label reads share one upstream request
   while that request is in flight. The final departing caller cancels the
   upstream request, and the result is discarded immediately, so the next
   request reads fresh Vikunja data.
 
-A typical Today view therefore makes three Vikunja calls (`user`, `projects`,
+The typical unfiltered Today list operation makes three Vikunja calls (`user`, `projects`,
 and one `tasks` page), with metadata overlapped rather than serialized. Jobs
 also needs `labels`. More task calls occur only when Vikunja reports additional
 pages; no task is fetched individually.

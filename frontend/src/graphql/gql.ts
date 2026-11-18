@@ -15,7 +15,7 @@ import type { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-
  */
 type Documents = {
     "query PublicActivity {\n  publicActivity {\n    days {\n      date\n      count\n      completedWithDeadline\n      completedOnTime\n    }\n    priorities {\n      priority\n      count\n    }\n    total\n    timezone\n    generatedAt\n    refreshAt\n  }\n}\n\nquery PublicAllTimeActivity {\n  publicAllTimeActivity {\n    weeks {\n      date\n      priorities {\n        priority\n        count\n        completedWithDeadline\n        completedOnTime\n      }\n    }\n    priorities {\n      priority\n      count\n    }\n    total\n    timezone\n    generatedAt\n    refreshAt\n  }\n}": typeof types.PublicActivityDocument,
-    "mutation Login($input: LoginInput!) {\n  login(input: $input) {\n    session {\n      use12HourTime\n      authenticated\n      csrfToken\n      expiresAt\n      vikunjaUser {\n        id\n        username\n        timezone\n        weekStart\n        defaultProjectId\n      }\n    }\n  }\n}": typeof types.LoginDocument,
+    "mutation Login($input: LoginInput!) {\n  login(input: $input) {\n    session {\n      authenticated\n    }\n  }\n}": typeof types.LoginDocument,
     "mutation Logout($csrfToken: String!) {\n  logout(csrfToken: $csrfToken) {\n    authenticated\n  }\n}": typeof types.LogoutDocument,
     "query AuthSession {\n  session {\n    use12HourTime\n    authenticated\n    csrfToken\n    expiresAt\n  }\n}\n\nquery Session {\n  session {\n    use12HourTime\n    authenticated\n    csrfToken\n    expiresAt\n    vikunjaUser {\n      id\n      username\n      timezone\n      weekStart\n      defaultProjectId\n    }\n  }\n}": typeof types.AuthSessionDocument,
     "query DiscussionAvatar($username: String!) {\n  discussionAvatar(username: $username)\n}": typeof types.DiscussionAvatarDocument,
@@ -31,7 +31,7 @@ type Documents = {
 };
 const documents: Documents = {
     "query PublicActivity {\n  publicActivity {\n    days {\n      date\n      count\n      completedWithDeadline\n      completedOnTime\n    }\n    priorities {\n      priority\n      count\n    }\n    total\n    timezone\n    generatedAt\n    refreshAt\n  }\n}\n\nquery PublicAllTimeActivity {\n  publicAllTimeActivity {\n    weeks {\n      date\n      priorities {\n        priority\n        count\n        completedWithDeadline\n        completedOnTime\n      }\n    }\n    priorities {\n      priority\n      count\n    }\n    total\n    timezone\n    generatedAt\n    refreshAt\n  }\n}": types.PublicActivityDocument,
-    "mutation Login($input: LoginInput!) {\n  login(input: $input) {\n    session {\n      use12HourTime\n      authenticated\n      csrfToken\n      expiresAt\n      vikunjaUser {\n        id\n        username\n        timezone\n        weekStart\n        defaultProjectId\n      }\n    }\n  }\n}": types.LoginDocument,
+    "mutation Login($input: LoginInput!) {\n  login(input: $input) {\n    session {\n      authenticated\n    }\n  }\n}": types.LoginDocument,
     "mutation Logout($csrfToken: String!) {\n  logout(csrfToken: $csrfToken) {\n    authenticated\n  }\n}": types.LogoutDocument,
     "query AuthSession {\n  session {\n    use12HourTime\n    authenticated\n    csrfToken\n    expiresAt\n  }\n}\n\nquery Session {\n  session {\n    use12HourTime\n    authenticated\n    csrfToken\n    expiresAt\n    vikunjaUser {\n      id\n      username\n      timezone\n      weekStart\n      defaultProjectId\n    }\n  }\n}": types.AuthSessionDocument,
     "query DiscussionAvatar($username: String!) {\n  discussionAvatar(username: $username)\n}": types.DiscussionAvatarDocument,
@@ -67,7 +67,7 @@ export function graphql(source: "query PublicActivity {\n  publicActivity {\n   
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "mutation Login($input: LoginInput!) {\n  login(input: $input) {\n    session {\n      use12HourTime\n      authenticated\n      csrfToken\n      expiresAt\n      vikunjaUser {\n        id\n        username\n        timezone\n        weekStart\n        defaultProjectId\n      }\n    }\n  }\n}"): (typeof documents)["mutation Login($input: LoginInput!) {\n  login(input: $input) {\n    session {\n      use12HourTime\n      authenticated\n      csrfToken\n      expiresAt\n      vikunjaUser {\n        id\n        username\n        timezone\n        weekStart\n        defaultProjectId\n      }\n    }\n  }\n}"];
+export function graphql(source: "mutation Login($input: LoginInput!) {\n  login(input: $input) {\n    session {\n      authenticated\n    }\n  }\n}"): (typeof documents)["mutation Login($input: LoginInput!) {\n  login(input: $input) {\n    session {\n      authenticated\n    }\n  }\n}"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

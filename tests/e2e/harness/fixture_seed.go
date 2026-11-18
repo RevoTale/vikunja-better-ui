@@ -13,6 +13,7 @@ const (
 	invalidFixtureTitle = "Invalid recurring history fixture"
 	labeledFixtureTitle = "Labeled task fixture"
 	secondsPerDay       = 86400
+	profilePermission   = "user"
 )
 
 func seedFixtures(ctx context.Context, upstream, username, password string, demo bool) (map[string]string, error) {
@@ -46,8 +47,15 @@ func seedFixtures(ctx context.Context, upstream, username, password string, demo
 	if err != nil {
 		return nil, err
 	}
+	publicToken, err := api.issueToken(ctx, "Public activity E2E", map[string][]string{
+		"other": {profilePermission}, "tasks": {"read_all"},
+	})
+	if err != nil {
+		return nil, err
+	}
 	return map[string]string{
-		"token": token, "projectId": strconv.FormatInt(api.projectID, 10), "emptyProjectId": strconv.FormatInt(empty, 10),
+		"token": token, "publicToken": publicToken, "nativeSession": api.token,
+		"projectId": strconv.FormatInt(api.projectID, 10), "emptyProjectId": strconv.FormatInt(empty, 10),
 		fixtureTimezoneField: fixtureTimezone, "invalidTitle": invalidFixtureTitle, "labeledTitle": labeledFixtureTitle,
 	}, nil
 }
@@ -130,7 +138,7 @@ func (api *fixtureAPI) scopedToken(ctx context.Context) (string, error) {
 		return "", err
 	}
 	permissions := map[string][]string{
-		"other": {"user", "avatar"}, "projects": {readAll},
+		"other": {profilePermission, "avatar"}, "projects": {readAll},
 		"tasks": {create, readAll, readOne, update, remove}, "labels": {create, readAll},
 		"tasks_labels":      {create, readAll, remove},
 		"tasks_comments":    {create, readAll, readOne, update, remove},
@@ -143,9 +151,13 @@ func (api *fixtureAPI) scopedToken(ctx context.Context) (string, error) {
 			}
 		}
 	}
+	return api.issueToken(ctx, "Vikunja Better UI E2E", permissions)
+}
+
+func (api *fixtureAPI) issueToken(ctx context.Context, title string, permissions map[string][]string) (string, error) {
 	const tokenLifetime = 24 * time.Hour
 	token, err := api.create(ctx, "/tokens", map[string]any{
-		fixtureTitleField: "Vikunja Better UI E2E", "expires_at": api.clock.Add(tokenLifetime), "permissions": permissions,
+		fixtureTitleField: title, "expires_at": api.clock.Add(tokenLifetime), "permissions": permissions,
 	})
 	if err != nil {
 		return "", err

@@ -80,12 +80,15 @@ func authenticatedActivityRequest(
 ) *httptest.ResponseRecorder {
 	t.Helper()
 	now := func() time.Time { return time.Date(2026, 10, 15, 13, 0, 0, 0, time.UTC) }
-	sessions := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"),
+	sessions, err := auth.NewSessionManager(
+		[]byte("01234567890123456789012345678901"), "https://vikunja.test",
 		now,
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
-	token, session, err := sessions.Issue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, session, err := sessions.Issue("tk_test", "http://app.test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,17 +96,14 @@ func authenticatedActivityRequest(
 	if err != nil {
 		t.Fatal(err)
 	}
-	cookies := auth.NewSessionCookies(false)
-	handler := auth.HTTPContext(sessions, cookies)(
+	handler := auth.HTTPContext(sessions, testOrigin)(
 		NewHandler(root, true, discardLogger()),
 	)
 	request := httptest.NewRequestWithContext(
 		t.Context(), http.MethodPost, "http://app.test/graphql", bytes.NewReader(body),
 	)
 	request.Header.Set("Content-Type", "application/json")
-	cookieResponse := httptest.NewRecorder()
-	cookies.Set(cookieResponse, token, session.ExpiresAt)
-	request.AddCookie(cookieResponse.Result().Cookies()[0])
+	addLoginCookies(request, token, session)
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
 	return recorder

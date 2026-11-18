@@ -2,9 +2,12 @@ package resolver
 
 import (
 	"context"
+	"errors"
+	"net/http"
 
 	"github.com/RevoTale/vikunja-better-ui/internal/auth"
 	"github.com/RevoTale/vikunja-better-ui/internal/graphql/model"
+	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
 // Login is the resolver for the login field.
@@ -13,25 +16,34 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 	if !ok {
 		return nil, clientError("INTERNAL", "The request context is unavailable.")
 	}
-	if !r.limiter.Allow(requestInfo.ClientIP) {
-		return nil, clientError("UNAUTHENTICATED", "Invalid username or password.")
+	if !r.limiter.Begin(requestInfo.ClientIP) {
+		return nil, clientError("UNAUTHENTICATED", "Too many sign-in attempts. Try again later.")
 	}
-	if err := r.credentials.Verify(input.Username, input.Password); err != nil {
-		r.limiter.RecordFailure(requestInfo.ClientIP)
-		return nil, clientError("UNAUTHENTICATED", "Invalid username or password.")
+	outcome := auth.LoginUnavailable
+	defer func() { r.limiter.Finish(requestInfo.ClientIP, outcome) }()
+	if !auth.ValidAPIToken(input.Token) {
+		outcome = auth.LoginRejected
+		return nil, clientError("UNAUTHENTICATED", "Enter a valid Vikunja API token.")
 	}
-	user, err := r.users.CurrentUser(ctx)
+	user, err := r.loginUser(ctx, input.Token)
 	if err != nil {
-		r.logError("verify Vikunja access during login", err)
+		if accessErr := profileAccessError(nil, err); accessErr != nil {
+			outcome = auth.LoginRejected
+			return nil, accessErr
+		}
+		if r.logger != nil {
+			r.logger.Error("Vikunja profile lookup failed during login")
+		}
 		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja is unavailable. Try again shortly.")
 	}
-	token, session, err := r.sessions.Issue()
+	token, session, err := r.sessions.Issue(input.Token, requestInfo.Origin.String())
 	if err != nil {
 		r.logError("issue app session", err)
 		return nil, clientError("INTERNAL", "The session could not be created.")
 	}
-	r.cookies.Set(requestInfo.Writer, token, session.ExpiresAt)
-	r.limiter.RecordSuccess(requestInfo.ClientIP)
+	requestInfo.ClearSession()
+	requestInfo.Cookies.Start(requestInfo.Writer, token, session)
+	outcome = auth.LoginAccepted
 	result := authenticatedSession(r.sessions, session, user)
 	result.Use12HourTime = r.use12HourTime
 	return &model.LoginPayload{Session: result}, nil
@@ -46,6 +58,24 @@ func (r *mutationResolver) Logout(ctx context.Context, csrfToken string) (*model
 	if !ok {
 		return nil, clientError("INTERNAL", "The request context is unavailable.")
 	}
-	r.cookies.Clear(requestInfo.Writer)
+	requestInfo.Logout()
 	return &model.LogoutPayload{Authenticated: false}, nil
+}
+
+func profileAccessError(info *auth.RequestInfo, err error) error {
+	upstream, ok := errors.AsType[*vikunja.Error](err)
+	if !ok {
+		return nil
+	}
+	switch upstream.Status {
+	case http.StatusUnauthorized:
+		if info != nil {
+			info.ClearSession()
+		}
+		return clientError("UNAUTHENTICATED", "The Vikunja API token is invalid, expired or revoked.")
+	case http.StatusForbidden:
+		return clientError("FORBIDDEN", "The token needs permission to read its owner's profile (other:user).")
+	default:
+		return nil
+	}
 }

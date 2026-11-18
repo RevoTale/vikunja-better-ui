@@ -10,13 +10,13 @@ test("PWA update waits without replacing entered text", async ({ page, baseURL }
     await page.goto(`${origin.url}/login`);
     await page.evaluate(() => navigator.serviceWorker.ready);
     await page.reload();
-    await page.getByRole("textbox", { name: "Username" }).fill("Keep my unfinished input");
+    await page.getByLabel("Vikunja API token", { exact: true }).fill("Keep my unfinished input");
     origin.nextBuild();
     await page.evaluate(async () => (await navigator.serviceWorker.ready).update());
     await expect
       .poll(() => page.evaluate(async () => Boolean((await navigator.serviceWorker.ready).waiting)))
       .toBe(true);
-    await expect(page.getByRole("textbox", { name: "Username" })).toHaveValue(
+    await expect(page.getByLabel("Vikunja API token", { exact: true })).toHaveValue(
       "Keep my unfinished input",
     );
     const names = await page.evaluate(() => caches.keys());

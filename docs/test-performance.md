@@ -11,12 +11,13 @@ optimization.
   This trades a small unit-run latency increase for substantially lower sampled
   process-tree RSS on many-core machines.
 - Playwright retains one worker and sequential scenario ordering. Tests mutate
-  one isolated Vikunja SQLite instance; increasing workers without independent
+  one isolated Vikunja instance backed by PostgreSQL; increasing workers without independent
   fixtures introduces contention and state collisions. The full matrix has one
   desktop project plus focused phone and WebKit projects. This keeps each
   behavior covered while avoiding duplicate execution at nearly identical
   desktop and tablet viewports.
-- Pull requests run 12 representative Chromium/WebKit smoke scenarios: task
+- Pull requests run representative Chromium/WebKit smoke scenarios covering personal-token
+  isolation, HTTP access and session continuity, mobile layout, task
   creation and workflow, ready-now count, PWA, rich text, discussion editing,
   task editing, relations, and mobile/WebKit risks. Pushes to `main` and
   release tags run the full matrix before a production image is built or
@@ -27,11 +28,15 @@ optimization.
   E2E steps, so fixture generation does not download Gqlgen a second time.
   Browser downloads remain explicit because the current runner has no approved
   persistent browser-cache volume.
-- First-failure traces, videos and screenshots remain enabled. Retry-only video
-  was measured and rejected, not adopted as an assumed improvement.
+- CI keeps failure screenshots, videos and redacted diagnostics. Raw traces and HTML
+  action reports can capture credentials, so only local runs with disposable
+  fixtures retain these for debugging. Use the harness when running with `CI=true`.
 - E2E and demo builds use normal `go build`, not `go build -a`. Go's build cache
-  tracks embedded asset content. Frontend generation/build still runs before Go
-  compilation. Never overlap a Vite rebuild with a Go embed build.
+  tracks embedded asset content. The harness builds the frontend before Go uses its embedded
+  files. A separate `task gen:check` detects stale generated GraphQL output.
+  Removing the duplicate frontend GraphQL generation from fixture setup avoided
+  one 0.71-second subprocess with a sampled peak of 200.8 MiB in the arm64
+  Dev Container. That measurement covers only this subprocess. Never overlap a Vite rebuild with a Go embed build.
 - Keep Go's `-race -count=2 -shuffle=on` and normal package concurrency. Existing
   concurrency tests use synchronization channels and bounded negative assertions;
   their deadlines are part of the behavior, not idle sleeps to remove.

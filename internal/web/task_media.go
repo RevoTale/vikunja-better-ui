@@ -58,10 +58,8 @@ func mediaError(w http.ResponseWriter, err error) {
 	status := http.StatusBadGateway
 	if upstream, ok := errors.AsType[*vikunja.Error](err); ok {
 		switch upstream.Status {
-		case http.StatusForbidden, http.StatusUnauthorized:
-			status = http.StatusForbidden
-		case http.StatusNotFound:
-			status = http.StatusNotFound
+		case http.StatusForbidden, http.StatusUnauthorized, http.StatusNotFound:
+			status = upstream.Status
 		}
 	}
 	http.Error(w, "Media is unavailable or access was denied.", status)

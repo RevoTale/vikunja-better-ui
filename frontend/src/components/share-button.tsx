@@ -25,6 +25,10 @@ export function ShareButton({
     const url = new URL(path, window.location.origin).href;
     try {
       if (await nativeShare(url)) return;
+      if (!navigator.clipboard?.writeText) {
+        setManualURL(url);
+        return;
+      }
       await navigator.clipboard.writeText(url);
       setNotice("Link copied.");
     } catch {

@@ -5,80 +5,100 @@ import (
 	"time"
 )
 
+const (
+	firstPeer  = "192.0.2.1"
+	secondPeer = "192.0.2.2"
+	thirdPeer  = "192.0.2.3"
+)
+
 func TestLoginLimiterBlocksAfterFiveFailures(t *testing.T) {
 	t.Parallel()
-
-	now := time.Date(2026, time.August, 12, 9, 30, 0, 0, time.UTC)
-	limiter := newLoginLimiter(func() time.Time { return now }, 4096)
-
-	for attempt := 1; attempt <= 5; attempt++ {
-		if !limiter.Allow("192.0.2.1") {
-			t.Fatalf("Allow() = false before failure %d", attempt)
-		}
-		limiter.RecordFailure("192.0.2.1")
+	now := time.Now()
+	limiter := NewLoginLimiter(func() time.Time { return now })
+	for range loginFailureLimit {
+		attemptLogin(t, limiter, firstPeer, LoginRejected)
 	}
-	if limiter.Allow("192.0.2.1") {
-		t.Fatal("Allow() = true after five failures")
+	if limiter.Begin(firstPeer) {
+		t.Fatal("accepted an attempt after five failures")
 	}
-	if !limiter.Allow("192.0.2.2") {
-		t.Fatal("Allow() blocked an unrelated address")
-	}
-
-	now = now.Add(15*time.Minute + time.Second)
-	if !limiter.Allow("192.0.2.1") {
-		t.Fatal("Allow() = false after failure window elapsed")
-	}
+	attemptLogin(t, limiter, secondPeer, LoginAccepted)
+	now = now.Add(loginFailureWindow)
+	attemptLogin(t, limiter, firstPeer, LoginAccepted)
 }
 
 func TestLoginLimiterSuccessClearsFailures(t *testing.T) {
 	t.Parallel()
-
-	now := time.Date(2026, time.August, 12, 9, 30, 0, 0, time.UTC)
-	limiter := newLoginLimiter(func() time.Time { return now }, 4096)
-	for range 5 {
-		limiter.RecordFailure("192.0.2.1")
+	limiter := NewLoginLimiter(time.Now)
+	for range loginFailureLimit - 1 {
+		attemptLogin(t, limiter, firstPeer, LoginRejected)
 	}
-
-	limiter.RecordSuccess("192.0.2.1")
-	if !limiter.Allow("192.0.2.1") {
-		t.Fatal("Allow() = false after successful-login reset")
+	attemptLogin(t, limiter, firstPeer, LoginAccepted)
+	for range loginFailureLimit {
+		attemptLogin(t, limiter, firstPeer, LoginRejected)
 	}
 }
 
 func TestLoginLimiterExpiresIdleEntries(t *testing.T) {
 	t.Parallel()
-
-	now := time.Date(2026, time.August, 12, 9, 30, 0, 0, time.UTC)
+	now := time.Now()
 	limiter := newLoginLimiter(func() time.Time { return now }, 2)
-	limiter.RecordFailure("192.0.2.1")
-
-	now = now.Add(30*time.Minute + time.Second)
-	limiter.RecordFailure("192.0.2.2")
-
-	if got := limiter.size(); got != 1 {
-		t.Fatalf("size() = %d, want 1 after idle expiry", got)
+	attemptLogin(t, limiter, firstPeer, LoginRejected)
+	now = now.Add(loginIdleExpiry + time.Second)
+	attemptLogin(t, limiter, secondPeer, LoginRejected)
+	if len(limiter.buckets) != 1 || limiter.buckets[secondPeer] == nil {
+		t.Fatal("an idle address outlived expiration")
 	}
 }
 
 func TestLoginLimiterEvictsLeastRecentlyUsedEntry(t *testing.T) {
 	t.Parallel()
+	limiter := newLoginLimiter(time.Now, 2)
+	attemptLogin(t, limiter, firstPeer, LoginRejected)
+	attemptLogin(t, limiter, secondPeer, LoginRejected)
+	attemptLogin(t, limiter, firstPeer, LoginUnavailable)
+	attemptLogin(t, limiter, thirdPeer, LoginRejected)
+	if limiter.buckets[secondPeer] != nil || limiter.buckets[firstPeer] == nil || limiter.buckets[thirdPeer] == nil {
+		t.Fatal("expected only the least recently used idle peer to be evicted")
+	}
+}
 
-	now := time.Date(2026, time.August, 12, 9, 30, 0, 0, time.UTC)
+func TestLoginLimiterBoundsReservationsAndKeepsActivePeers(t *testing.T) {
+	t.Parallel()
+	now := time.Now()
 	limiter := newLoginLimiter(func() time.Time { return now }, 2)
-	limiter.RecordFailure("192.0.2.1")
-	now = now.Add(time.Second)
-	limiter.RecordFailure("192.0.2.2")
-	now = now.Add(time.Second)
-	if !limiter.Allow("192.0.2.1") {
-		t.Fatal("Allow() unexpectedly blocked first address")
+	for range loginFailureLimit {
+		if !limiter.Begin(firstPeer) {
+			t.Fatal("refused a pending attempt below the limit")
+		}
 	}
-	now = now.Add(time.Second)
-	limiter.RecordFailure("192.0.2.3")
+	if limiter.Begin(firstPeer) {
+		t.Fatal("accepted excess simultaneous attempts")
+	}
+	if !limiter.Begin(secondPeer) {
+		t.Fatal("second peer could not reserve an attempt")
+	}
+	now = now.Add(loginIdleExpiry + time.Second)
+	if limiter.Begin(thirdPeer) || limiter.Begin(firstPeer) {
+		t.Fatal("active attempts were evicted or expired")
+	}
+	limiter.Finish(firstPeer, LoginAccepted)
+	if !limiter.Begin(firstPeer) || limiter.Begin(firstPeer) {
+		t.Fatal("a successful login must release only its own reservation")
+	}
+	for range loginFailureLimit {
+		limiter.Finish(firstPeer, LoginUnavailable)
+	}
+	attemptLogin(t, limiter, thirdPeer, LoginAccepted)
+	limiter.Finish(secondPeer, LoginUnavailable)
+	if len(limiter.buckets) != 0 {
+		t.Fatal("unavailable and successful attempts without failures retained peer state")
+	}
+}
 
-	if limiter.has("192.0.2.2") {
-		t.Fatal("least recently used address was not evicted")
+func attemptLogin(t *testing.T, limiter *LoginLimiter, peer string, outcome LoginOutcome) {
+	t.Helper()
+	if !limiter.Begin(peer) {
+		t.Fatal("unexpectedly denied login for", peer)
 	}
-	if !limiter.has("192.0.2.1") || !limiter.has("192.0.2.3") {
-		t.Fatal("recent entries were evicted")
-	}
+	limiter.Finish(peer, outcome)
 }

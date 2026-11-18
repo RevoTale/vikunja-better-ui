@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { submitToken } from "./app-actions";
 import { discussionGraphQL } from "./discussion-fixture";
 
 test("Today count supports planned finishes and deadlines and completion without delaying the page", async ({
@@ -175,9 +176,7 @@ test("Today count supports polling only while visible", async ({ page }) => {
 
 async function login(page: Page) {
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL(/\/today/);
 }
 

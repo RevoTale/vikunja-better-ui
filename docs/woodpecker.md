@@ -127,8 +127,9 @@ These local commands require access to Docker from the existing Dev Container.
 
 ## Diagnostics and verification
 
-Playwright retains traces, screenshots and reports in the usual workspace
-paths and prints failures in Woodpecker logs. GitHub's seven-day artifact upload
+Playwright emits redacted failure details in the Woodpecker log and copies
+failure screenshots and videos into `frontend/test-results/`. Raw traces and
+HTML reports are reserved for local disposable fixtures. GitHub's seven-day artifact upload
 is **not** replicated: persistent browser artifacts require a separately
 configured Woodpecker artifact-storage plugin/bucket. `github_token` alone does
 not provide that storage. Without it, workspace files disappear after the run.

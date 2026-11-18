@@ -171,14 +171,7 @@ test("discussion supports initials when an avatar is unavailable", async ({ page
 async function uploadProfileAvatar(page: Page) {
   const upstream = process.env["E2E_VIKUNJA_URL"];
   if (!upstream) throw new Error("Missing isolated Vikunja URL");
-  const login = await page.request.post(`${upstream}/api/v2/login`, {
-    data: {
-      username: requiredEnv("E2E_VIKUNJA_USERNAME"),
-      password: requiredEnv("E2E_VIKUNJA_PASSWORD"),
-    },
-  });
-  expect(login.ok()).toBe(true);
-  const { token } = await login.json();
+  const token = requiredEnv("E2E_FIXTURE_SESSION");
   const png = await page.evaluate(() => {
     const canvas = document.createElement("canvas");
     canvas.width = canvas.height = 16;

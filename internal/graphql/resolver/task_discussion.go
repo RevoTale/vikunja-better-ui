@@ -55,7 +55,9 @@ func (resolver *Resolver) discussionError(err error, fallback string) error {
 	}
 	if upstream, ok := errors.AsType[*vikunja.Error](err); ok {
 		switch upstream.Status {
-		case http.StatusUnauthorized, http.StatusForbidden:
+		case http.StatusUnauthorized:
+			return upstreamClientError(err, fallback)
+		case http.StatusForbidden:
 			return clientError("FORBIDDEN", "The Vikunja token does not permit this comment action, or you are not its author.")
 		case http.StatusNotFound:
 			return clientError("NOT_FOUND", "The task or comment no longer exists or is not accessible.")

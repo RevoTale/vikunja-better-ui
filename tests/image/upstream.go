@@ -105,6 +105,13 @@ func probe(ctx context.Context, baseURL string) error {
 	if strings.TrimSpace(health) != "ok" {
 		return errors.New("unexpected health response")
 	}
+	ready, err := probeBody(ctx, client, baseURL+"/readyz")
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(ready) != "ready" {
+		return errors.New("unexpected readiness response")
+	}
 	page, err := probeBody(ctx, client, baseURL+"/")
 	if err != nil {
 		return err

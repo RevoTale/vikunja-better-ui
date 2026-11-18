@@ -15,6 +15,7 @@ import (
 
 	"github.com/RevoTale/vikunja-better-ui/internal/service"
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
+	"github.com/RevoTale/vikunja-better-ui/internal/web"
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
@@ -123,10 +124,12 @@ func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		return context.AfterFunc(requestContext, cancel)
 	}
+	policy := h.policy
+	policy.BetterUI = web.BrowserOrigin(policy.BetterUI, r)
 	ctx = context.WithValue(ctx, callerKey{}, &caller{onRequestEnd: onRequestEnd, client: client, now: h.now(),
 		fallbackTimezone: h.fallbackTimezone,
 		principal:        "mcp:" + hex.EncodeToString(key.Sum(nil)), capabilities: h.capabilities,
-		linker: service.ReferenceLinker{Policy: h.policy, Tasks: client, Relations: client}})
+		linker: service.ReferenceLinker{Policy: policy, Tasks: client, Relations: client}})
 	h.protocol.ServeHTTP(privateResponse{ResponseWriter: w}, r.WithContext(ctx))
 }
 

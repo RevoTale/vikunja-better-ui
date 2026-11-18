@@ -22,7 +22,7 @@ func (resolver *queryResolver) PublicAllTimeActivity(ctx context.Context) (*mode
 	}
 	if err != nil {
 		resolver.logError("read all-time activity", err)
-		return nil, clientError("UPSTREAM_UNAVAILABLE", "Activity is temporarily unavailable. Try again shortly.")
+		return nil, upstreamClientError(err, "Activity is temporarily unavailable. Try again shortly.")
 	}
 	result := &model.PublicAllTimeActivity{Total: summary.Total, Timezone: summary.Timezone,
 		GeneratedAt: summary.GeneratedAt, RefreshAt: summary.RefreshAt,

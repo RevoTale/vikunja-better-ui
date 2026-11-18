@@ -15,6 +15,7 @@ const (
 	pnpmCommand           = "pnpm"
 	goCommand             = "go"
 	buildCommand          = "build"
+	privateFixtureMode    = 0o600
 )
 
 func runHarness(ctx context.Context, args []string) (err error) {
@@ -33,7 +34,6 @@ func runHarness(ctx context.Context, args []string) (err error) {
 	if err != nil {
 		return err
 	}
-	h.environment = append(h.environment, "E2E_VIKUNJA_USERNAME="+username, "E2E_VIKUNJA_PASSWORD="+password)
 	fixtures, err := h.fixtures(ctx, upstream, username, password)
 	if err != nil {
 		return err
@@ -62,16 +62,23 @@ func runHarness(ctx context.Context, args []string) (err error) {
 	default:
 	}
 	if os.Getenv("E2E_DEMO") == "1" {
-		_, _ = fmt.Fprintf(os.Stdout, "Demo URL: %s\nUsername: app-user\nPassword: app-password-strong\n", appURL)
-		<-ctx.Done()
-		return nil
+		return h.serveDemo(ctx, appURL, fixtures["token"])
 	}
-	return h.playwright(ctx, args)
+	return h.playwright(ctx, args, fixtures["nativeSession"])
+}
+
+func (h *harness) serveDemo(ctx context.Context, appURL, token string) error {
+	path := filepath.Join(h.directory, "demo-token")
+	if err := os.WriteFile(path, []byte(token+"\n"), privateFixtureMode); err != nil {
+		return err
+	}
+	_, _ = fmt.Fprintf(os.Stdout, "Demo URL: %s\nPersonal API token file (Dev Container): %s\n", appURL, path)
+	<-ctx.Done()
+	return nil
 }
 
 func (h *harness) buildApp(ctx context.Context) error {
 	for _, args := range [][]string{
-		{pnpmCommand, frontendDirectoryFlag, frontendDirectory, runCommand, "generate:graphql"},
 		{pnpmCommand, frontendDirectoryFlag, frontendDirectory, runCommand, buildCommand},
 		{goCommand, buildCommand, "-o", filepath.Join(h.directory, "app"), "./cmd/server"},
 	} {
@@ -104,8 +111,7 @@ func (h *harness) configureApp(ctx context.Context, upstream string, fixtures ma
 	h.address = address
 	h.environment = append(h.environment,
 		"APP_ENV=test", "APP_PUBLIC_ACTIVITY_ENABLED=true", "PUBLIC_ALL_TIME_ACTIVITY=true", "APP_MCP_ENABLED=true",
-		"APP_VIKUNJA_URL="+upstream, "APP_VIKUNJA_API_TOKEN="+fixtures["token"],
-		"APP_AUTH_USERNAME=app-user", "APP_AUTH_PASSWORD=app-password-strong",
+		"APP_VIKUNJA_URL="+upstream, "APP_VIKUNJA_API_TOKEN="+fixtures["publicToken"],
 		"APP_SESSION_SECRET=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
 		"APP_HTTP_ADDR="+address, "APP_ALLOWED_ORIGIN="+appURL, "APP_LOG_LEVEL=warn",
 		"E2E_BASE_URL="+appURL, "E2E_VIKUNJA_URL="+upstream, "E2E_VIKUNJA_API_TOKEN="+fixtures["token"],
@@ -122,10 +128,9 @@ func (h *harness) configureApp(ctx context.Context, upstream string, fixtures ma
 func (h *harness) fixtures(ctx context.Context, upstream, username, password string) (map[string]string, error) {
 	// The harness owns this freshly created private directory. Browser tests still
 	// validate the origin and ownership marker before seeding through the API.
-	const markerMode = 0o600
 	markerPath := filepath.Join(h.directory, ".discussion-fixture")
 	//nolint:gosec // The harness creates this marker exclusively in its own newly allocated private directory.
-	marker, err := os.OpenFile(markerPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, markerMode)
+	marker, err := os.OpenFile(markerPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, privateFixtureMode)
 	if err != nil {
 		return nil, err
 	}
@@ -140,12 +145,14 @@ func (h *harness) fixtures(ctx context.Context, upstream, username, password str
 	return seedFixtures(ctx, upstream, username, password, os.Getenv("E2E_DEMO") == "1")
 }
 
-func (h *harness) playwright(ctx context.Context, args []string) error {
+func (h *harness) playwright(ctx context.Context, args []string, nativeSession string) error {
 	arguments := append([]string{frontendDirectoryFlag, frontendDirectory, "exec", "playwright", "test"}, args...)
 	command := h.command(ctx, pnpmCommand, arguments...)
 	if os.Getenv("E2E_MEASURE") == "1" {
 		arguments = append([]string{runCommand, "./tests/e2e/harness", "measure", pnpmCommand}, arguments...)
 		command = h.command(ctx, goCommand, arguments...)
 	}
+	// Only the test driver can manage fixtures. The application receives personal API tokens during login.
+	command.Env = append(command.Env, "E2E_FIXTURE_SESSION="+nativeSession)
 	return command.Run()
 }

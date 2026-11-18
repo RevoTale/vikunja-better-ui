@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -69,12 +70,15 @@ func TestSessionWithoutVikunjaUserDoesNotReadUpstream(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, time.August, 21, 12, 0, 0, 0, time.UTC)
-	sessions := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"),
+	sessions, err := auth.NewSessionManager(
+		[]byte("01234567890123456789012345678901"), "https://vikunja.test",
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
-	token, _, err := sessions.Issue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, session, err := sessions.Issue("tk_test", "http://app.test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +87,7 @@ func TestSessionWithoutVikunjaUserDoesNotReadUpstream(t *testing.T) {
 		Sessions: sessions,
 		Users:    reader,
 	}), false, discardLogger())
-	handler := auth.HTTPContext(sessions, auth.NewSessionCookies(false))(server)
+	handler := auth.HTTPContext(sessions, testOrigin)(server)
 
 	body, err := json.Marshal(map[string]string{
 		"query": `query AuthSession { session { authenticated csrfToken expiresAt } }`,
@@ -95,9 +99,7 @@ func TestSessionWithoutVikunjaUserDoesNotReadUpstream(t *testing.T) {
 		t.Context(), http.MethodPost, "http://app.test/graphql", bytes.NewReader(body),
 	)
 	request.Header.Set("Content-Type", "application/json")
-	request.AddCookie(&http.Cookie{
-		Name: "vbu_session", Value: token, HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
-	})
+	addLoginCookies(request, token, session)
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
 
@@ -138,4 +140,14 @@ func graphQLRequest(t *testing.T, handler http.Handler, query string) *httptest.
 
 func discardLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
+}
+
+func testOrigin(*http.Request) *url.URL { return &url.URL{Scheme: "http", Host: "app.test"} }
+
+func addLoginCookies(request *http.Request, token string, session auth.Session) {
+	recorder := httptest.NewRecorder()
+	auth.NewSessionCookies(false).Start(recorder, token, session)
+	for _, cookie := range recorder.Result().Cookies() {
+		request.AddCookie(cookie)
+	}
 }

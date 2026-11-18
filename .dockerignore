@@ -4,7 +4,7 @@
 .pnpm-store
 .devcontainer
 .env
-frontend/node_modules
+**/node_modules
 frontend/playwright-report
 frontend/test-results
 internal/web/assets/dist

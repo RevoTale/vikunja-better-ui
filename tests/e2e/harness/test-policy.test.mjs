@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { availableParallelism } from "node:os";
 import test from "node:test";
 
-function browserPolicy() {
+function browserPolicy(ci = "") {
   const config = new URL("../../../frontend/playwright.config.ts", import.meta.url).href;
   const result = spawnSync(process.execPath, [
     "--input-type=module", "-e",
@@ -12,7 +12,7 @@ function browserPolicy() {
   ], {
     encoding: "utf8",
     timeout: 10_000,
-    env: { ...process.env, E2E_BASE_URL: "http://127.0.0.1:12345" },
+    env: { ...process.env, CI: ci, E2E_BASE_URL: "http://127.0.0.1:12345", E2E_FIXTURE_DIR: "/tmp/isolated-fixture" },
   });
   assert.equal(result.status, 0, result.stderr);
   return JSON.parse(result.stdout);
@@ -30,8 +30,21 @@ test("browser resource policy retains first-failure diagnostics and focused view
   ]);
 });
 
+test("CI keeps visual failure evidence and excludes raw credentials from diagnostics", async () => {
+  const config = browserPolicy("1");
+  assert.equal(config.use.trace, "off");
+  assert.equal(config.use.screenshot, "only-on-failure");
+  assert.equal(config.use.video, "retain-on-failure");
+  assert.equal(config.outputDir, "/tmp/isolated-fixture/playwright-results");
+  assert.deepEqual(config.reporter, [["./e2e/ci-reporter.ts"]]);
+  const { safeDiagnostic } = await import("../../../frontend/e2e/ci-reporter.ts");
+  const text = "fill('tk_example_personal') Bearer short-token cookie=" + "Z".repeat(180);
+  assert.equal(safeDiagnostic(text), "fill('[redacted]') [redacted] cookie=[redacted]");
+});
+
 test("PR smoke projects retain representative workflow and browser-risk coverage", async () => {
   process.env["E2E_BASE_URL"] = "http://127.0.0.1:12345";
+  process.env["E2E_FIXTURE_DIR"] = "/tmp/isolated-fixture";
   const { default: config } = await import("../../../frontend/playwright.config.ts");
   const chromium = config.projects.find((project) => project.name === "pr-chromium");
   const webkit = config.projects.find((project) => project.name === "pr-webkit");
@@ -41,6 +54,9 @@ test("PR smoke projects retain representative workflow and browser-risk coverage
   assert.match("task creation and display use the Vikunja timezone", chromium.grep);
   assert.doesNotMatch("desktop workflows match Vikunja state", chromium.grep);
   assert.match("task editing preserves drafts on conflict", chromium.grep);
+  assert.match("switching accounts across tabs", chromium.grep);
+  assert.match("production private HTTP", chromium.grep);
+  assert.match("token login keeps its controls stable", webkit.grep);
   assert.match("pinned Vikunja accepts concurrent comment and relation writes", chromium.grep);
   assert.ok(chromium.testMatch.includes("relations-contract.spec.ts"));
   assert.match("date selection crosses month boundaries", chromium.grep);

@@ -24,14 +24,14 @@ a recurring task in place.
 
 ## Objective
 
-Build a stateless, responsive alternative Vikunja client for one configured app
-user. The client must make daily work, recurring task creation, recurring task
+Build a stateless, responsive alternative Vikunja client for people sharing one configured
+Vikunja server. The client must make daily work, recurring task creation, recurring task
 completion, and duration-based jobs faster and more predictable than the
 standard client.
 
 The application is successful when the user can:
 
-1. Log in with app credentials configured through environment variables.
+1. Sign in with a personal Vikunja API token.
 2. See overdue and due-today work across all accessible Vikunja projects.
 3. Narrow relevant views to one project without losing URL state.
 4. Create one-time, recurring, and job tasks through small purpose-built forms.
@@ -77,7 +77,7 @@ preferences, completion history, sessions, or recurrence series in a database.
 - Editing arbitrary Vikunja fields.
 - Statistics beyond the simple completed-task history.
 - Vikunja username/password authentication.
-- Multiple app users, roles, password reset, or cross-device session revocation.
+- Locally managed accounts, roles, password reset or a server-side session registry.
 
 ## Architectural decisions
 
@@ -93,7 +93,7 @@ Dashboard -> read-only Go integration API -> Vikunja REST API v2
 - Operational probes use `/healthz` and `/readyz`; they are not application
   data APIs.
 - Only the Go backend receives `APP_VIKUNJA_API_TOKEN`.
-- The backend uses the configured token only as a Bearer token for Vikunja.
+- Anonymous snapshots use the configured token. Private tasks use the caller's personal token.
 - `GET /integrations/v1/jobs` may receive a dedicated Vikunja API token in its
   `Authorization` header. The backend uses that request-scoped token only
   against configured `APP_VIKUNJA_URL`, never stores or logs it, and exposes no
@@ -334,7 +334,7 @@ Invalid values are replaced with safe defaults instead of reaching GraphQL.
 - `/` redirects to `/today` when authenticated and `/login` otherwise.
 - Missing default query values may be omitted from the visible URL.
 - `project=all` means no project restriction; otherwise it is a positive
-  Vikunja project ID accessible to the configured token.
+  Vikunja project ID accessible to the caller's token.
 - `page` is a positive integer selecting one result page. Numbered pagination
   writes it to the URL so refresh and Back restore the selected page.
 - `returnTo` must decode to an allowlisted relative application URL. Absolute,
@@ -887,8 +887,7 @@ input TaskListInput {
 }
 
 input LoginInput {
-  username: String!
-  password: String!
+  token: String!
 }
 
 input CreateOneTimeTaskInput {
@@ -1064,57 +1063,34 @@ returned to the browser.
 
 ## Authentication and security
 
-### Trust boundaries and assets
-
-Trust boundaries are browser-to-Go and Go-to-Vikunja. Protected assets are app
-credentials, the session signing secret, Vikunja API token, task contents, and
-task mutation authority.
-
-Primary abuse cases are credential guessing, forged sessions, CSRF completion,
-malicious GraphQL input, GraphQL resource exhaustion, upstream response
-confusion, token leakage through redirects/logs, and open redirects through
-`returnTo`.
-
 ### Credential verification
 
-- Load `APP_AUTH_USERNAME` and `APP_AUTH_PASSWORD` only in `internal/config`.
-- Hash both configured and submitted values with SHA-256, then use constant-time
-  comparison on the fixed-size hashes. Combine username and password results so
-  failure timing and messages do not reveal which field matched.
-- Return one generic invalid-credentials error.
-- Apply a bounded in-memory per-remote-address limiter: five failed attempts per
-  15 minutes, at most 4,096 address buckets, least-recently-used eviction, and
-  expiry after 30 idle minutes. Successful login clears that address bucket.
-- Apply the address limiter before performing credential hashing. There is no
-  shared login-failure bucket that one source can monopolize. HTTP server
-  concurrency and timeouts bound aggregate work; distributed denial of service
-  remains a deployment/reverse-proxy concern rather than an app-wide lockout.
-- Do not trust forwarded IP headers without an explicit trusted-proxy
-  configuration. The MVP has none and uses the direct peer address.
+[Personal token login](personal-token-login.md) owns the session and migration
+contract. Before contacting Vikunja, rate-limit login attempts by direct peer
+address and validate the token format. Verify the token's owner against the
+configured server. Each process counts pending checks together with credential
+failures in the last 15 minutes and allows five per peer. A successful login
+clears the peer's failures. Cancellation and upstream outages release the
+pending slot. Go uses the caller's credential for private workflows.
 
 ### Session
 
-- Cookie name: `__Host-vbu_session` outside local development and
-  `vbu_session` locally.
-- Signed stateless payload: version, issued-at, expiry, and 128-bit random
-  session ID. Sign with HMAC-SHA-256 using `APP_SESSION_SECRET`.
-- Undo and metadata-repair capabilities use separate HMAC purpose strings and
-  bind the session ID, action, task ID, expected upstream timestamp/ETag,
-  required marker/date metadata, and expiry. They disclose no credentials and
-  cannot be used after logout in that browser because the matching session
-  cookie is required.
-- Lifetime: 30 days. Refresh only after half the lifetime has elapsed to avoid a
-  `Set-Cookie` response on every query.
-- Attributes: `HttpOnly`, `SameSite=Lax`, `Path=/`, and `Secure` outside local
-  development. A `__Host-` cookie has no Domain attribute.
-- Logout expires the current cookie. Restarting or rotating the session secret
-  invalidates all sessions; there is no revocation list.
+Login selects a random session ID with an HttpOnly cookie lasting at most 400 days.
+A separate origin-bound encrypted credential for that ID lasts 30 days and
+renews after day 15. Background responses can only update their own credential.
+[Session and account-switching contract](personal-token-login.md)
+
+Both cookies use host-only scope, HttpOnly, SameSite=Lax and path `/`. HTTPS
+adds Secure and the `__Host-` prefix. Logout expires both. Sessions survive a
+compatible redeploy with the same secret, browser origin and configured
+Vikunja transport URL. Changing any of them requires a fresh login. CSRF and
+action capabilities bind to the session ID.
 
 ### CSRF and browser boundary
 
 - Serve UI and GraphQL from one origin. Do not enable CORS.
-- Accept GraphQL only as POST with `Content-Type: application/json`; cap request
-  bodies at 64 KiB.
+- Accept bounded JSON POSTs and authenticated multipart uploads. See the
+  [HTTP boundary](../../internal/web/graphql_boundary.go) for request limits.
 - Require an exact allowed `Origin` on every GraphQL POST. Local development
   origins are explicit configuration, never wildcarded.
 - An authenticated `session` query returns an HMAC-derived CSRF token bound to
@@ -1126,7 +1102,7 @@ confusion, token leakage through redirects/logs, and open redirects through
 ### HTTP and upstream hardening
 
 - Validate `APP_VIKUNJA_URL`: absolute HTTP(S), no user info, query, or fragment;
-  HTTPS is required outside explicit local development.
+  use HTTPS over untrusted networks. Internal HTTP transport is supported.
 - Disable automatic redirects in the Vikunja HTTP client so the Bearer token
   cannot be forwarded to another host.
 - Set dial, TLS handshake, response-header, whole-request, idle-connection, and
@@ -1447,22 +1423,21 @@ Coverage is divided by responsibility:
   confirmed unless the completed snapshot is proven.
 
 Tests must assert semantic text and direct API values rather than screenshots.
-Screenshots, traces, and videos remain failure diagnostics. Only the timezone
-flow needs the additional WebKit project; the full suite is not duplicated.
+CI keeps screenshots, video and redacted console errors. Local runs with
+disposable fixtures also retain failure traces. The [browser matrix](../test-performance.md)
+covers mobile WebKit and a dedicated timezone project.
 
 ### Real Vikunja and Playwright E2E
 
 - Pin Vikunja 2.8.0 full binaries for Linux amd64 and arm64 with URL, version,
   SHA-256, signature URL, and signing-key fingerprint.
 - Verify the official signature before caching or executing the binary.
-- One harness invocation creates one temporary directory, dynamic ports, SQLite
-  database, files directory, test user, scoped API token, projects, labels, and
-  fixtures.
-- The harness starts Vikunja and the built application as child processes,
-  waits on readiness, runs Playwright, terminates only its children, and removes
-  only its exact temporary directory on success or failure.
-- CI uses one Playwright worker. Browser projects cover representative phone,
-  tablet, and desktop viewports.
+- Local runs use a temporary PostgreSQL database, dynamic ports and disposable
+  Vikunja users and tokens. The harness starts the signed Vikunja binary and
+  the built app, checks readiness and cleans up its own resources. Woodpecker
+  provides Vikunja and PostgreSQL as services.
+- One Playwright worker exercises desktop Chromium, narrow mobile viewports
+  and WebKit. See the [test resource policy](../test-performance.md).
 - Each mutation test asserts both visible UI state and direct Vikunja API state.
 - Required flows: login/logout, route restoration, project filtering, all list
   scopes, every creation type, job calculations, completion/Undo, both
@@ -1511,28 +1486,13 @@ does not justify local persistence, heuristic duplicate creation, or API v1.
 
 ## CI and release
 
-- A reusable test workflow runs generation drift, format/lint, vet, TypeScript,
-  builds, unit tests, integration tests, Playwright, and production-image smoke
-  tests.
-- Pull requests and pushes to `main` call the same reusable workflow.
-- The stable named check is configured as required in GitHub branch protection;
-  repository YAML cannot enable branch protection by itself.
-- Playwright traces, screenshots, and reports upload only on failure or
-  cancellation and use bounded retention.
-- CI uses frozen Go modules and `pnpm install --frozen-lockfile`; dependency
-  lifecycle scripts are denied by default and explicitly allowlisted only when
-  a reviewed dependency requires them.
-- Third-party actions are pinned to reviewed immutable SHAs with version
-  comments. Official GitHub actions receive the same treatment where practical.
-- Release Please uses the official `googleapis/release-please-action` v5 line,
-  manifest configuration, Conventional Commits, and a reviewed immutable SHA.
-- Release creation depends on the complete reusable test workflow.
-- After a release is created, the reviewed immutable commit SHA corresponding
-  to `revotale/docker-multi-arch-release-action` v1.4.0 publishes GHCR images
-  for `linux/amd64` and `linux/arm64` with the version and `latest` tags. The
-  workflow comment records `v1.4.0`; the executable `uses:` value is the SHA.
-- Workflow permissions are job-scoped and minimal. Release/registry credentials
-  exist only in GitHub secrets.
+Woodpecker validates generated sources, builds and tests the application.
+Pull requests run the browser smoke suite. Main and release tags run the full
+browser matrix. Main checks the image build and tags can publish versioned
+images. Run `task image:smoke` locally to exercise the packaged app. See the
+[CI and release guide](../woodpecker.md) for required checks, credentials,
+release steps and artifact retention.
+
 - The production image runs as non-root, contains CA certificates and timezone
   data, exposes one HTTP port, and has no shell or build toolchain when the
   chosen stable base supports those requirements.
@@ -1552,25 +1512,10 @@ does not justify local persistence, heuristic duplicate creation, or API v1.
 
 ## Configuration
 
-Required:
-
-- `APP_VIKUNJA_URL`
-- `APP_VIKUNJA_API_TOKEN`
-- `APP_AUTH_USERNAME`
-- `APP_AUTH_PASSWORD`
-- `APP_SESSION_SECRET`
-
-Optional with documented defaults:
-
-- `APP_HTTP_ADDR=:8080`
-- `APP_LOG_LEVEL=info`
-- `APP_ENV=production`
-- `APP_ALLOWED_ORIGIN`, required as an explicit HTTP(S) origin outside local
-  development and used for Origin validation.
-
-`APP_SESSION_SECRET` must decode to at least 32 random bytes. `.env.example`
-contains placeholders only. Production secrets are supplied by the deployment
-environment, never Vite variables.
+See the [deployment configuration](personal-token-login.md#deployment-configuration)
+and [operator reference](../../README.md#configuration). Private login needs the
+upstream address and a stable session secret. Exact origin settings depend on
+the browser-facing route. Anonymous activity requires its own token.
 
 ## Boundaries
 

@@ -12,6 +12,7 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/concurrent"
 	"github.com/RevoTale/vikunja-better-ui/internal/service"
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
+	"github.com/RevoTale/vikunja-better-ui/internal/web"
 )
 
 const (
@@ -23,10 +24,10 @@ const (
 )
 
 type jobsHandler struct {
-	vikunjaURL *url.URL
-	appURL     *url.URL
-	logger     *slog.Logger
-	now        func() time.Time
+	upstream *vikunja.Client
+	appURL   *url.URL
+	logger   *slog.Logger
+	now      func() time.Time
 }
 
 type jobsRequest struct {
@@ -56,7 +57,8 @@ const (
 
 // NewJobsHandler returns the read-only, caller-authenticated jobs integration endpoint.
 func NewJobsHandler(vikunjaURL *url.URL, appURL *url.URL, logger *slog.Logger, now func() time.Time) http.Handler {
-	return &jobsHandler{vikunjaURL: vikunjaURL, appURL: appURL, logger: logger, now: now}
+	return &jobsHandler{upstream: vikunja.NewClient(vikunjaURL, "", vikunja.WithLogger(logger)),
+		appURL: appURL, logger: logger, now: now}
 }
 
 func (handler *jobsHandler) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
@@ -83,9 +85,13 @@ func (handler *jobsHandler) ServeHTTP(writer http.ResponseWriter, request *http.
 	}
 	ctx, cancel := context.WithTimeout(request.Context(), integrationTimeout)
 	defer cancel()
-	client := vikunja.NewClient(handler.vikunjaURL, input.token, vikunja.WithLogger(handler.logger))
-	defer client.CloseIdleConnections()
-	response, err := handler.jobs(ctx, client, input)
+	scoped := *handler
+	scoped.appURL = web.BrowserOrigin(handler.appURL, request)
+	if scoped.appURL == nil {
+		writeError(writer, http.StatusBadRequest, "INVALID_ORIGIN", "Configure the browser address for Jobs links.")
+		return
+	}
+	response, err := scoped.jobs(ctx, handler.upstream.ForToken(input.token), input)
 	if err != nil {
 		handler.writeIntegrationError(writer, err)
 		return

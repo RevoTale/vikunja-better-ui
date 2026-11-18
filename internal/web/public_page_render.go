@@ -127,7 +127,7 @@ const activityContentHTML = `
 <main class="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
   <header class="space-y-2">
     <h1 class="font-serif text-2xl font-semibold">Activity</h1>
-    <p class="text-sm text-muted-foreground">Better Vikunja · Last 14 days</p>
+    <p class="text-sm text-muted-foreground">Public activity · Last 14 days</p>
   </header>
   <nav aria-label="Activity navigation" class="flex flex-wrap gap-4 text-sm">
     <a href="/" class="underline underline-offset-4">About Better Vikunja</a>
@@ -147,7 +147,7 @@ const allTimeContentHTML = `
 <main class="mx-auto max-w-3xl space-y-6 px-4 py-8 sm:px-6">
   <header class="space-y-2">
     <h1 class="font-serif text-2xl font-semibold">All-time activity</h1>
-    <p class="text-sm text-muted-foreground">Better Vikunja · Weekly history</p>
+    <p class="text-sm text-muted-foreground">Public activity · Weekly history</p>
   </header>
   <nav aria-label="Activity navigation" class="flex flex-wrap gap-4 text-sm">
     <a href="/" class="underline underline-offset-4">About Better Vikunja</a>

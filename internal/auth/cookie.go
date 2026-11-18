@@ -1,7 +1,8 @@
-// Package auth verifies app credentials and manages signed stateless sessions.
+// Package auth manages encrypted stateless sessions for personal Vikunja API tokens.
 package auth
 
 import (
+	"encoding/base64"
 	"net/http"
 	"time"
 )
@@ -9,51 +10,54 @@ import (
 const (
 	productionSessionCookie = "__Host-vbu_session"
 	localSessionCookie      = "vbu_session"
+	selectorLifetime        = 400 * 24 * time.Hour
 )
 
-// SessionCookies applies environment-specific security attributes to session cookies.
+// SessionCookies applies origin-specific security attributes to session cookies.
 type SessionCookies struct {
 	name   string
 	secure bool
 }
 
-// NewSessionCookies requires HTTPS and the host-only cookie prefix in production.
-func NewSessionCookies(production bool) SessionCookies {
-	if production {
+// NewSessionCookies uses the trusted external scheme to select a distinct cookie name and policy.
+func NewSessionCookies(secure bool) SessionCookies {
+	if secure {
 		return SessionCookies{name: productionSessionCookie, secure: true}
 	}
-	return SessionCookies{name: localSessionCookie, secure: false}
+	return SessionCookies{name: localSessionCookie}
 }
 
-// Set writes a signed session token with its absolute expiry.
-func (cookies SessionCookies) Set(writer http.ResponseWriter, token string, expiresAt time.Time) {
-	http.SetCookie(writer, cookies.cookie(token, expiresAt, 0))
+// Start selects a new login and stores its encrypted credential under a session-specific name.
+func (cookies SessionCookies) Start(w http.ResponseWriter, token string, session Session) {
+	cookies.write(w, cookies.name, session.ID, session.IssuedAt.Add(selectorLifetime), 0)
+	cookies.renew(w, token, session)
 }
 
-// Clear expires the current environment's session cookie.
-func (cookies SessionCookies) Clear(writer http.ResponseWriter) {
-	http.SetCookie(writer, cookies.cookie("", time.Unix(1, 0).UTC(), -1))
+func (cookies SessionCookies) renew(w http.ResponseWriter, token string, session Session) {
+	cookies.write(w, cookies.name+"_"+session.ID, token, session.ExpiresAt, 0)
 }
 
-// Read extracts the unverified session token from the request.
-func (cookies SessionCookies) Read(request *http.Request) (string, error) {
-	cookie, err := request.Cookie(cookies.name)
-	if err != nil {
-		return "", err
+func (cookies SessionCookies) selected(r *http.Request) string {
+	selector, err := r.Cookie(cookies.name)
+	if err != nil || len(selector.Value) != base64.RawURLEncoding.EncodedLen(sessionIDBytes) {
+		return ""
 	}
-	return cookie.Value, nil
+	if _, err := base64.RawURLEncoding.Strict().DecodeString(selector.Value); err != nil {
+		return ""
+	}
+	return selector.Value
 }
 
-func (cookies SessionCookies) cookie(value string, expiresAt time.Time, maxAge int) *http.Cookie {
-	// #nosec G124 -- local development intentionally uses HTTP; production always sets Secure.
-	return &http.Cookie{
-		Name:     cookies.name,
-		Value:    value,
-		Path:     "/",
-		Expires:  expiresAt,
-		MaxAge:   maxAge,
-		Secure:   cookies.secure,
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
+func (cookies SessionCookies) clearCredential(w http.ResponseWriter, id string) {
+	if id != "" {
+		cookies.write(w, cookies.name+"_"+id, "", time.Unix(1, 0).UTC(), -1)
 	}
+}
+
+func (cookies SessionCookies) write(w http.ResponseWriter, name, value string, expires time.Time, maxAge int) {
+	// #nosec G124 -- private HTTP origins need an unprefixed cookie; HTTPS always sets Secure.
+	http.SetCookie(w, &http.Cookie{
+		Name: name, Value: value, Path: "/", Expires: expires, MaxAge: maxAge,
+		Secure: cookies.secure, HttpOnly: true, SameSite: http.SameSiteLaxMode,
+	})
 }

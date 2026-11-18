@@ -6,7 +6,7 @@ import { displayTimestamp } from "@/lib/time-format";
 import { useTwelveHourTime } from "@/lib/time-format-context";
 import { ActivityCharts, activityChartLayout } from "./activity-charts";
 import { activityOnTimeLayout } from "./activity-on-time-chart";
-import { activityDataStatus } from "./activity-view-model";
+import { activityDataStatus, activitySubtitle } from "./activity-view-model";
 import { readPublicAvailability } from "./public-activity-client";
 import { PublicPageFooter } from "./public-page-footer";
 import { type ActivitySource, useActivitySource } from "./use-activity-source";
@@ -19,7 +19,9 @@ export function ActivityPage() {
         <BrandMark className="size-9" />
         <div>
           <h1 className="font-serif text-2xl font-semibold">Activity</h1>
-          <p className="text-sm text-muted-foreground">Better Vikunja · Last 14 days</p>
+          <p role="status" className="text-sm text-muted-foreground">
+            {activitySubtitle(source, "Last 14 days")}
+          </p>
         </div>
       </header>
       <ActivityNavigation authenticated={source.authenticated} />
@@ -59,7 +61,11 @@ function ActivityBody({ source }: { source: ActivitySource }) {
   if (error && !activity) {
     return (
       <div role="alert" className="space-y-3">
-        <p>Activity is temporarily unavailable.</p>
+        <p>
+          {source.denied
+            ? "Your token does not permit viewing this activity."
+            : "Activity is temporarily unavailable."}
+        </p>
         <Button variant="outline" disabled={loading} onClick={reload}>
           Retry
         </Button>
@@ -69,11 +75,6 @@ function ActivityBody({ source }: { source: ActivitySource }) {
   if (!activity) return <p>Public activity is not enabled.</p>;
   return (
     <>
-      {updating ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          Updating with current private data…
-        </p>
-      ) : null}
       {error && activity ? (
         <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
           <p>Activity could not be refreshed. Previously loaded data remains visible.</p>

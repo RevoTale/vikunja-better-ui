@@ -2536,7 +2536,7 @@ enum PageIssueCode {
   UPSTREAM_PARTIAL
 }
 
-"Better UI cookie-session state. This is separate from the backend's Vikunja API credential."
+"State of the personal-token browser session. The upstream credential is never returned."
 type Session {
   use12HourTime: Boolean!
   authenticated: Boolean!
@@ -2545,7 +2545,7 @@ type Session {
   vikunjaUser: VikunjaUser
 }
 
-"The upstream token owner's profile and calendar preferences; not the Better UI login identity."
+"The signed-in token owner's Vikunja profile and calendar preferences."
 type VikunjaUser {
   id: ID!
   username: String!
@@ -2554,7 +2554,7 @@ type VikunjaUser {
   defaultProjectId: ID
 }
 
-"A project visible to the configured upstream credential. Visibility does not itself grant every write permission."
+"A project visible to the signed-in token owner. Each write must also be permitted by the token."
 type Project {
   id: ID!
   title: String!
@@ -2693,7 +2693,7 @@ type CompletionPayload {
   remainingRepairSteps: [RepairStep!]!
 }
 
-"Result of Better UI login, not a Vikunja token issuance or login."
+"The browser session created after Vikunja verifies the submitted API token."
 type LoginPayload {
   session: Session!
 }
@@ -2782,10 +2782,10 @@ type DayView {
   issues: [TaskPageIssue!]!
 }
 
-"Configured Better UI login credentials; never use a Vikunja password here."
+"A personal API token issued by the configured Vikunja instance. The owner must allow profile reads."
 input LoginInput {
-  username: String!
-  password: String!
+  "The tk_ API token. It is verified against Vikunja and carried in an encrypted, origin-bound browser cookie."
+  token: String!
 }
 
 "Accepted description encoding at creation; Markdown is converted to stored HTML."
@@ -2933,7 +2933,7 @@ type Query {
   taskReuseValues(job: Boolean!, recurring: Boolean!): TaskReuseValues
   "Visible ordinary labels; reserved vbu: markers are not user-selectable labels."
   taskLabels: [Label!]!
-  "Inspect Better UI login state; does not create an upstream login or token."
+  "Inspect the local browser session. Selecting vikunjaUser also reads the current profile under the session's token."
   session: Session!
   "Load visible projects and the token owner's default-project setting."
   projects: ProjectResult!
@@ -2955,7 +2955,7 @@ type Mutation {
   createTaskLabel(csrfToken: String!, title: String!): Label!
   "Save a full editor submission after checking expectedVersion. EDIT_PARTIAL requires reload; do not blindly retry."
   updateTask(input: UpdateTaskInput!): Task!
-  "Authenticate to Better UI and issue its signed HTTP-only cookie; independent of Vikunja auth."
+  "Verify the supplied API token against its Vikunja profile and issue an encrypted, expiring, HTTP-only cookie scoped to this browser origin."
   login(input: LoginInput!): LoginPayload!
   "End the current Better UI session using its CSRF token."
   logout(csrfToken: String!): LogoutPayload!
@@ -12692,27 +12692,20 @@ func (ec *executionContext) unmarshalInputLoginInput(ctx context.Context, obj an
 		asMap[k] = v
 	}
 
-	fieldsInOrder := [...]string{"username", "password"}
+	fieldsInOrder := [...]string{"token"}
 	for _, k := range fieldsInOrder {
 		v, ok := asMap[k]
 		if !ok {
 			continue
 		}
 		switch k {
-		case "username":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("username"))
+		case "token":
+			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("token"))
 			data, err := ec.unmarshalNString2string(ctx, v)
 			if err != nil {
 				return it, err
 			}
-			it.Username = data
-		case "password":
-			ctx := graphql.WithPathContext(ctx, graphql.NewPathWithField("password"))
-			data, err := ec.unmarshalNString2string(ctx, v)
-			if err != nil {
-				return it, err
-			}
-			it.Password = data
+			it.Token = data
 		}
 	}
 	return it, nil

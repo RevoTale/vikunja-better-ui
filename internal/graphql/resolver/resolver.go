@@ -80,9 +80,8 @@ type labelClient interface {
 // Dependencies supplies the authenticated transports and stateless workflow services.
 type Dependencies struct {
 	Use12HourTime   bool
-	Credentials     auth.Credentials
+	LoginUser       func(context.Context, string) (vikunja.User, error)
 	Sessions        *auth.SessionManager
-	Cookies         auth.SessionCookies
 	Limiter         *auth.LoginLimiter
 	Users           userReader
 	Projects        projectReader
@@ -102,9 +101,8 @@ type Dependencies struct {
 // Resolver wires GraphQL operations to application services.
 type Resolver struct {
 	use12HourTime   bool
-	credentials     auth.Credentials
+	loginUser       func(context.Context, string) (vikunja.User, error)
 	sessions        *auth.SessionManager
-	cookies         auth.SessionCookies
 	limiter         *auth.LoginLimiter
 	users           userReader
 	projects        projectReader
@@ -125,9 +123,8 @@ type Resolver struct {
 func New(dependencies Dependencies) *Resolver {
 	return &Resolver{
 		use12HourTime:   dependencies.Use12HourTime,
-		credentials:     dependencies.Credentials,
+		loginUser:       dependencies.LoginUser,
 		sessions:        dependencies.Sessions,
-		cookies:         dependencies.Cookies,
 		limiter:         dependencies.Limiter,
 		users:           dependencies.Users,
 		projects:        dependencies.Projects,

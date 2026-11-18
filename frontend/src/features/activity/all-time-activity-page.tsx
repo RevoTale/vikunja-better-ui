@@ -4,7 +4,11 @@ import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { Button } from "@/components/ui/button";
 import { activityChartLayout } from "./activity-charts";
 import { activityOnTimeLayout } from "./activity-on-time-chart";
-import { type AllTimeActivityView, activityDataStatus } from "./activity-view-model";
+import {
+  type AllTimeActivityView,
+  activityDataStatus,
+  activitySubtitle,
+} from "./activity-view-model";
 import { AllTimeActivityCharts } from "./all-time-activity-charts";
 import { readPublicAvailability } from "./public-activity-client";
 import { PublicPageFooter } from "./public-page-footer";
@@ -18,7 +22,9 @@ export function AllTimeActivityPage() {
         <BrandMark className="size-9" />
         <div>
           <h1 className="font-serif text-2xl font-semibold">All-time activity</h1>
-          <p className="text-sm text-muted-foreground">Better Vikunja · Weekly history</p>
+          <p role="status" className="text-sm text-muted-foreground">
+            {activitySubtitle(source, "Weekly history")}
+          </p>
         </div>
       </header>
       <AllTimeNavigation authenticated={source.authenticated} />
@@ -51,7 +57,11 @@ function AllTimeBody({ source }: { source: ActivitySource<AllTimeActivityView> }
   if (error && !activity) {
     return (
       <div role="alert" className="space-y-3">
-        <p>All-time activity is temporarily unavailable.</p>
+        <p>
+          {source.denied
+            ? "Your token does not permit viewing this activity."
+            : "All-time activity is temporarily unavailable."}
+        </p>
         <Button variant="outline" disabled={loading} onClick={reload}>
           Retry
         </Button>
@@ -61,11 +71,6 @@ function AllTimeBody({ source }: { source: ActivitySource<AllTimeActivityView> }
   if (!activity) return <p>Public all-time activity is not enabled.</p>;
   return (
     <>
-      {updating ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          Updating with current private data…
-        </p>
-      ) : null}
       {error && activity ? (
         <div role="alert" className="flex flex-wrap items-center gap-3 text-sm">
           <p>Activity could not be refreshed. Previously loaded data remains visible.</p>

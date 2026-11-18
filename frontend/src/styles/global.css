@@ -92,6 +92,13 @@
   }
 }
 
+/* Wide views keep the same content width as navigation adds or removes a scrollbar. */
+@media (min-width: 64rem) {
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

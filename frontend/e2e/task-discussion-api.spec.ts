@@ -1,12 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
+import { submitToken } from "./app-actions";
 
 test("discussion API creates, paginates, updates and deletes native Vikunja comments", async ({
   page,
 }) => {
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL(/\/today/);
   const session = await graphql<{ session: { csrfToken: string } }>(
     page,

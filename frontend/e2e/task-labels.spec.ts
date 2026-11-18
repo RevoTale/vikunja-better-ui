@@ -1,12 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { submitToken } from "./app-actions";
 import { openTaskLabels } from "./app-layout";
 import { discussionGraphQL } from "./discussion-fixture";
 
 test("task labels support create, deselect, edit and inclusion filtering", async ({ page }) => {
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL((url) => url.pathname === "/today");
   await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
   const { session } = await discussionGraphQL<{ session: { csrfToken: string } }>(

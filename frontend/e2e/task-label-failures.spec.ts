@@ -1,13 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { submitToken } from "./app-actions";
 import { openTaskLabels } from "./app-layout";
 
 test("label creation retries preserve newer input and prevent concurrent submission", async ({
   page,
 }) => {
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL(/\/today/);
   await page.goto("/tasks/new?type=one-time");
   await page.getByLabel("Title", { exact: true }).fill("Keep my task draft");
@@ -59,9 +58,7 @@ test("partial label save shows the created task instead of a duplicate submissio
   page,
 }) => {
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL(/\/today/);
   await page.goto("/tasks/new?type=one-time");
   await page.getByLabel("Title", { exact: true }).fill("Created only once");

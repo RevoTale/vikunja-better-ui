@@ -43,15 +43,18 @@ func TestGraphQLBoundaryAcceptsExactOriginJSONPost(t *testing.T) {
 func TestGraphQLBoundaryAuthenticatesMultipartBeforeReadingBody(t *testing.T) {
 	t.Parallel()
 	origin, _ := url.Parse("https://tasks.example.test")
-	sessions := auth.NewSessionManager([]byte("test-secret"), time.Now, rand.Reader)
-	token, session, err := sessions.Issue()
+	sessions, err := auth.NewSessionManager([]byte("test-secret"), "https://vikunja.test", time.Now, rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cookies := auth.NewSessionCookies(false)
+	token, session, err := sessions.Issue("tk_test", origin.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := auth.NewSessionCookies(true)
 	w := httptest.NewRecorder()
-	cookies.Set(w, token, session.ExpiresAt)
-	cookie := w.Result().Cookies()[0]
+	cookies.Start(w, token, session)
+	pair := w.Result().Cookies()
 	for _, test := range []struct {
 		name, csrf string
 		signed     bool
@@ -69,14 +72,14 @@ func TestGraphQLBoundaryAuthenticatesMultipartBeforeReadingBody(t *testing.T) {
 			next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNoContent)
 			})
-			handler := auth.HTTPContext(sessions, cookies)(GraphQLBoundary(origin, sessions)(next))
+			handler := GraphQLBoundary(origin, sessions)(next)
 			r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/graphql", strings.NewReader("bytes"))
 			r.ContentLength = test.size
 			r.Header.Set("Content-Type", "multipart/form-data; boundary=test")
 			r.Header.Set("Origin", origin.String())
 			r.Header.Set("X-Csrf-Token", test.csrf)
 			if test.signed {
-				r.AddCookie(cookie)
+				addSessionCookies(r, pair)
 			}
 			w := httptest.NewRecorder()
 			handler.ServeHTTP(w, r)
@@ -144,5 +147,37 @@ func TestGraphQLBoundaryRejectsUnsafeRequests(t *testing.T) {
 				t.Fatalf("status = %d, want %d", recorder.Code, testCase.wantStatus)
 			}
 		})
+	}
+}
+
+func TestRejectedGraphQLOriginLeavesSessionCookiesUntouched(t *testing.T) {
+	t.Parallel()
+	const target = "https://tasks.example.test"
+	origin, err := url.Parse(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager, err := auth.NewSessionManager([]byte("test-key"), "https://vikunja.test", time.Now, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, session, err := manager.Issue("tk_fixture", target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := httptest.NewRecorder()
+	auth.NewSessionCookies(true).Start(cookies, "invalid-ciphertext", session)
+	handler := GraphQLBoundary(origin, manager)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("rejected request reached GraphQL")
+	}))
+	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, target+"/graphql", nil)
+	for _, cookie := range cookies.Result().Cookies() {
+		request.AddCookie(cookie)
+	}
+	request.Header.Set("Origin", "https://other.example.test")
+	writer := httptest.NewRecorder()
+	handler.ServeHTTP(writer, request)
+	if writer.Code != http.StatusForbidden || len(writer.Header().Values("Set-Cookie")) != 0 {
+		t.Fatal("rejection must precede session refresh or cleanup")
 	}
 }

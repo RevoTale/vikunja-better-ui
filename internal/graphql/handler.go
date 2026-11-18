@@ -24,19 +24,34 @@ const (
 	allTimeActivityComplexity = 180
 )
 
-// NewHandler configures transports, operation limits, and safe panic responses.
-func NewHandler(root *resolver.Resolver, production bool, logger *slog.Logger) *handler.Server {
+type requestSchema struct {
+	gqlgen.ExecutableSchema
+
+	root func(context.Context) *resolver.Resolver
+}
+
+// Exec creates one resolver tree per operation so concurrent fields share only their caller's client.
+func (schema *requestSchema) Exec(ctx context.Context) gqlgen.ResponseHandler {
+	executable := generated.NewExecutableSchema(generated.Config{Resolvers: schema.root(ctx)})
+	return executable.Exec(ctx)
+}
+
+// NewRequestHandler shares schema metadata and transports across isolated browser sessions.
+func NewRequestHandler(
+	root func(context.Context) *resolver.Resolver, production bool, logger *slog.Logger,
+) *handler.Server {
 	complexity := generated.ComplexityRoot{}
 	complexity.Query.PublicAllTimeActivity = func(childComplexity int) int {
 		return allTimeActivityComplexity + childComplexity
 	}
-	server := handler.New(generated.NewExecutableSchema(generated.Config{Resolvers: root, Complexity: complexity}))
+	metadata := generated.NewExecutableSchema(generated.Config{Complexity: complexity})
+	server := handler.New(&requestSchema{ExecutableSchema: metadata, root: root})
 	server.AddTransport(transport.POST{})
 	server.AddTransport(transport.MultipartForm{MaxUploadSize: web.MaxGraphQLUploadBytes, MaxMemory: maxMultipartMemory})
 	server.Use(extension.FixedComplexityLimit(maxOperationComplexity))
 	server.AroundOperations(operationBoundary(production))
-	server.SetRecoverFunc(func(_ context.Context, recovered any) error {
-		logger.Error("GraphQL resolver panic", "cause", recovered)
+	server.SetRecoverFunc(func(_ context.Context, _ any) error {
+		logger.Error("GraphQL resolver panic")
 		return resolverInternalError()
 	})
 	return server

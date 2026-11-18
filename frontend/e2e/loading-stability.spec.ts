@@ -94,13 +94,17 @@ test("discussion supports a timezone skeleton without shifting the brand", async
   });
   await page.reload();
   const timezone = page.locator('[data-slot="timezone"]:visible');
+  const brand = page.getByRole("link", { name: /Better Vikunja/ });
   await expect(timezone.getByRole("status", { name: "Loading timezone" })).toBeVisible();
   const before = await timezone.boundingBox();
+  const initialBrand = await brand.boundingBox();
   release();
   await expect(timezone).toContainText("Timezone Europe/Kyiv");
   const after = await timezone.boundingBox();
   expect(after?.y).toBe(before?.y);
   expect(after?.height).toBe(before?.height);
+  expect(initialBrand).not.toBeNull();
+  expect(await brand.boundingBox()).toEqual(initialBrand);
   await expect(timezone.getByRole("status")).toHaveCount(0);
 });
 
