@@ -90,8 +90,11 @@ test("discussion supports formatting selected text and editing links without los
   await discussionFixture(page);
   const form = page.getByRole("region", { name: "New comment form" });
   const editor = form.getByRole("textbox", { name: "Comment", exact: true });
-  await editor.fill("Selected text");
+  await editor.pressSequentially("Selected text");
   await editor.press("ControlOrMeta+a");
+  await expect
+    .poll(() => editor.evaluate(() => window.getSelection()?.toString()))
+    .toBe("Selected text");
   const bold = form.getByRole("button", { name: "Bold", exact: true });
   await bold.focus();
   await page.keyboard.press("Space");
