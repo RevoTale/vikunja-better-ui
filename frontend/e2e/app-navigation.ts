@@ -87,7 +87,7 @@ test("login restores the requested route and core navigation is accessible", asy
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/\/today/);
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Today" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
   await expect(page.getByText("Take daily vitamins", { exact: true })).toBeVisible();
   await expect(
     page.getByText("Scheduled-cycle task (every 2 days)", { exact: true }),

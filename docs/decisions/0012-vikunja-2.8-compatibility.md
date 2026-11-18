@@ -49,6 +49,11 @@ inspection alone is not runtime verification.
   with Playwright's `unrouteAll({ behavior: "wait" })`, matching existing test
   conventions. All loading/error assertions are retained; final reruns belong
   to the release verification above.
+- The next full run exposed additional timing-dependent assertions: the
+  recurring-overview setup now waits for the post-login Today heading; the
+  navigation check matches Today exactly rather than also matching Finish
+  today; the slow-refresh check holds the response until its loading assertions
+  finish instead of assuming a 1.2-second delay remains visible long enough.
 
 ## Sources and contracts
 

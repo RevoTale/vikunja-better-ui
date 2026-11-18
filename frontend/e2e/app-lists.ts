@@ -33,10 +33,11 @@ test("task lists expose loading, empty, error, and project-filter states", async
   await expect(page.getByLabel("Project", { exact: true })).toContainText("E2E Empty Project");
 
   await page.unrouteAll({ behavior: "wait" });
-  let refreshDelay = 400;
+  let releaseRefresh = () => {};
+  let refreshGate = new Promise<void>((resolve) => setTimeout(resolve, 400));
   await page.route("**/graphql", async (route) => {
     if (graphQLOperation(route.request().postData()) === "TaskList") {
-      await new Promise((resolve) => setTimeout(resolve, refreshDelay));
+      await refreshGate;
     }
     await route.continue();
   });
@@ -47,13 +48,16 @@ test("task lists expose loading, empty, error, and project-filter states", async
   await refreshResponse;
   await expect(page.getByText("Refreshing tasks…", { exact: true })).toHaveCount(0);
 
-  refreshDelay = 1_200;
+  refreshGate = new Promise<void>((resolve) => {
+    releaseRefresh = resolve;
+  });
   refreshResponse = page.waitForResponse(
     (response) => graphQLOperation(response.request().postData()) === "TaskList",
   );
   await chooseSelectOption(page, "Project", "E2E Empty Project");
   await expect(page.getByText("Refreshing tasks…", { exact: true })).toBeVisible();
   await expect(page.getByText("No tasks match these filters.", { exact: true })).toBeVisible();
+  releaseRefresh();
   await refreshResponse;
   await expect(page.getByText("Refreshing tasks…", { exact: true })).toHaveCount(0);
 
