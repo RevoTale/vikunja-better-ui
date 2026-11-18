@@ -1,15 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { login, submitToken } from "./app-actions";
-import { appURL, projectID, vikunjaURL } from "./app-fixture";
+import { appURL, nativeFixtureSession, projectID, vikunjaURL } from "./app-fixture";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
-import { fixtureEnv } from "./mcp-fixture";
 import { privateTask, readOnlyToken, secondAccount } from "./personal-token-fixture";
 
 test("token login explains missing profile access and the first navigation works", async ({
   page,
   request,
 }) => {
-  const limited = await readOnlyToken(request, fixtureEnv("E2E_FIXTURE_SESSION"), {
+  const limited = await readOnlyToken(request, await nativeFixtureSession(request), {
     tasks: ["read_all"],
   });
   await page.goto("/login");
@@ -32,7 +31,7 @@ test("personal tokens enforce read-only access and upstream revocation", async (
 }) => {
   const title = "Read-only session fixture";
   const taskId = await privateTask(request, title);
-  const session = fixtureEnv("E2E_FIXTURE_SESSION");
+  const session = await nativeFixtureSession(request);
   const credential = await readOnlyToken(request, session);
   await page.goto("/login");
   await login(page, credential.token);

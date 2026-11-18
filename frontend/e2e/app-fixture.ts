@@ -1,3 +1,5 @@
+import { type APIRequestContext, expect } from "@playwright/test";
+
 export const vikunjaURL = requiredEnv("E2E_VIKUNJA_URL");
 export const appURL = requiredEnv("E2E_BASE_URL");
 export const vikunjaToken = requiredEnv("E2E_VIKUNJA_API_TOKEN");
@@ -11,4 +13,17 @@ export function requiredEnv(name: string) {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is required`);
   return value;
+}
+
+export async function nativeFixtureSession(
+  request: APIRequestContext,
+  username = requiredEnv("E2E_FIXTURE_USERNAME"),
+  password = requiredEnv("E2E_FIXTURE_PASSWORD"),
+) {
+  const response = await request.post(`${vikunjaURL}/api/v2/login`, {
+    data: { username, password },
+    maxRedirects: 0,
+  });
+  expect(response.status()).toBe(200);
+  return ((await response.json()) as { token: string }).token;
 }

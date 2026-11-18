@@ -1,8 +1,9 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
+import { nativeFixtureSession, requiredEnv } from "./app-fixture";
 
 test("MCP accepts native scoped tokens and rejects revoked access", async ({ request }) => {
   const upstream = requiredEnv("E2E_VIKUNJA_URL");
-  const session = requiredEnv("E2E_FIXTURE_SESSION");
+  const session = await nativeFixtureSession(request);
   const headers = { Authorization: `Bearer ${session}` };
   const created = await request.post(`${upstream}/api/v2/tokens`, {
     headers,
@@ -64,10 +65,4 @@ function protocol(
     },
     data: { jsonrpc: "2.0", id: 1, method, ...(params ? { params } : {}) },
   });
-}
-
-function requiredEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) throw new Error(`Missing isolated fixture setting: ${key}`);
-  return value;
 }

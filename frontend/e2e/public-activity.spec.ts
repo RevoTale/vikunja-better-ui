@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { login } from "./app-actions";
-import { requiredEnv } from "./app-fixture";
+import { nativeFixtureSession } from "./app-fixture";
 import { readOnlyToken } from "./personal-token-fixture";
 
 type Activity = {
@@ -125,7 +125,7 @@ test("a profile-only token sees a permission error on both personal activity vie
   page,
   request,
 }) => {
-  const credential = await readOnlyToken(request, requiredEnv("E2E_FIXTURE_SESSION"), {
+  const credential = await readOnlyToken(request, await nativeFixtureSession(request), {
     other: ["user"],
   });
   await page.goto("/login");

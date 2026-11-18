@@ -54,7 +54,7 @@ func seedFixtures(ctx context.Context, upstream, username, password string, demo
 		return nil, err
 	}
 	return map[string]string{
-		"token": token, "publicToken": publicToken, "nativeSession": api.token,
+		"token": token, "publicToken": publicToken,
 		"projectId": strconv.FormatInt(api.projectID, 10), "emptyProjectId": strconv.FormatInt(empty, 10),
 		fixtureTimezoneField: fixtureTimezone, "invalidTitle": invalidFixtureTitle, "labeledTitle": labeledFixtureTitle,
 	}, nil
