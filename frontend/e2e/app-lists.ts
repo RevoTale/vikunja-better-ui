@@ -34,10 +34,10 @@ test("task lists expose loading, empty, error, and project-filter states", async
 
   await page.unrouteAll({ behavior: "wait" });
   let releaseRefresh = () => {};
-  let refreshGate = new Promise<void>((resolve) => setTimeout(resolve, 400));
+  let refreshGate: Promise<void> | undefined;
   await page.route("**/graphql", async (route) => {
     if (graphQLOperation(route.request().postData()) === "TaskList") {
-      await refreshGate;
+      await (refreshGate ?? new Promise<void>((resolve) => setTimeout(resolve, 400)));
     }
     await route.continue();
   });
