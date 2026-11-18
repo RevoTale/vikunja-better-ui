@@ -43,6 +43,12 @@ inspection alone is not runtime verification.
   with its separate recurring History snapshot preserved.
 - Independent review found no actionable defects. Notification delivery and
   production deployment are outside these local checks.
+- The initial full browser run passed 233/234 cases; the loading-state test
+  replaced an interception handler while it was still running (`Route is
+  already handled`). Both handler transitions now wait for outstanding calls
+  with Playwright's `unrouteAll({ behavior: "wait" })`, matching existing test
+  conventions. All loading/error assertions are retained; final reruns belong
+  to the release verification above.
 
 ## Sources and contracts
 
