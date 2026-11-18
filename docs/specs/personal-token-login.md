@@ -25,8 +25,8 @@ design. For deployment settings and request paths see the
    day 15 and revocation update only that credential, so a delayed response
    from a previous account cannot replace the active login. The selector
    carries no credential. It lasts at most 400 days from login, after which
-   the user signs in again. Scope session acceptance to the trusted external origin
-   so the HTTP cookie cannot authenticate the HTTPS deployment. Encrypt the
+   the user signs in again. Bind the credential to both the trusted browser origin
+   and the configured Vikunja transport URL, including its base path. Encrypt the
    personal token and session metadata together. Derive a distinct
    encryption key from the deployment secret and keep CSRF and action
    capabilities bound to the session. Retain the existing session lifetime
@@ -56,7 +56,7 @@ disposable one-time task to verify this behavior.
 
 | Setting | Behavior |
 | --- | --- |
-| `APP_VIKUNJA_URL` | Required. Every private browser session, Jobs caller and MCP caller uses this configured upstream. |
+| `APP_VIKUNJA_URL` | Required. Every private browser session, Jobs caller and MCP caller uses this configured upstream. Changing this address requires browser users to sign in again. |
 | `APP_SESSION_SECRET` | Required. Keep the same strong secret, encoding and compatible cookie format across replicas and redeployments. Keep the secret outside the image. |
 | `APP_ALLOWED_ORIGIN` | Optional when the deployment can establish its trusted browser origin. Accept HTTPS and private HTTP over WireGuard, including an IP and port. Set the origin explicitly when integrations need a fixed browser-facing URL or the deployment cannot establish it otherwise. |
 | `APP_VIKUNJA_PUBLIC_URL` | Set to the browser-facing HTTPS address of native Vikunja if the Go transport uses internal HTTP in production. It defaults to the upstream URL otherwise. |
@@ -123,7 +123,7 @@ never enable indexing. [Jobs contract](../decisions/0004-read-only-jobs-integrat
 
 ## Acceptance evidence
 
-On 2026-11-18 the uncommitted checkout based on `9f2ca27` was exercised
+On 2026-11-18 the personal-token revision based on `9f2ca27` was exercised
 against an isolated Vikunja 2.8.0. Chromium opened the production app on
 a private, non-loopback HTTP address, signed in, reopened a task after a
 same-key restart, shared its link, completed it and signed out. A replacement
@@ -146,7 +146,7 @@ deployment and record the tested image, client and observed result.
 | Isolated Vikunja, two users | Sign in concurrently with different project access. Open the same task and attachment link from each account. | Each sees only permitted data. Private requests never use the public aggregate token. |
 | Browser, same device | Sign out as A and sign in as B. Repeat with A's task open in another tab and with a pending request. | B cannot see or act on A's tasks, cached results, drafts or Undo capability. |
 | Isolated Vikunja | Attempt an update with a read-only token, then a read. Repeat after revoking the token. | The denied write changes nothing. Reading still works until the token is revoked. |
-| Deployment fixture | Redeploy with the same external origin and key, then with a replacement key. Submit an old pre-migration cookie. | A compatible session survives the first redeploy. A replacement key and a legacy cookie each require fresh login. |
+| Deployment fixture | Redeploy with the same browser origin, upstream and key, then change the key or upstream. Submit an old pre-migration cookie. | A compatible session survives the first redeploy. Changing the key or upstream requires a fresh login, as does presenting a legacy cookie. |
 | Deployment fixture | Start private-only with no global token. Enable each public flag independently. Exercise Jobs and MCP with their own tokens. | Private-only startup and readiness succeed. Enabled snapshots require their own configured credential. Jobs and MCP retain caller permissions. |
 | Proxy and browser | Try exact, mismatched, missing and null origins, a nondefault port and untrusted forwarded headers. | Only the verified same-origin request succeeds. A client-supplied header cannot set the target for absolute links. |
 | Browser and TLS proxy | Open the HTTPS address through a proxy with an HTTP upstream. Repeat with a client-supplied forwarded scheme. | The HTTPS session always requires its Secure cookie. An HTTP session or a forged header cannot downgrade it. |

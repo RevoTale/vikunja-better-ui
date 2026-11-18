@@ -15,7 +15,7 @@ import (
 
 func TestSessionProfileRechecksUpstreamAndOnlyClearsRevokedCredential(t *testing.T) {
 	t.Parallel()
-	sessions, err := auth.NewSessionManager([]byte("test-key"), time.Now, rand.Reader)
+	sessions, err := auth.NewSessionManager([]byte("test-key"), "https://vikunja.test", time.Now, rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}

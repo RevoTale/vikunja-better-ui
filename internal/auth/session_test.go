@@ -13,7 +13,7 @@ func TestSessionManagerIssueAndParse(t *testing.T) {
 
 	now := time.Date(2026, time.August, 12, 9, 30, 0, 0, time.UTC)
 	manager, err := NewSessionManager(
-		[]byte("0123456789abcdef0123456789abcdef"),
+		[]byte("0123456789abcdef0123456789abcdef"), testUpstream,
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
@@ -49,7 +49,7 @@ func TestSessionManagerRejectsInvalidToken(t *testing.T) {
 
 	now := time.Date(2026, time.August, 12, 9, 30, 0, 0, time.UTC)
 	manager, err := NewSessionManager(
-		[]byte("0123456789abcdef0123456789abcdef"),
+		[]byte("0123456789abcdef0123456789abcdef"), testUpstream,
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
@@ -87,7 +87,7 @@ func TestSessionManagerRejectsExpiredToken(t *testing.T) {
 
 	now := time.Date(2026, time.August, 12, 9, 30, 0, 0, time.UTC)
 	manager, err := NewSessionManager(
-		[]byte("0123456789abcdef0123456789abcdef"),
+		[]byte("0123456789abcdef0123456789abcdef"), testUpstream,
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
@@ -130,7 +130,7 @@ func TestSessionManagerRefreshPreservesSessionID(t *testing.T) {
 
 	now := time.Date(2026, time.August, 12, 9, 30, 0, 0, time.UTC)
 	manager, err := NewSessionManager(
-		[]byte("0123456789abcdef0123456789abcdef"),
+		[]byte("0123456789abcdef0123456789abcdef"), testUpstream,
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
@@ -162,7 +162,7 @@ func TestCSRFTokenIsBoundToSession(t *testing.T) {
 	t.Parallel()
 
 	manager, err := NewSessionManager(
-		[]byte("0123456789abcdef0123456789abcdef"),
+		[]byte("0123456789abcdef0123456789abcdef"), testUpstream,
 		time.Now,
 		strings.NewReader("0123456789abcdef"),
 	)

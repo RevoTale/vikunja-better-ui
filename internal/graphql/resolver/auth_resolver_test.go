@@ -21,7 +21,7 @@ func TestLoginCreatesAuthenticatedSession(t *testing.T) {
 
 	now := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
 	sessions, err := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"), func() time.Time { return now },
+		[]byte("01234567890123456789012345678901"), "https://vikunja.test", func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
 	if err != nil {
@@ -66,7 +66,7 @@ func TestLoginReturnsGenericAuthenticationError(t *testing.T) {
 
 	now := time.Now()
 	sessions, err := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"), func() time.Time { return now },
+		[]byte("01234567890123456789012345678901"), "https://vikunja.test", func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
 	if err != nil {
@@ -94,7 +94,7 @@ func TestProjectsRequireSessionAndMarkAccessibleDefault(t *testing.T) {
 
 	now := time.Now()
 	sessions, err := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"), func() time.Time { return now },
+		[]byte("01234567890123456789012345678901"), "https://vikunja.test", func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
 	if err != nil {

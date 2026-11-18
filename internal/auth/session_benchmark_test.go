@@ -9,7 +9,7 @@ import (
 func BenchmarkSessionParse(b *testing.B) {
 	now := time.Date(2026, time.August, 15, 12, 0, 0, 0, time.UTC)
 	manager, err := NewSessionManager(
-		[]byte("0123456789abcdef0123456789abcdef"),
+		[]byte("0123456789abcdef0123456789abcdef"), testUpstream,
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)

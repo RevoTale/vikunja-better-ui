@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted and implemented in the working tree on 2026-11-18. [Login contract and acceptance](../specs/personal-token-login.md) ·
+Accepted and implemented on 2026-11-18. [Login contract and acceptance](../specs/personal-token-login.md) ·
 [Current architecture](../architecture.md)
 
 ## Context
@@ -91,6 +91,14 @@ Testing a real read-only token showed that Vikunja 2.8 returns the same HTTP
 should be able to keep reading after a denied write. Confirm token validity
 with the upstream’s scope-independent check before deciding whether to end a
 session. Never replay the attempted write. [Protocol and acceptance](../specs/personal-token-login.md)
+
+## Changing the upstream — 2026-11-18
+
+A deployment can point the same browser origin at another Vikunja server.
+Bind each encrypted browser credential to `APP_VIKUNJA_URL`, including its
+base path, so changing the target requires a new login before forwarding a
+personal token. Redeploying against the same upstream with the same secret
+preserves the session. [Migration and recovery](../specs/personal-token-login.md#cutover-and-recovery)
 
 ## Consequences
 

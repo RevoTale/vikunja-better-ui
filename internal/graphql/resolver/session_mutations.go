@@ -16,17 +16,19 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 	if !ok {
 		return nil, clientError("INTERNAL", "The request context is unavailable.")
 	}
-	if !r.limiter.Allow(requestInfo.ClientIP) {
+	if !r.limiter.Begin(requestInfo.ClientIP) {
 		return nil, clientError("UNAUTHENTICATED", "Too many sign-in attempts. Try again later.")
 	}
+	outcome := auth.LoginUnavailable
+	defer func() { r.limiter.Finish(requestInfo.ClientIP, outcome) }()
 	if !auth.ValidAPIToken(input.Token) {
-		r.limiter.RecordFailure(requestInfo.ClientIP)
+		outcome = auth.LoginRejected
 		return nil, clientError("UNAUTHENTICATED", "Enter a valid Vikunja API token.")
 	}
 	user, err := r.loginUser(ctx, input.Token)
 	if err != nil {
 		if accessErr := profileAccessError(nil, err); accessErr != nil {
-			r.limiter.RecordFailure(requestInfo.ClientIP)
+			outcome = auth.LoginRejected
 			return nil, accessErr
 		}
 		if r.logger != nil {
@@ -41,7 +43,7 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 	}
 	requestInfo.ClearSession()
 	requestInfo.Cookies.Start(requestInfo.Writer, token, session)
-	r.limiter.RecordSuccess(requestInfo.ClientIP)
+	outcome = auth.LoginAccepted
 	result := authenticatedSession(r.sessions, session, user)
 	result.Use12HourTime = r.use12HourTime
 	return &model.LoginPayload{Session: result}, nil

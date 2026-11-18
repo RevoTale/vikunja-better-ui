@@ -49,7 +49,9 @@ func run(configuration config.Config, logger *slog.Logger) error {
 	if err := client.RequireSupportedVersion(context.Background()); err != nil {
 		return err
 	}
-	sessions, err := auth.NewSessionManager(configuration.SessionSecret, time.Now, rand.Reader)
+	sessions, err := auth.NewSessionManager(
+		configuration.SessionSecret, configuration.VikunjaURL.String(), time.Now, rand.Reader,
+	)
 	if err != nil {
 		return err
 	}

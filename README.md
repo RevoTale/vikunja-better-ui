@@ -520,7 +520,9 @@ Login checks the current profile with `other:user`. Read-only users can omit
 write permissions. To revoke access, revoke that token in Vikunja. Separate
 tokens for a phone and laptop allow independent revocation. During upgrade,
 users with old shared-login cookies must sign in once with a personal token.
-Keep `APP_SESSION_SECRET` stable across redeploys and replicas.
+Keep the browser origin, `APP_VIKUNJA_URL` and `APP_SESSION_SECRET` stable
+across replicas and redeploys. Changing the upstream transport address or base
+path requires users to sign in again before Go sends a personal token there.
 
 ### Mobile layout and creation drafts
 
@@ -1239,11 +1241,10 @@ are removed on completion.
 
 For a WireGuard-only installation, bind the port to the server’s WireGuard IP.
 Set `APP_ALLOWED_ORIGIN=http://10.77.0.20:8080` in the local env file for
-this example. The smoke task tags the image built from your checkout. When
-deploying from a registry, select a release that includes personal-token login.
+this example, which uses the published personal-token release.
 
 ```sh
-docker run --rm -p 10.77.0.20:8080:8080 --env-file .env vikunja-better-ui:smoke
+docker run --rm -p 10.77.0.20:8080:8080 --env-file .env ghcr.io/revotale/vikunja-better-ui:v4.0.0
 ```
 
 The runtime image contains CA certificates and timezone data and runs as a

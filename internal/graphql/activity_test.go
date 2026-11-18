@@ -81,7 +81,7 @@ func authenticatedActivityRequest(
 	t.Helper()
 	now := func() time.Time { return time.Date(2026, 10, 15, 13, 0, 0, 0, time.UTC) }
 	sessions, err := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"),
+		[]byte("01234567890123456789012345678901"), "https://vikunja.test",
 		now,
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)

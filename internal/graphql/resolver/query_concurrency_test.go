@@ -190,7 +190,7 @@ func (client *overlapTaskClient) TasksPage(context.Context, vikunja.TaskQuery) (
 func concurrencySession(t *testing.T, now time.Time) (*auth.SessionManager, []*http.Cookie) {
 	t.Helper()
 	sessions, err := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"),
+		[]byte("01234567890123456789012345678901"), "https://vikunja.test",
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)

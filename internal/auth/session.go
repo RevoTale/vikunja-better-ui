@@ -53,9 +53,14 @@ type SessionManager struct {
 	random  io.Reader
 }
 
-// NewSessionManager derives independent cookie and CSRF keys from the persistent deployment secret.
-func NewSessionManager(secret []byte, now func() time.Time, random io.Reader) (*SessionManager, error) {
-	block, err := aes.NewCipher(keyedDigest(secret, "vbu:session:encryption:v2"))
+// NewSessionManager binds the cookie key to the full configured Vikunja transport URL, including its base path.
+func NewSessionManager(
+	secret []byte, upstream string, now func() time.Time, random io.Reader,
+) (*SessionManager, error) {
+	if upstream == "" {
+		return nil, errors.New("missing Vikunja session audience")
+	}
+	block, err := aes.NewCipher(keyedDigest(secret, "vbu:session:encryption:v3\x00"+upstream))
 	if err != nil {
 		return nil, fmt.Errorf("initialize session cipher: %w", err)
 	}

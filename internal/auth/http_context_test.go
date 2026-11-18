@@ -14,7 +14,7 @@ func TestHTTPContextProvidesValidSessionAndRequestData(t *testing.T) {
 
 	now := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
 	manager, err := NewSessionManager(
-		[]byte("01234567890123456789012345678901"), func() time.Time { return now }, rand.Reader,
+		[]byte("01234567890123456789012345678901"), testUpstream, func() time.Time { return now }, rand.Reader,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -53,7 +53,7 @@ func TestHTTPContextProvidesValidSessionAndRequestData(t *testing.T) {
 func TestHTTPContextClearsInvalidSession(t *testing.T) {
 	t.Parallel()
 
-	manager, err := NewSessionManager([]byte("01234567890123456789012345678901"), time.Now, rand.Reader)
+	manager, err := NewSessionManager([]byte("01234567890123456789012345678901"), testUpstream, time.Now, rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}

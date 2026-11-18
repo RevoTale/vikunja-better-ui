@@ -138,7 +138,7 @@ func taskActionResolver(
 
 	now := time.Date(2026, time.August, 14, 12, 0, 0, 0, time.UTC)
 	sessions, err := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"),
+		[]byte("01234567890123456789012345678901"), "https://vikunja.test",
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)

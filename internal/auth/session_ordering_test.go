@@ -13,7 +13,7 @@ import (
 func TestDelayedSessionResponsesCannotOverrideNewLoginOrLogout(t *testing.T) {
 	t.Parallel()
 	now := time.Now()
-	manager, err := NewSessionManager([]byte("deployment-key"), func() time.Time { return now }, rand.Reader)
+	manager, err := NewSessionManager([]byte("deployment-key"), testUpstream, func() time.Time { return now }, rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +64,7 @@ func TestDelayedSessionResponsesCannotOverrideNewLoginOrLogout(t *testing.T) {
 
 func TestSelectorMustMatchTheEncryptedSessionIdentity(t *testing.T) {
 	t.Parallel()
-	manager := replica(t, "test-key")
+	manager := replica(t, "test-key", testUpstream)
 	firstToken, _, err := manager.Issue("tk_first", "http://app.test")
 	if err != nil {
 		t.Fatal(err)

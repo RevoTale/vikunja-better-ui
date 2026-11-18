@@ -122,7 +122,7 @@ func TestDisabledPublicActivityFallsBackToPrivateShellForAuthenticatedSession(t 
 	t.Parallel()
 	now := func() time.Time { return time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC) }
 	sessions, err := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"), now, bytes.NewReader([]byte("0123456789abcdef")),
+		[]byte("01234567890123456789012345678901"), "https://vikunja.test", now, bytes.NewReader([]byte("0123456789abcdef")),
 	)
 	if err != nil {
 		t.Fatal(err)

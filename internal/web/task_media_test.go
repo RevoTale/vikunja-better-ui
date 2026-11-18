@@ -35,7 +35,7 @@ func (stub *mediaClientStub) AttachmentContent(
 
 func mediaTestHandler(t *testing.T, client *mediaClientStub) (http.Handler, []*http.Cookie) {
 	t.Helper()
-	sessions, err := auth.NewSessionManager([]byte("test-secret"), time.Now, rand.Reader)
+	sessions, err := auth.NewSessionManager([]byte("test-secret"), "https://vikunja.test", time.Now, rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}

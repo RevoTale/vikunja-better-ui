@@ -43,7 +43,7 @@ func TestGraphQLBoundaryAcceptsExactOriginJSONPost(t *testing.T) {
 func TestGraphQLBoundaryAuthenticatesMultipartBeforeReadingBody(t *testing.T) {
 	t.Parallel()
 	origin, _ := url.Parse("https://tasks.example.test")
-	sessions, err := auth.NewSessionManager([]byte("test-secret"), time.Now, rand.Reader)
+	sessions, err := auth.NewSessionManager([]byte("test-secret"), "https://vikunja.test", time.Now, rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +157,7 @@ func TestRejectedGraphQLOriginLeavesSessionCookiesUntouched(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	manager, err := auth.NewSessionManager([]byte("test-key"), time.Now, rand.Reader)
+	manager, err := auth.NewSessionManager([]byte("test-key"), "https://vikunja.test", time.Now, rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}

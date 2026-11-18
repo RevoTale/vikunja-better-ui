@@ -35,7 +35,9 @@ func TestBrowserSessionsUseTheirOwnVikunjaCredential(t *testing.T) {
 	}
 	logger := slog.New(slog.DiscardHandler)
 	server := func() http.Handler {
-		sessions, sessionErr := auth.NewSessionManager(configured.SessionSecret, time.Now, rand.Reader)
+		sessions, sessionErr := auth.NewSessionManager(
+			configured.SessionSecret, configured.VikunjaURL.String(), time.Now, rand.Reader,
+		)
 		if sessionErr != nil {
 			t.Fatal(sessionErr)
 		}

@@ -1068,7 +1068,10 @@ returned to the browser.
 [Personal token login](personal-token-login.md) owns the session and migration
 contract. Before contacting Vikunja, rate-limit login attempts by direct peer
 address and validate the token format. Verify the token's owner against the
-configured server. Go uses the caller's credential for private workflows.
+configured server. Each process counts pending checks together with credential
+failures in the last 15 minutes and allows five per peer. A successful login
+clears the peer's failures. Cancellation and upstream outages release the
+pending slot. Go uses the caller's credential for private workflows.
 
 ### Session
 
@@ -1079,8 +1082,9 @@ renews after day 15. Background responses can only update their own credential.
 
 Both cookies use host-only scope, HttpOnly, SameSite=Lax and path `/`. HTTPS
 adds Secure and the `__Host-` prefix. Logout expires both. Sessions survive a
-compatible redeploy with the same secret. Replacing the secret requires a fresh
-login. CSRF and action capabilities bind to the session ID.
+compatible redeploy with the same secret, browser origin and configured
+Vikunja transport URL. Changing any of them requires a fresh login. CSRF and
+action capabilities bind to the session ID.
 
 ### CSRF and browser boundary
 
