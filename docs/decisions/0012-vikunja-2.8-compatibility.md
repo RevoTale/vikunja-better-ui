@@ -54,6 +54,12 @@ inspection alone is not runtime verification.
   navigation check matches Today exactly rather than also matching Finish
   today; the slow-refresh check holds the response until its loading assertions
   finish instead of assuming a 1.2-second delay remains visible long enough.
+- Local final verification passed all 234 browser cases without retries and
+  the production-image smoke check. Main CI passed its checks and image build,
+  with one initial-loading assertion requiring a retry. The release branch
+  now holds that initial response until its loading assertion finishes too.
+  The release helper's stale changelog conflict was resolved while retaining
+  the published 2.13.1 entry and adding the 3.0.0 upgrade requirement.
 
 ## Sources and contracts
 

@@ -1,5 +1,22 @@
 # Changelog
 
+## [3.0.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v3.0.0) - 2026-11-18
+
+### 💥 Breaking changes
+
+- Require **Vikunja 2.8.0 or later**. Upgrade Vikunja before Better UI; older
+  servers are rejected at startup. REST API v2 and the existing auth boundaries
+  remain unchanged. [Compatibility update #155](https://github.com/RevoTale/vikunja-better-ui/pull/155).
+
+### Fixes
+
+- Describe native task deletion consistently in UI, GraphQL and MCP: tasks move
+  to Vikunja's 30-day trash. Restore them in Vikunja; separate History remains.
+- Document subscription-dependent reminder delivery and verify native MCP
+  permissions, recurrence and task editing against 2.8.0.
+- Pin signed Linux fixtures and the CI image to 2.8.0. Synchronize browser tests
+  with actual loading/navigation state instead of short observation windows.
+
 ## [2.13.1](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v2.13.1) - 2026-11-10
 
 ### Fixes

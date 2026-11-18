@@ -19,16 +19,17 @@ test("task lists expose loading, empty, error, and project-filter states", async
   await page.goto("/today");
   await login(page);
 
-  let delayed = false;
+  let releaseInitial = () => {};
+  const initialGate = new Promise<void>((resolve) => {
+    releaseInitial = resolve;
+  });
   await page.route("**/graphql", async (route) => {
-    if (!delayed && graphQLOperation(route.request().postData()) === "TaskList") {
-      delayed = true;
-      await new Promise((resolve) => setTimeout(resolve, 400));
-    }
+    if (graphQLOperation(route.request().postData()) === "TaskList") await initialGate;
     await route.continue();
   });
   await page.goto(`/today?project=${emptyProjectID}&page=1`);
   await expect(page.getByText("Loading tasks…", { exact: true })).toBeVisible();
+  releaseInitial();
   await expect(page.getByText("No tasks match these filters.", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Project", { exact: true })).toContainText("E2E Empty Project");
 
