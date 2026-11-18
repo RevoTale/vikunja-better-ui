@@ -36,7 +36,7 @@ const (
 )
 
 func (h *harness) localBinary(ctx context.Context) (string, error) {
-	data, err := os.ReadFile("tests/e2e/harness/vikunja-2.7.0.json")
+	data, err := os.ReadFile("tests/e2e/harness/vikunja-2.8.0.json")
 	if err != nil {
 		return "", err
 	}

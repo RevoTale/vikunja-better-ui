@@ -1,5 +1,13 @@
 # ADR-010: Expose the Better UI system through semantic APIs and MCP
 
+### Upstream compatibility recheck — 2026-11-18
+
+The [2.8.0 MCP handler](https://github.com/go-vikunja/vikunja/blob/v2.8.0/pkg/modules/mcp/mcp.go)
+still rejects session JWTs and requires API tokens with `mcp:access`. Native MCP
+OAuth remains unavailable; keep the approved Bearer boundary. Task deletion now
+explicitly describes the native 30-day trash and recovery in Vikunja, with no
+Better UI deletion Undo. See [ADR-012](0012-vikunja-2.8-compatibility.md).
+
 ## Status
 
 Product intent and capability boundaries accepted on 2026-11-09 in the

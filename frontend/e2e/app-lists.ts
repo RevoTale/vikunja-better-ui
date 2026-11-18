@@ -12,6 +12,7 @@ import { addCalendarDays, localDate, localDateTime, selectDate } from "./app-cal
 import { emptyProjectID, labeledTitle } from "./app-fixture";
 import { chooseSelectOption } from "./app-layout";
 import { findTaskInPaginatedList } from "./app-pagination";
+import { fixtureEnv, nativeSession } from "./mcp-fixture";
 
 test("task lists expose loading, empty, error, and project-filter states", async ({ page }) => {
   await blockBrowserVikunjaCalls(page);
@@ -127,6 +128,9 @@ test("skip and delete actions preserve recurring history in Vikunja", async ({ p
   await page.getByRole("button", { name: "More task actions", exact: true }).click();
   await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
   await expect(page.getByRole("heading", { name: `Delete ${title}?` })).toBeVisible();
+  await expect(
+    page.getByText("This moves the active task to Vikunja’s trash for 30 days.", { exact: false }),
+  ).toBeVisible();
   await page.getByRole("link", { name: "Cancel" }).click();
   await expect(page).toHaveURL(new RegExp(`/tasks/${taskID}`));
   expect((await vikunjaTask(taskID)).id).toBe(Number(taskID));
@@ -136,6 +140,16 @@ test("skip and delete actions preserve recurring history in Vikunja", async ({ p
   await page.getByRole("button", { name: "Delete task", exact: true }).click();
   await expect(page).toHaveURL(/\/today/);
   expect(await vikunjaTaskStatus(taskID)).toBe(404);
+  const session = await nativeSession(page.request);
+  const trashResponse = await page.request.get(
+    `${fixtureEnv("E2E_VIKUNJA_URL")}/api/v2/tasks/deleted?per_page=100`,
+    {
+      headers: { Authorization: `Bearer ${session}` },
+    },
+  );
+  expect(trashResponse.ok()).toBe(true);
+  const trash = (await trashResponse.json()) as { items: { id: number }[] };
+  expect(trash.items.some((item) => item.id === Number(taskID))).toBe(true);
   expect((await vikunjaTask(String(snapshot.id))).done).toBe(true);
 
   const oneTimeTitle = `Delete one-time E2E ${Date.now()}`;

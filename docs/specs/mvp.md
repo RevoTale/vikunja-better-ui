@@ -153,9 +153,9 @@ REST verbs, pagination envelopes, snake_case fields, and upstream errors.
 Use these stable baselines:
 
 - Go 1.26, updated to the latest supported patch release.
-- Vikunja 2.7.0 as the supported integration and E2E fixture version. Historical
+- Vikunja 2.8.0 as the supported integration and E2E fixture version. Historical
   2.5.0 observations below retain their original evidence version; current
-  compatibility is checked by the 2.7.0 E2E suite.
+  compatibility is checked by the 2.8.0 E2E suite.
 - Vikunja REST API v2 exclusively. Do not add v1 fallbacks or compatibility
   branches.
 - React 19.
@@ -700,8 +700,10 @@ capability.
 4. Return only the deleted task ID. The frontend evicts it from Apollo and
    returns to the validated originating route after confirmed upstream success.
 
-Deletion has no Undo in this app. Vikunja 2.5.0 internally soft-deletes tasks,
-but this app does not expose recovery. Its v2 DELETE route has no conditional
+Deletion has no Undo in this app. Vikunja 2.8.0 moves tasks to its trash for
+30 days; restore them in Vikunja before permanent deletion. Better UI does not
+expose recovery. See [ADR-012](../decisions/0012-vikunja-2.8-compatibility.md).
+Its v2 DELETE route has no conditional
 precondition, so the read-before-delete activity guard cannot be atomic against
 a simultaneous mutation made directly through another Vikunja client. The app
 serializes its own pending actions for the task and documents this upstream
@@ -1450,7 +1452,7 @@ flow needs the additional WebKit project; the full suite is not duplicated.
 
 ### Real Vikunja and Playwright E2E
 
-- Pin Vikunja 2.7.0 full binaries for Linux amd64 and arm64 with URL, version,
+- Pin Vikunja 2.8.0 full binaries for Linux amd64 and arm64 with URL, version,
   SHA-256, signature URL, and signing-key fingerprint.
 - Verify the official signature before caching or executing the binary.
 - One harness invocation creates one temporary directory, dynamic ports, SQLite

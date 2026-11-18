@@ -24,14 +24,19 @@ Requested 2026-11-05; implement add/edit reminders, then review and simplify.
 - Recurring tasks use native renewal of reminders. Relative reminders recalculate
   when dates change. Absolute reminders follow the native recurrence algorithm,
   not a custom offset from due. History snapshots remain reminder-free.
-- Delivery depends on Vikunja notification settings. This app does not schedule
+- Delivery depends on Vikunja notification settings and task subscriptions.
+  In 2.8.0, unsubscribing stops reminders even for creators and assignees. The
+  upstream upgrade subscribes existing creators/assignees; previously
+  unsubscribed users may need to unsubscribe again. Better UI does not change
+  subscriptions. See [ADR-012](../decisions/0012-vikunja-2.8-compatibility.md).
+  This app does not schedule
   its own notifications or promise browser push delivery.
 
 ## Sources and compatibility
 
-- [Native reminder fields](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.7.0/pkg/models/task_reminder.go)
-- [Native persistence and renewal](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.7.0/pkg/models/tasks.go)
-- [Native API v2 task updates](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.7.0/pkg/routes/api/v2/tasks.go)
+- [Native reminder fields](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.8.0/pkg/models/task_reminder.go)
+- [Native persistence and renewal](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.8.0/pkg/models/tasks.go)
+- [Native API v2 task updates](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.8.0/pkg/routes/api/v2/tasks.go)
 
 No database, migration or new dependency. Earlier clients omitting reminders
 preserve them. Rolling back the UI leaves reminders available in Vikunja.
