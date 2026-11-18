@@ -1,15 +1,15 @@
 import { useQuery } from "@apollo/client/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AuthSessionDocument,
   PublicActivityDocument,
   PublicAllTimeActivityDocument,
-  type PublicAllTimeActivityQuery,
 } from "@/graphql/graphql";
 import {
   type ActivityValueSource,
   type ActivityView,
   type AllTimeActivityView,
+  allTimeActivityView,
   visibleActivity,
 } from "./activity-view-model";
 import {
@@ -102,13 +102,13 @@ export function useAllTimeActivitySource(): ActivitySource<AllTimeActivityView> 
     setPublicLoading,
     setPublicError,
   );
-  const authenticatedValue = current.data?.publicAllTimeActivity;
   const selected = visibleActivity(
-    publicAllTimeView(publicValue),
-    authenticatedValue ? allTimeGraphQLView(authenticatedValue) : null,
+    publicValue,
+    current.data?.publicAllTimeActivity,
     authenticated,
     current,
   );
+  const value = useMemo(() => allTimeActivityView(selected.value), [selected.value]);
   const reload = useCallback(() => {
     void session.refetch().catch(() => undefined);
     if (authenticated) void current.refetch().catch(() => undefined);
@@ -116,6 +116,7 @@ export function useAllTimeActivitySource(): ActivitySource<AllTimeActivityView> 
   }, [authenticated, current.refetch, session.refetch]);
   return {
     ...selected,
+    value,
     loading: authenticated ? current.loading && !selected.value : publicLoading || session.loading,
     error: authenticated ? Boolean(current.error) : publicError || Boolean(session.error),
     authenticated,
@@ -164,26 +165,4 @@ function usePublicSnapshotRequest<T>(
     );
     return () => controller.abort();
   }, [authenticated, parser, path, reload, sessionLoading, setError, setLoading, setValue, value]);
-}
-
-function publicAllTimeView(activity: AllTimeActivitySnapshot | null): AllTimeActivityView | null {
-  if (!activity) return null;
-  return { ...activity, weeks: activity.weeks.map((week) => ({ ...week, priorities: [] })) };
-}
-
-function allTimeGraphQLView(
-  activity: NonNullable<PublicAllTimeActivityQuery["publicAllTimeActivity"]>,
-): AllTimeActivityView {
-  const weeks = activity.weeks.map((week) => {
-    const totals = week.priorities.reduce(
-      (sum, item) => ({
-        count: sum.count + item.count,
-        completedWithDeadline: sum.completedWithDeadline + item.completedWithDeadline,
-        completedOnTime: sum.completedOnTime + item.completedOnTime,
-      }),
-      { count: 0, completedWithDeadline: 0, completedOnTime: 0 },
-    );
-    return { ...week, ...totals };
-  });
-  return { ...activity, weeks };
 }

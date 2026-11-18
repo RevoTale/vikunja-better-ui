@@ -1,5 +1,6 @@
 import { CombinedGraphQLErrors } from "@apollo/client/errors";
-import type { TaskPriority } from "@/graphql/graphql";
+import type { PublicAllTimeActivityQuery, TaskPriority } from "@/graphql/graphql";
+import type { AllTimeActivitySnapshot } from "./public-activity-client";
 
 export type ActivityDayView = {
   date: string;
@@ -24,9 +25,9 @@ export type ActivityView = {
 
 export type ActivityValueSource = "public" | "private";
 
-export function visibleActivity<T>(
-  publicValue: T | null,
-  privateValue: T | null | undefined,
+export function visibleActivity<Public, Private>(
+  publicValue: Public | null,
+  privateValue: Private | null | undefined,
   authenticated: boolean,
   request: { loading: boolean; error?: unknown },
 ) {
@@ -83,3 +84,20 @@ export type AllTimeActivityView = {
   generatedAt: string;
   refreshAt: string;
 };
+
+export function allTimeActivityView(
+  activity: AllTimeActivitySnapshot | PublicAllTimeActivityQuery["publicAllTimeActivity"],
+): AllTimeActivityView | null {
+  if (!activity) return null;
+  const weeks = activity.weeks.map((week) => {
+    if (!("priorities" in week)) return { ...week, priorities: [] };
+    const totals = { count: 0, completedWithDeadline: 0, completedOnTime: 0 };
+    for (const priority of week.priorities) {
+      totals.count += priority.count;
+      totals.completedWithDeadline += priority.completedWithDeadline;
+      totals.completedOnTime += priority.completedOnTime;
+    }
+    return { ...week, ...totals };
+  });
+  return { ...activity, weeks };
+}

@@ -1,6 +1,11 @@
 import { CombinedGraphQLErrors } from "@apollo/client/errors";
 import { describe, expect, it } from "vitest";
-import { activityDataStatus, activitySubtitle, visibleActivity } from "./activity-view-model";
+import {
+  activityDataStatus,
+  activitySubtitle,
+  allTimeActivityView,
+  visibleActivity,
+} from "./activity-view-model";
 
 describe("personal activity scope", () => {
   const published = { total: 19 };
@@ -44,6 +49,26 @@ describe("personal activity scope", () => {
       value: published,
       valueSource: "public",
     });
+  });
+});
+
+describe("all-time activity weeks", () => {
+  const snapshot = { total: 5, priorities: [], timezone: "UTC", generatedAt: "", refreshAt: "" };
+  const totals = { count: 5, completedWithDeadline: 4, completedOnTime: 2 };
+  const date = "2026-11-16";
+
+  it("preserves the published weekly totals for an anonymous snapshot", () => {
+    const view = allTimeActivityView({ ...snapshot, weeks: [{ date, ...totals }] });
+    expect(view?.weeks).toEqual([{ date, ...totals, priorities: [] }]);
+  });
+
+  it("sums the selected private week's priorities without dropping them", () => {
+    const priorities = [
+      { priority: "LOW" as const, count: 3, completedWithDeadline: 2, completedOnTime: 1 },
+      { priority: "HIGH" as const, count: 2, completedWithDeadline: 2, completedOnTime: 1 },
+    ];
+    const view = allTimeActivityView({ ...snapshot, weeks: [{ date, priorities }] });
+    expect(view?.weeks).toEqual([{ date, ...totals, priorities }]);
   });
 });
 

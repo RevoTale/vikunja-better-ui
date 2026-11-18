@@ -10,7 +10,7 @@ import {
 } from "lexical";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { UploadDiscussionMediaDocument } from "@/graphql/graphql";
-import { graphQLErrorMessage } from "@/lib/user-error";
+import { graphQLErrorMessage, mutationOutcomeUncertain } from "@/lib/user-error";
 import type { MediaData } from "./media-html";
 import { $createMediaNode, MediaNode } from "./media-node";
 import { mediaKind } from "./media-reference";
@@ -83,7 +83,7 @@ export function useMediaUpload(
             "Upload could not be confirmed. Check task attachments before trying again; the file may already be stored.",
           ),
         );
-        setUncertain(true);
+        setUncertain(mutationOutcomeUncertain(error));
       } finally {
         finishUpload();
       }
