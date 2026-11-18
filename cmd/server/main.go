@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"syscall"
@@ -64,14 +65,11 @@ func applicationRoutes(
 ) http.Handler {
 	mux := http.NewServeMux()
 	registerTokenIntegrations(mux, configuration, logger, now)
-	browserSession := auth.HTTPContext(sessions, func(r *http.Request) string {
-		if origin := web.BrowserOrigin(configuration.AllowedOrigin, r); origin != nil {
-			return origin.String()
-		}
-		return ""
+	browserSession := auth.HTTPContext(sessions, func(r *http.Request) *url.URL {
+		return web.BrowserOrigin(configuration.AllowedOrigin, r)
 	})
 	graphQL := browserGraphQL(configuration, logger, client, sessions, now)
-	mux.Handle("/graphql", browserSession(web.GraphQLBoundary(configuration.AllowedOrigin, sessions)(graphQL)))
+	mux.Handle("/graphql", web.GraphQLBoundary(configuration.AllowedOrigin, sessions)(graphQL))
 	mux.Handle("GET /media/tasks/{task}/attachments/{attachment}", browserSession(http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			session, _ := auth.SessionFromContext(r.Context())

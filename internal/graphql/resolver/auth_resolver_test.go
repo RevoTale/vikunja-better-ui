@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -164,7 +165,7 @@ func assertErrorCode(t *testing.T, err error, want string) {
 	}
 }
 
-func testOrigin(*http.Request) string { return "http://app.test" }
+func testOrigin(*http.Request) *url.URL { return &url.URL{Scheme: "http", Host: "app.test"} }
 
 func loginCookies(token string, session auth.Session) []*http.Cookie {
 	recorder := httptest.NewRecorder()

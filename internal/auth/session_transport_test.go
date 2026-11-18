@@ -7,6 +7,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -73,7 +74,7 @@ func TestCookieSizeAndAccountIsolation(t *testing.T) {
 func TestMissingTrustedOriginFailsClosed(t *testing.T) {
 	t.Parallel()
 	manager := replica(t, "key")
-	handler := HTTPContext(manager, func(*http.Request) string { return "" })(http.HandlerFunc(
+	handler := HTTPContext(manager, func(*http.Request) *url.URL { return nil })(http.HandlerFunc(
 		func(http.ResponseWriter, *http.Request) { t.Fatal("missing origin reached handlers") },
 	))
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://app.test/graphql", nil)

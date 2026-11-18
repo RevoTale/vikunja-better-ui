@@ -34,7 +34,7 @@ func (r *mutationResolver) Login(ctx context.Context, input model.LoginInput) (*
 		}
 		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja is unavailable. Try again shortly.")
 	}
-	token, session, err := r.sessions.Issue(input.Token, requestInfo.Origin)
+	token, session, err := r.sessions.Issue(input.Token, requestInfo.Origin.String())
 	if err != nil {
 		r.logError("issue app session", err)
 		return nil, clientError("INTERNAL", "The session could not be created.")

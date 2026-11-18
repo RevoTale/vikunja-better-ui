@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -315,11 +316,16 @@ func parseAllowedOrigin(lookup LookupFunc, environment Environment) (*url.URL, e
 }
 
 func normalizeOrigin(parsed *url.URL) {
-	parsed.Host = strings.ToLower(parsed.Host)
-	if (parsed.Scheme == httpScheme && parsed.Port() == "80") ||
-		(parsed.Scheme == httpsScheme && parsed.Port() == "443") {
-		parsed.Host = strings.TrimSuffix(parsed.Host, ":"+parsed.Port())
+	host := strings.ToLower(parsed.Hostname())
+	if ip, err := netip.ParseAddr(host); err == nil && ip.Is6() {
+		host = "[" + ip.String() + "]"
 	}
+	port := strings.TrimLeft(parsed.Port(), "0")
+	defaultPort := (parsed.Scheme == httpScheme && port == "80") || (parsed.Scheme == httpsScheme && port == "443")
+	if port != "" && !defaultPort {
+		host += ":" + port
+	}
+	parsed.Host = host
 }
 
 func validOriginHost(parsed *url.URL) bool {

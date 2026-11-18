@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 )
@@ -72,4 +73,4 @@ func TestHTTPContextClearsInvalidSession(t *testing.T) {
 	}
 }
 
-func testOrigin(*http.Request) string { return "http://app.test" }
+func testOrigin(*http.Request) *url.URL { return &url.URL{Scheme: "http", Host: "app.test"} }

@@ -18,19 +18,15 @@ const MaxGraphQLUploadBytes = service.MaxMediaBytes + maxGraphQLBodyBytes
 
 // GraphQLBoundary restricts methods, origin, body size, and authenticated multipart uploads.
 func GraphQLBoundary(allowedOrigin *url.URL, sessions *auth.SessionManager) func(http.Handler) http.Handler {
+	sessionContext := auth.HTTPContext(sessions, func(request *http.Request) *url.URL {
+		origin := BrowserOrigin(allowedOrigin, request)
+		if origin == nil || len(request.Header.Values("Origin")) != 1 || request.Header.Get("Origin") != origin.String() {
+			return nil
+		}
+		return origin
+	})
 	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			writer.Header().Set("Cache-Control", "private, no-store")
-			if request.Method != http.MethodPost {
-				writer.Header().Set("Allow", http.MethodPost)
-				http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
-				return
-			}
-			origin := BrowserOrigin(allowedOrigin, request)
-			if origin == nil || len(request.Header.Values("Origin")) != 1 || request.Header.Get("Origin") != origin.String() {
-				http.Error(writer, "request origin is not allowed", http.StatusForbidden)
-				return
-			}
+		protected := sessionContext(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			limit := graphQLBodyLimit(writer, request, sessions)
 			if limit == 0 {
 				return
@@ -41,6 +37,15 @@ func GraphQLBoundary(allowedOrigin *url.URL, sessions *auth.SessionManager) func
 			}
 			request.Body = http.MaxBytesReader(writer, request.Body, limit)
 			next.ServeHTTP(writer, request)
+		}))
+		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			writer.Header().Set("Cache-Control", "private, no-store")
+			if request.Method != http.MethodPost {
+				writer.Header().Set("Allow", http.MethodPost)
+				http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
+				return
+			}
+			protected.ServeHTTP(writer, request)
 		})
 	}
 }

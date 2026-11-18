@@ -12,7 +12,6 @@ import (
 	"github.com/RevoTale/vikunja-better-ui/internal/graphql/resolver"
 	"github.com/RevoTale/vikunja-better-ui/internal/service"
 	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
-	"github.com/RevoTale/vikunja-better-ui/internal/web"
 )
 
 func browserGraphQL(
@@ -21,7 +20,7 @@ func browserGraphQL(
 	base := resolver.Dependencies{
 		Use12HourTime: c.Use12HourTime, Sessions: sessions, Limiter: auth.NewLoginLimiter(now),
 		Capabilities: service.NewCapabilityManager(c.SessionSecret, now), Logger: logger, Now: now,
-		ReferencePolicy: service.TaskReferencePolicy{BetterUI: c.AllowedOrigin, Vikunja: c.VikunjaPublicURL},
+		ReferencePolicy: service.TaskReferencePolicy{Vikunja: c.VikunjaPublicURL},
 		LoginUser: func(ctx context.Context, token string) (vikunja.User, error) {
 			return upstream.ForBrowserToken(token).CurrentUser(ctx)
 		},
@@ -31,7 +30,7 @@ func browserGraphQL(
 		client := upstream.ForBrowserToken(session.VikunjaToken())
 		deps := base
 		if info, ok := auth.RequestInfoFromContext(ctx); ok {
-			deps.ReferencePolicy.BetterUI = web.BrowserOrigin(c.AllowedOrigin, info.Request)
+			deps.ReferencePolicy.BetterUI = info.Origin
 		}
 		deps.Users, deps.Projects, deps.Tasks = client, client, client
 		deps.Comments, deps.Attachments, deps.Avatars, deps.Relations = client, client, client, client

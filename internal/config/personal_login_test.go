@@ -23,9 +23,10 @@ func TestPrivateLoginNeedsNoAppCredentials(t *testing.T) {
 func TestProductionOriginSupportsPrivateHTTP(t *testing.T) {
 	t.Parallel()
 	for input, want := range map[string]string{
-		"http://10.77.0.20:8080":    "http://10.77.0.20:8080",
-		"http://[fd00::20]:80":      "http://[fd00::20]",
-		"https://Tasks.Example:443": "https://tasks.example",
+		"http://[fd00:0000:0:0:0:0:0:20]:08080": "http://[fd00::20]:8080",
+		"http://10.77.0.20:8080":                "http://10.77.0.20:8080",
+		"http://[fd00::20]:80":                  "http://[fd00::20]",
+		"https://Tasks.Example:443":             "https://tasks.example",
 	} {
 		values := validValues()
 		values["APP_ALLOWED_ORIGIN"] = input
@@ -40,9 +41,9 @@ func TestOriginFallbackMatchesBrowserAndRejectsMalformedAddresses(t *testing.T) 
 	t.Parallel()
 	values := validValues()
 	delete(values, "APP_ALLOWED_ORIGIN")
-	values["APP_PUBLIC_URL"] = "https://Tasks.Example:443/"
+	values["APP_PUBLIC_URL"] = "https://[fd00:0:0:0:0:0:0:20]:00443/"
 	c, err := Load(lookup(values))
-	if err != nil || c.AllowedOrigin == nil || c.AllowedOrigin.String() != "https://tasks.example" {
+	if err != nil || c.AllowedOrigin == nil || c.AllowedOrigin.String() != "https://[fd00::20]" {
 		t.Fatal("canonical fallback must match a browser's serialized Origin")
 	}
 	for _, key := range []string{"APP_ALLOWED_ORIGIN", "APP_PUBLIC_URL"} {

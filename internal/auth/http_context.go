@@ -4,7 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"strings"
+	"net/url"
 	"sync"
 	"time"
 )
@@ -21,7 +21,7 @@ type RequestInfo struct {
 	Writer      http.ResponseWriter
 	Request     *http.Request
 	ClientIP    string
-	Origin      string
+	Origin      *url.URL
 	Cookies     SessionCookies
 	selectedID  string
 	clearCookie sync.Once
@@ -39,15 +39,15 @@ func (info *RequestInfo) Logout() {
 }
 
 // HTTPContext attaches a verified, optionally refreshed session to each request.
-func HTTPContext(manager *SessionManager, requestOrigin func(*http.Request) string) func(http.Handler) http.Handler {
+func HTTPContext(manager *SessionManager, requestOrigin func(*http.Request) *url.URL) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			origin := requestOrigin(request)
-			if origin == "" {
-				http.Error(writer, "trusted browser origin unavailable", http.StatusForbidden)
+			if origin == nil {
+				http.Error(writer, "request origin is not allowed", http.StatusForbidden)
 				return
 			}
-			cookies := NewSessionCookies(strings.HasPrefix(origin, "https://"))
+			cookies := NewSessionCookies(origin.Scheme == "https")
 			info := &RequestInfo{
 				Origin: origin, Cookies: cookies, selectedID: cookies.selected(request),
 				Writer: writer, Request: request, ClientIP: clientIP(request.RemoteAddr),
@@ -71,7 +71,7 @@ func requestSession(manager *SessionManager, info *RequestInfo) (Session, bool) 
 	if err != nil {
 		return Session{}, false
 	}
-	session, err := manager.Parse(cookie.Value, info.Origin)
+	session, err := manager.Parse(cookie.Value, info.Origin.String())
 	if err != nil || session.ID != info.selectedID {
 		info.ClearSession()
 		return Session{}, false

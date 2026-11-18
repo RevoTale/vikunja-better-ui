@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -244,7 +245,7 @@ func (failedMediaReader) Read([]byte) (int, error) {
 	return 0, errors.New("stream interrupted")
 }
 
-func testOrigin(*http.Request) string { return "http://app.test" }
+func testOrigin(*http.Request) *url.URL { return &url.URL{Scheme: "http", Host: "app.test"} }
 
 func addSessionCookies(r *http.Request, cookies []*http.Cookie) {
 	for _, cookie := range cookies {

@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -141,7 +142,7 @@ func discardLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
 
-func testOrigin(*http.Request) string { return "http://app.test" }
+func testOrigin(*http.Request) *url.URL { return &url.URL{Scheme: "http", Host: "app.test"} }
 
 func addLoginCookies(request *http.Request, token string, session auth.Session) {
 	recorder := httptest.NewRecorder()
