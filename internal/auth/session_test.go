@@ -12,13 +12,16 @@ func TestSessionManagerIssueAndParse(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, time.August, 12, 9, 30, 0, 0, time.UTC)
-	manager := NewSessionManager(
-		[]byte("0123456789abcdef0123456789abcdef"),
+	manager, err := NewSessionManager(
+		[]byte("0123456789abcdef0123456789abcdef"), testUpstream,
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	token, issued, err := manager.Issue()
+	token, issued, err := manager.Issue("tk_test", "http://app.test")
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}
@@ -29,7 +32,7 @@ func TestSessionManagerIssueAndParse(t *testing.T) {
 		t.Fatalf("ExpiresAt = %v, want %v", got, want)
 	}
 
-	parsed, err := manager.Parse(token)
+	parsed, err := manager.Parse(token, "http://app.test")
 	if err != nil {
 		t.Fatalf("Parse() error = %v", err)
 	}
@@ -45,12 +48,15 @@ func TestSessionManagerRejectsInvalidToken(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, time.August, 12, 9, 30, 0, 0, time.UTC)
-	manager := NewSessionManager(
-		[]byte("0123456789abcdef0123456789abcdef"),
+	manager, err := NewSessionManager(
+		[]byte("0123456789abcdef0123456789abcdef"), testUpstream,
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
-	token, _, err := manager.Issue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, err := manager.Issue("tk_test", "http://app.test")
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}
@@ -68,7 +74,7 @@ func TestSessionManagerRejectsInvalidToken(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			_, parseErr := manager.Parse(test.token)
+			_, parseErr := manager.Parse(test.token, "http://app.test")
 			if !errors.Is(parseErr, ErrInvalidSession) {
 				t.Fatalf("Parse() error = %v, want ErrInvalidSession", parseErr)
 			}
@@ -80,18 +86,21 @@ func TestSessionManagerRejectsExpiredToken(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, time.August, 12, 9, 30, 0, 0, time.UTC)
-	manager := NewSessionManager(
-		[]byte("0123456789abcdef0123456789abcdef"),
+	manager, err := NewSessionManager(
+		[]byte("0123456789abcdef0123456789abcdef"), testUpstream,
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
-	token, _, err := manager.Issue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _, err := manager.Issue("tk_test", "http://app.test")
 	if err != nil {
 		t.Fatalf("Issue() error = %v", err)
 	}
 
 	now = now.Add(30*24*time.Hour + time.Second)
-	_, err = manager.Parse(token)
+	_, err = manager.Parse(token, "http://app.test")
 	if !errors.Is(err, ErrExpiredSession) {
 		t.Fatalf("Parse() error = %v, want ErrExpiredSession", err)
 	}
@@ -120,12 +129,15 @@ func TestSessionManagerRefreshPreservesSessionID(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, time.August, 12, 9, 30, 0, 0, time.UTC)
-	manager := NewSessionManager(
-		[]byte("0123456789abcdef0123456789abcdef"),
+	manager, err := NewSessionManager(
+		[]byte("0123456789abcdef0123456789abcdef"), testUpstream,
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
-	_, issued, err := manager.Issue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, issued, err := manager.Issue("tk_test", "http://app.test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,10 +146,13 @@ func TestSessionManagerRefreshPreservesSessionID(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Refresh() error = %v", err)
 	}
-	if refreshed.ID != issued.ID || !refreshed.IssuedAt.Equal(now) {
+	if refreshed.ID != issued.ID || !refreshed.IssuedAt.Equal(now) || refreshed.VikunjaToken() != issued.VikunjaToken() {
 		t.Fatalf("Refresh() = %#v", refreshed)
 	}
-	parsed, err := manager.Parse(token)
+	if !manager.VerifyCSRF(refreshed, manager.CSRFToken(issued)) {
+		t.Fatal("renewal invalidated the current browser's CSRF token")
+	}
+	parsed, err := manager.Parse(token, "http://app.test")
 	if err != nil || parsed != refreshed {
 		t.Fatalf("Parse(refreshed) = %#v, %v", parsed, err)
 	}
@@ -146,11 +161,14 @@ func TestSessionManagerRefreshPreservesSessionID(t *testing.T) {
 func TestCSRFTokenIsBoundToSession(t *testing.T) {
 	t.Parallel()
 
-	manager := NewSessionManager(
-		[]byte("0123456789abcdef0123456789abcdef"),
+	manager, err := NewSessionManager(
+		[]byte("0123456789abcdef0123456789abcdef"), testUpstream,
 		time.Now,
 		strings.NewReader("0123456789abcdef"),
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	first := manager.CSRFToken(Session{ID: "first"})
 	second := manager.CSRFToken(Session{ID: "second"})
 	if first == second {

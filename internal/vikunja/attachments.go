@@ -100,7 +100,7 @@ func (client *Client) UploadTaskAttachment(
 	}
 	request.Body = io.NopCloser(io.MultiReader(bytes.NewReader(header), file, bytes.NewReader(framing.Bytes())))
 	request.Header.Set("Content-Type", writer.FormDataContentType())
-	response, err := client.httpClient.Do(request)
+	response, err := client.send(request)
 	if err != nil {
 		return TaskAttachment{}, errors.Join(ErrAttachmentUploadUnconfirmed, err)
 	}
@@ -149,7 +149,7 @@ func (client *Client) AttachmentContent(
 	if byteRange != "" {
 		request.Header.Set("Range", byteRange)
 	}
-	response, err := client.httpClient.Do(request)
+	response, err := client.send(request)
 	if err != nil {
 		return nil, err
 	}

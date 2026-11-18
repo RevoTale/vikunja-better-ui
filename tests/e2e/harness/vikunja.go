@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -28,7 +29,8 @@ func (h *harness) startVikunja(ctx context.Context) (string, string, string, err
 	h.environment = append(h.environment,
 		"VIKUNJA_FILES_BASEPATH="+filepath.Join(h.directory, "files"), "VIKUNJA_SERVICE_INTERFACE="+address,
 		"VIKUNJA_SERVICE_PUBLICURL="+upstream, "VIKUNJA_SERVICE_FRONTENDURL="+upstream,
-		"VIKUNJA_SERVICE_SECRET=vikunja-e2e-process-secret", "VIKUNJA_SERVICE_ENABLEREGISTRATION=false",
+		"VIKUNJA_SERVICE_SECRET=vikunja-e2e-process-secret",
+		"VIKUNJA_SERVICE_ENABLEREGISTRATION="+strconv.FormatBool(os.Getenv("E2E_DEMO") != "1"),
 		"VIKUNJA_MAILER_ENABLED=false",
 	)
 	//nolint:gosec // Public test credentials for the freshly created loopback-only fixture, not a real account.

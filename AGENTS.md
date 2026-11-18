@@ -19,6 +19,14 @@ and uncertainties explicitly, and keep proposals within the stateless architectu
 
 ## Requirements and decision records
 
+- Start from the [documentation and decision index](docs/README.md). Add new
+  ADRs there and mark superseded decisions. Keep the reasoning in the owning ADR.
+- Update the [architecture and access map](docs/architecture.md) in the same
+  change when a request path, credential, data store or deployment boundary
+  changes. Link the operating procedure or specification that owns the detail.
+- Label the evidence for a change: accepted design, repository implementation,
+  checks actually run, and deployment observations when available. Include the
+  revision or image and the observed result when recording live acceptance.
 - Before changing a workflow, read its decision in `docs/decisions/` and its
   linked specification in `docs/specs/`.
 - During the same change, record each user clarification that defines or
@@ -56,15 +64,12 @@ AI client -> optional Go MCP /mcp -> shared services -> Vikunja REST API
 The browser must never call Vikunja directly. The Go backend is the only code
 allowed to use the Vikunja API token.
 
-The app has two separate authentication boundaries:
-
-1. A user logs in to this app with a username and password configured through
-   environment variables.
-2. The Go backend accesses Vikunja with an API token configured through an
-   environment variable.
-
-Do not use the app username and password to authenticate with Vikunja. Do not
-support Vikunja username/password authentication.
+Browser users sign in with personal Vikunja API tokens. Go verifies the profile
+at the configured upstream, seals an origin-bound expiring cookie and uses only
+that session's token for private GraphQL and media requests. Follow
+[ADR-013](docs/decisions/0013-personal-token-login.md). The optional configured
+token belongs only to anonymous aggregates. Keep Vikunja password auth out
+of the application.
 
 MCP is a separate approved caller-token boundary (ADR-010). Accept only the
 Vikunja API token supplied in its Authorization header, check native MCP access
@@ -72,7 +77,7 @@ and retain upstream route permissions. Never substitute the app token. Tokens
 are issued only in Vikunja. The custom Bearer profile does not claim MCP OAuth
 support; recheck native OAuth support when upgrading Vikunja.
 
-Keep the app stateless. After app login, use a signed, expiring, HTTP-only
+Keep the app stateless. After app login, use an encrypted, expiring, HTTP-only
 session cookie. Do not add a database for sessions or application data.
 
 Use GraphQL for all authenticated browser application requests. Implement login
@@ -134,7 +139,7 @@ Add directories only when code needs them. Use this layout:
 |   `-- server/
 |       `-- main.go
 |-- internal/
-|   |-- auth/             # App login and signed sessions
+|   |-- auth/             # Personal tokens and encrypted sessions
 |   |-- config/           # Environment parsing and validation
 |   |-- graphql/
 |   |   |-- generated/    # Generated gqlgen code; never edit by hand
@@ -176,9 +181,9 @@ cross package or HTTP boundaries.
 - Set HTTP client and server timeouts. Always close response bodies.
 - Translate upstream errors into safe user-facing errors.
 - Log useful causes without logging credentials, cookies, or request secrets.
-- Use constant-time comparison for app credentials.
-- Sign session cookies. Set `HttpOnly` and `SameSite`. Set `Secure` outside local
-  development.
+- Authenticate and encrypt personal-token sessions. Set `HttpOnly` and
+  `SameSite`. HTTPS requires a Secure host-prefixed cookie. Private HTTP over
+  WireGuard uses its own origin-bound unprefixed cookie.
 - Protect state-changing requests from cross-site request forgery.
 - Format Go code with `gofmt`.
 - Run `golangci-lint` with the repository configuration. Do not suppress a
@@ -271,10 +276,8 @@ Recurring tasks are the main product feature.
 Use the `APP_` prefix. The expected variables are:
 
 - `APP_VIKUNJA_URL`: Vikunja base URL.
-- `APP_VIKUNJA_API_TOKEN`: API token used only by the Go backend.
-- `APP_AUTH_USERNAME`: username accepted by this app.
-- `APP_AUTH_PASSWORD`: password accepted by this app.
-- `APP_SESSION_SECRET`: strong secret used to sign session cookies.
+- `APP_VIKUNJA_API_TOKEN`: optional read-only token required for enabled anonymous aggregates.
+- `APP_SESSION_SECRET`: stable secret for session encryption and action-specific keys.
 - `APP_HTTP_ADDR`: HTTP listen address.
 - `APP_LOG_LEVEL`: log level.
 - `APP_PUBLIC_URL`: optional canonical public origin and root-indexing opt-in.

@@ -1,6 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
-import { blockBrowserVikunjaCalls, login } from "./app-actions";
+import { blockBrowserVikunjaCalls, login, submitToken } from "./app-actions";
 import { datePickerButton } from "./app-calendar";
 import { labeledTitle } from "./app-fixture";
 import {
@@ -145,9 +145,7 @@ test("login displays the GraphQL error returned by the app", async ({ page }) =>
   });
 
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
 
   await expect(page.getByText("Vikunja is unavailable. Try again shortly.")).toBeVisible();
   await expect(page).toHaveURL(/\/login/);

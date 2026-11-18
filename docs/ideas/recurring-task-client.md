@@ -8,6 +8,10 @@ planning direction with planning windows and separate completion/active-work
 views. Implemented on 2026-11-03 except saved named filters; the original list
 rules remain below as historical context and are superseded by ADR-009.
 
+On 2026-11-18 [ADR-013](../decisions/0013-personal-token-login.md) superseded
+the original shared account and signed-cookie assumptions below. Each browser
+user now signs in with their personal Vikunja token.
+
 ## Problem statement
 
 How might we make completing and creating recurring Vikunja tasks predictable

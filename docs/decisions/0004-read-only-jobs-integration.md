@@ -89,3 +89,11 @@ token.
 - The integration is deliberately limited to Jobs. Adding other views or
   mutations requires a separate contract and security review.
 - Browser authentication and GraphQL behavior remain unchanged.
+
+## Connection reuse and returned links — 2026-11-18
+
+The handler now shares an HTTP transport across callers. Each request supplies
+its own token and owns its metadata reads. This supersedes closing idle
+connections after each request. A returned link uses the trusted browser
+origin. Pin it when the dashboard uses an internal service name or translated
+port. See [personal token login](0013-personal-token-login.md).

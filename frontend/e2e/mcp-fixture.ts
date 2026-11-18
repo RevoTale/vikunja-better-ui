@@ -1,4 +1,5 @@
 import { type APIRequestContext, expect } from "@playwright/test";
+import { nativeFixtureSession } from "./app-fixture";
 
 export interface MCPTask {
   task: {
@@ -28,22 +29,11 @@ export function fixtureEnv(key: string): string {
   return value;
 }
 
-export async function nativeSession(request: APIRequestContext): Promise<string> {
-  const response = await request.post(`${fixtureEnv("E2E_VIKUNJA_URL")}/api/v2/login`, {
-    data: {
-      username: fixtureEnv("E2E_VIKUNJA_USERNAME"),
-      password: fixtureEnv("E2E_VIKUNJA_PASSWORD"),
-    },
-  });
-  expect(response.ok()).toBe(true);
-  return ((await response.json()) as { token: string }).token;
-}
-
 export async function writeToken(
   request: APIRequestContext,
   overrides: Record<string, string[]> = {},
 ): Promise<string> {
-  const session = await nativeSession(request);
+  const session = await nativeFixtureSession(request);
   const response = await request.post(`${fixtureEnv("E2E_VIKUNJA_URL")}/api/v2/tokens`, {
     headers: { Authorization: `Bearer ${session}` },
     data: {

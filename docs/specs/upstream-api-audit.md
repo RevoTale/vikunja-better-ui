@@ -4,6 +4,14 @@
 without changing business logic. Scope is the current working tree, including
 planning and reminders. No production traffic or task data was modified.
 
+## Persisted project targets in Vikunja 2.8
+
+The projects endpoint appends virtual Favorites and saved-filter entries with
+negative IDs to each page, while its pagination total counts stored projects.
+The client validates the page against positive IDs and omits virtual views
+from task project selectors. A newly registered user can open their Inbox
+even when the upstream also returns “My Open Tasks”. [Upstream models](https://github.com/go-vikunja/vikunja/blob/v2.8.0/pkg/models/project.go#L619-L657) · [Regression tests](../../internal/vikunja/project_targets_test.go)
+
 ## Call-path inventory
 
 | Path | Current behavior / conclusion |

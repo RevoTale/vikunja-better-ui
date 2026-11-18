@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { login } from "./app-actions";
+import { nativeFixtureSession } from "./app-fixture";
+import { readOnlyToken } from "./personal-token-fixture";
 
 type Activity = {
   total: number;
@@ -16,7 +18,7 @@ test("public activity supports anonymous fixed aggregates without task access", 
   page.on("pageerror", (error) => errors.push(error.message));
   await page.goto("/activity");
   await expect(page.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
-  await expect(page.getByText("Better Vikunja · Last 14 days")).toBeVisible();
+  await expect(page.getByText("Public activity · Last 14 days")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Completed by priority" })).toBeVisible();
   const days = page.getByRole("list", { name: "Daily completions" }).getByRole("listitem");
   await expect(days).toHaveCount(14);
@@ -104,11 +106,36 @@ test("public activity identifies the cached snapshot until private data arrives"
   await page.goto("/login");
   await login(page);
   await page.goto("/activity");
-  await expect(page.getByText("Updating with current private data…")).toBeVisible();
+  await expect(page.getByText("Public snapshot · Loading yours…")).toBeVisible();
   await expect(
     page.getByText("Public snapshot cached for 1 hour.", { exact: false }),
   ).toBeVisible();
   await expect(page.getByText("Current private data.", { exact: false })).toHaveCount(0);
+  const chart = page.locator("main > section").first();
+  const initial = await chart.boundingBox();
+  expect(initial).not.toBeNull();
   release();
   await expect(page.getByText("Current private data.", { exact: false })).toBeVisible();
+  const refreshed = await chart.boundingBox();
+  expect(refreshed?.x).toBe(initial?.x);
+  expect(refreshed?.y).toBe(initial?.y);
+});
+
+test("a profile-only token sees a permission error on both personal activity views", async ({
+  page,
+  request,
+}) => {
+  const credential = await readOnlyToken(request, await nativeFixtureSession(request), {
+    other: ["user"],
+  });
+  await page.goto("/login");
+  await login(page, credential.token);
+  await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
+  for (const path of ["/activity", "/all-time-activity"]) {
+    await page.goto(path);
+    await expect(page.getByRole("alert")).toContainText(
+      "Your token does not permit viewing this activity.",
+    );
+    await expect(page.locator("main > section")).toHaveCount(0);
+  }
 });

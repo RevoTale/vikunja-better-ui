@@ -31,11 +31,35 @@ export const uploadLink = new ApolloLink((operation, forward) => {
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (!response.ok) throw new Error(`Upload response ${response.status}`);
-        observer.next(await response.json());
+        observer.next(await uploadResult(response));
         observer.complete();
       })
       .catch((error: unknown) => observer.error(error));
     return () => controller.abort();
   });
 });
+
+// The Go multipart boundary can reject the request before GraphQL runs.
+const boundaryRejections: Record<number, { code: string; message: string }> = {
+  401: { code: "UNAUTHENTICATED", message: "Sign in to upload this file." },
+  403: { code: "FORBIDDEN", message: "Upload was refused. Refresh the page and try again." },
+  411: {
+    code: "VALIDATION_FAILED",
+    message: "The server requires the file size to accept this upload.",
+  },
+  413: {
+    code: "VALIDATION_FAILED",
+    message: "This file exceeds the server’s upload limit. Choose a smaller file.",
+  },
+  415: {
+    code: "VALIDATION_FAILED",
+    message: "The server did not accept the upload request format.",
+  },
+};
+
+async function uploadResult(response: Response): Promise<ApolloLink.Result> {
+  if (response.ok) return response.json();
+  const rejection = boundaryRejections[response.status];
+  if (!rejection) throw new Error(`Upload response ${response.status}`);
+  return { errors: [{ message: rejection.message, extensions: { code: rejection.code } }] };
+}

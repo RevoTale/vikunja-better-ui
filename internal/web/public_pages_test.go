@@ -121,10 +121,13 @@ func TestPublicActivityPagesAreNotAvailableWhenDisabled(t *testing.T) {
 func TestDisabledPublicActivityFallsBackToPrivateShellForAuthenticatedSession(t *testing.T) {
 	t.Parallel()
 	now := func() time.Time { return time.Date(2026, 10, 25, 12, 0, 0, 0, time.UTC) }
-	sessions := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"), now, bytes.NewReader([]byte("0123456789abcdef")),
+	sessions, err := auth.NewSessionManager(
+		[]byte("01234567890123456789012345678901"), "https://vikunja.test", now, bytes.NewReader([]byte("0123456789abcdef")),
 	)
-	token, session, err := sessions.Issue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, session, err := sessions.Issue("tk_test", "http://app.test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -136,11 +139,11 @@ func TestDisabledPublicActivityFallsBackToPrivateShellForAuthenticatedSession(t 
 		}),
 		Now: now,
 	})
-	handler := auth.HTTPContext(sessions, cookies)(pages)
+	handler := auth.HTTPContext(sessions, testOrigin)(pages)
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/activity", nil)
 	cookieResponse := httptest.NewRecorder()
-	cookies.Set(cookieResponse, token, session.ExpiresAt)
-	request.AddCookie(cookieResponse.Result().Cookies()[0])
+	cookies.Start(cookieResponse, token, session)
+	addSessionCookies(request, cookieResponse.Result().Cookies())
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusOK || recorder.Body.String() != "private app shell" ||

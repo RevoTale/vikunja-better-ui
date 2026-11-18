@@ -6,8 +6,7 @@ import {
   SessionDocument,
   TaskRelationshipsDocument,
 } from "@/graphql/graphql";
-import { graphQLErrorMessage } from "@/lib/user-error";
-import { subtaskCreationUncertain } from "./subtask-errors";
+import { graphQLErrorMessage, mutationOutcomeUncertain } from "@/lib/user-error";
 import { isTaskPriority } from "./task-priority";
 
 export function useSubtaskCreate(parentTaskId: string) {
@@ -50,7 +49,7 @@ export function useSubtaskCreate(parentTaskId: string) {
         setError("Task created. Refresh relationships to update this list.");
       });
     } catch (caught) {
-      setUncertain(subtaskCreationUncertain(caught));
+      setUncertain(mutationOutcomeUncertain(caught));
       setError(
         graphQLErrorMessage(
           caught,

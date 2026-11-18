@@ -44,14 +44,13 @@ func TestLoadRejectsInvalidConfiguration(t *testing.T) {
 		value      string
 		wantDetail string
 	}{
-		{"missing token", "APP_VIKUNJA_API_TOKEN", "", "APP_VIKUNJA_API_TOKEN"},
 		{"short secret", "APP_SESSION_SECRET", base64.StdEncoding.EncodeToString([]byte("short")), "APP_SESSION_SECRET"},
 		{"invalid base64 secret", "APP_SESSION_SECRET", "not base64!", "APP_SESSION_SECRET"},
 		{"HTTP transport needs public URL", "APP_VIKUNJA_URL", "http://vikunja:3456", "APP_VIKUNJA_PUBLIC_URL"},
 		{"Vikunja URL rejects credentials", "APP_VIKUNJA_URL", "https://user:pass@vikunja.example.test", "user information"},
 		{"Vikunja URL rejects query", "APP_VIKUNJA_URL", "https://vikunja.example.test?secret=value", "query"},
 		{"origin rejects path", "APP_ALLOWED_ORIGIN", "https://tasks.example.test/graphql", "origin"},
-		{"production origin required", "APP_ALLOWED_ORIGIN", "", "APP_ALLOWED_ORIGIN"},
+		{"origin rejects empty host", "APP_ALLOWED_ORIGIN", "http://:8080", "origin"},
 		{"unknown environment", "APP_ENV", "staging", "APP_ENV"},
 		{"unknown log level", "APP_LOG_LEVEL", "verbose", "APP_LOG_LEVEL"},
 	}
@@ -102,8 +101,6 @@ func validValues() map[string]string {
 	return map[string]string{
 		"APP_VIKUNJA_URL":       "https://vikunja.example.test/",
 		"APP_VIKUNJA_API_TOKEN": "test-token-placeholder",
-		"APP_AUTH_USERNAME":     "test-user",
-		"APP_AUTH_PASSWORD":     "test-password-placeholder",
 		"APP_SESSION_SECRET":    base64.StdEncoding.EncodeToString([]byte("0123456789abcdef0123456789abcdef")),
 		"APP_ALLOWED_ORIGIN":    "https://tasks.example.test",
 	}

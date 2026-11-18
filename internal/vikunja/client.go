@@ -38,6 +38,7 @@ type Client struct {
 	apiToken            string
 	httpClient          *http.Client
 	logger              *slog.Logger
+	browserTokenChecks  *inflightGroup[bool]
 	currentUserRequests inflightGroup[User]
 	projectRequests     inflightGroup[[]Project]
 	labelRequests       inflightGroup[[]Label]
@@ -168,7 +169,7 @@ func (client *Client) doJSONWithQueryAndContentType(
 		return ResponseMetadata{}, err
 	}
 
-	response, err := client.httpClient.Do(request)
+	response, err := client.send(request)
 	if err != nil {
 		return ResponseMetadata{}, fmt.Errorf("perform Vikunja request: %w", err)
 	}
@@ -207,7 +208,9 @@ func (client *Client) newJSONRequest(
 		return nil, fmt.Errorf("build Vikunja request: %w", err)
 	}
 	request.Header.Set("Accept", "application/json")
-	request.Header.Set("Authorization", "Bearer "+client.apiToken)
+	if client.apiToken != "" {
+		request.Header.Set("Authorization", "Bearer "+client.apiToken)
+	}
 	request.Header.Set("User-Agent", userAgent)
 	if input != nil {
 		request.Header.Set("Content-Type", contentType)

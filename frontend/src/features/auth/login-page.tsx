@@ -1,5 +1,4 @@
 import { useMutation } from "@apollo/client/react";
-import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 
 import { AppInput } from "@/components/app-input";
@@ -7,52 +6,37 @@ import { BrandMark } from "@/components/brand-mark";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
-import { LoginDocument, SessionDocument } from "@/graphql/graphql";
-import { setCSRFToken } from "@/lib/apollo";
+import { LoginDocument } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
+import { finishSessionChange } from "./session-change";
 
 type LoginPageProps = {
   returnTo: string;
 };
 
 export function LoginPage({ returnTo }: LoginPageProps) {
-  const navigate = useNavigate();
   const [error, setError] = useState("");
-  const [login, { loading }] = useMutation(LoginDocument, {
-    update(cache, result) {
-      const session = result.data?.login.session;
-      if (session) {
-        cache.writeQuery({ query: SessionDocument, data: { session } });
-      }
-    },
-  });
+  const [login, { loading }] = useMutation(LoginDocument, { fetchPolicy: "no-cache" });
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
-    const form = new FormData(event.currentTarget);
-    const username = String(form.get("username") ?? "").trim();
-    const password = String(form.get("password") ?? "");
-    if (!username || !password) {
-      setError("Enter both your username and password.");
+    const form = event.currentTarget;
+    const token = String(new FormData(form).get("token") ?? "").trim();
+    if (!token) {
+      setError("Enter your Vikunja API token.");
       return;
     }
 
     try {
-      const result = await login({ variables: { input: { username, password } } });
+      const result = await login({ variables: { input: { token } } });
       const session = result.data?.login.session;
       if (!session?.authenticated) {
         setError("Login could not be confirmed.");
         return;
       }
-      setCSRFToken(session.csrfToken);
-      try {
-        await navigate({ href: returnTo, replace: true });
-      } catch {
-        setError(
-          "You are signed in, but the requested page could not be opened. Refresh the page.",
-        );
-      }
+      form.reset();
+      finishSessionChange(returnTo);
     } catch (caught) {
       setError(graphQLErrorMessage(caught, "Sign-in failed. Check your connection and try again."));
     }
@@ -71,39 +55,30 @@ export function LoginPage({ returnTo }: LoginPageProps) {
           <CardTitle>
             <h1>Better daily tasks</h1>
           </CardTitle>
-          <CardDescription>Sign in with the credentials configured for this app.</CardDescription>
+          <CardDescription>Use a token from Settings → API Tokens in Vikunja.</CardDescription>
         </CardHeader>
         <CardContent>
           <form className="grid gap-4" onSubmit={submit} noValidate>
-            {error ? (
-              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
-                <FieldError>{error}</FieldError>
-              </div>
-            ) : null}
             <Field>
-              <FieldLabel htmlFor="username">Username</FieldLabel>
+              <FieldLabel htmlFor="token">Vikunja API token</FieldLabel>
               <AppInput
-                id="username"
-                name="username"
-                autoComplete="username"
-                disabled={loading}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="password">Password</FieldLabel>
-              <AppInput
-                id="password"
-                name="password"
+                id="token"
+                name="token"
                 type="password"
                 autoComplete="current-password"
+                autoCapitalize="none"
+                spellCheck={false}
+                aria-describedby={error ? "login-error" : undefined}
                 disabled={loading}
                 required
               />
             </Field>
-            <Button type="submit" disabled={loading}>
+            <Button type="submit" className="min-h-11" disabled={loading}>
               {loading ? "Signing in…" : "Sign in"}
             </Button>
+            <div className="min-h-10" id="login-error">
+              {error ? <FieldError>{error}</FieldError> : null}
+            </div>
           </form>
         </CardContent>
       </Card>

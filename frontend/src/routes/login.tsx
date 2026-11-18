@@ -3,7 +3,6 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { safeReturnTo } from "@/app/route-search";
 import { LoginPage } from "@/features/auth/login-page";
 import { AuthSessionDocument } from "@/graphql/graphql";
-import { setCSRFToken } from "@/lib/apollo";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -14,7 +13,6 @@ export const Route = createFileRoute("/login")({
       query: AuthSessionDocument,
       fetchPolicy: "network-only",
     });
-    setCSRFToken(data?.session.csrfToken);
     if (data?.session.authenticated) {
       throw redirect({ href: search.returnTo });
     }

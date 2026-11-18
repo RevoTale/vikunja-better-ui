@@ -30,17 +30,14 @@ func TestJobsQueryLoadsIndependentMetadataConcurrently(t *testing.T) {
 		release:              release,
 	}
 	now := time.Date(2026, time.August, 17, 12, 0, 0, 0, time.UTC)
-	sessions, token := concurrencySession(t, now)
+	sessions, cookies := concurrencySession(t, now)
 	root := New(Dependencies{
 		Sessions: sessions, Users: reader, Projects: reader, Tasks: tasks,
 		Now: func() time.Time { return now },
 	})
-	cookie := &http.Cookie{
-		Name: "vbu_session", Value: token, HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
-	}
 	done := make(chan error, 1)
 	go withRequestContext(
-		t, sessions, auth.NewSessionCookies(false), httptest.NewRecorder(), cookie,
+		t, sessions, httptest.NewRecorder(), cookies,
 		func(ctx context.Context) {
 			_, queryErr := (&queryResolver{root}).Tasks(ctx, model.TaskListInput{
 				Scope: model.TaskScopeJobs, Page: 1, PageSize: 30,
@@ -90,21 +87,17 @@ func TestTaskQueryDoesNotWaitForProjectsWithoutProjectFilter(t *testing.T) {
 		started:              taskStarted,
 	}
 	now := time.Date(2026, time.August, 21, 12, 0, 0, 0, time.UTC)
-	sessions, token := concurrencySession(t, now)
+	sessions, cookies := concurrencySession(t, now)
 	root := New(Dependencies{
 		Sessions: sessions, Users: reader, Projects: reader, Tasks: tasks,
 		Now: func() time.Time { return now },
 	})
-	cookie := &http.Cookie{
-		Name: "vbu_session", Value: token, HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
-	}
 	done := make(chan error, 1)
 	go withRequestContext(
 		t,
 		sessions,
-		auth.NewSessionCookies(false),
 		httptest.NewRecorder(),
-		cookie,
+		cookies,
 		func(ctx context.Context) {
 			_, queryErr := (&queryResolver{root}).Tasks(ctx, model.TaskListInput{
 				Scope: model.TaskScopeToday, Page: 1, PageSize: 30,
@@ -194,16 +187,19 @@ func (client *overlapTaskClient) TasksPage(context.Context, vikunja.TaskQuery) (
 	return vikunja.TaskPage{Page: 1, PerPage: 1000}, nil
 }
 
-func concurrencySession(t *testing.T, now time.Time) (*auth.SessionManager, string) {
+func concurrencySession(t *testing.T, now time.Time) (*auth.SessionManager, []*http.Cookie) {
 	t.Helper()
-	sessions := auth.NewSessionManager(
-		[]byte("01234567890123456789012345678901"),
+	sessions, err := auth.NewSessionManager(
+		[]byte("01234567890123456789012345678901"), "https://vikunja.test",
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
-	token, _, err := sessions.Issue()
 	if err != nil {
 		t.Fatal(err)
 	}
-	return sessions, token
+	token, session, err := sessions.Issue("tk_test", "http://app.test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sessions, loginCookies(token, session)
 }

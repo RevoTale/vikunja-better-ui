@@ -13,20 +13,31 @@ const (
 	loginBucketLimit   = 4096
 )
 
-// LoginLimiter bounds failed login attempts and retained client addresses in memory.
+// LoginOutcome determines how a completed login affects the peer's failure history.
+type LoginOutcome uint8
+
+// An unavailable upstream or canceled request only releases its reserved attempt.
+const (
+	LoginUnavailable LoginOutcome = iota
+	LoginRejected
+	LoginAccepted
+)
+
+// LoginLimiter bounds pending and failed login attempts per peer and retained addresses in memory.
 type LoginLimiter struct {
 	mu         sync.Mutex
 	now        func() time.Time
 	maxBuckets int
 	buckets    map[string]*loginBucket
-	recency    *list.List
+	idle       list.List // Most recently accessed idle bucket first. Active buckets cannot be evicted.
 }
 
 type loginBucket struct {
-	address     string
-	failures    []time.Time
-	lastAccess  time.Time
-	recencyNode *list.Element
+	address    string
+	failures   []time.Time
+	pending    int
+	lastAccess time.Time
+	idleNode   *list.Element
 }
 
 // NewLoginLimiter creates a concurrent limiter using the supplied clock.
@@ -35,97 +46,86 @@ func NewLoginLimiter(now func() time.Time) *LoginLimiter {
 }
 
 func newLoginLimiter(now func() time.Time, maxBuckets int) *LoginLimiter {
-	return &LoginLimiter{
-		now:        now,
-		maxBuckets: maxBuckets,
-		buckets:    make(map[string]*loginBucket, maxBuckets),
-		recency:    list.New(),
-	}
+	return &LoginLimiter{now: now, maxBuckets: maxBuckets, buckets: make(map[string]*loginBucket)}
 }
 
-// Allow reports whether an address is below the rolling failure limit.
-func (limiter *LoginLimiter) Allow(address string) bool {
+// Begin reserves one attempt before checking the credential. Each accepted reservation needs one Finish.
+func (limiter *LoginLimiter) Begin(address string) bool {
 	limiter.mu.Lock()
 	defer limiter.mu.Unlock()
 
 	now := limiter.now()
 	limiter.expireIdle(now)
-	bucket, ok := limiter.buckets[address]
-	if !ok {
-		return true
-	}
-
-	limiter.touch(bucket, now)
-	pruneFailures(bucket, now)
-	return len(bucket.failures) < loginFailureLimit
-}
-
-// RecordFailure records an attempt, evicting old addresses when capacity is reached.
-func (limiter *LoginLimiter) RecordFailure(address string) {
-	limiter.mu.Lock()
-	defer limiter.mu.Unlock()
-
-	now := limiter.now()
-	limiter.expireIdle(now)
-	bucket, ok := limiter.buckets[address]
-	if !ok {
-		limiter.makeRoom()
+	bucket := limiter.buckets[address]
+	if bucket == nil {
+		if len(limiter.buckets) >= limiter.maxBuckets {
+			oldest := limiter.idle.Back()
+			if oldest == nil {
+				return false
+			}
+			limiter.removeIdle(oldest)
+		}
 		bucket = &loginBucket{address: address}
-		bucket.recencyNode = limiter.recency.PushFront(bucket)
 		limiter.buckets[address] = bucket
 	}
-
-	limiter.touch(bucket, now)
 	pruneFailures(bucket, now)
-	bucket.failures = append(bucket.failures, now)
+	if bucket.pending+len(bucket.failures) >= loginFailureLimit {
+		if bucket.idleNode != nil {
+			bucket.lastAccess = now
+			limiter.idle.MoveToFront(bucket.idleNode)
+		}
+		return false
+	}
+	if bucket.idleNode != nil {
+		limiter.idle.Remove(bucket.idleNode)
+		bucket.idleNode = nil
+	}
+	bucket.pending++
+	return true
 }
 
-// RecordSuccess clears the address's failure history.
-func (limiter *LoginLimiter) RecordSuccess(address string) {
+// Finish releases a reservation, recording only genuine credential failures.
+func (limiter *LoginLimiter) Finish(address string, outcome LoginOutcome) {
 	limiter.mu.Lock()
 	defer limiter.mu.Unlock()
 
-	limiter.remove(address)
-}
-
-func (limiter *LoginLimiter) touch(bucket *loginBucket, now time.Time) {
+	bucket := limiter.buckets[address]
+	now := limiter.now()
+	bucket.pending--
+	pruneFailures(bucket, now)
+	switch outcome {
+	case LoginAccepted:
+		bucket.failures = nil
+	case LoginRejected:
+		bucket.failures = append(bucket.failures, now)
+	case LoginUnavailable:
+	}
+	if bucket.pending > 0 {
+		return
+	}
+	if len(bucket.failures) == 0 {
+		delete(limiter.buckets, address)
+		return
+	}
 	bucket.lastAccess = now
-	limiter.recency.MoveToFront(bucket.recencyNode)
+	bucket.idleNode = limiter.idle.PushFront(bucket)
 }
 
 func (limiter *LoginLimiter) expireIdle(now time.Time) {
-	for node := limiter.recency.Back(); node != nil; {
-		previous := node.Prev()
-		//nolint:forcetypeassert // Only RecordFailure inserts typed buckets into this private list.
+	for node := limiter.idle.Back(); node != nil; node = limiter.idle.Back() {
+		//nolint:forcetypeassert // Only Finish inserts login buckets into the idle list.
 		bucket := node.Value.(*loginBucket)
 		if now.Sub(bucket.lastAccess) <= loginIdleExpiry {
-			break
+			return
 		}
-		limiter.remove(bucket.address)
-		node = previous
+		limiter.removeIdle(node)
 	}
 }
 
-func (limiter *LoginLimiter) makeRoom() {
-	if len(limiter.buckets) < limiter.maxBuckets {
-		return
-	}
-
-	oldest := limiter.recency.Back()
-	if oldest == nil {
-		return
-	}
-	//nolint:forcetypeassert // Only RecordFailure inserts typed buckets into this private list.
-	limiter.remove(oldest.Value.(*loginBucket).address)
-}
-
-func (limiter *LoginLimiter) remove(address string) {
-	bucket, ok := limiter.buckets[address]
-	if !ok {
-		return
-	}
-	limiter.recency.Remove(bucket.recencyNode)
-	delete(limiter.buckets, address)
+func (limiter *LoginLimiter) removeIdle(node *list.Element) {
+	//nolint:forcetypeassert // Only Finish inserts login buckets into the idle list.
+	bucket := limiter.idle.Remove(node).(*loginBucket)
+	delete(limiter.buckets, bucket.address)
 }
 
 func pruneFailures(bucket *loginBucket, now time.Time) {
@@ -134,20 +134,5 @@ func pruneFailures(bucket *loginBucket, now time.Time) {
 	for firstActive < len(bucket.failures) && !bucket.failures[firstActive].After(cutoff) {
 		firstActive++
 	}
-	if firstActive > 0 {
-		bucket.failures = append(bucket.failures[:0], bucket.failures[firstActive:]...)
-	}
-}
-
-func (limiter *LoginLimiter) size() int {
-	limiter.mu.Lock()
-	defer limiter.mu.Unlock()
-	return len(limiter.buckets)
-}
-
-func (limiter *LoginLimiter) has(address string) bool {
-	limiter.mu.Lock()
-	defer limiter.mu.Unlock()
-	_, ok := limiter.buckets[address]
-	return ok
+	bucket.failures = bucket.failures[firstActive:]
 }

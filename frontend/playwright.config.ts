@@ -1,7 +1,12 @@
+import { join } from "node:path";
 import { defineConfig } from "@playwright/test";
 
 const baseURL = process.env["E2E_BASE_URL"];
 if (!baseURL) throw new Error("E2E_BASE_URL is required; run task e2e through the harness");
+const ci = Boolean(process.env["CI"]);
+const fixtureDir = process.env["E2E_FIXTURE_DIR"];
+if (ci && !fixtureDir)
+  throw new Error("CI browser tests require the harness's private fixture directory");
 const chromiumExecutable = process.env["E2E_CHROMIUM_EXECUTABLE"];
 const chromiumLaunchOptions = chromiumExecutable ? { executablePath: chromiumExecutable } : {};
 const prChromiumSmoke = new RegExp(
@@ -17,6 +22,11 @@ const prChromiumSmoke = new RegExp(
     "task editing preserves drafts on conflict",
     "task relationships support linking",
     "More keeps secondary task views",
+    "personal tokens enforce read-only access",
+    "switching accounts across tabs",
+    "production private HTTP",
+    "token login keeps its controls stable",
+    "token login explains missing profile access",
   ].join("|"),
 );
 const prWebKitSmoke = new RegExp(
@@ -26,6 +36,8 @@ const prWebKitSmoke = new RegExp(
     "PWA keeps Today below the sticky header",
     "discussion supports bare code fences with Enter",
     "discussion supports code and table controls on mobile and desktop",
+    "token login keeps its controls stable",
+    "token login explains missing profile access",
   ].join("|"),
 );
 
@@ -36,18 +48,21 @@ export default defineConfig({
   retries: process.env["CI"] ? 1 : 0,
   timeout: 45_000,
   expect: { timeout: 8_000 },
-  reporter: [["line"], ["html", { open: "never", outputFolder: "playwright-report" }]],
+  reporter: ci
+    ? [["./e2e/ci-reporter.ts"]]
+    : [["line"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   use: {
     // Network-mocking tests need direct interception; PWA specs explicitly allow workers.
     // https://playwright.dev/docs/network#missing-network-events-and-service-workers
     serviceWorkers: "block",
     baseURL,
     timezoneId: "Pacific/Honolulu",
-    trace: "retain-on-failure",
+    // Raw traces include login bodies, native fixture credentials and session cookies.
+    trace: ci ? "off" : "retain-on-failure",
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
-  outputDir: "test-results",
+  outputDir: ci && fixtureDir ? join(fixtureDir, "playwright-results") : "test-results",
   projects: [
     {
       name: "pr-chromium",
@@ -65,6 +80,8 @@ export default defineConfig({
         "task-discussion.spec.ts",
         "task-editing.spec.ts",
         "task-relations.spec.ts",
+        "personal-token.spec.ts",
+        "private-http.spec.ts",
       ],
       grep: prChromiumSmoke,
       use: { viewport: { width: 1440, height: 900 }, launchOptions: chromiumLaunchOptions },
@@ -72,6 +89,7 @@ export default defineConfig({
     {
       name: "pr-webkit",
       testMatch: [
+        "personal-token.spec.ts",
         "pwa-authenticated.spec.ts",
         "pwa.spec.ts",
         "pwa-safe-area.spec.ts",

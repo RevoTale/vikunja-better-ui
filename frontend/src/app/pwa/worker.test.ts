@@ -2,12 +2,24 @@ import { describe, expect, it } from "vitest";
 import { shellResponse, workerRuntime } from "./worker-test-runtime";
 
 describe("offline request boundaries", () => {
-  it("handles every task screen and legacy navigation route", async () => {
+  it("serves the offline shell for app navigation and task deep links", async () => {
     const worker = workerRuntime();
+    const cache = await worker.cacheStorage.open("better-vikunja-shell-test");
+    await cache.put("/index.html", shellResponse());
+    worker.fetch.mockRejectedValue(new Error("Offline"));
     for (const path of [
       "/",
+      "/login",
+      "/today",
       "/week/",
       "/month",
+      "/active",
+      "/more",
+      "/plan?project=5",
+      "/recurring",
+      "/jobs",
+      "/unscheduled",
+      "/history",
       "/tasks/new",
       "/tasks/137",
       "/tasks/137/edit",
@@ -15,7 +27,7 @@ describe("offline request boundaries", () => {
       "/tasks/137/extended",
       "/tasks/137/discussion",
     ]) {
-      expect(await worker.request(path)).toBeInstanceOf(Response);
+      expect(await (await worker.request(path))?.text(), path).toContain('name="offline-shell"');
     }
   });
   it("never intercepts API, media, mutations, foreign URLs or unknown routes", () => {

@@ -1,16 +1,10 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
+import { nativeFixtureSession, requiredEnv } from "./app-fixture";
 
 test("MCP accepts native scoped tokens and rejects revoked access", async ({ request }) => {
   const upstream = requiredEnv("E2E_VIKUNJA_URL");
-  const login = await request.post(`${upstream}/api/v2/login`, {
-    data: {
-      username: requiredEnv("E2E_VIKUNJA_USERNAME"),
-      password: requiredEnv("E2E_VIKUNJA_PASSWORD"),
-    },
-  });
-  expect(login.ok()).toBe(true);
-  const session = (await login.json()) as { token: string };
-  const headers = { Authorization: `Bearer ${session.token}` };
+  const session = await nativeFixtureSession(request);
+  const headers = { Authorization: `Bearer ${session}` };
   const created = await request.post(`${upstream}/api/v2/tokens`, {
     headers,
     data: {
@@ -53,7 +47,7 @@ test("MCP accepts native scoped tokens and rejects revoked access", async ({ req
   }
   const revoked = await protocol(request, token.token, "tools/list");
   expect([401, 403]).toContain(revoked.status());
-  const jwt = await protocol(request, session.token, "tools/list");
+  const jwt = await protocol(request, session, "tools/list");
   expect(jwt.status()).toBe(401);
 });
 
@@ -71,10 +65,4 @@ function protocol(
     },
     data: { jsonrpc: "2.0", id: 1, method, ...(params ? { params } : {}) },
   });
-}
-
-function requiredEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) throw new Error(`Missing isolated fixture setting: ${key}`);
-  return value;
 }

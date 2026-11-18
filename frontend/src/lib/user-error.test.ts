@@ -1,7 +1,7 @@
 import { CombinedGraphQLErrors } from "@apollo/client/errors";
 import { describe, expect, it } from "vitest";
 
-import { graphQLErrorMessage } from "./user-error";
+import { graphQLErrorMessage, mutationOutcomeUncertain } from "./user-error";
 
 describe("graphQLErrorMessage", () => {
   it("returns the safe message supplied by the GraphQL API", () => {
@@ -23,5 +23,24 @@ describe("graphQLErrorMessage", () => {
     expect(graphQLErrorMessage(new Error("fetch failed at internal host"), "Request failed.")).toBe(
       "Request failed.",
     );
+  });
+});
+
+describe("mutation retry safety", () => {
+  it.each(["VALIDATION_FAILED", "FORBIDDEN", "UNAUTHENTICATED", "CSRF_INVALID"])(
+    "keeps a %s draft editable",
+    (code) => {
+      const error = new CombinedGraphQLErrors({
+        errors: [{ message: "Rejected", extensions: { code } }],
+      });
+      expect(mutationOutcomeUncertain(error)).toBe(false);
+    },
+  );
+  it("requires checking the result after an uncertain write", () => {
+    expect(mutationOutcomeUncertain(new Error("Network failure"))).toBe(true);
+    const error = new CombinedGraphQLErrors({
+      errors: [{ message: "Unknown", extensions: { code: "UPSTREAM_UNAVAILABLE" } }],
+    });
+    expect(mutationOutcomeUncertain(error)).toBe(true);
   });
 });

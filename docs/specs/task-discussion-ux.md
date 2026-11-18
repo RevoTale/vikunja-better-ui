@@ -128,7 +128,9 @@ thread semantics that this application does not implement.
   until the upload settles. Errors retain the rest of the draft.
 - A lost upload response blocks another upload until the user checks existing
   attachments and explicitly allows retry. Reusing a stored file avoids a
-  duplicate upload. No write is retried automatically.
+  duplicate upload. A confirmed permission or validation rejection leaves the
+  file picker available. If the session has expired, Better UI checks the
+  active session and returns to sign-in. No write is retried automatically.
 - Images expose an alternative-text field; audio/video have native controls,
   metadata-only preload and no autoplay. Removing a reference does not delete
   its task attachment. Explain this before upload and after confirmation.

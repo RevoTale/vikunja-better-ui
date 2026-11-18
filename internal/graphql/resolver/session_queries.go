@@ -22,6 +22,10 @@ func (r *queryResolver) Session(ctx context.Context) (*model.Session, error) {
 	}
 	user, err := r.users.CurrentUser(ctx)
 	if err != nil {
+		info, _ := auth.RequestInfoFromContext(ctx)
+		if accessErr := profileAccessError(info, err); accessErr != nil {
+			return nil, accessErr
+		}
 		r.logError("read Vikunja user for session", err)
 		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja is unavailable. Try again shortly.")
 	}
@@ -37,11 +41,11 @@ func (r *queryResolver) Projects(ctx context.Context) (*model.ProjectResult, err
 	metadata := r.loadQueryMetadata(ctx)
 	if metadata.userErr != nil {
 		r.logError("read Vikunja user for projects", metadata.userErr)
-		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja is unavailable. Try again shortly.")
+		return nil, upstreamClientError(metadata.userErr, "The Vikunja profile could not be loaded.")
 	}
 	if metadata.projectsErr != nil {
 		r.logError("read Vikunja projects", metadata.projectsErr)
-		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja projects could not be loaded.")
+		return nil, upstreamClientError(metadata.projectsErr, "Vikunja projects could not be loaded.")
 	}
 	items := make([]*model.Project, 0, len(metadata.projects))
 	for _, project := range metadata.projects {
