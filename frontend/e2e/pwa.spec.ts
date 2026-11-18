@@ -7,7 +7,7 @@ test("PWA caches only the build and opens deep links offline", async ({ page, ba
   if (!baseURL) throw new Error("Missing fixture URL");
   const origin = await pwaOrigin(baseURL);
   try {
-    await page.goto(`${origin.url}/login`);
+    await page.goto(`${origin.url}/login?returnTo=%2Ftoday`);
     const manifest = await (await page.request.get("/site.webmanifest")).json();
     expect(manifest.start_url).toBe("/today");
     expect(manifest.id).toBe("/today");
@@ -23,6 +23,7 @@ test("PWA caches only the build and opens deep links offline", async ({ page, ba
     await expect
       .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
       .toBe(true);
+    await expect(page.getByLabel("Vikunja API token")).toBeVisible();
     origin.setAvailable(false);
     await expect(page.request.get(`${origin.url}/graphql`)).rejects.toThrow();
     const response = await page.goto(`${origin.url}/tasks/137/discussion?returnTo=%2Fweek`);

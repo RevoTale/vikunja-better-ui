@@ -9,10 +9,9 @@ import {
   vikunjaTaskStatus,
 } from "./app-api";
 import { addCalendarDays, localDate, localDateTime, selectDate } from "./app-calendar";
-import { emptyProjectID, labeledTitle } from "./app-fixture";
+import { emptyProjectID, labeledTitle, nativeFixtureSession, vikunjaURL } from "./app-fixture";
 import { chooseSelectOption } from "./app-layout";
 import { findTaskInPaginatedList } from "./app-pagination";
-import { fixtureEnv } from "./mcp-fixture";
 
 test("task lists expose loading, empty, error, and project-filter states", async ({ page }) => {
   await blockBrowserVikunjaCalls(page);
@@ -90,7 +89,7 @@ test("task lists expose loading, empty, error, and project-filter states", async
   await expect(page.getByRole("heading", { name: "Week" })).toBeVisible();
 });
 
-test("skip and delete actions preserve recurring history in Vikunja", async ({ page }) => {
+test("skip and delete actions preserve recurring history in Vikunja", async ({ page, request }) => {
   await blockBrowserVikunjaCalls(page);
   await page.goto("/today");
   await login(page);
@@ -124,6 +123,8 @@ test("skip and delete actions preserve recurring history in Vikunja", async ({ p
   await expect(historyCard.getByText("Skipped", { exact: true })).toBeVisible();
   await expect(historyCard.getByText("vbu:skipped", { exact: true })).toHaveCount(0);
   await historyCard.getByRole("link", { name: title }).click();
+  await expect(page).toHaveURL((url) => url.pathname === `/tasks/${snapshot.id}`);
+  await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
   await expect(page.getByText("Skipped", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Skip", exact: true })).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Delete", exact: true })).toHaveCount(0);
@@ -145,14 +146,11 @@ test("skip and delete actions preserve recurring history in Vikunja", async ({ p
   await page.getByRole("button", { name: "Delete task", exact: true }).click();
   await expect(page).toHaveURL(/\/today/);
   expect(await vikunjaTaskStatus(taskID)).toBe(404);
-  const session = fixtureEnv("E2E_FIXTURE_SESSION");
-  const trashResponse = await page.request.get(
-    `${fixtureEnv("E2E_VIKUNJA_URL")}/api/v2/tasks/deleted?per_page=100`,
-    {
-      headers: { Authorization: `Bearer ${session}` },
-    },
-  );
-  expect(trashResponse.ok()).toBe(true);
+  const session = await nativeFixtureSession(request);
+  const trashResponse = await request.get(`${vikunjaURL}/api/v2/tasks/deleted?per_page=100`, {
+    headers: { Authorization: `Bearer ${session}` },
+  });
+  expect(trashResponse.status()).toBe(200);
   const trash = (await trashResponse.json()) as { items: { id: number }[] };
   expect(trash.items.some((item) => item.id === Number(taskID))).toBe(true);
   expect((await vikunjaTask(String(snapshot.id))).done).toBe(true);

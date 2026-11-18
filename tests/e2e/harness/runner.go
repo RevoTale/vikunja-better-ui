@@ -64,7 +64,7 @@ func runHarness(ctx context.Context, args []string) (err error) {
 	if os.Getenv("E2E_DEMO") == "1" {
 		return h.serveDemo(ctx, appURL, fixtures["token"])
 	}
-	return h.playwright(ctx, args, fixtures["nativeSession"])
+	return h.playwright(ctx, args, username, password)
 }
 
 func (h *harness) serveDemo(ctx context.Context, appURL, token string) error {
@@ -145,7 +145,7 @@ func (h *harness) fixtures(ctx context.Context, upstream, username, password str
 	return seedFixtures(ctx, upstream, username, password, os.Getenv("E2E_DEMO") == "1")
 }
 
-func (h *harness) playwright(ctx context.Context, args []string, nativeSession string) error {
+func (h *harness) playwright(ctx context.Context, args []string, username, password string) error {
 	arguments := append([]string{frontendDirectoryFlag, frontendDirectory, "exec", "playwright", "test"}, args...)
 	command := h.command(ctx, pnpmCommand, arguments...)
 	if os.Getenv("E2E_MEASURE") == "1" {
@@ -153,6 +153,6 @@ func (h *harness) playwright(ctx context.Context, args []string, nativeSession s
 		command = h.command(ctx, goCommand, arguments...)
 	}
 	// Only the test driver can manage fixtures. The application receives personal API tokens during login.
-	command.Env = append(command.Env, "E2E_FIXTURE_SESSION="+nativeSession)
+	command.Env = append(command.Env, "E2E_FIXTURE_USERNAME="+username, "E2E_FIXTURE_PASSWORD="+password)
 	return command.Run()
 }

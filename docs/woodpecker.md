@@ -112,6 +112,13 @@ There are no direct SQL writes or shared database files. The discussion helper
 checks its temporary ownership marker and the exact fixture origin before
 using the test token. It stops on API errors without retrying mutations.
 
+Each test worker signs into the disposable account when it needs native
+privileges, such as issuing a scoped token or reading the trash. It reuses
+that access token until shortly before expiry, then signs in again. This
+keeps the full matrix within Vikunja's login limits and ten-minute token lifetime.
+Only the test driver receives the fixture login. The application uses personal
+API tokens. [Vikunja session lifetime](https://vikunja.io/docs/api-login-session-migration/)
+
 SQLite was replaced because concurrent API transactions and asynchronous
 Vikunja event handlers can fail with `database is locked` despite WAL and
 busy_timeout. A concurrent comment/relation contract test guards this failure.
