@@ -12,30 +12,33 @@ import { addCalendarDays, localDate, localDateTime, selectDate } from "./app-cal
 import { emptyProjectID, labeledTitle } from "./app-fixture";
 import { chooseSelectOption } from "./app-layout";
 import { findTaskInPaginatedList } from "./app-pagination";
+import { fixtureEnv, nativeSession } from "./mcp-fixture";
 
 test("task lists expose loading, empty, error, and project-filter states", async ({ page }) => {
   await blockBrowserVikunjaCalls(page);
   await page.goto("/today");
   await login(page);
 
-  let delayed = false;
+  let releaseInitial = () => {};
+  const initialGate = new Promise<void>((resolve) => {
+    releaseInitial = resolve;
+  });
   await page.route("**/graphql", async (route) => {
-    if (!delayed && graphQLOperation(route.request().postData()) === "TaskList") {
-      delayed = true;
-      await new Promise((resolve) => setTimeout(resolve, 400));
-    }
+    if (graphQLOperation(route.request().postData()) === "TaskList") await initialGate;
     await route.continue();
   });
   await page.goto(`/today?project=${emptyProjectID}&page=1`);
   await expect(page.getByText("Loading tasks…", { exact: true })).toBeVisible();
+  releaseInitial();
   await expect(page.getByText("No tasks match these filters.", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Project", { exact: true })).toContainText("E2E Empty Project");
 
-  await page.unroute("**/graphql");
-  let refreshDelay = 400;
+  await page.unrouteAll({ behavior: "wait" });
+  let releaseRefresh = () => {};
+  let refreshGate: Promise<void> | undefined;
   await page.route("**/graphql", async (route) => {
     if (graphQLOperation(route.request().postData()) === "TaskList") {
-      await new Promise((resolve) => setTimeout(resolve, refreshDelay));
+      await (refreshGate ?? new Promise<void>((resolve) => setTimeout(resolve, 400)));
     }
     await route.continue();
   });
@@ -46,17 +49,20 @@ test("task lists expose loading, empty, error, and project-filter states", async
   await refreshResponse;
   await expect(page.getByText("Refreshing tasks…", { exact: true })).toHaveCount(0);
 
-  refreshDelay = 1_200;
+  refreshGate = new Promise<void>((resolve) => {
+    releaseRefresh = resolve;
+  });
   refreshResponse = page.waitForResponse(
     (response) => graphQLOperation(response.request().postData()) === "TaskList",
   );
   await chooseSelectOption(page, "Project", "E2E Empty Project");
   await expect(page.getByText("Refreshing tasks…", { exact: true })).toBeVisible();
   await expect(page.getByText("No tasks match these filters.", { exact: true })).toBeVisible();
+  releaseRefresh();
   await refreshResponse;
   await expect(page.getByText("Refreshing tasks…", { exact: true })).toHaveCount(0);
 
-  await page.unroute("**/graphql");
+  await page.unrouteAll({ behavior: "wait" });
   let failListLoads = true;
   await page.route("**/graphql", async (route) => {
     if (
@@ -127,6 +133,9 @@ test("skip and delete actions preserve recurring history in Vikunja", async ({ p
   await page.getByRole("button", { name: "More task actions", exact: true }).click();
   await page.getByRole("menuitem", { name: "Delete", exact: true }).click();
   await expect(page.getByRole("heading", { name: `Delete ${title}?` })).toBeVisible();
+  await expect(
+    page.getByText("This moves the active task to Vikunja’s trash for 30 days.", { exact: false }),
+  ).toBeVisible();
   await page.getByRole("link", { name: "Cancel" }).click();
   await expect(page).toHaveURL(new RegExp(`/tasks/${taskID}`));
   expect((await vikunjaTask(taskID)).id).toBe(Number(taskID));
@@ -136,6 +145,16 @@ test("skip and delete actions preserve recurring history in Vikunja", async ({ p
   await page.getByRole("button", { name: "Delete task", exact: true }).click();
   await expect(page).toHaveURL(/\/today/);
   expect(await vikunjaTaskStatus(taskID)).toBe(404);
+  const session = await nativeSession(page.request);
+  const trashResponse = await page.request.get(
+    `${fixtureEnv("E2E_VIKUNJA_URL")}/api/v2/tasks/deleted?per_page=100`,
+    {
+      headers: { Authorization: `Bearer ${session}` },
+    },
+  );
+  expect(trashResponse.ok()).toBe(true);
+  const trash = (await trashResponse.json()) as { items: { id: number }[] };
+  expect(trash.items.some((item) => item.id === Number(taskID))).toBe(true);
   expect((await vikunjaTask(String(snapshot.id))).done).toBe(true);
 
   const oneTimeTitle = `Delete one-time E2E ${Date.now()}`;

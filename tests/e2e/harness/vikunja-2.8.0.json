@@ -1,0 +1,18 @@
+{
+  "version": "2.8.0",
+  "signingKeyFingerprint": "7D061A4AA61436B40713D42EFF054DACD908493A",
+  "architectures": {
+    "amd64": {
+      "url": "https://dl.vikunja.io/vikunja/v2.8.0/vikunja-v2.8.0-linux-amd64-full.zip",
+      "signatureUrl": "https://dl.vikunja.io/vikunja/v2.8.0/vikunja-v2.8.0-linux-amd64-full.zip.sig",
+      "archiveSha256": "0b6ba2934bd432eefaa4209b0f96d20b7f7cd7f7be0269dd79071979c4363423",
+      "binarySha256": "e445714cb2c6bd8e6b48c43e1c7abba7718d53a5bf3a017791b1d21188e2607b"
+    },
+    "arm64": {
+      "url": "https://dl.vikunja.io/vikunja/v2.8.0/vikunja-v2.8.0-linux-arm64-full.zip",
+      "signatureUrl": "https://dl.vikunja.io/vikunja/v2.8.0/vikunja-v2.8.0-linux-arm64-full.zip.sig",
+      "archiveSha256": "8ef777d1bffaccc7fef2240f6edf93d63be0a49eb5a66b645cf89beff51f45d0",
+      "binarySha256": "5e6b6de90fd842be3391f2f5f08c762e1413ad369d5d05cfc8b884f6ff6fb404"
+    }
+  }
+}

@@ -48,7 +48,7 @@ explicit Go types/JSON Schema; never an arbitrary JSON or REST execution escape.
 | Tool or family | Input intent | Output/constraint |
 | --- | --- | --- |
 | explain_concept | Concept or overview | Static model explanation and relevant actions |
-| get_context | No task query | Caller timezone and visible project/label context, paged where necessary; no token metadata secrets |
+| get_context | No task query | Effective timezone, source/readiness and visible project/label context, paged where necessary; no token metadata secrets |
 | list_tasks | Existing named scope, filters, order, page | Compact classified tasks, totals/completeness and pagination |
 | get_agenda | Local day, filters | Scheduled sessions, finish obligations, projections, optional active work as distinct sections |
 | get_recurring_overview | Bounded reporting period, filters | Series, native rule and frequency/projections; no invented stored occurrences |
@@ -106,12 +106,13 @@ Requirement: tokens are created in Vikunja, configured outside model arguments,
 never issued/stored/logged by Better UI. Caller credentials must never fall back
 to APP_VIKUNJA_API_TOKEN. Upstream URL comes only from trusted configuration.
 
-Evidence reviewed 2026-11-09:
+Evidence reviewed 2026-11-09; native MCP authorization rechecked against 2.8.0
+on 2026-11-18 (see [ADR-012](../decisions/0012-vikunja-2.8-compatibility.md)):
 
-- [Vikunja 2.7 API token model](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.7.0/pkg/models/api_tokens.go)
+- [Vikunja 2.8 API token model](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.8.0/pkg/models/api_tokens.go)
   stores route permissions, expiry and owner (including bot owner); these do not
   establish an MCP audience-binding mechanism.
-- [Vikunja 2.7 MCP settings route](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.7.0/pkg/routes/api/v2/mcp.go)
+- [Vikunja 2.8 MCP settings route](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.8.0/pkg/routes/api/v2/mcp.go)
   explicitly rejects API tokens. Do not use `/mcp/info` as token introspection.
   The settings advertise presets, not permission proof for a supplied credential.
 - [Vikunja OAuth documentation](https://vikunja.io/docs/oauth-server/) describes
@@ -133,12 +134,15 @@ not the MCP OAuth authorization profile. Do not advertise OAuth metadata or add
 an issuer/store. Native MCP authorization is checked before handling each request;
 every subsequent REST action is checked by Vikunja under that same token.
 
-OAuth check: [official MCP help](https://vikunja.io/help/mcp/) states OAuth is not
-supported. Both [v2.7.0 handler](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.7.0/pkg/modules/mcp/mcp.go)
-and [main handler](https://raw.githubusercontent.com/go-vikunja/vikunja/main/pkg/modules/mcp/mcp.go)
-reject JWTs and require an API token plus mcp:access. General Vikunja OAuth login
-is therefore not a supported MCP OAuth route. Verified 2026-11-09 by source and
-documentation, not by sending credentials to a production instance.
+OAuth check: the [v2.8.0 handler](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.8.0/pkg/modules/mcp/mcp.go)
+rejects JWTs and requires an API token plus mcp:access. General Vikunja OAuth login
+is not a supported MCP OAuth route. Rechecked 2026-11-18 by source inspection.
+The separate Better UI caller-token boundary remains unchanged.
+
+`delete_task` moves active work into native trash, stops a recurring series and
+preserves separate History snapshots. Restore in Vikunja within 30 days; Better
+UI exposes neither deletion Undo nor trash management. Confirmation, fresh
+version and permission checks remain required; read-before-delete is not atomic.
 
 Support API-token permission configurations, including bot-owned tokens, as far
 as verified upstream capabilities allow. Session JWTs/link-share credentials are
@@ -279,7 +283,7 @@ with individual desktop clients and model accuracy remain unverified.
 
 | Tools | Purpose |
 | --- | --- |
-| `explain_concept`, `get_context` | Rules, timezone/readiness, paged projects and ordinary labels |
+| `explain_concept`, `get_context` | Rules, effective timezone/source/readiness, paged projects and ordinary labels |
 | `list_tasks`, `get_task` | Named views; detail with optional relations and attachment metadata |
 | `get_agenda`, `get_recurring_overview`, `get_activity` | Day sections, normalized weekly/monthly/yearly rhythm, caller-only activity |
 | `create_one_time_task`, `create_recurring_task`, `create_job` | Separate creation contracts using shared services |
@@ -310,7 +314,8 @@ Limits and defaults:
 - Agenda sections independently report completeness/errors. Availability is not
   a reservation; only actual sessions produce overlap pairs (maximum 100).
 - `get_context` works without a configured timezone and reports schedulingReady.
-  Calendar tools require the token owner's valid timezone, including bot accounts.
+  Calendar tools require a valid effective timezone; the bot-only fallback below
+  is the sole exception to the profile-only rule.
 - Mutations return a compact task reference/version. Use `get_task` for full
   detail. Newly created tasks are re-read so returned versions match native reads.
 - Omitted dates survive partial edits as exact instants, including DST folds and
@@ -328,3 +333,41 @@ The text result and structured content intentionally duplicate compatible result
 Definitions are measured as wire bytes, not claimed model-token counts. Static
 concept lookup makes no task reads but still performs one native authorization
 probe per HTTP request so token revocation takes effect without an identity cache.
+
+### Bot timezone fallback
+
+Decision: [ADR-010, 2026-11-10](../decisions/0010-semantic-api-and-mcp.md#clarification--bot-timezone-fallback-2026-11-10).
+
+`APP_MCP_FALLBACK_TIMEZONE` is an optional deployment-wide IANA timezone. Unset or
+empty disables it. Invalid values, including host-dependent `Local`, fail startup
+even when MCP is disabled. No new token permissions are needed.
+
+Resolve after a successful fresh caller profile read:
+
+| Profile | Effective timezone | `timezoneSource` | `schedulingReady` |
+| --- | --- | --- | --- |
+| Any caller, populated valid timezone | Profile value | `VIKUNJA` | `true` |
+| Any caller, populated invalid timezone | Profile value; never replaced | `VIKUNJA` | `false` |
+| Bot (`bot_owner_id > 0`), empty timezone, configured fallback | Fallback | `BOT_FALLBACK` | `true` |
+| Bot, empty timezone, no fallback | Empty | `UNAVAILABLE` | `false` |
+| Ordinary user, empty timezone, with or without fallback | Empty | `UNAVAILABLE` | `false` |
+
+`get_context.timezone` is effective timezone; additive `timezoneSource` explains
+its origin. An invalid populated profile stays `VIKUNJA`; readiness independently
+reports validity. Calendar-dependent tools reject unready callers with an
+actionable error. Missing profile permissions remain errors, never a fallback
+identity. Essential rules are in tool discovery and the permissions concept.
+
+All MCP paths use the same resolved timezone: task detail, named lists, agenda,
+recurring overview, recent/all-time activity, local mutation inputs, reminders,
+completion and recurrence. Existing DST ambiguity/gap checks still apply.
+Resolution only changes a request-local copy; it never writes profile settings,
+changes upstream reminder behavior or affects UI/GraphQL, anonymous activity or
+the Jobs HTTP integration. No caller cache or extra profile request is added.
+
+Regression checks cover bot detection independent of username, absent fallback,
+profile precedence (including matching/invalid values), ordinary-user exclusion,
+denied profile reads, local midnight, both activity periods and native deadline
+creation across DST. See `internal/mcp/timezone*_test.go` and
+`internal/config/mcp_test.go`. Protocol fixtures verify behavior; no live bot
+settings or production task writes are part of these checks.

@@ -68,7 +68,7 @@ func upstreamHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	_, _ = io.WriteString(w, `{"version":"v2.7.0"}`)
+	_, _ = io.WriteString(w, `{"version":"v2.8.0"}`)
 }
 
 func serve(ctx context.Context) error {

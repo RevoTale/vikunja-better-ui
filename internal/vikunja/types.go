@@ -18,10 +18,11 @@ type UserSettings struct {
 
 // User identifies an upstream user and their scheduling preferences.
 type User struct {
-	ID       int64        `json:"id"`
-	Username string       `json:"username"`
-	Name     string       `json:"name"`
-	Settings UserSettings `json:"settings"`
+	BotOwnerID int64        `json:"bot_owner_id"`
+	ID         int64        `json:"id"`
+	Username   string       `json:"username"`
+	Name       string       `json:"name"`
+	Settings   UserSettings `json:"settings"`
 }
 
 // Project is an accessible upstream project with optional effective permissions.

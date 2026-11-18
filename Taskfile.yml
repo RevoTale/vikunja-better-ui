@@ -67,12 +67,12 @@ tasks:
       - go run ./tests/quality empty-output go fix -diff ./...
 
   e2e:
-    desc: Run the full Playwright matrix against an isolated Vikunja 2.7.0 instance
+    desc: Run the full Playwright matrix against an isolated Vikunja 2.8.0 instance
     cmds:
       - go run ./tests/e2e/harness run --project=phone-320 --project=phone-webkit --project=desktop-1440 --project=timezone-webkit
 
   e2e:pr:
-    desc: Run the fast PR Playwright matrix against an isolated Vikunja 2.7.0 instance
+    desc: Run the fast PR Playwright matrix against an isolated Vikunja 2.8.0 instance
     cmds:
       - go run ./tests/e2e/harness run --project=pr-chromium --project=pr-webkit
 

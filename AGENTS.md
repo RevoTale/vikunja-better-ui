@@ -285,7 +285,7 @@ The explicitly requested `PUBLIC_ALL_TIME_ACTIVITY` is the sole unprefixed
 feature flag; it independently enables the anonymous all-time activity view.
 `APP_PUBLIC_URL` is both the validated canonical origin and explicit
 root-indexing opt-in described by ADR-008.
-Vikunja 2.7.0 or later is required and checked through API v2 info at startup.
+Vikunja 2.8.0 or later is required and checked through API v2 info at startup.
 
 Never commit a populated `.env` file or a real secret. Never put credentials in
 the frontend bundle, GraphQL responses, URLs, logs, metrics, or user-visible

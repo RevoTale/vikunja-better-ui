@@ -97,7 +97,7 @@ are needed. Nothing is published from PRs or from separate tag events.
 ## Vikunja test service
 
 PostgreSQL 18.6 runs as a digest-pinned Woodpecker service. The Go readiness
-command waits for a ready database session after the required checks. Vikunja 2.7.0
+command waits for a ready database session after the required checks. Vikunja 2.8.0
 then starts as a native detached step named `vikunja`, using the official
 non-root image. This is Woodpecker's service mechanism with explicit startup
 ordering: the scratch image has no shell to wait for PostgreSQL itself.

@@ -8,6 +8,7 @@ test("recurring overview groups live routines and opens creation with Repeat sel
 }) => {
   await page.goto("/login");
   await login(page);
+  await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
   const suffix = Date.now();
   const daily = `Practice piano ${suffix}`;
   const monthly = `Review household expenses ${suffix}`;

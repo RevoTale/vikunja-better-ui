@@ -112,7 +112,8 @@ func registerTokenIntegrations(
 	if configuration.MCPEnabled {
 		mux.Handle("/mcp", mcpserver.NewHandler(mcpserver.Options{Upstream: configuration.VikunjaURL,
 			PublicUpstream: configuration.VikunjaPublicURL, AppURL: configuration.AllowedOrigin,
-			Secret: configuration.SessionSecret, Logger: logger, Now: now}))
+			FallbackTimezone: configuration.MCPFallbackTimezone,
+			Secret:           configuration.SessionSecret, Logger: logger, Now: now}))
 	}
 }
 
