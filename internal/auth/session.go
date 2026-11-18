@@ -1,7 +1,8 @@
 package auth
 
 import (
-	"bytes"
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -9,16 +10,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 )
 
 const (
-	sessionVersion    = 1
+	sessionVersion    = 2
 	sessionLifetime   = 30 * 24 * time.Hour
 	sessionRefreshAge = sessionLifetime / 2
 	sessionIDBytes    = 16
-	csrfPurpose       = "vbu:csrf:v1"
+	maxCookieBytes    = 4096
 )
 
 // Session validation failures distinguish malformed tokens from expired sessions.
@@ -27,156 +27,131 @@ var (
 	ErrExpiredSession = errors.New("expired session")
 )
 
-// Session is the verified identity and lifetime carried by a signed cookie.
+// Session is the authenticated identity and lifetime carried by an encrypted cookie.
 type Session struct {
 	Version   int
 	ID        string
 	IssuedAt  time.Time
 	ExpiresAt time.Time
+	token     string
+	origin    string
 }
+
+// VikunjaToken returns the credential to use only for this session's private upstream requests.
+func (session Session) VikunjaToken() string { return session.token }
 
 // NeedsRefresh reports whether the session has reached its renewal age.
 func (session Session) NeedsRefresh(now time.Time) bool {
 	return !now.Before(session.IssuedAt.Add(sessionRefreshAge))
 }
 
-// SessionManager signs and validates cookies without server-side persistence.
+// SessionManager encrypts origin-bound session cookies and authenticates CSRF tokens.
 type SessionManager struct {
-	secret []byte
-	now    func() time.Time
-	random io.Reader
+	aead    cipher.AEAD
+	csrfKey []byte
+	now     func() time.Time
+	random  io.Reader
 }
 
-// NewSessionManager copies the signing secret and uses the supplied clock and entropy.
-func NewSessionManager(secret []byte, now func() time.Time, random io.Reader) *SessionManager {
-	return &SessionManager{
-		secret: append([]byte(nil), secret...),
-		now:    now,
-		random: random,
+// NewSessionManager derives independent cookie and CSRF keys from the persistent deployment secret.
+func NewSessionManager(secret []byte, now func() time.Time, random io.Reader) (*SessionManager, error) {
+	block, err := aes.NewCipher(keyedDigest(secret, "vbu:session:encryption:v2"))
+	if err != nil {
+		return nil, fmt.Errorf("initialize session cipher: %w", err)
 	}
+	aead, err := cipher.NewGCMWithRandomNonce(block)
+	if err != nil {
+		return nil, fmt.Errorf("initialize session encryption: %w", err)
+	}
+	return &SessionManager{aead: aead, csrfKey: keyedDigest(secret, "vbu:csrf:v2"), now: now, random: random}, nil
 }
 
-// Issue creates a new identity and its signed session token.
-func (manager *SessionManager) Issue() (string, Session, error) {
-	idBytes := make([]byte, sessionIDBytes)
-	if _, err := io.ReadFull(manager.random, idBytes); err != nil {
-		return "", Session{}, fmt.Errorf("generate session ID: %w", err)
-	}
-
-	issuedAt := manager.now().UTC().Truncate(time.Second)
-	session := Session{
-		Version:   sessionVersion,
-		ID:        base64.RawURLEncoding.EncodeToString(idBytes),
-		IssuedAt:  issuedAt,
-		ExpiresAt: issuedAt.Add(sessionLifetime),
-	}
-	return manager.encode(session)
-}
-
-// Refresh extends a verified session's lifetime while retaining its identity.
-func (manager *SessionManager) Refresh(previous Session) (string, Session, error) {
-	if !validSessionShape(previous) {
+// Issue creates an encrypted session bound to the application's trusted external origin.
+func (manager *SessionManager) Issue(personalToken, origin string) (string, Session, error) {
+	if origin == "" || !ValidAPIToken(personalToken) {
 		return "", Session{}, ErrInvalidSession
 	}
-	issuedAt := manager.now().UTC().Truncate(time.Second)
-	refreshed := Session{
-		Version: sessionVersion, ID: previous.ID,
-		IssuedAt: issuedAt, ExpiresAt: issuedAt.Add(sessionLifetime),
+	var idBytes [sessionIDBytes]byte
+	if _, err := io.ReadFull(manager.random, idBytes[:]); err != nil {
+		return "", Session{}, fmt.Errorf("generate session ID: %w", err)
 	}
-	return manager.encode(refreshed)
+	session := Session{
+		Version: sessionVersion, ID: base64.RawURLEncoding.EncodeToString(idBytes[:]),
+		token: personalToken, origin: origin,
+	}
+	return manager.renew(session)
 }
 
-func (manager *SessionManager) encode(session Session) (string, Session, error) {
+// Refresh extends a verified, unexpired session while retaining its identity and origin.
+func (manager *SessionManager) Refresh(previous Session) (string, Session, error) {
+	if previous.origin == "" || !manager.now().Before(previous.ExpiresAt) {
+		return "", Session{}, ErrInvalidSession
+	}
+	return manager.renew(previous)
+}
+
+func (manager *SessionManager) renew(session Session) (string, Session, error) {
+	session.IssuedAt = manager.now().UTC().Truncate(time.Second)
+	session.ExpiresAt = session.IssuedAt.Add(sessionLifetime)
 	payload, err := json.Marshal(sessionPayload{
-		Version:   session.Version,
-		ID:        session.ID,
-		IssuedAt:  session.IssuedAt.Unix(),
-		ExpiresAt: session.ExpiresAt.Unix(),
+		Version: session.Version, ID: session.ID, IssuedAt: session.IssuedAt.Unix(), Token: session.token,
 	})
 	if err != nil {
 		return "", Session{}, fmt.Errorf("marshal session: %w", err)
 	}
-
-	encodedPayload := base64.RawURLEncoding.EncodeToString(payload)
-	return encodedPayload + "." + manager.signature(encodedPayload), session, nil
+	// #nosec G407 -- NewGCMWithRandomNonce generates and prepends its own nonce and requires a nil nonce here.
+	sealed := manager.aead.Seal(nil, nil, payload, []byte(session.origin))
+	return base64.RawURLEncoding.EncodeToString(sealed), session, nil
 }
 
-// Parse verifies the signature, payload shape, and expiry before returning a session.
-func (manager *SessionManager) Parse(token string) (Session, error) {
-	encodedPayload, encodedSignature, ok := strings.Cut(token, ".")
-	if !ok || encodedPayload == "" || encodedSignature == "" || strings.Contains(encodedSignature, ".") {
+// Parse authenticates the origin and ciphertext before reading the credential or session metadata.
+func (manager *SessionManager) Parse(cookie, origin string) (Session, error) {
+	if origin == "" || len(cookie) > maxCookieBytes {
 		return Session{}, ErrInvalidSession
 	}
-
-	expectedSignature := manager.signature(encodedPayload)
-	if !hmac.Equal([]byte(encodedSignature), []byte(expectedSignature)) {
-		return Session{}, ErrInvalidSession
-	}
-
-	payloadBytes, err := base64.RawURLEncoding.DecodeString(encodedPayload)
+	sealed, err := base64.RawURLEncoding.Strict().DecodeString(cookie)
 	if err != nil {
 		return Session{}, ErrInvalidSession
 	}
-
+	plaintext, err := manager.aead.Open(nil, nil, sealed, []byte(origin))
+	if err != nil {
+		return Session{}, ErrInvalidSession
+	}
 	var payload sessionPayload
-	decoder := json.NewDecoder(bytes.NewReader(payloadBytes))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&payload); err != nil {
+	if err := json.Unmarshal(plaintext, &payload); err != nil || payload.Version != sessionVersion {
 		return Session{}, ErrInvalidSession
 	}
-
-	session := Session{
-		Version:   payload.Version,
-		ID:        payload.ID,
-		IssuedAt:  time.Unix(payload.IssuedAt, 0).UTC(),
-		ExpiresAt: time.Unix(payload.ExpiresAt, 0).UTC(),
-	}
-	if !validSessionShape(session) {
-		return Session{}, ErrInvalidSession
-	}
-	if !manager.now().Before(session.ExpiresAt) {
+	issuedAt := time.Unix(payload.IssuedAt, 0).UTC()
+	expiresAt := issuedAt.Add(sessionLifetime)
+	if !manager.now().Before(expiresAt) {
 		return Session{}, ErrExpiredSession
 	}
-
-	return session, nil
+	return Session{
+		Version: payload.Version, ID: payload.ID, token: payload.Token, origin: origin,
+		IssuedAt: issuedAt, ExpiresAt: expiresAt,
+	}, nil
 }
 
-// CSRFToken derives a token bound to this session identity and a separate signing purpose.
+// CSRFToken derives a token bound to the session identity.
 func (manager *SessionManager) CSRFToken(session Session) string {
-	message := csrfPurpose + ":" + session.ID
-	return manager.signBytes([]byte(message))
+	return base64.RawURLEncoding.EncodeToString(keyedDigest(manager.csrfKey, session.ID))
 }
 
-// VerifyCSRF compares the supplied token with the session-bound signature.
+// VerifyCSRF compares a submitted token with the session-bound signature.
 func (manager *SessionManager) VerifyCSRF(session Session, token string) bool {
 	expected := manager.CSRFToken(session)
 	return len(token) == len(expected) && hmac.Equal([]byte(token), []byte(expected))
 }
 
-func (manager *SessionManager) signature(encodedPayload string) string {
-	return manager.signBytes([]byte("vbu:session:v1:" + encodedPayload))
-}
-
-func (manager *SessionManager) signBytes(message []byte) string {
-	mac := hmac.New(sha256.New, manager.secret)
-	_, _ = mac.Write(message)
-	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-}
-
-func validSessionShape(session Session) bool {
-	if session.Version != sessionVersion || session.ID == "" {
-		return false
-	}
-	decodedID, err := base64.RawURLEncoding.DecodeString(session.ID)
-	if err != nil || len(decodedID) != sessionIDBytes {
-		return false
-	}
-	return session.ExpiresAt.Sub(session.IssuedAt) == sessionLifetime
+func keyedDigest(secret []byte, value string) []byte {
+	mac := hmac.New(sha256.New, secret)
+	_, _ = mac.Write([]byte(value))
+	return mac.Sum(nil)
 }
 
 type sessionPayload struct {
-	Version   int    `json:"v"`
-	ID        string `json:"sid"`
-	IssuedAt  int64  `json:"iat"`
-	ExpiresAt int64  `json:"exp"`
+	Version  int    `json:"v"`
+	ID       string `json:"sid"`
+	IssuedAt int64  `json:"iat"`
+	Token    string `json:"token"`
 }

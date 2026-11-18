@@ -10,7 +10,7 @@ import (
 type cspNonceContextKey struct{}
 
 // SecurityHeaders installs a per-request CSP nonce and browser security policies.
-func SecurityHeaders(production bool) func(http.Handler) http.Handler {
+func SecurityHeaders(hsts bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			nonce, err := newCSPNonce()
@@ -26,7 +26,7 @@ func SecurityHeaders(production bool) func(http.Handler) http.Handler {
 			writer.Header().Set("Referrer-Policy", "no-referrer")
 			writer.Header().Set("X-Content-Type-Options", "nosniff")
 			writer.Header().Set("X-Frame-Options", "DENY")
-			if production {
+			if hsts {
 				writer.Header().Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
 			}
 			next.ServeHTTP(writer, request.WithContext(context.WithValue(request.Context(), cspNonceContextKey{}, nonce)))

@@ -9,14 +9,26 @@ The navigation and main content respect device safe-area insets.
 The top inset also contributes to scroll positioning, keeping Today and reply
 targets below the taller sticky header on notched screens.
 
-The manifest's explicit `id` stays `/today`, the old implicit installation ID,
-while `start_url` changes to `/week`. This preserves existing installation
-identity; the ID is not a navigation target. See the
-[manifest identity rules](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/id).
+The [manifest](../frontend/public/site.webmanifest) uses `/today` for both its
+installation identity and its launch URL.
+
+## Opening over WireGuard
+
+Open the deployment's HTTP address from the connected device, for example
+`http://10.77.0.20:8080`. The online interface, manifest, icons and same-origin
+token sign-in use the address you opened. You can save a bookmark or use the
+browser's home-screen action when offered. Installation and standalone display
+on a plain HTTP origin depend on the browser and OS.
+
+Browsers normally restrict service workers, native sharing and clipboard access
+on a non-loopback HTTP address. WireGuard provides the network transport. Better
+UI opens online without a worker and offers a selectable link when automatic
+sharing is unavailable.
 
 ## Cache without stale tasks
 
-The production build registers a service worker over HTTPS (or localhost).
+The production build attempts worker registration when the browser exposes the
+API (typically HTTPS or localhost).
 It downloads a versioned copy of the public app shell and build assets after
 the page loads. Repeat visits reuse cached JavaScript, CSS, fonts and icons.
 HTML remains network-first so online navigation receives current HTML and

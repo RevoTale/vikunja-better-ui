@@ -32,19 +32,22 @@ func (stub *mediaClientStub) AttachmentContent(
 	return stub.response, stub.err
 }
 
-func mediaTestHandler(t *testing.T, client *mediaClientStub) (http.Handler, *http.Cookie) {
+func mediaTestHandler(t *testing.T, client *mediaClientStub) (http.Handler, []*http.Cookie) {
 	t.Helper()
-	sessions := auth.NewSessionManager([]byte("test-secret"), time.Now, rand.Reader)
-	token, session, err := sessions.Issue()
+	sessions, err := auth.NewSessionManager([]byte("test-secret"), time.Now, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, session, err := sessions.Issue("tk_test", "http://app.test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	cookies := auth.NewSessionCookies(false)
 	w := httptest.NewRecorder()
-	cookies.Set(w, token, session.ExpiresAt)
+	cookies.Start(w, token, session)
 	mux := http.NewServeMux()
 	mux.Handle("GET /media/tasks/{task}/attachments/{attachment}", NewTaskMediaHandler(client, nil))
-	return auth.HTTPContext(sessions, cookies)(mux), w.Result().Cookies()[0]
+	return auth.HTTPContext(sessions, testOrigin)(mux), w.Result().Cookies()
 }
 
 func TestTaskMediaRequiresSessionAndSafeIdentity(t *testing.T) {
@@ -61,10 +64,10 @@ func TestTaskMediaRequiresSessionAndSafeIdentity(t *testing.T) {
 		{"/media/tasks/42/attachments/8", "bytes=0-1,4-5", true, http.StatusBadRequest},
 	} {
 		stub := &mediaClientStub{}
-		handler, cookie := mediaTestHandler(t, stub)
+		handler, cookies := mediaTestHandler(t, stub)
 		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, test.path, nil)
 		if test.authenticated {
-			r.AddCookie(cookie)
+			addSessionCookies(r, cookies)
 		}
 		r.Header.Set("Range", test.byteRange)
 		w := httptest.NewRecorder()
@@ -81,9 +84,9 @@ func TestTaskMediaStreamsPrivateRangeWithoutUpstreamHeaders(t *testing.T) {
 		"Content-Type": {"video/mp4"}, "Content-Range": {"bytes 2-5/10"},
 		"Set-Cookie": {"upstream=secret"}, "Location": {"https://evil.test"},
 	}, Body: io.NopCloser(strings.NewReader("2345"))}}
-	handler, cookie := mediaTestHandler(t, stub)
+	handler, cookies := mediaTestHandler(t, stub)
 	r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/media/tasks/42/attachments/8", nil)
-	r.AddCookie(cookie)
+	addSessionCookies(r, cookies)
 	r.Header.Set("Range", "bytes=2-5")
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, r)
@@ -107,6 +110,7 @@ func TestTaskMediaRejectsActiveContentAndUpstreamPermissions(t *testing.T) {
 	}{
 		{"text/html", nil, http.StatusUnsupportedMediaType}, {"image/svg+xml", nil, http.StatusUnsupportedMediaType},
 		{"image/png", &vikunja.Error{Status: http.StatusForbidden}, http.StatusForbidden},
+		{"image/png", &vikunja.Error{Status: http.StatusUnauthorized}, http.StatusUnauthorized},
 	} {
 		stub := &mediaClientStub{
 			response: &http.Response{
@@ -115,9 +119,9 @@ func TestTaskMediaRejectsActiveContentAndUpstreamPermissions(t *testing.T) {
 			},
 			err: test.err,
 		}
-		handler, cookie := mediaTestHandler(t, stub)
+		handler, cookies := mediaTestHandler(t, stub)
 		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/media/tasks/42/attachments/8", nil)
-		r.AddCookie(cookie)
+		addSessionCookies(r, cookies)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, r)
 		if w.Code != test.status || strings.Contains(w.Body.String(), "untrusted") {
@@ -147,9 +151,9 @@ func TestTaskMediaValidatesFullAudioAndSpoofedContent(t *testing.T) {
 				Header:     http.Header{"Content-Type": {test.mime}},
 				Body:       body,
 			}}
-			handler, cookie := mediaTestHandler(t, stub)
+			handler, cookies := mediaTestHandler(t, stub)
 			r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/media/tasks/42/attachments/8", nil)
-			r.AddCookie(cookie)
+			addSessionCookies(r, cookies)
 			w := httptest.NewRecorder()
 			handler.ServeHTTP(w, r)
 			if w.Code != test.status || !body.closed {
@@ -179,9 +183,9 @@ func TestTaskMediaHeadAndUnsatisfiableRangeCloseBody(t *testing.T) {
 			stub := &mediaClientStub{response: &http.Response{StatusCode: test.status, Header: http.Header{
 				"Content-Type": {"image/png"}, "Content-Range": {"bytes */15"}, "Content-Length": {"15"},
 			}, Body: body}}
-			handler, cookie := mediaTestHandler(t, stub)
+			handler, cookies := mediaTestHandler(t, stub)
 			r := httptest.NewRequestWithContext(t.Context(), test.method, "/media/tasks/42/attachments/8", nil)
-			r.AddCookie(cookie)
+			addSessionCookies(r, cookies)
 			r.Header.Set("Range", test.byteRange)
 			w := httptest.NewRecorder()
 			handler.ServeHTTP(w, r)
@@ -206,9 +210,9 @@ func TestTaskMediaClosesBodyAfterReadFailure(t *testing.T) {
 			Header:     http.Header{"Content-Type": {"image/png"}},
 			Body:       body,
 		}}
-		handler, cookie := mediaTestHandler(t, stub)
+		handler, cookies := mediaTestHandler(t, stub)
 		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/media/tasks/42/attachments/8", nil)
-		r.AddCookie(cookie)
+		addSessionCookies(r, cookies)
 		w := httptest.NewRecorder()
 		handler.ServeHTTP(w, r)
 		if !body.closed || (prefix == "" && w.Code != http.StatusBadGateway) {
@@ -238,4 +242,12 @@ type failedMediaReader struct{}
 
 func (failedMediaReader) Read([]byte) (int, error) {
 	return 0, errors.New("stream interrupted")
+}
+
+func testOrigin(*http.Request) string { return "http://app.test" }
+
+func addSessionCookies(r *http.Request, cookies []*http.Cookie) {
+	for _, cookie := range cookies {
+		r.AddCookie(cookie)
+	}
 }

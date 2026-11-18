@@ -2,10 +2,10 @@
 
 Creation starts with normal defaults, never automatic recall. Job is selected
 above the editable fields. Suggestions come from the newest accessible task
-created by the configured Vikunja token owner, ordered by creation time and ID
+created by the signed-in Vikunja token owner, ordered by creation time and ID
 descending, separately for Job/non-Job and recurring/one-time. Completion
 history snapshots and invalid metadata are excluded; completed ordinary tasks
-remain eligible. This is not the app login identity.
+remain eligible.
 
 Vikunja 2.5.0 supports creator/label filters and creation sorting but not
 `repeat_mode` filtering. The service reads bounded pages and checks recurrence

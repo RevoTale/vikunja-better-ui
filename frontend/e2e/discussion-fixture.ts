@@ -1,11 +1,11 @@
 import { expect, type Page } from "@playwright/test";
+import { submitToken } from "./app-actions";
 
 export async function discussionFixture(page: Page) {
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL(/\/today/);
+  await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
   const {
     session: { csrfToken },
   } = await discussionGraphQL<{ session: { csrfToken: string } }>(

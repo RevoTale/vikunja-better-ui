@@ -1,9 +1,13 @@
 import { expect, test } from "@playwright/test";
+import { login } from "./app-actions";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
+import { secondAccount } from "./personal-token-fixture";
 
 test("discussion media uploads to native attachments and streams privately", async ({
   page,
   playwright,
+  browser,
+  request,
 }) => {
   const { taskId, csrfToken } = await discussionFixture(page);
   const pixel = Buffer.from(
@@ -48,6 +52,20 @@ test("discussion media uploads to native attachments and streams privately", asy
     (await page.request.get(`/media/tasks/9999999/attachments/${attachment.id}`)).status(),
   ).toBe(404);
   await anonymous.dispose();
+  const guest = await secondAccount(request);
+  const guestPage = await browser.newPage({ baseURL: new URL(page.url()).origin });
+  try {
+    await guestPage.goto("/login");
+    await login(guestPage, guest.token);
+    expect([403, 404]).toContain((await guestPage.request.get(attachment.contentUrl)).status());
+    const hidden = await guestPage.request.post("/graphql", {
+      headers: { Origin: new URL(page.url()).origin },
+      data: { query: "query($id:ID!){task(id:$id){title}}", variables: { id: taskId } },
+    });
+    expect((await hidden.json()).data?.task ?? null).toBeNull();
+  } finally {
+    await guestPage.close();
+  }
   const metadata = await discussionGraphQL<{ taskAttachments: { items: { id: string }[] } }>(
     page,
     "query($id:ID!){taskAttachments(taskId:$id){items{id}}}",

@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { submitToken } from "./app-actions";
 import { commentMenu } from "./comment-menu-fixture";
 import { discussionFixture, discussionGraphQL } from "./discussion-fixture";
 
@@ -52,9 +53,7 @@ test("discussion supports comment menus, Markdown copying and direct links", asy
   expect(link).toContain(`/tasks/${taskId}/discussion?comment=${result.createTaskComment.id}`);
   await page.context().clearCookies();
   await page.goto(link);
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(article).toBeFocused();
   await page.route("**/graphql", async (route) => {
     if (route.request().postDataJSON().operationName !== "DiscussionComments") {

@@ -53,3 +53,9 @@ func TestAttachmentModelKeepsAudioClassificationForReuse(t *testing.T) {
 		}
 	}
 }
+
+func TestUnavailableTokenCheckReportsAnOutageOnUpload(t *testing.T) {
+	t.Parallel()
+	root := New(Dependencies{})
+	assertErrorCode(t, root.mediaError(vikunja.ErrTokenCheckUnavailable, true), "UPSTREAM_UNAVAILABLE")
+}

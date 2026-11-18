@@ -16,7 +16,8 @@ FROM --platform=$BUILDPLATFORM golang:1.27.2-trixie@sha256:e58d6f83b3416618d8bca
 WORKDIR /source
 COPY go.mod go.sum ./
 RUN go mod download
-COPY . ./
+COPY cmd/ ./cmd/
+COPY internal/ ./internal/
 COPY --from=frontend /source/internal/web/assets/dist/ /source/internal/web/assets/dist/
 ARG TARGETOS
 ARG TARGETARCH

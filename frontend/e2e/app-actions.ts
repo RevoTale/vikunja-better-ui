@@ -1,14 +1,27 @@
 import { expect, type Page } from "@playwright/test";
 import { displayDate, localDateTime, selectDate } from "./app-calendar";
-import { vikunjaURL } from "./app-fixture";
+import { vikunjaToken, vikunjaURL } from "./app-fixture";
 import { chooseSelectOption } from "./app-layout";
 
-export async function login(page: Page) {
-  await expect(page).toHaveURL(/\/login/);
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
+export async function submitToken(page: Page, token = vikunjaToken) {
+  await page.getByLabel("Vikunja API token", { exact: true }).fill(token);
   await page.getByRole("button", { name: "Sign in" }).click();
+}
+
+export async function login(page: Page, token = vikunjaToken) {
+  await expect(page).toHaveURL(/\/login/);
+  await submitToken(page, token);
   await expect(page).not.toHaveURL(/\/login/);
+  if (new URL(page.url()).pathname === "/today") {
+    // WebKit can expose the new URL before the private router mounts and normalizes its filters.
+    await expect(page.getByRole("link", { name: "Week", exact: true })).toBeVisible();
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === "/today" &&
+        url.searchParams.has("project") &&
+        url.searchParams.has("page"),
+    );
+  }
 }
 
 export async function createTask(

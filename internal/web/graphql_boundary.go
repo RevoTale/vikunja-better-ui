@@ -18,7 +18,6 @@ const MaxGraphQLUploadBytes = service.MaxMediaBytes + maxGraphQLBodyBytes
 
 // GraphQLBoundary restricts methods, origin, body size, and authenticated multipart uploads.
 func GraphQLBoundary(allowedOrigin *url.URL, sessions *auth.SessionManager) func(http.Handler) http.Handler {
-	expectedOrigin := allowedOrigin.Scheme + "://" + allowedOrigin.Host
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			writer.Header().Set("Cache-Control", "private, no-store")
@@ -27,7 +26,8 @@ func GraphQLBoundary(allowedOrigin *url.URL, sessions *auth.SessionManager) func
 				http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
-			if request.Header.Get("Origin") != expectedOrigin {
+			origin := BrowserOrigin(allowedOrigin, request)
+			if origin == nil || len(request.Header.Values("Origin")) != 1 || request.Header.Get("Origin") != origin.String() {
 				http.Error(writer, "request origin is not allowed", http.StatusForbidden)
 				return
 			}

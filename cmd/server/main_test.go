@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/RevoTale/vikunja-better-ui/internal/config"
-	"github.com/RevoTale/vikunja-better-ui/internal/vikunja"
 )
 
 func TestHealthHandler(t *testing.T) {
@@ -104,6 +103,6 @@ type readinessStub struct {
 	err error
 }
 
-func (stub readinessStub) CurrentUser(context.Context) (vikunja.User, error) {
-	return vikunja.User{ID: 1, Username: "user"}, stub.err
+func (stub readinessStub) RequireSupportedVersion(context.Context) error {
+	return stub.err
 }

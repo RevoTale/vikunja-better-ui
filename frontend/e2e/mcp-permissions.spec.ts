@@ -1,9 +1,9 @@
 import { expect, test } from "@playwright/test";
-import { callMCP, fixtureEnv, nativeSession, rawMCP } from "./mcp-fixture";
+import { callMCP, fixtureEnv, rawMCP } from "./mcp-fixture";
 
 test("MCP preserves bot ownership and limited custom permissions", async ({ request }) => {
   const upstream = fixtureEnv("E2E_VIKUNJA_URL");
-  const session = await nativeSession(request);
+  const session = fixtureEnv("E2E_FIXTURE_SESSION");
   const headers = { Authorization: `Bearer ${session}` };
   const botResponse = await request.post(`${upstream}/api/v2/user/bots`, {
     headers,
@@ -60,7 +60,7 @@ test("MCP preserves bot ownership and limited custom permissions", async ({ requ
 });
 
 test("MCP rejects expired tokens without app-token fallback", async ({ request }) => {
-  const session = await nativeSession(request);
+  const session = fixtureEnv("E2E_FIXTURE_SESSION");
   const response = await request.post(`${fixtureEnv("E2E_VIKUNJA_URL")}/api/v2/tokens`, {
     headers: { Authorization: `Bearer ${session}` },
     data: {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -43,8 +44,6 @@ type Config struct {
 	VikunjaURL                   *url.URL
 	VikunjaPublicURL             *url.URL
 	VikunjaAPIToken              string
-	AuthUsername                 string
-	AuthPassword                 string
 	SessionSecret                []byte
 	HTTPAddr                     string
 	LogLevel                     LogLevel
@@ -96,8 +95,6 @@ func Load(lookup LookupFunc) (Config, error) {
 	configuration := Config{
 		VikunjaURL:      vikunjaURL,
 		VikunjaAPIToken: required(lookup, "APP_VIKUNJA_API_TOKEN"),
-		AuthUsername:    required(lookup, "APP_AUTH_USERNAME"),
-		AuthPassword:    required(lookup, "APP_AUTH_PASSWORD"),
 		SessionSecret:   sessionSecret,
 		HTTPAddr:        httpAddr,
 		LogLevel:        logLevel,
@@ -105,9 +102,6 @@ func Load(lookup LookupFunc) (Config, error) {
 		AllowedOrigin:   allowedOrigin,
 	}
 
-	if err := validateRequired(configuration); err != nil {
-		return Config{}, err
-	}
 	configuration.VikunjaPublicURL, err = parsePublicURL(lookup, environment, vikunjaURL)
 	if err != nil {
 		return Config{}, err
@@ -116,8 +110,15 @@ func Load(lookup LookupFunc) (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	if configuration.AllowedOrigin == nil {
+		configuration.AllowedOrigin = configuration.PublicURL
+	}
 	if err := loadFeatureFlags(&configuration, lookup); err != nil {
 		return Config{}, err
+	}
+	if (configuration.PublicActivityEnabled || configuration.PublicAllTimeActivityEnabled) &&
+		configuration.VikunjaAPIToken == "" {
+		return Config{}, errors.New("APP_VIKUNJA_API_TOKEN is required for anonymous activity")
 	}
 
 	return configuration, nil
@@ -129,10 +130,12 @@ func parseApplicationPublicURL(lookup LookupFunc, environment Environment) (*url
 		return nil, nil
 	}
 	parsed, err := url.Parse(value)
-	if err != nil || !parsed.IsAbs() || parsed.Host == "" || !isPublicOriginOnly(parsed) {
+	if err != nil || !parsed.IsAbs() || !validOriginHost(parsed) ||
+		!isPublicOriginOnly(parsed) || strings.Contains(value, "#") {
 		return nil, errors.New("APP_PUBLIC_URL must be an absolute HTTP(S) origin")
 	}
 	parsed.Path = ""
+	normalizeOrigin(parsed)
 	if parsed.Scheme == httpsScheme {
 		return parsed, nil
 	}
@@ -144,7 +147,7 @@ func parseApplicationPublicURL(lookup LookupFunc, environment Environment) (*url
 
 func isPublicOriginOnly(parsed *url.URL) bool {
 	return parsed.User == nil && (parsed.Path == "" || parsed.Path == "/") && parsed.RawPath == "" &&
-		parsed.RawQuery == "" && parsed.Fragment == ""
+		!parsed.ForceQuery && parsed.RawQuery == "" && parsed.Fragment == ""
 }
 
 func isLoopbackHost(host string) bool {
@@ -242,25 +245,6 @@ func valueOrDefault(lookup LookupFunc, name string, fallback string) string {
 	return value
 }
 
-func validateRequired(configuration Config) error {
-	requiredValues := []struct {
-		name  string
-		value string
-	}{
-		{name: "APP_VIKUNJA_API_TOKEN", value: configuration.VikunjaAPIToken},
-		{name: "APP_AUTH_USERNAME", value: configuration.AuthUsername},
-		{name: "APP_AUTH_PASSWORD", value: configuration.AuthPassword},
-	}
-
-	for _, item := range requiredValues {
-		if item.value == "" {
-			return fmt.Errorf("%s is required", item.name)
-		}
-	}
-
-	return nil
-}
-
 func parseEnvironment(value string) (Environment, error) {
 	environment := Environment(value)
 	switch environment {
@@ -313,7 +297,7 @@ func parseAllowedOrigin(lookup LookupFunc, environment Environment) (*url.URL, e
 		value = "http://localhost:5173"
 	}
 	if value == "" {
-		return nil, errors.New("APP_ALLOWED_ORIGIN is required outside development")
+		return nil, nil
 	}
 
 	parsed, err := url.Parse(value)
@@ -323,14 +307,30 @@ func parseAllowedOrigin(lookup LookupFunc, environment Environment) (*url.URL, e
 	if parsed.Scheme != httpScheme && parsed.Scheme != httpsScheme {
 		return nil, errors.New("APP_ALLOWED_ORIGIN must be an HTTP(S) origin")
 	}
-	if environment == EnvironmentProduction && parsed.Scheme != httpsScheme {
-		return nil, errors.New("APP_ALLOWED_ORIGIN must use HTTPS in production")
-	}
-	if !isOriginOnly(parsed) {
+	if !isOriginOnly(parsed) || !validOriginHost(parsed) || parsed.ForceQuery || strings.Contains(value, "#") {
 		return nil, errors.New("APP_ALLOWED_ORIGIN must contain only an origin")
 	}
-
+	normalizeOrigin(parsed)
 	return parsed, nil
+}
+
+func normalizeOrigin(parsed *url.URL) {
+	parsed.Host = strings.ToLower(parsed.Host)
+	if (parsed.Scheme == httpScheme && parsed.Port() == "80") ||
+		(parsed.Scheme == httpsScheme && parsed.Port() == "443") {
+		parsed.Host = strings.TrimSuffix(parsed.Host, ":"+parsed.Port())
+	}
+}
+
+func validOriginHost(parsed *url.URL) bool {
+	if parsed.Hostname() == "" || strings.HasSuffix(parsed.Host, ":") {
+		return false
+	}
+	if port := parsed.Port(); port != "" {
+		value, err := strconv.ParseUint(port, 10, 16)
+		return err == nil && value > 0
+	}
+	return true
 }
 
 func isOriginOnly(parsed *url.URL) bool {

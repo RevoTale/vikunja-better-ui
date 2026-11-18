@@ -42,9 +42,7 @@ func (resolver *Resolver) taskContext(ctx context.Context) (vikunja.User, []viku
 	}
 	if metadata.projectsErr != nil {
 		resolver.logError("read Vikunja projects for tasks", metadata.projectsErr)
-		return vikunja.User{}, nil, nil, clientError(
-			"UPSTREAM_UNAVAILABLE", "Vikunja projects could not be loaded.",
-		)
+		return vikunja.User{}, nil, nil, upstreamClientError(metadata.projectsErr, "Vikunja projects could not be loaded.")
 	}
 	return metadata.user, metadata.projects, location, nil
 }
@@ -52,7 +50,7 @@ func (resolver *Resolver) taskContext(ctx context.Context) (vikunja.User, []viku
 func (resolver *Resolver) taskLocation(user vikunja.User, userErr error) (*time.Location, error) {
 	if userErr != nil {
 		resolver.logError("read Vikunja user for tasks", userErr)
-		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja is unavailable.")
+		return nil, upstreamClientError(userErr, "Vikunja is unavailable.")
 	}
 	location, err := time.LoadLocation(user.Settings.Timezone)
 	if err != nil || user.Settings.Timezone == "" {
@@ -69,7 +67,7 @@ func (resolver *Resolver) waitForTaskProjects(
 	projects, err := projectsRead.Wait()
 	if err != nil {
 		resolver.logError("read Vikunja projects for tasks", err)
-		return nil, clientError("UPSTREAM_UNAVAILABLE", "Vikunja projects could not be loaded.")
+		return nil, upstreamClientError(err, "Vikunja projects could not be loaded.")
 	}
 	return projects, nil
 }
@@ -272,10 +270,15 @@ func isUpstreamStatus(err error, status int) bool {
 }
 
 func upstreamClientError(err error, fallback string) error {
-	if isUpstreamStatus(err, http.StatusPreconditionFailed) {
-		return clientError("CONFLICT", "The task changed. Refresh and try again.")
-	}
-	if _, ok := errors.AsType[*vikunja.Error](err); ok {
+	if upstream, ok := errors.AsType[*vikunja.Error](err); ok {
+		switch upstream.Status {
+		case http.StatusUnauthorized:
+			return clientError("UNAUTHENTICATED", "Your Vikunja token was rejected. Sign in with a valid token.")
+		case http.StatusForbidden:
+			return clientError("FORBIDDEN", "Your Vikunja token does not permit this action.")
+		case http.StatusPreconditionFailed:
+			return clientError("CONFLICT", "The task changed. Refresh and try again.")
+		}
 		return clientError("UPSTREAM_REJECTED", fallback)
 	}
 	return clientError("UPSTREAM_UNAVAILABLE", fallback)

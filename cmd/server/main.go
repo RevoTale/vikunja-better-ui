@@ -14,8 +14,6 @@ import (
 
 	"github.com/RevoTale/vikunja-better-ui/internal/auth"
 	"github.com/RevoTale/vikunja-better-ui/internal/config"
-	graphqlserver "github.com/RevoTale/vikunja-better-ui/internal/graphql"
-	"github.com/RevoTale/vikunja-better-ui/internal/graphql/resolver"
 	"github.com/RevoTale/vikunja-better-ui/internal/integration"
 	mcpserver "github.com/RevoTale/vikunja-better-ui/internal/mcp"
 	"github.com/RevoTale/vikunja-better-ui/internal/service"
@@ -45,63 +43,55 @@ func main() {
 }
 
 func run(configuration config.Config, logger *slog.Logger) error {
-	now := time.Now
-	production := configuration.Environment == config.EnvironmentProduction
-	vikunjaClient := vikunja.NewClient(configuration.VikunjaURL, configuration.VikunjaAPIToken,
-		vikunja.WithLogger(logger), vikunja.WithPublicURL(configuration.VikunjaPublicURL),
-	)
-	if err := vikunjaClient.RequireSupportedVersion(context.Background()); err != nil {
+	client := vikunja.NewClient(configuration.VikunjaURL, "", vikunja.WithLogger(logger),
+		vikunja.WithPublicURL(configuration.VikunjaPublicURL))
+	if err := client.RequireSupportedVersion(context.Background()); err != nil {
 		return err
 	}
-	sessions := auth.NewSessionManager(configuration.SessionSecret, now, rand.Reader)
-	cookies := auth.NewSessionCookies(production)
-	capabilities := service.NewCapabilityManager(configuration.SessionSecret, now)
-	activity := service.NewPublicActivity(vikunjaClient, now)
-	allTimeActivity := service.NewPublicAllTimeActivity(vikunjaClient, now)
-	currentActivity := service.NewCurrentActivity(vikunjaClient, now)
-	currentAllTimeActivity := service.NewCurrentAllTimeActivity(vikunjaClient, now)
-	root := resolver.New(resolver.Dependencies{
-		Use12HourTime: configuration.Use12HourTime,
-		Credentials:   auth.NewCredentials(configuration.AuthUsername, configuration.AuthPassword),
-		Sessions:      sessions, Cookies: cookies, Limiter: auth.NewLoginLimiter(now),
-		Users: vikunjaClient, Projects: vikunjaClient, Tasks: vikunjaClient, Comments: vikunjaClient,
-		Attachments: vikunjaClient,
-		Avatars:     vikunjaClient,
-		Relations:   vikunjaClient,
-		ReferencePolicy: service.TaskReferencePolicy{
-			BetterUI: configuration.AllowedOrigin, Vikunja: configuration.VikunjaPublicURL,
-		},
-		Capabilities: capabilities, Logger: logger, Now: now,
-		Activity: currentActivity, AllTimeActivity: currentAllTimeActivity,
-	})
+	sessions, err := auth.NewSessionManager(configuration.SessionSecret, time.Now, rand.Reader)
+	if err != nil {
+		return err
+	}
+	routes := applicationRoutes(configuration, logger, client, sessions, time.Now)
+	hsts := configuration.Environment == config.EnvironmentProduction &&
+		configuration.AllowedOrigin != nil && configuration.AllowedOrigin.Scheme == "https"
+	return serve(newHTTPServer(configuration.HTTPAddr, hsts, routes), logger)
+}
+
+func applicationRoutes(
+	configuration config.Config, logger *slog.Logger, client *vikunja.Client,
+	sessions *auth.SessionManager, now func() time.Time,
+) http.Handler {
 	mux := http.NewServeMux()
 	registerTokenIntegrations(mux, configuration, logger, now)
-	graphQL := graphqlserver.NewHandler(root, production, logger)
-	mux.Handle(
-		"/graphql",
-		auth.HTTPContext(sessions, cookies)(web.GraphQLBoundary(configuration.AllowedOrigin, sessions)(graphQL)),
-	)
-	mux.Handle(
-		"GET /media/tasks/{task}/attachments/{attachment}",
-		auth.HTTPContext(sessions, cookies)(web.NewTaskMediaHandler(vikunjaClient, logger)),
-	)
-	mux.Handle("/public/v1/", web.NewPublicActivityAPI(
-		activity, allTimeActivity, configuration.PublicActivityEnabled,
-		configuration.PublicAllTimeActivityEnabled, now,
-	))
-	mux.HandleFunc("/healthz", healthHandler)
-	mux.Handle("/readyz", readinessHandler(vikunjaClient, logger))
-	spa := web.SPAHandler()
-	publicPages := web.NewPublicPages(web.PublicPageOptions{
-		PublicURL:       configuration.PublicURL,
-		ActivityEnabled: configuration.PublicActivityEnabled,
-		AllTimeEnabled:  configuration.PublicAllTimeActivityEnabled,
-		Activity:        activity, AllTime: allTimeActivity, PrivateFallback: spa, Now: now,
+	browserSession := auth.HTTPContext(sessions, func(r *http.Request) string {
+		if origin := web.BrowserOrigin(configuration.AllowedOrigin, r); origin != nil {
+			return origin.String()
+		}
+		return ""
 	})
-	privatePages := auth.HTTPContext(sessions, cookies)(publicPages)
-	registerPublicRoutes(mux, publicPages, privatePages, spa, configuration)
-	server := newHTTPServer(configuration.HTTPAddr, production, mux)
-	return serve(server, logger)
+	graphQL := browserGraphQL(configuration, logger, client, sessions, now)
+	mux.Handle("/graphql", browserSession(web.GraphQLBoundary(configuration.AllowedOrigin, sessions)(graphQL)))
+	mux.Handle("GET /media/tasks/{task}/attachments/{attachment}", browserSession(http.HandlerFunc(
+		func(w http.ResponseWriter, r *http.Request) {
+			session, _ := auth.SessionFromContext(r.Context())
+			web.NewTaskMediaHandler(client.ForBrowserToken(session.VikunjaToken()), logger).ServeHTTP(w, r)
+		})))
+	publicClient := client.ForToken(configuration.VikunjaAPIToken)
+	activity := service.NewPublicActivity(publicClient, now)
+	allTime := service.NewPublicAllTimeActivity(publicClient, now)
+	mux.Handle("/public/v1/", web.NewPublicActivityAPI(activity, allTime,
+		configuration.PublicActivityEnabled, configuration.PublicAllTimeActivityEnabled, now))
+	mux.HandleFunc("/healthz", healthHandler)
+	mux.Handle("/readyz", readinessHandler(client, logger))
+	spa := web.SPAHandler()
+	pages := web.NewPublicPages(web.PublicPageOptions{
+		PublicURL: configuration.PublicURL, ActivityEnabled: configuration.PublicActivityEnabled,
+		AllTimeEnabled: configuration.PublicAllTimeActivityEnabled, Activity: activity, AllTime: allTime,
+		PrivateFallback: spa, Now: now,
+	})
+	registerPublicRoutes(mux, pages, browserSession(pages), spa, configuration)
+	return mux
 }
 
 func registerTokenIntegrations(
@@ -142,9 +132,9 @@ func choosePublicRoute(enabled bool, public, private http.Handler) http.Handler 
 	return private
 }
 
-func newHTTPServer(address string, production bool, handler http.Handler) *http.Server {
+func newHTTPServer(address string, hsts bool, handler http.Handler) *http.Server {
 	return &http.Server{
-		Addr: address, Handler: web.SecurityHeaders(production)(handler),
+		Addr: address, Handler: web.SecurityHeaders(hsts)(handler),
 		ReadHeaderTimeout: serverReadHeaderTimeout, ReadTimeout: serverReadTimeout,
 		WriteTimeout: serverWriteTimeout, IdleTimeout: serverIdleTimeout,
 	}
@@ -182,7 +172,7 @@ func healthHandler(writer http.ResponseWriter, request *http.Request) {
 }
 
 type readinessClient interface {
-	CurrentUser(context.Context) (vikunja.User, error)
+	RequireSupportedVersion(context.Context) error
 }
 
 func readinessHandler(client readinessClient, logger *slog.Logger) http.Handler {
@@ -196,7 +186,7 @@ func readinessHandler(client readinessClient, logger *slog.Logger) http.Handler 
 		}
 		ctx, cancel := context.WithTimeout(request.Context(), readinessTimeout)
 		defer cancel()
-		if _, err := client.CurrentUser(ctx); err != nil {
+		if err := client.RequireSupportedVersion(ctx); err != nil {
 			logger.Warn("readiness check failed", "cause", err)
 			http.Error(writer, "not ready", http.StatusServiceUnavailable)
 			return

@@ -6,7 +6,12 @@ import {
   PublicAllTimeActivityDocument,
   type PublicAllTimeActivityQuery,
 } from "@/graphql/graphql";
-import type { ActivityValueSource, ActivityView, AllTimeActivityView } from "./activity-view-model";
+import {
+  type ActivityValueSource,
+  type ActivityView,
+  type AllTimeActivityView,
+  visibleActivity,
+} from "./activity-view-model";
 import {
   type ActivitySnapshot,
   type AllTimeActivitySnapshot,
@@ -22,6 +27,7 @@ export type ActivitySource<T = ActivityView> = {
   loading: boolean;
   updating: boolean;
   error: boolean;
+  denied: boolean;
   authenticated: boolean;
   reload: () => void;
 };
@@ -56,13 +62,15 @@ export function useActivitySource(): ActivitySource<ActivityView> {
     if (authenticated) void current.refetch().catch(() => undefined);
     else setPublicReload((value) => value + 1);
   }, [authenticated, current.refetch, session.refetch]);
-  const authenticatedValue = current.data?.publicActivity ?? null;
-  const value = authenticatedValue ?? publicValue;
+  const selected = visibleActivity(
+    publicValue,
+    current.data?.publicActivity,
+    authenticated,
+    current,
+  );
   return {
-    value,
-    valueSource: authenticatedValue ? "private" : publicValue ? "public" : null,
-    loading: authenticated ? current.loading && !publicValue : publicLoading || session.loading,
-    updating: authenticated && current.loading && value !== null,
+    ...selected,
+    loading: authenticated ? current.loading && !selected.value : publicLoading || session.loading,
     error: authenticated ? Boolean(current.error) : publicError || Boolean(session.error),
     authenticated,
     reload,
@@ -95,19 +103,20 @@ export function useAllTimeActivitySource(): ActivitySource<AllTimeActivityView> 
     setPublicError,
   );
   const authenticatedValue = current.data?.publicAllTimeActivity;
-  const value = authenticatedValue
-    ? allTimeGraphQLView(authenticatedValue)
-    : publicAllTimeView(publicValue);
+  const selected = visibleActivity(
+    publicAllTimeView(publicValue),
+    authenticatedValue ? allTimeGraphQLView(authenticatedValue) : null,
+    authenticated,
+    current,
+  );
   const reload = useCallback(() => {
     void session.refetch().catch(() => undefined);
     if (authenticated) void current.refetch().catch(() => undefined);
     else setPublicReload((count) => count + 1);
   }, [authenticated, current.refetch, session.refetch]);
   return {
-    value,
-    valueSource: authenticatedValue ? "private" : publicValue ? "public" : null,
-    loading: authenticated ? current.loading && !publicValue : publicLoading || session.loading,
-    updating: authenticated && current.loading && value !== null,
+    ...selected,
+    loading: authenticated ? current.loading && !selected.value : publicLoading || session.loading,
     error: authenticated ? Boolean(current.error) : publicError || Boolean(session.error),
     authenticated,
     reload,
@@ -134,20 +143,25 @@ function usePublicSnapshotRequest<T>(
       handledReload.current === reload
     )
       return;
-    handledReload.current = reload;
     const controller = new AbortController();
     setLoading(true);
     setError(false);
     requestPublicSnapshot(path, parser, (input, init) =>
       fetch(input, { ...init, signal: controller.signal }),
-    )
-      .then(setValue)
-      .catch(() => {
-        if (!controller.signal.aborted) setError(true);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
+    ).then(
+      (snapshot) => {
+        if (controller.signal.aborted) return;
+        handledReload.current = reload;
+        setLoading(false);
+        setValue(snapshot);
+      },
+      () => {
+        if (controller.signal.aborted) return;
+        handledReload.current = reload;
+        setLoading(false);
+        setError(true);
+      },
+    );
     return () => controller.abort();
   }, [authenticated, parser, path, reload, sessionLoading, setError, setLoading, setValue, value]);
 }

@@ -7,6 +7,9 @@ predictably without making me repeat Vikunja's full setup flow. The app also
 keeps Today, Jobs, tasks without deadlines, and recent history close at hand.
 It is deliberately not another general project-management system.
 
+Browse the [documentation and decision index](docs/README.md) or the
+[architecture and access map](docs/architecture.md).
+
 ## AI-made only
 
 This repository is made only through AI agents.
@@ -390,25 +393,26 @@ Anonymous activity UI -> fixed Go public snapshot GET -> Vikunja REST API v2
 The Go server embeds the static Vite build. Frontend source, metadata, and the
 lockfile stay in Git; `internal/web/assets/dist` is an ignored build artifact
 created before Go compilation by Task, CI, and the Docker frontend stage. The
-authenticated browser workflows use GraphQL and never receive or call Vikunja
-with its API token. The accepted anonymous activity boundary uses two fixed,
+authenticated browser workflows use same-origin GraphQL. The user supplies a
+personal token once at sign-in. Only Go calls Vikunja. The accepted anonymous activity boundary uses two fixed,
 parameter-free REST snapshots so a reverse proxy or CDN can reuse the same
 aggregate across visitors. See
 [ADR-008](docs/decisions/0008-public-activity-http-cache.md). Signed-in activity
 uses fresh private GraphQL reads; anonymous activity uses the fixed public GETs.
 
-Authentication has two separate boundaries:
-
-1. A person signs in to this app with `APP_AUTH_USERNAME` and
-   `APP_AUTH_PASSWORD`.
-2. The Go backend accesses Vikunja with `APP_VIKUNJA_API_TOKEN`.
+Open Better UI through your browser or home-screen shortcut. Sign in with a
+personal Vikunja API token from **Settings → API Tokens**. Go verifies the
+profile and uses that token for every private operation, including attachment
+downloads. Two people on the same server see their own projects and can make
+only the changes permitted by their token and project access.
+[Login, WireGuard and migration](docs/specs/personal-token-login.md)
 
 A separate read-only integration endpoint accepts a caller-provided Vikunja
 API token for server-to-server dashboards. It never exposes browser mutations
 or replaces the app session boundary. See
 [ADR-004](docs/decisions/0004-read-only-jobs-integration.md).
 
-The app is stateless. It uses a signed, expiring, HTTP-only session cookie and
+The app is stateless. It uses an encrypted, expiring HttpOnly session cookie and
 stores tasks, recurrence metadata, and history only in Vikunja. The exact
 recurring-history design is documented in
 [ADR-001](docs/decisions/0001-recurring-history-snapshots.md).
@@ -465,26 +469,27 @@ a canonical public origin.
 
 ### Home-screen installation and offline launch
 
-Install Better Vikunja from your browser (on iOS, Share → Add to Home Screen).
+Open Better UI over HTTP or HTTPS. When the browser offers installation, use its install or Add to Home Screen action.
 It opens on Today with platform-specific icons and safe-area-aware navigation.
-A production service worker caches only the interface and static build files
+On a secure browser origin, a production service worker caches only the interface and static build files
 for faster repeat loads. Offline launch shows a connection message and Retry;
 tasks, sessions, attachments and mutations are never cached or queued.
 Downloaded updates wait until existing app tabs close, preserving open editors.
-See [PWA behavior and limitations](docs/pwa.md).
+A private HTTP IP supports online workflows over WireGuard. Browser support for installation varies and offline launch requires a secure context. See [PWA behavior and limitations](docs/pwa.md).
 
 ## Configuration
 
 Copy `.env.example` to a local, ignored `.env` file and replace every example
 secret.
 
+For a private installation, see the [WireGuard IP example](docs/architecture.md#operating-over-wireguard).
+See the [token login configuration](docs/specs/personal-token-login.md#deployment-configuration) for migration and origin selection.
+
 | Variable | Required | Meaning |
 | --- | --- | --- |
 | `APP_VIKUNJA_URL` | Yes | Backend transport base URL. HTTP is supported on trusted internal networks, including production; use HTTPS across untrusted networks. |
 | `APP_VIKUNJA_PUBLIC_URL` | With HTTP transport in production | Public native Vikunja base URL, including its base path, for task references and stored image URLs. Defaults to `APP_VIKUNJA_URL`. HTTPS is required in production. |
-| `APP_VIKUNJA_API_TOKEN` | Yes | Vikunja token used only by the Go backend. |
-| `APP_AUTH_USERNAME` | Yes | Username accepted by this app. |
-| `APP_AUTH_PASSWORD` | Yes | Password accepted by this app. |
+| `APP_VIKUNJA_API_TOKEN` | For anonymous activity | Dedicated read-only token for enabled public activity snapshots. Private reads, writes and downloads use the signed-in user's token. |
 | `APP_SESSION_SECRET` | Yes | Base64 value decoding to at least 32 random bytes. |
 | `APP_HTTP_ADDR` | No | Listen address; defaults to `:8080`. |
 | `APP_LOG_LEVEL` | No | `debug`, `info`, `warn`, or `error`; defaults to `info`. |
@@ -495,9 +500,9 @@ secret.
 | `APP_PUBLIC_ACTIVITY_ENABLED` | No | `true` enables anonymous `/activity`; `false` (default) still allows signed-in users. |
 | `PUBLIC_ALL_TIME_ACTIVITY` | No | `true` independently enables anonymous `/all-time-activity`; `false` (default) still allows signed-in users. This intentionally uses the requested unprefixed name. |
 | `APP_ENV` | No | `development`, `test`, or `production`; defaults to `production`. |
-| `APP_ALLOWED_ORIGIN` | Production/test | Exact public app origin used for CSRF checks. Development defaults to `http://localhost:5173`. |
+| `APP_ALLOWED_ORIGIN` | For proxies, DNS names or port translations without a configured canonical origin | Browser-facing origin, e.g. `http://10.77.0.20:8080` over WireGuard or `https://tasks.example.com`. When omitted, production uses an explicit `APP_PUBLIC_URL` or the directly contacted private/loopback socket IP and port. Development defaults to `http://localhost:5173`. |
 
-Use a dedicated Vikunja API token with these permissions:
+Choose permissions for each user's token according to the features they use:
 
 | Permission group | Actions |
 | --- | --- |
@@ -511,11 +516,11 @@ Use a dedicated Vikunja API token with these permissions:
 | `tasks_attachments` (Discussion media) | `create`, `read_all`, `read_one` |
 | `tasks_relations` (subtasks and related tasks) | `create`, `delete` |
 
-This is the minimum permission set exercised by the app's end-to-end tests.
-Missing permissions can make login or task operations fail because the backend
-validates the token by reading the current Vikunja user immediately after app
-authentication. Store the generated token value as `APP_VIKUNJA_API_TOKEN`.
-Do not use the app username or password to authenticate with Vikunja.
+Login checks the current profile with `other:user`. Read-only users can omit
+write permissions. To revoke access, revoke that token in Vikunja. Separate
+tokens for a phone and laptop allow independent revocation. During upgrade,
+users with old shared-login cookies must sign in once with a personal token.
+Keep `APP_SESSION_SECRET` stable across redeploys and replicas.
 
 ### Mobile layout and creation drafts
 
@@ -679,7 +684,8 @@ an error rather than silently returning a partial successful result.
 
 Saving a description or comment through Better UI adds **Related tasks** for new
 task references. Both HTML links and visible plain URLs are recognized. Better UI
-trusts `APP_ALLOWED_ORIGIN` and `APP_VIKUNJA_PUBLIC_URL` (or `APP_VIKUNJA_URL`),
+trusts the verified browser origin described under Configuration and the native
+origin from `APP_VIKUNJA_PUBLIC_URL` (or `APP_VIKUNJA_URL`),
 including the configured native base path. Supported paths are `/tasks/{id}`,
 Better UI's `/discussion` and `/edit` suffixes, and relative `/tasks/{id}` links.
 Queries and fragments do not change the target. External origins, self-links,
@@ -872,7 +878,8 @@ API requests, uploads and image downloads use the internal address. Stored image
 references use the public address so the native Vikunja editor can recognize them.
 Better UI browsers fetch images through its authenticated same-origin media endpoint.
 Existing public image references continue to work without rewriting stored content.
-Keep `APP_ENV=production`; public HTTPS and secure session cookie requirements remain.
+Keep `APP_ENV=production`. The native Vikunja image address and the browser-facing
+Better UI origin are separate settings.
 
 Drafts stay in this browser, separately for each Vikunja user, task and edited
 comment. **Restore draft** is explicit and disabled once you start editing.
@@ -894,8 +901,7 @@ comments while you browse.
 The authenticated GraphQL API exposes `taskComments(taskId, page, pageSize,
 order)`, `taskComment(taskId, commentId)` and `createTaskComment`,
 `updateTaskComment`, `deleteTaskComment`.
-Mutation inputs require the existing CSRF token. Comment authors are the
-Vikunja token owner; the app login name does not change authorship.
+Mutation inputs require the existing CSRF token. Vikunja attributes a comment to the owner of the signing user's token.
 
 Media adds `taskAttachments(taskId, page)` and `uploadTaskMedia(input)` with an
 `Upload` scalar. Send uploads as GraphQL multipart requests with the existing
@@ -1191,12 +1197,8 @@ Run this inside the Dev Container:
 task demo
 ```
 
-Open <http://localhost:4180> and sign in with:
-
-```text
-Username: app-user
-Password: app-password-strong
-```
+Open <http://localhost:4180>. The harness prints the path to a private, temporary
+file containing the demo login token. Enter it in **Vikunja API token**.
 
 The command builds the frontend and Go server, starts an isolated Vikunja 2.8.0
 instance, creates deterministic fixtures and a scoped API token, and serves the
@@ -1235,10 +1237,13 @@ container's health, embedded frontend and non-root user. Probes run inside the
 containers; no host ports are published. Temporary containers and the network
 are removed on completion.
 
-To run a built image, pass the variables above and publish port 8080:
+For a WireGuard-only installation, bind the port to the server’s WireGuard IP.
+Set `APP_ALLOWED_ORIGIN=http://10.77.0.20:8080` in the local env file for
+this example. The smoke task tags the image built from your checkout. When
+deploying from a registry, select a release that includes personal-token login.
 
 ```sh
-docker run --rm -p 8080:8080 --env-file .env ghcr.io/revotale/vikunja-better-ui:latest
+docker run --rm -p 10.77.0.20:8080:8080 --env-file .env vikunja-better-ui:smoke
 ```
 
 The runtime image contains CA certificates and timezone data and runs as a

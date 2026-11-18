@@ -216,13 +216,13 @@ type Label struct {
 	Title string `json:"title"`
 }
 
-// Configured Better UI login credentials; never use a Vikunja password here.
+// A personal API token issued by the configured Vikunja instance. The owner must allow profile reads.
 type LoginInput struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
+	// The tk_ API token. It is verified against Vikunja and carried in an encrypted, origin-bound browser cookie.
+	Token string `json:"token"`
 }
 
-// Result of Better UI login, not a Vikunja token issuance or login.
+// The browser session created after Vikunja verifies the submitted API token.
 type LoginPayload struct {
 	Session *Session `json:"session"`
 }
@@ -246,7 +246,7 @@ type PlanningWindowInput struct {
 	EndsOn     LocalDate  `json:"endsOn"`
 }
 
-// A project visible to the configured upstream credential. Visibility does not itself grant every write permission.
+// A project visible to the signed-in token owner. Each write must also be permitted by the token.
 type Project struct {
 	ID        string `json:"id"`
 	Title     string `json:"title"`
@@ -326,7 +326,7 @@ type RepairTaskReferencesInput struct {
 	TargetIds []string `json:"targetIds"`
 }
 
-// Better UI cookie-session state. This is separate from the backend's Vikunja API credential.
+// State of the personal-token browser session. The upstream credential is never returned.
 type Session struct {
 	Use12HourTime bool         `json:"use12HourTime"`
 	Authenticated bool         `json:"authenticated"`
@@ -584,7 +584,7 @@ type UploadTaskMediaInput struct {
 	File      graphql.Upload `json:"file"`
 }
 
-// The upstream token owner's profile and calendar preferences; not the Better UI login identity.
+// The signed-in token owner's Vikunja profile and calendar preferences.
 type VikunjaUser struct {
 	ID               string  `json:"id"`
 	Username         string  `json:"username"`

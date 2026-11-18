@@ -1,5 +1,5 @@
-import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
-import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import { useMutation, useQuery } from "@apollo/client/react";
+import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import { CalendarDays, CheckCircle2, Layers, LogOut, Menu, Plus } from "lucide-react";
 import { useState } from "react";
 
@@ -15,9 +15,10 @@ import { createActionForPath } from "@/features/tasks/create-action";
 import { creationContext } from "@/features/tasks/creation-context";
 import { useActionableCount } from "@/features/tasks/use-actionable-count";
 import { LogoutDocument, SessionDocument } from "@/graphql/graphql";
-import { setCSRFToken } from "@/lib/apollo";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import { cn } from "@/lib/utils";
+import { finishSessionChange } from "./session-change";
+import { currentCSRFToken } from "./session-link";
 
 const navigation = [
   { to: "/today", label: "Today", mobileLabel: "Today", icon: CheckCircle2 },
@@ -29,8 +30,6 @@ const navigation = [
 const morePaths = new Set(["/more", "/recurring", "/jobs", "/unscheduled", "/history", "/plan"]);
 
 export function AppShell() {
-  const apollo = useApolloClient();
-  const navigate = useNavigate();
   const location = useLocation();
   const actionableCount = useActionableCount();
   const { data, loading: sessionLoading, error: sessionError } = useQuery(SessionDocument);
@@ -39,7 +38,7 @@ export function AppShell() {
 
   async function signOut() {
     setSignOutError("");
-    const csrfToken = data?.session.csrfToken;
+    const csrfToken = currentCSRFToken();
     if (!csrfToken) {
       setSignOutError(
         graphQLErrorMessage(sessionError, "Your session is unavailable. Refresh the page."),
@@ -56,19 +55,28 @@ export function AppShell() {
       setSignOutError(graphQLErrorMessage(caught, "Sign-out failed. Try again."));
       return;
     }
-    setCSRFToken(undefined);
-    try {
-      await apollo.clearStore();
-      await navigate({ to: "/login", search: { returnTo: "/today" }, replace: true });
-    } catch {
-      setSignOutError(
-        "You are signed out, but the login page could not be opened. Refresh the page.",
-      );
-    }
+    finishSessionChange("/login?returnTo=%2Ftoday");
   }
 
   const returnTo = `${location.pathname}${location.searchStr}`;
   const createAction = createActionForPath(location.pathname);
+  const signOutControls = (
+    <div className="grid gap-2">
+      <Button
+        variant="ghost"
+        className="min-h-11 justify-start"
+        onClick={signOut}
+        disabled={loading}
+      >
+        <LogOut /> Sign out
+      </Button>
+      {signOutError ? (
+        <p className="text-sm text-destructive" role="alert">
+          {signOutError}
+        </p>
+      ) : null}
+    </div>
+  );
 
   return (
     <div className="min-h-svh bg-background lg:grid lg:grid-cols-[15rem_1fr]">
@@ -84,20 +92,11 @@ export function AppShell() {
             />
           ))}
         </nav>
-        <div className="mt-auto grid gap-2">
-          <Button variant="ghost" className="justify-start" onClick={signOut} disabled={loading}>
-            <LogOut /> Sign out
-          </Button>
-          {signOutError ? (
-            <p className="text-sm text-destructive" role="alert">
-              {signOutError}
-            </p>
-          ) : null}
-        </div>
+        <div className="mt-auto">{signOutControls}</div>
       </aside>
       <div className="min-w-0 pb-[calc(5rem+env(safe-area-inset-bottom))] lg:pb-0">
         <header className="app-safe-header sticky top-0 z-10 flex min-h-16 items-center justify-between border-b bg-background/95 px-4 backdrop-blur lg:px-8">
-          <div className="lg:hidden">
+          <div className="min-w-0 flex-1 lg:hidden">
             <Brand timezone={data?.session.vikunjaUser?.timezone} loading={sessionLoading} />
           </div>
           <p className="hidden text-sm text-muted-foreground sm:block">
@@ -120,6 +119,9 @@ export function AppShell() {
         </header>
         <main className="app-safe-content mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
           <Outlet />
+          {location.pathname === "/more" ? (
+            <div className="mx-auto mt-5 max-w-3xl border-t pt-2 lg:hidden">{signOutControls}</div>
+          ) : null}
         </main>
       </div>
       <nav
@@ -145,22 +147,22 @@ function Brand({ timezone, loading }: { timezone: string | undefined; loading: b
     <Link
       to="/today"
       search={{ project: "all", page: 1 }}
-      className="flex w-fit items-center gap-2.5 rounded-sm leading-tight outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+      className="flex w-full items-center gap-2.5 rounded-sm leading-tight outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <BrandMark className="size-8" />
-      <span>
+      <BrandMark className="size-8 shrink-0" />
+      <span className="min-w-0">
         <span className="block font-serif text-lg font-semibold tracking-tight">
           Better Vikunja
         </span>
         <span
           data-slot="timezone"
-          className="mt-0.5 block min-h-4 text-[0.65rem] leading-4 text-muted-foreground"
+          className="mt-0.5 block min-h-4 wrap-anywhere text-[0.65rem] leading-4 text-muted-foreground"
         >
           {timezone ? (
             `Timezone ${timezone}`
           ) : loading ? (
             <span role="status" aria-label="Loading timezone" className="block py-0.5">
-              <LoadingPlaceholder className="h-3 w-32" />
+              <LoadingPlaceholder className="h-3 w-32 max-w-full" />
             </span>
           ) : (
             "Timezone unavailable"

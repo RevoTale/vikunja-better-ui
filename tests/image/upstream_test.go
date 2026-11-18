@@ -46,19 +46,23 @@ func TestProbeRequiresHealthyAppAndEmbeddedFrontend(t *testing.T) {
 	t.Parallel()
 	const assets = `<script type="module" src="/assets/main.js"></script>`
 	for _, scenario := range []struct {
-		health, page string
-		valid        bool
+		health, ready, page string
+		valid               bool
 	}{
-		{"ok\n", assets + `<div id="root"></div>`, true},
-		{"ok\n", assets + `<div id="root"><main>Landing page</main></div>`, true},
-		{"ok\n", `<div id="root"></div>`, false},
-		{"bad", assets + `<div id="root"></div>`, false},
-		{"ok\n", "missing frontend", false},
+		{"ok\n", "ready\n", assets + `<div id="root"></div>`, true},
+		{"ok\n", "ready\n", assets + `<div id="root"><main>Landing page</main></div>`, true},
+		{"ok\n", "ready\n", `<div id="root"></div>`, false},
+		{"bad", "ready\n", assets + `<div id="root"></div>`, false},
+		{"ok\n", "unavailable", assets + `<div id="root"></div>`, false},
+		{"ok\n", "ready\n", "missing frontend", false},
 	} {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			body := scenario.page
-			if r.URL.Path == "/healthz" {
+			switch r.URL.Path {
+			case "/healthz":
 				body = scenario.health
+			case "/readyz":
+				body = scenario.ready
 			}
 			_, _ = w.Write([]byte(body))
 		}))

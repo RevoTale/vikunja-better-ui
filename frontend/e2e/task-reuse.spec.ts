@@ -1,12 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
+import { submitToken } from "./app-actions";
 import { openTaskLabels } from "./app-layout";
 import { discussionGraphQL } from "./discussion-fixture";
 
 test("task labels support explicit reuse without overwriting typed fields", async ({ page }) => {
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL(/\/today/);
   const { session } = await discussionGraphQL<{ session: { csrfToken: string } }>(
     page,
@@ -57,9 +56,7 @@ test("task labels support explicit reuse without overwriting typed fields", asyn
 
 test("task reuse late responses never change input", async ({ page }) => {
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL(/\/today/);
   let release: (() => void) | undefined;
   const gate = new Promise<void>((resolve) => {
@@ -98,9 +95,7 @@ test("task reuse late responses never change input", async ({ page }) => {
 
 test("task reuse failure does not block creating a task", async ({ page }) => {
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL(/\/today/);
   await page.route("**/graphql", async (route) => {
     if (route.request().postDataJSON().operationName !== "TaskReuseValues") return route.continue();
@@ -118,9 +113,7 @@ test("task reuse failure does not block creating a task", async ({ page }) => {
 
 test("task reuse cancels the pending request for the previous type", async ({ page }) => {
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL(/\/today/);
   let release: (() => void) | undefined;
   const gate = new Promise<void>((resolve) => {

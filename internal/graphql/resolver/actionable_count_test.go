@@ -26,7 +26,8 @@ func TestActionableTaskCountMapsResultsWithoutMetadata(t *testing.T) {
 		{name: "large total", total: 12345},
 		{name: "overflow", total: math.MaxInt32 + 1, code: "UPSTREAM_REJECTED"},
 		{name: "negative", total: -1, code: "UPSTREAM_REJECTED"},
-		{name: "forbidden", err: &vikunja.Error{Status: 403}, code: "UPSTREAM_REJECTED"},
+		{name: "revoked", err: &vikunja.Error{Status: 401}, code: "UNAUTHENTICATED"},
+		{name: "forbidden", err: &vikunja.Error{Status: 403}, code: "FORBIDDEN"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()

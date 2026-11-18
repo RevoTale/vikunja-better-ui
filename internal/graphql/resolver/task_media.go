@@ -22,12 +22,17 @@ func attachmentModel(attachment vikunja.TaskAttachment) *model.TaskAttachment {
 }
 
 func (resolver *Resolver) mediaError(err error, uploading bool) error {
+	if errors.Is(err, vikunja.ErrTokenCheckUnavailable) {
+		return clientError("UPSTREAM_UNAVAILABLE", "Vikunja could not verify the token. Try again shortly.")
+	}
 	if errors.Is(err, service.ErrInvalidMedia) {
 		return clientError("VALIDATION_FAILED", service.ErrInvalidMedia.Error())
 	}
 	if upstream, ok := errors.AsType[*vikunja.Error](err); ok {
 		switch upstream.Status {
-		case http.StatusUnauthorized, http.StatusForbidden:
+		case http.StatusUnauthorized:
+			return upstreamClientError(err, "The attachment request was rejected.")
+		case http.StatusForbidden:
 			return clientError("FORBIDDEN", "The Vikunja token does not permit this attachment action.")
 		case http.StatusNotFound:
 			return clientError("NOT_FOUND", "The task or attachment is not accessible.")

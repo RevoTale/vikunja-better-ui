@@ -12,14 +12,18 @@ func TestHTTPContextProvidesValidSessionAndRequestData(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
-	manager := NewSessionManager([]byte("01234567890123456789012345678901"), func() time.Time { return now }, rand.Reader)
-	token, wantSession, err := manager.Issue()
+	manager, err := NewSessionManager(
+		[]byte("01234567890123456789012345678901"), func() time.Time { return now }, rand.Reader,
+	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cookies := NewSessionCookies(false)
+	token, wantSession, err := manager.Issue("tk_test", "http://app.test")
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	handler := HTTPContext(manager, cookies)(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	handler := HTTPContext(manager, testOrigin)(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		session, ok := SessionFromContext(request.Context())
 		if !ok || session.ID != wantSession.ID {
 			t.Errorf("SessionFromContext() = %#v, %v", session, ok)
@@ -33,10 +37,11 @@ func TestHTTPContextProvidesValidSessionAndRequestData(t *testing.T) {
 
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://app.test/graphql", nil)
 	request.RemoteAddr = "192.0.2.8:1234"
-	request.AddCookie(&http.Cookie{
-		Name: localSessionCookie, Value: token, Secure: true,
-		HttpOnly: true, SameSite: http.SameSiteLaxMode,
-	})
+	cookies := httptest.NewRecorder()
+	NewSessionCookies(false).Start(cookies, token, wantSession)
+	for _, cookie := range cookies.Result().Cookies() {
+		request.AddCookie(cookie)
+	}
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
 	if recorder.Code != http.StatusNoContent {
@@ -47,22 +52,24 @@ func TestHTTPContextProvidesValidSessionAndRequestData(t *testing.T) {
 func TestHTTPContextClearsInvalidSession(t *testing.T) {
 	t.Parallel()
 
-	manager := NewSessionManager([]byte("01234567890123456789012345678901"), time.Now, rand.Reader)
-	cookies := NewSessionCookies(false)
-	handler := HTTPContext(manager, cookies)(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+	manager, err := NewSessionManager([]byte("01234567890123456789012345678901"), time.Now, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := HTTPContext(manager, testOrigin)(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
 		if _, ok := SessionFromContext(request.Context()); ok {
 			t.Error("invalid session was added to context")
 		}
 	}))
 
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "http://app.test/graphql", nil)
-	request.AddCookie(&http.Cookie{
-		Name: localSessionCookie, Value: "invalid", Secure: true,
-		HttpOnly: true, SameSite: http.SameSiteLaxMode,
-	})
+	const selector = "MDEyMzQ1Njc4OWFiY2RlZg"
+	request.Header.Set("Cookie", localSessionCookie+"="+selector+"; "+localSessionCookie+"_"+selector+"=invalid")
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
 	if len(recorder.Result().Cookies()) != 1 || recorder.Result().Cookies()[0].MaxAge != -1 {
 		t.Fatalf("cookies = %#v", recorder.Result().Cookies())
 	}
 }
+
+func testOrigin(*http.Request) string { return "http://app.test" }

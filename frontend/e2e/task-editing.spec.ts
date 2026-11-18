@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
+import { submitToken } from "./app-actions";
 
 test("login restores an editor deep link and its return destination", async ({ page }) => {
   await signIn(page);
@@ -13,9 +14,7 @@ test("login restores an editor deep link and its return destination", async ({ p
   const path = `/tasks/${id}/edit?returnTo=%2Ftoday`;
   await page.goto(path);
   await expect(page).toHaveURL(/\/login/);
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL(new RegExp(`/tasks/${id}/edit\\?returnTo=%2Ftoday$`));
   await expect(page.getByRole("heading", { name: "Edit task" })).toBeVisible();
   await expect(page.getByLabel("Title", { exact: true })).toHaveValue("Editor deep link");
@@ -200,9 +199,7 @@ test("editor controls fit phone tablet and desktop with accessible names", async
 
 async function signIn(page: Page) {
   await page.goto("/today");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL(/\/today/);
   await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
 }

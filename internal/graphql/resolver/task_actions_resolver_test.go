@@ -113,34 +113,39 @@ func withTaskActionContext(
 	t *testing.T,
 	sessions *auth.SessionManager,
 	session auth.Session,
-	cookie *http.Cookie,
+	cookies []*http.Cookie,
 	action func(context.Context),
 ) {
 	t.Helper()
-	handler := auth.HTTPContext(sessions, auth.NewSessionCookies(false))(http.HandlerFunc(
+	handler := auth.HTTPContext(sessions, testOrigin)(http.HandlerFunc(
 		func(_ http.ResponseWriter, request *http.Request) {
 			action(request.Context())
 		},
 	))
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://app.test/graphql", nil)
 	request.Header.Set("X-Csrf-Token", sessions.CSRFToken(session))
-	request.AddCookie(cookie)
+	for _, cookie := range cookies {
+		request.AddCookie(cookie)
+	}
 	handler.ServeHTTP(httptest.NewRecorder(), request)
 }
 
 func taskActionResolver(
 	t *testing.T,
 	client *taskActionClientStub,
-) (*Resolver, *auth.SessionManager, auth.Session, *http.Cookie) {
+) (*Resolver, *auth.SessionManager, auth.Session, []*http.Cookie) {
 	t.Helper()
 
 	now := time.Date(2026, time.August, 14, 12, 0, 0, 0, time.UTC)
-	sessions := auth.NewSessionManager(
+	sessions, err := auth.NewSessionManager(
 		[]byte("01234567890123456789012345678901"),
 		func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
-	token, session, err := sessions.Issue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, session, err := sessions.Issue("tk_test", "http://app.test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,10 +157,7 @@ func taskActionResolver(
 		Sessions: sessions, Users: reader, Projects: reader, Tasks: client,
 		Now: func() time.Time { return now },
 	})
-	cookie := &http.Cookie{
-		Name: "vbu_session", Value: token, HttpOnly: true, Secure: true, SameSite: http.SameSiteLaxMode,
-	}
-	return root, sessions, session, cookie
+	return root, sessions, session, loginCookies(token, session)
 }
 
 type taskActionClientStub struct {

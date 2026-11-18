@@ -19,24 +19,32 @@ func TestLoginCreatesAuthenticatedSession(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, time.August, 12, 12, 0, 0, 0, time.UTC)
-	sessions := auth.NewSessionManager(
+	sessions, err := auth.NewSessionManager(
 		[]byte("01234567890123456789012345678901"), func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	reader := &resolverReaderStub{user: vikunja.User{
 		ID: 4, Username: "vikunja-user",
 		Settings: vikunja.UserSettings{Timezone: "Europe/Kyiv", WeekStart: 1, DefaultProjectID: 7},
 	}}
 	root := New(Dependencies{
-		Credentials: auth.NewCredentials("app-user", "app-password"),
-		Sessions:    sessions, Cookies: auth.NewSessionCookies(false),
-		Limiter: auth.NewLoginLimiter(func() time.Time { return now }),
-		Users:   reader, Projects: reader, Now: func() time.Time { return now },
+		LoginUser: func(ctx context.Context, token string) (vikunja.User, error) {
+			if token != "tk_test" {
+				t.Fatal("incorrect login token")
+			}
+			return reader.CurrentUser(ctx)
+		},
+		Sessions: sessions,
+		Limiter:  auth.NewLoginLimiter(func() time.Time { return now }),
+		Users:    reader, Projects: reader, Now: func() time.Time { return now },
 	})
 
 	recorder := httptest.NewRecorder()
-	withRequestContext(t, sessions, auth.NewSessionCookies(false), recorder, nil, func(ctx context.Context) {
-		payload, err := (&mutationResolver{root}).Login(ctx, model.LoginInput{Username: "app-user", Password: "app-password"})
+	withRequestContext(t, sessions, recorder, nil, func(ctx context.Context) {
+		payload, err := (&mutationResolver{root}).Login(ctx, model.LoginInput{Token: "tk_test"})
 		if err != nil {
 			t.Fatalf("Login() error = %v", err)
 		}
@@ -46,8 +54,9 @@ func TestLoginCreatesAuthenticatedSession(t *testing.T) {
 			t.Fatalf("Login() = %#v", payload)
 		}
 	})
-	if len(recorder.Result().Cookies()) != 1 || !recorder.Result().Cookies()[0].HttpOnly {
-		t.Fatalf("cookies = %#v", recorder.Result().Cookies())
+	cookies := recorder.Result().Cookies()
+	if len(cookies) != 2 || !cookies[0].HttpOnly || !cookies[1].HttpOnly {
+		t.Fatal("login must issue two HTTP-only session cookies")
 	}
 }
 
@@ -55,20 +64,22 @@ func TestLoginReturnsGenericAuthenticationError(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	sessions := auth.NewSessionManager(
+	sessions, err := auth.NewSessionManager(
 		[]byte("01234567890123456789012345678901"), func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
+	if err != nil {
+		t.Fatal(err)
+	}
 	reader := &resolverReaderStub{}
 	root := New(Dependencies{
-		Credentials: auth.NewCredentials("app-user", "app-password"),
-		Sessions:    sessions, Cookies: auth.NewSessionCookies(false),
-		Limiter: auth.NewLoginLimiter(func() time.Time { return now }),
-		Users:   reader, Projects: reader,
+		Sessions: sessions,
+		Limiter:  auth.NewLoginLimiter(func() time.Time { return now }),
+		Users:    reader, Projects: reader,
 	})
 
-	withRequestContext(t, sessions, auth.NewSessionCookies(false), httptest.NewRecorder(), nil, func(ctx context.Context) {
-		_, err := (&mutationResolver{root}).Login(ctx, model.LoginInput{Username: "wrong", Password: "wrong"})
+	withRequestContext(t, sessions, httptest.NewRecorder(), nil, func(ctx context.Context) {
+		_, err := (&mutationResolver{root}).Login(ctx, model.LoginInput{Token: "wrong"})
 		assertErrorCode(t, err, "UNAUTHENTICATED")
 	})
 }
@@ -81,11 +92,14 @@ func TestProjectsRequireSessionAndMarkAccessibleDefault(t *testing.T) {
 	assertErrorCode(t, err, "UNAUTHENTICATED")
 
 	now := time.Now()
-	sessions := auth.NewSessionManager(
+	sessions, err := auth.NewSessionManager(
 		[]byte("01234567890123456789012345678901"), func() time.Time { return now },
 		bytes.NewReader([]byte("0123456789abcdef")),
 	)
-	token, _, err := sessions.Issue()
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, session, err := sessions.Issue("tk_test", "http://app.test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,12 +108,9 @@ func TestProjectsRequireSessionAndMarkAccessibleDefault(t *testing.T) {
 		projects: []vikunja.Project{{ID: 7, Title: "Home"}, {ID: 8, Title: "Work"}},
 	}
 	root = New(Dependencies{Users: reader, Projects: reader})
-	cookie := &http.Cookie{
-		Name: "vbu_session", Value: token, Secure: true,
-		HttpOnly: true, SameSite: http.SameSiteLaxMode,
-	}
+	cookies := loginCookies(token, session)
 	withRequestContext(
-		t, sessions, auth.NewSessionCookies(false), httptest.NewRecorder(), cookie,
+		t, sessions, httptest.NewRecorder(), cookies,
 		func(ctx context.Context) {
 			result, queryErr := (&queryResolver{root}).Projects(ctx)
 			if queryErr != nil {
@@ -128,18 +139,17 @@ func (reader *resolverReaderStub) Projects(context.Context) ([]vikunja.Project, 
 func withRequestContext(
 	t *testing.T,
 	sessions *auth.SessionManager,
-	cookies auth.SessionCookies,
 	recorder *httptest.ResponseRecorder,
-	cookie *http.Cookie,
+	cookies []*http.Cookie,
 	action func(context.Context),
 ) {
 	t.Helper()
-	handler := auth.HTTPContext(sessions, cookies)(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
+	handler := auth.HTTPContext(sessions, testOrigin)(http.HandlerFunc(func(_ http.ResponseWriter, request *http.Request) {
 		action(request.Context())
 	}))
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://app.test/graphql", nil)
 	request.RemoteAddr = "192.0.2.1:1234"
-	if cookie != nil {
+	for _, cookie := range cookies {
 		request.AddCookie(cookie)
 	}
 	handler.ServeHTTP(recorder, request)
@@ -152,4 +162,12 @@ func assertErrorCode(t *testing.T, err error, want string) {
 	if !ok || gqlErr.Extensions["code"] != want {
 		t.Fatalf("error = %#v, want code %s", err, want)
 	}
+}
+
+func testOrigin(*http.Request) string { return "http://app.test" }
+
+func loginCookies(token string, session auth.Session) []*http.Cookie {
+	recorder := httptest.NewRecorder()
+	auth.NewSessionCookies(false).Start(recorder, token, session)
+	return recorder.Result().Cookies()
 }

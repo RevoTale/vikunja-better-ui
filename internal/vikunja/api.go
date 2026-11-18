@@ -41,14 +41,14 @@ func (client *Client) fetchCurrentUser(ctx context.Context) (User, error) {
 	return user, nil
 }
 
-// Projects reads all accessible projects within the configured response limit.
+// Projects lists the accessible persisted projects that can contain tasks.
 func (client *Client) Projects(ctx context.Context) ([]Project, error) {
 	return client.projectRequests.do(ctx, client.fetchProjects)
 }
 
 func (client *Client) fetchProjects(ctx context.Context) ([]Project, error) {
 	projects := make([]Project, 0)
-	var pageSize int64
+	var pageSize, total int64
 	for pageNumber := int64(1); ; pageNumber++ {
 		query := url.Values{
 			pageQueryKey:     []string{strconv.FormatInt(pageNumber, 10)},
@@ -68,31 +68,42 @@ func (client *Client) fetchProjects(ctx context.Context) ([]Project, error) {
 		); err != nil {
 			return nil, err
 		}
+		targets, err := persistedProjects(response.Items)
+		if err != nil {
+			return nil, err
+		}
 		if err := validatePageItemCount(
-			len(response.Items),
-			response.Page,
-			response.PerPage,
-			response.Total,
-			response.TotalPages,
+			len(targets), response.Page, response.PerPage, response.Total, response.TotalPages,
 		); err != nil {
 			return nil, err
 		}
 		if pageNumber == 1 {
-			pageSize = response.PerPage
+			pageSize, total = response.PerPage, response.Total
 		}
-		if response.PerPage != pageSize || response.Total > maxProjectCount ||
-			int64(len(projects)+len(response.Items)) > response.Total {
+		if response.PerPage != pageSize || response.Total != total || total > maxProjectCount {
 			return nil, ErrRejectedResponse
 		}
-		projects = append(projects, response.Items...)
-		if response.Total == 0 {
-			break
-		}
-		if pageNumber == response.TotalPages {
+		projects = append(projects, targets...)
+		if total == 0 || pageNumber == response.TotalPages {
 			break
 		}
 	}
 	return projects, nil
+}
+
+// Vikunja appends Favorites (-1) and saved filters (<= -2) to each project page.
+// Its pagination metadata counts only persisted projects, all of which have positive IDs.
+func persistedProjects(items []Project) ([]Project, error) {
+	targets := items[:0]
+	for _, item := range items {
+		if item.ID == 0 || (item.ID < 0 && item.Title == "") {
+			return nil, ErrRejectedResponse
+		}
+		if item.ID > 0 {
+			targets = append(targets, item)
+		}
+	}
+	return targets, nil
 }
 
 // TasksPage fetches one filtered page and validates its pagination metadata.

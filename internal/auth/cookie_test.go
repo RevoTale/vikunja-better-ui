@@ -9,81 +9,52 @@ import (
 
 func TestSessionCookiePolicy(t *testing.T) {
 	t.Parallel()
-
-	expiresAt := time.Date(2026, time.September, 11, 9, 30, 0, 0, time.UTC)
-	tests := []struct {
-		name       string
-		production bool
-		wantName   string
-		wantSecure bool
+	now := time.Date(2026, time.September, 11, 9, 30, 0, 0, time.UTC)
+	session := Session{ID: "MDEyMzQ1Njc4OWFiY2RlZg", IssuedAt: now, ExpiresAt: now.Add(sessionLifetime)}
+	for _, tc := range []struct {
+		name   string
+		secure bool
 	}{
-		{name: "production", production: true, wantName: "__Host-vbu_session", wantSecure: true},
-		{name: "local", production: false, wantName: "vbu_session", wantSecure: false},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
+		{"__Host-vbu_session", true},
+		{"vbu_session", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-
-			recorder := httptest.NewRecorder()
-			cookies := NewSessionCookies(test.production)
-			cookies.Set(recorder, "signed-token", expiresAt)
-			response := recorder.Result()
-			t.Cleanup(func() { _ = response.Body.Close() })
-			setCookies := response.Cookies()
-			if len(setCookies) != 1 {
-				t.Fatalf("len(Cookies()) = %d, want 1", len(setCookies))
+			policy := NewSessionCookies(tc.secure)
+			rec := httptest.NewRecorder()
+			policy.Start(rec, "encrypted-token", session)
+			cookies := rec.Result().Cookies()
+			if len(cookies) != 2 {
+				t.Fatalf("login wrote %d cookies", len(cookies))
 			}
-
-			cookie := setCookies[0]
-			if cookie.Name != test.wantName || cookie.Value != "signed-token" {
-				t.Fatalf("cookie name/value = %q/%q", cookie.Name, cookie.Value)
+			request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/graphql", nil)
+			for _, cookie := range cookies {
+				if !cookie.HttpOnly || cookie.Secure != tc.secure || cookie.SameSite != http.SameSiteLaxMode ||
+					cookie.Path != "/" || cookie.Domain != "" {
+					t.Fatalf("incorrect attributes on %s", cookie.Name)
+				}
+				request.AddCookie(cookie)
 			}
-			if !cookie.HttpOnly || cookie.Secure != test.wantSecure {
-				t.Fatalf("cookie HttpOnly/Secure = %v/%v", cookie.HttpOnly, cookie.Secure)
+			if policy.selected(request) != session.ID || cookies[0].Name != tc.name ||
+				!cookies[0].Expires.Equal(now.Add(selectorLifetime)) {
+				t.Fatal("missing or short-lived session selector")
 			}
-			if cookie.SameSite != http.SameSiteLaxMode || cookie.Path != "/" || cookie.Domain != "" {
-				t.Fatalf("cookie policy = %#v", cookie)
-			}
-			if !cookie.Expires.Equal(expiresAt) {
-				t.Fatalf("cookie expiry = %v, want %v", cookie.Expires, expiresAt)
+			if cookies[1].Name != tc.name+"_"+session.ID || cookies[1].Value != "encrypted-token" ||
+				!cookies[1].Expires.Equal(session.ExpiresAt) {
+				t.Fatal("incorrect credential cookie")
 			}
 		})
 	}
 }
 
-func TestSessionCookieClear(t *testing.T) {
+func TestSessionCookieRejectsInvalidSelectors(t *testing.T) {
 	t.Parallel()
-
-	recorder := httptest.NewRecorder()
-	cookies := NewSessionCookies(true)
-	cookies.Clear(recorder)
-	response := recorder.Result()
-	t.Cleanup(func() { _ = response.Body.Close() })
-	setCookies := response.Cookies()
-	if len(setCookies) != 1 {
-		t.Fatalf("len(Cookies()) = %d, want 1", len(setCookies))
-	}
-	if cookie := setCookies[0]; cookie.MaxAge != -1 || cookie.Value != "" {
-		t.Fatalf("cleared cookie = %#v", cookie)
-	}
-}
-
-func TestSessionCookieRead(t *testing.T) {
-	t.Parallel()
-
-	cookies := NewSessionCookies(false)
-	request := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "http://tasks.test/graphql", nil)
-	request.AddCookie(&http.Cookie{
-		Name: "vbu_session", Value: "signed-token", Secure: true,
-		HttpOnly: true, SameSite: http.SameSiteLaxMode,
-	})
-
-	value, err := cookies.Read(request)
-	if err != nil {
-		t.Fatalf("Read() error = %v", err)
-	}
-	if value != "signed-token" {
-		t.Fatalf("Read() = %q, want signed token", value)
+	policy := NewSessionCookies(false)
+	for _, value := range []string{"legacy.payload", "MDEyMzQ1Njc4OWFiY2RlZ!", "", "MDEyMzQ1Njc4OWFiY2RlZh"} {
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
+		request.Header.Set("Cookie", localSessionCookie+"="+value)
+		if got := policy.selected(request); got != "" {
+			t.Fatal("invalid selector accepted")
+		}
 	}
 }

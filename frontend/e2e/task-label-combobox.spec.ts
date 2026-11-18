@@ -1,11 +1,10 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, type TestInfo, test } from "@playwright/test";
+import { submitToken } from "./app-actions";
 
 test("task labels support searchable filters with many long labels", async ({ page }, testInfo) => {
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL((url) => url.pathname === "/today");
   await expect(page.getByRole("heading", { name: "Today", exact: true })).toBeVisible();
   const longTitle = `Unique target ${"long-label-".repeat(20)}`;

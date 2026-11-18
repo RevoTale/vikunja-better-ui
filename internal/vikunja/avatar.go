@@ -51,7 +51,7 @@ func (client *Client) Avatar(ctx context.Context, username string) (result strin
 		return "", err
 	}
 	request.Header.Set("Accept", "image/png,image/jpeg,image/gif")
-	response, err := client.httpClient.Do(request)
+	response, err := client.send(request)
 	if err != nil {
 		return "", err
 	}

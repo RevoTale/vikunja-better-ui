@@ -2,15 +2,8 @@ import { type APIRequestContext, expect, test } from "@playwright/test";
 
 test("MCP accepts native scoped tokens and rejects revoked access", async ({ request }) => {
   const upstream = requiredEnv("E2E_VIKUNJA_URL");
-  const login = await request.post(`${upstream}/api/v2/login`, {
-    data: {
-      username: requiredEnv("E2E_VIKUNJA_USERNAME"),
-      password: requiredEnv("E2E_VIKUNJA_PASSWORD"),
-    },
-  });
-  expect(login.ok()).toBe(true);
-  const session = (await login.json()) as { token: string };
-  const headers = { Authorization: `Bearer ${session.token}` };
+  const session = requiredEnv("E2E_FIXTURE_SESSION");
+  const headers = { Authorization: `Bearer ${session}` };
   const created = await request.post(`${upstream}/api/v2/tokens`, {
     headers,
     data: {
@@ -53,7 +46,7 @@ test("MCP accepts native scoped tokens and rejects revoked access", async ({ req
   }
   const revoked = await protocol(request, token.token, "tools/list");
   expect([401, 403]).toContain(revoked.status());
-  const jwt = await protocol(request, session.token, "tools/list");
+  const jwt = await protocol(request, session, "tools/list");
   expect(jwt.status()).toBe(401);
 });
 

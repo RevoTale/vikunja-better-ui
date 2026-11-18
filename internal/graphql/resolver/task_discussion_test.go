@@ -49,7 +49,7 @@ func TestDiscussionErrorMapping(t *testing.T) {
 		status int
 		code   string
 	}{
-		{http.StatusForbidden, "FORBIDDEN"}, {http.StatusUnauthorized, "FORBIDDEN"},
+		{http.StatusForbidden, "FORBIDDEN"}, {http.StatusUnauthorized, "UNAUTHENTICATED"},
 		{http.StatusNotFound, "NOT_FOUND"}, {http.StatusBadRequest, "VALIDATION_FAILED"},
 		{http.StatusInternalServerError, "UPSTREAM_REJECTED"},
 	} {

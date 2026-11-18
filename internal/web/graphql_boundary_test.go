@@ -43,15 +43,18 @@ func TestGraphQLBoundaryAcceptsExactOriginJSONPost(t *testing.T) {
 func TestGraphQLBoundaryAuthenticatesMultipartBeforeReadingBody(t *testing.T) {
 	t.Parallel()
 	origin, _ := url.Parse("https://tasks.example.test")
-	sessions := auth.NewSessionManager([]byte("test-secret"), time.Now, rand.Reader)
-	token, session, err := sessions.Issue()
+	sessions, err := auth.NewSessionManager([]byte("test-secret"), time.Now, rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	cookies := auth.NewSessionCookies(false)
+	token, session, err := sessions.Issue("tk_test", origin.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookies := auth.NewSessionCookies(true)
 	w := httptest.NewRecorder()
-	cookies.Set(w, token, session.ExpiresAt)
-	cookie := w.Result().Cookies()[0]
+	cookies.Start(w, token, session)
+	pair := w.Result().Cookies()
 	for _, test := range []struct {
 		name, csrf string
 		signed     bool
@@ -69,14 +72,15 @@ func TestGraphQLBoundaryAuthenticatesMultipartBeforeReadingBody(t *testing.T) {
 			next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusNoContent)
 			})
-			handler := auth.HTTPContext(sessions, cookies)(GraphQLBoundary(origin, sessions)(next))
+			trustedOrigin := func(*http.Request) string { return origin.String() }
+			handler := auth.HTTPContext(sessions, trustedOrigin)(GraphQLBoundary(origin, sessions)(next))
 			r := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/graphql", strings.NewReader("bytes"))
 			r.ContentLength = test.size
 			r.Header.Set("Content-Type", "multipart/form-data; boundary=test")
 			r.Header.Set("Origin", origin.String())
 			r.Header.Set("X-Csrf-Token", test.csrf)
 			if test.signed {
-				r.AddCookie(cookie)
+				addSessionCookies(r, pair)
 			}
 			w := httptest.NewRecorder()
 			handler.ServeHTTP(w, r)

@@ -1,12 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { submitToken } from "./app-actions";
 
 test("task labels support fresh creation without remembered values or storage collisions", async ({
   page,
 }) => {
   await page.goto("/login");
-  await page.getByLabel("Username").fill("app-user");
-  await page.getByLabel("Password").fill("app-password-strong");
-  await page.getByRole("button", { name: "Sign in" }).click();
+  await submitToken(page);
   await expect(page).toHaveURL(/\/today/);
   await page.evaluate(() => {
     localStorage.setItem("vbu:task-create-autofill:v1:one-time:last-variant", "job");
