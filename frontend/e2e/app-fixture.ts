@@ -15,10 +15,28 @@ export function requiredEnv(name: string) {
   return value;
 }
 
-export async function nativeFixtureSession(
+let ownerSession: { token: string; expires: number } | undefined;
+
+export async function nativeFixtureSession(request: APIRequestContext): Promise<string> {
+  if (ownerSession && ownerSession.expires > Date.now() + 15_000) return ownerSession.token;
+  const token = await loginFixtureAccount(
+    request,
+    requiredEnv("E2E_FIXTURE_USERNAME"),
+    requiredEnv("E2E_FIXTURE_PASSWORD"),
+  );
+  // Only the test driver reads exp to schedule the next login. Vikunja validates each request.
+  const payload = token.split(".")[1];
+  if (!payload) throw new Error("The native fixture login did not return a JWT");
+  const { exp } = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { exp: number };
+  if (!Number.isFinite(exp)) throw new Error("The native fixture JWT has no expiration");
+  ownerSession = { token, expires: exp * 1000 };
+  return token;
+}
+
+export async function loginFixtureAccount(
   request: APIRequestContext,
-  username = requiredEnv("E2E_FIXTURE_USERNAME"),
-  password = requiredEnv("E2E_FIXTURE_PASSWORD"),
+  username: string,
+  password: string,
 ) {
   const response = await request.post(`${vikunjaURL}/api/v2/login`, {
     data: { username, password },

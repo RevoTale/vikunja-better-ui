@@ -112,9 +112,10 @@ There are no direct SQL writes or shared database files. The discussion helper
 checks its temporary ownership marker and the exact fixture origin before
 using the test token. It stops on API errors without retrying mutations.
 
-The test driver signs into the disposable account when a test needs native
-privileges, such as issuing a scoped token or reading the trash. This works
-throughout the full matrix with Vikunja's default ten-minute access token.
+Each test worker signs into the disposable account when it needs native
+privileges, such as issuing a scoped token or reading the trash. It reuses
+that access token until shortly before expiry, then signs in again. This
+keeps the full matrix within Vikunja's login limits and ten-minute token lifetime.
 Only the test driver receives the fixture login. The application uses personal
 API tokens. [Vikunja session lifetime](https://vikunja.io/docs/api-login-session-migration/)
 

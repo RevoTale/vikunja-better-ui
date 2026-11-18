@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { type APIRequestContext, expect } from "@playwright/test";
-import { nativeFixtureSession, projectID, vikunjaToken, vikunjaURL } from "./app-fixture";
+import { loginFixtureAccount, projectID, vikunjaToken, vikunjaURL } from "./app-fixture";
 
 export async function privateTask(request: APIRequestContext, title: string) {
   const response = await request.post(`${vikunjaURL}/api/v2/projects/${projectID}/tasks`, {
@@ -18,7 +18,7 @@ export async function secondAccount(request: APIRequestContext) {
     data: { username, password, email: `${username}@example.invalid` },
   });
   expect(registration.ok()).toBe(true);
-  const session = await nativeFixtureSession(request, username, password);
+  const session = await loginFixtureAccount(request, username, password);
   return { username, ...(await readOnlyToken(request, session)) };
 }
 
