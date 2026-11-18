@@ -106,12 +106,13 @@ Requirement: tokens are created in Vikunja, configured outside model arguments,
 never issued/stored/logged by Better UI. Caller credentials must never fall back
 to APP_VIKUNJA_API_TOKEN. Upstream URL comes only from trusted configuration.
 
-Evidence reviewed 2026-11-09:
+Evidence reviewed 2026-11-09; native MCP authorization rechecked against 2.8.0
+on 2026-11-18 (see [ADR-012](../decisions/0012-vikunja-2.8-compatibility.md)):
 
-- [Vikunja 2.7 API token model](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.7.0/pkg/models/api_tokens.go)
+- [Vikunja 2.8 API token model](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.8.0/pkg/models/api_tokens.go)
   stores route permissions, expiry and owner (including bot owner); these do not
   establish an MCP audience-binding mechanism.
-- [Vikunja 2.7 MCP settings route](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.7.0/pkg/routes/api/v2/mcp.go)
+- [Vikunja 2.8 MCP settings route](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.8.0/pkg/routes/api/v2/mcp.go)
   explicitly rejects API tokens. Do not use `/mcp/info` as token introspection.
   The settings advertise presets, not permission proof for a supplied credential.
 - [Vikunja OAuth documentation](https://vikunja.io/docs/oauth-server/) describes
@@ -133,12 +134,15 @@ not the MCP OAuth authorization profile. Do not advertise OAuth metadata or add
 an issuer/store. Native MCP authorization is checked before handling each request;
 every subsequent REST action is checked by Vikunja under that same token.
 
-OAuth check: [official MCP help](https://vikunja.io/help/mcp/) states OAuth is not
-supported. Both [v2.7.0 handler](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.7.0/pkg/modules/mcp/mcp.go)
-and [main handler](https://raw.githubusercontent.com/go-vikunja/vikunja/main/pkg/modules/mcp/mcp.go)
-reject JWTs and require an API token plus mcp:access. General Vikunja OAuth login
-is therefore not a supported MCP OAuth route. Verified 2026-11-09 by source and
-documentation, not by sending credentials to a production instance.
+OAuth check: the [v2.8.0 handler](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.8.0/pkg/modules/mcp/mcp.go)
+rejects JWTs and requires an API token plus mcp:access. General Vikunja OAuth login
+is not a supported MCP OAuth route. Rechecked 2026-11-18 by source inspection.
+The separate Better UI caller-token boundary remains unchanged.
+
+`delete_task` moves active work into native trash, stops a recurring series and
+preserves separate History snapshots. Restore in Vikunja within 30 days; Better
+UI exposes neither deletion Undo nor trash management. Confirmation, fresh
+version and permission checks remain required; read-before-delete is not atomic.
 
 Support API-token permission configurations, including bot-owned tokens, as far
 as verified upstream capabilities allow. Session JWTs/link-share credentials are

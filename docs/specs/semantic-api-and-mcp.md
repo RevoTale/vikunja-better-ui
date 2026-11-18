@@ -107,7 +107,7 @@ cases, including `/user`, projects and marker lookup dependencies.
 
 Resolved in ADR-010: the user approved manual Bearer API tokens, matching native
 Vikunja setup, without claiming MCP OAuth compliance. Native MCP documentation
-and v2.7.0/main handlers do not support OAuth. No issuer, token store or exchange
+and the v2.8.0 handler do not support OAuth. No issuer, token store or exchange
 service is added. Recheck this limitation when upgrading Vikunja.
 
 ## Validation expectations for downstream specifications

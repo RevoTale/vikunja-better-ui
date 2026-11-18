@@ -84,8 +84,9 @@ export function DeleteTaskPage({ taskId, returnTo }: { taskId: string; returnTo:
           {canDelete ? (
             <>
               <p className="text-sm text-muted-foreground">
-                This permanently removes the active task from Vikunja. For recurring tasks, it stops
-                the series; existing History entries remain.
+                This moves the active task to Vikunja’s trash for 30 days. Restore it in Vikunja
+                before it is permanently deleted. For recurring tasks, this stops the series;
+                existing History entries remain.
               </p>
               {mutationError ? (
                 <p className="mt-4 text-sm text-destructive" role="alert">

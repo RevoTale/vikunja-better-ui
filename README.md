@@ -35,10 +35,14 @@ the whole repository.
 - Works across phone, tablet, and desktop and follows the system light or dark
   color scheme with the configured TweakCN theme.
 
-Vikunja **2.7.0 is the minimum supported version**; the app uses REST API v2.
+Vikunja **2.8.0 is the minimum supported version**; the app uses REST API v2.
+Upgrade Vikunja before upgrading Better UI. Deleting a task moves it to Vikunja's
+30-day trash; restore it in Vikunja. Better UI has no deletion Undo. Reminders
+follow native task subscriptions and notification settings. Compatibility scope
+and checks: [ADR-012](docs/decisions/0012-vikunja-2.8-compatibility.md).
 Startup checks `/api/v2/info` and rejects older, unknown or prerelease versions.
 If this check cannot reach Vikunja, startup fails rather than serving an unsupported integration.
-The isolated E2E suite uses signed 2.7.0 binaries on Linux amd64 and arm64.
+The isolated E2E suite uses signed 2.8.0 binaries on Linux amd64 and arm64.
 Older versions are not part of the current compatibility guarantee. Upgrade
 Vikunja separately, following its [upgrade guidance](https://vikunja.io/docs/upgrade/)
 and taking a backup first; updating Better UI does not upgrade your instance.
@@ -627,7 +631,7 @@ week or per task. It reduces at most 100 tasks at a time into weekly counters;
 Vikunja may cap the effective page size at 50. For example, 10,000 records need
 101 requests at size 100, or 201 at size 50, including the user lookup. Cache
 hits add zero Vikunja calls. There is no public group-by or task-field projection
-endpoint in the [pinned Vikunja 2.7 API](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.7.0/pkg/swagger/swagger.json).
+endpoint in the [pinned Vikunja 2.8 API](https://raw.githubusercontent.com/go-vikunja/vikunja/v2.8.0/pkg/swagger/swagger.json).
 
 Abuse protections are per process: one coalesced refresh, at most 16 concurrent
 readers, 20 reads per second, a 20-second scan deadline, 1,000 pages, 4 MiB per
@@ -1071,8 +1075,8 @@ task gen:check  # prove committed generated source is current
 task fix        # format Go and frontend files
 task validate   # quality-gate tests, formatting/modernization, lint, types, vet, build
 task test       # Go race tests twice with shuffled order, plus frontend unit tests
-task e2e:pr     # compact PR browser coverage against isolated Vikunja 2.7.0
-task e2e        # complete browser matrix against isolated Vikunja 2.7.0
+task e2e:pr     # compact PR browser coverage against isolated Vikunja 2.8.0
+task e2e        # complete browser matrix against isolated Vikunja 2.8.0
 task demo       # run the complete isolated demo at http://localhost:4180
 task dev        # run the application
 ```
@@ -1137,7 +1141,7 @@ elements. Runtime style attributes used for popup positioning are allowed
 separately; `style-src` includes that allowance as a WebKit fallback, while
 `style-src-elem` remains nonce-restricted and `script-src` stays self-only.
 
-Locally, `task e2e` downloads the official Vikunja 2.7.0 binary for Linux amd64 or
+Locally, `task e2e` downloads the official Vikunja 2.8.0 binary for Linux amd64 or
 arm64, verifies its pinned SHA-256 digest and detached signature, and runs it
 directly with a temporary PostgreSQL 18.6 container. Docker access from the
 existing Dev Container is required. PostgreSQL shares its network namespace,
@@ -1150,7 +1154,7 @@ fixture API calls, demo history and resource measurements. Schedule definitions
 live in `fixtures.json`; JavaScript is retained for Playwright and its direct
 configuration tests.
 
-Woodpecker runs the pinned official `vikunja/vikunja:2.7.0` image as a service
+Woodpecker runs the pinned official `vikunja/vikunja:2.8.0` image as a service
 at `http://vikunja:3456`. Both CI browser steps set `E2E_VIKUNJA_SERVICE=1`:
 the harness waits for readiness and registers a fresh user through the API,
 without downloading or launching a binary. Woodpecker owns service shutdown
@@ -1194,7 +1198,7 @@ Username: app-user
 Password: app-password-strong
 ```
 
-The command builds the frontend and Go server, starts an isolated Vikunja 2.7.0
+The command builds the frontend and Go server, starts an isolated Vikunja 2.8.0
 instance, creates deterministic fixtures and a scoped API token, and serves the
 complete app. Stop it with `Ctrl-C`; its temporary database and files are then
 removed.

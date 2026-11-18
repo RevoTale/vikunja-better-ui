@@ -123,6 +123,7 @@ func addRelationTools(server *sdk.Server) {
 		"Create or reuse an exact ordinary label title. Reserved vbu: labels cannot be created "+
 			"here."), createLabel)
 	addTool(server, writeTool("delete_task",
-		"Delete the named active task after user confirmation and fresh get_task version. "+
-			"History is protected; check then delete is not atomic."), deleteTask)
+		"Move the named active task to Vikunja trash after user confirmation and fresh get_task version. "+
+			"Restore in Vikunja within 30 days; no deletion Undo here. Recurring series stop; History remains. "+
+			"Check then delete is not atomic."), deleteTask)
 }

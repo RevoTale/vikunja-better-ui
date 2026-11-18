@@ -2971,7 +2971,7 @@ type Mutation {
   skipRecurringTask(input: SkipRecurringTaskInput!): CompletionPayload!
   "Change clock preservation for an eligible timed day/week recurrence from completion."
   setRecurringKeepDueTime(input: SetRecurringKeepDueTimeInput!): TaskMutationPayload!
-  "Explicitly delete active work after access/state checks. The native delete is not promised to be transactional with those checks."
+  "Move active work to Vikunja's trash after access/state checks. Restore in Vikunja within 30 days; Better UI has no deletion Undo. Recurring series stop; History remains. The native delete is not transactional with those checks."
   deleteTask(input: DeleteTaskInput!): DeleteTaskPayload!
   "Reopen only the unchanged supported completion authorized by its unexpired session-bound capability."
   undoTaskCompletion(input: UndoTaskCompletionInput!): TaskMutationPayload!
