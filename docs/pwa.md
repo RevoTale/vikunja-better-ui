@@ -35,8 +35,9 @@ HTML remains network-first so online navigation receives current HTML and
 security headers. The favicon and manifest keep their 10-minute HTTP cache
 policy online; offline they can use the installed build's copy.
 
-When a navigation cannot reach the server, the saved shell shows **You're
-offline** and **Retry connection**. Reconnecting and choosing it loads the normal
+When app navigation cannot reach the server, the saved shell shows **You're
+offline** and **Retry connection**. This includes Active work, More, Plan and
+individual task links. Reconnecting and choosing it loads the normal
 app and checks authentication again. This is not offline task access: GraphQL,
 session responses, task data and attachment media never enter the service-worker
 cache. There is no mutation queue or offline completion/editing. Existing
