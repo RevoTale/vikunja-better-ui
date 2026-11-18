@@ -1,5 +1,19 @@
 # Changelog
 
+## [4.0.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v4.0.0) - 2026-11-18
+
+### ❤️ Thanks to all contributors! ❤️
+
+@l-you
+
+### 💥 Breaking changes
+
+- feat(auth)!: sign in with personal Vikunja API tokens [[#157](https://github.com/RevoTale/vikunja-better-ui/pull/157)]
+
+### Misc
+
+- test(e2e): acquire native fixture sessions when needed [[#158](https://github.com/RevoTale/vikunja-better-ui/pull/158)]
+
 ## [3.0.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v3.0.0) - 2026-11-18
 
 ### 💥 Breaking changes
