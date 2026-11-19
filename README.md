@@ -227,6 +227,13 @@ are introduced. Jobs and recurring-task completion rules remain unchanged.
 See [ADR-009](docs/decisions/0009-task-planning-windows.md) and the
 [implementation contract](docs/specs/task-planning-ui-proposal.md).
 
+### Active work badge
+
+**Active work** in the sidebar and **Active** in the mobile bottom bar always
+show how many tasks are currently active across your accessible projects,
+including a visible zero. Inside Active work, the count beside the title
+follows the selected filters. [Active work counts](docs/specs/task-planning-ui-proposal.md#active-work-total)
+
 ### Today badge
 
 The Today navigation badge counts unfinished tasks across all accessible
@@ -236,13 +243,13 @@ computed future occurrences do not count. Page filters do not narrow the badge.
 The additive GraphQL `todayTaskCount` supplies it; `actionableTaskCount` retains
 its previous overdue-or-started contract for existing consumers.
 
-The badge loads independently of the page. It refreshes after task mutations,
+Both badges load independently of the page. They refresh after task mutations,
 page navigation, returning to the browser tab, and every minute while visible.
 External edits and time boundaries can therefore take up to one minute to appear
 in a continuously visible tab. `cache-and-network` keeps the last known number
-visible while updating; only the first uncached read shows a skeleton. The badge
+visible while updating; only the first uncached read shows a skeleton. Each badge
 marks revalidation as busy and its tooltip identifies the last known count.
-`?` means unavailable, not zero. A confirmed zero is hidden with space reserved.
+`?` means unavailable. Today hides a confirmed zero and reserves its space.
 
 ### Editing tasks and adjusting dates
 

@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -24,26 +25,9 @@ func TestBrowserSessionsUseTheirOwnVikunjaCredential(t *testing.T) {
 	t.Parallel()
 	upstream := httptest.NewServer(http.HandlerFunc(personalTokenFixture))
 	t.Cleanup(upstream.Close)
-	endpoint, err := url.Parse(upstream.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	configured := config.Config{
-		AllowedOrigin: &url.URL{Scheme: "http", Host: "10.77.0.20:8080"},
-		VikunjaURL:    endpoint, VikunjaPublicURL: endpoint, VikunjaAPIToken: "tk_" + rand.Text(),
-		SessionSecret: []byte(rand.Text() + rand.Text()), Environment: config.EnvironmentProduction,
-	}
-	logger := slog.New(slog.DiscardHandler)
-	server := func() http.Handler {
-		sessions, sessionErr := auth.NewSessionManager(
-			configured.SessionSecret, configured.VikunjaURL.String(), time.Now, rand.Reader,
-		)
-		if sessionErr != nil {
-			t.Fatal(sessionErr)
-		}
-		return applicationRoutes(configured, logger, vikunja.NewClient(endpoint, ""), sessions, time.Now)
-	}
-	first, redeployed := server(), server()
+	secret := []byte(rand.Text() + rand.Text())
+	first := newBrowserTestApp(t, upstream.URL, secret)
+	redeployed := newBrowserTestApp(t, upstream.URL, secret)
 	for _, name := range []string{"alice", "bob"} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
@@ -63,6 +47,53 @@ func TestBrowserSessionsUseTheirOwnVikunjaCredential(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestActiveWorkAliasesShareOnlyTheirOperationRead(t *testing.T) {
+	t.Parallel()
+	var reads atomic.Int32
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/tasks" || r.Header.Get("Authorization") != "Bearer tk_alice" {
+			personalTokenFixture(w, r)
+			return
+		}
+		reads.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"items":[],"page":1,"per_page":1000,"total":0,"total_pages":0}`)
+	}))
+	t.Cleanup(upstream.Close)
+	server := newBrowserTestApp(t, upstream.URL, []byte(rand.Text()+rand.Text()))
+	cookie := browserLogin(t, server, "alice")
+	const query = `{"query":"{sidebar:activeWorkTaskCount mobile:activeWorkTaskCount}"}`
+	for sequence := int32(1); sequence <= 2; sequence++ {
+		response := browserRequest(t, server, "/graphql", query, cookie)
+		body := response.Body.String()
+		if !strings.Contains(body, `"sidebar":0`) || !strings.Contains(body, `"mobile":0`) {
+			t.Fatalf("unexpected GraphQL response: %s", body)
+		}
+		if total := reads.Load(); total != sequence {
+			t.Fatalf("after %d operations got %d upstream reads", sequence, total)
+		}
+	}
+}
+
+func newBrowserTestApp(t *testing.T, upstreamURL string, secret []byte) http.Handler {
+	t.Helper()
+	endpoint, err := url.Parse(upstreamURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	configured := config.Config{
+		AllowedOrigin: &url.URL{Scheme: "http", Host: "10.77.0.20:8080"},
+		VikunjaURL:    endpoint, VikunjaPublicURL: endpoint, VikunjaAPIToken: "tk_" + rand.Text(),
+		SessionSecret: secret, Environment: config.EnvironmentProduction,
+	}
+	sessions, err := auth.NewSessionManager(secret, upstreamURL, time.Now, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := vikunja.NewClient(endpoint, "")
+	return applicationRoutes(configured, slog.New(slog.DiscardHandler), client, sessions, time.Now)
 }
 
 func personalTokenFixture(w http.ResponseWriter, r *http.Request) {

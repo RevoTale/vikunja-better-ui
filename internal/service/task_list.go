@@ -123,7 +123,7 @@ func taskMatchesScope(
 	case TaskScopeToday:
 		return finishBeforeBoundary(task, classification, nextLocalDay(now, location))
 	case TaskScopeActive:
-		return classification.Kind != TaskKindInvalid && activePlanningWindow(task, now)
+		return matchesActiveWork(task, classification, now)
 	case TaskScopePeriod:
 		return !task.Done
 	case TaskScopeWeek:
