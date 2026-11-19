@@ -27,6 +27,10 @@ flowchart LR
 | Jobs HTTP API | The dashboard supplies its own read-only Vikunja token. | A returned task link opens Better UI, where the reader signs in separately. [Jobs integration](../README.md#read-only-jobs-integration) |
 | Remote MCP | Each client supplies a Vikunja API token. Vikunja checks native MCP access and the permissions for each upstream route. | An enabled endpoint, the right upstream, and the caller's scopes are all required. [MCP transport](specs/mcp-interface.md) |
 
+The browser reads the Active work badge through private GraphQL. Go counts
+matching tasks by paging Vikunja with the current session's token. A read
+failure leaves the count unavailable. [Active work counts](specs/task-planning-ui-proposal.md#active-work-total)
+
 Vikunja holds tasks, permissions and history. Go embeds the web build and
 holds bounded in-process data such as public aggregates and login rate limits.
 The browser holds its expiring session and local discussion drafts. See the

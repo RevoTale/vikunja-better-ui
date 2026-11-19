@@ -32,6 +32,13 @@ request. Public aggregates retain their separate configured client.
 
 ### Historical measurements
 
+The Active work navigation badge has a dedicated count. In three linux/arm64
+Dev Container runs of `BenchmarkActiveWorkTotal` on 2026-11-19, both paths
+read five pages of 1,000 tasks. Building the list with a one-item output page
+used 330,111–330,153 B/op and 23 allocations. Counting each page as it arrived
+used 1,649–1,666 B/op and 20 allocations. The benchmark uses already decoded
+tasks. It excludes Vikunja latency, HTTP decoding and whole-process memory.
+
 Fresh pre-MCP baseline, 2026-11-09, Linux arm64 Dev Container, Go 1.27.2,
 three runs (`-benchmem -count=3`), existing 5000-task fixtures:
 

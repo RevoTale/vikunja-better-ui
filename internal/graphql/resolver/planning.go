@@ -66,3 +66,16 @@ func (r *queryResolver) TodayTaskCount(ctx context.Context) (int, error) {
 	}
 	return int(result.TotalItems), nil
 }
+
+// ActiveWorkTaskCount counts the caller's current windows independently of page filters.
+func (r *queryResolver) ActiveWorkTaskCount(ctx context.Context) (int, error) {
+	if _, err := requireSession(ctx); err != nil {
+		return 0, err
+	}
+	count, err := service.CountActiveWork(ctx, r.tasks, r.now())
+	if err != nil {
+		r.logError("count active work", err)
+		return 0, upstreamClientError(err, "The active work count could not be confirmed.")
+	}
+	return count, nil
+}

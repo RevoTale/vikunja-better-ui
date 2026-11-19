@@ -151,6 +151,14 @@ change the count; sorting and pagination do not. Use `tasks.totalItems` only
 from a complete successful result. Loading reserves badge space; failures show
 an unavailable indicator rather than a misleading zero.
 
+The desktop **Active work** link and mobile **Active** link show the caller's
+total across all accessible projects, even on first opening another page.
+The authenticated `activeWorkTaskCount` query uses the same active-window
+rules as the list. Page filters only change the title count. A confirmed zero
+stays visible in the menu. The badge reserves space until its first result and
+shows `?` on error. It refreshes on navigation, relevant task mutations, focus,
+returning to the tab and each minute while visible.
+
 Verified 2026-11-07: focused count tests, `task validate`, and `task test`
 passed (374 frontend tests plus Go suites). WebKit preview shows the count at
 320px and 1440px without horizontal overflow. Preview assets refreshed.

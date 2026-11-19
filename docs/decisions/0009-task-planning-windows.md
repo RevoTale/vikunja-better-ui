@@ -362,6 +362,15 @@ describes the current controls for one-time, recurring, and timed work.
   incomplete results. Zero appears only after a successful empty response.
 - No additional request, native field or persistence is needed.
 
+## Active work in navigation — 2026-11-19
+
+People want to know they have active tasks while working on another page.
+Keep the Active work total in the desktop sidebar and mobile bottom bar
+throughout authenticated navigation. Show zero when the count is confirmed.
+The navigation counts every accessible project, while the page title keeps
+the filtered total defined above. For example, selecting an empty project can
+show 0 in the title and 3 in the menu. [Count and freshness](../specs/task-planning-ui-proposal.md#active-work-total)
+
 ## Release accessibility check — 2026-11-07
 
 - Empty calendar buttons include their visible “Choose date” text in their

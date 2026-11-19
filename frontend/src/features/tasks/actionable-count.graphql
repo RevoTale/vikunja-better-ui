@@ -1,3 +1,7 @@
 query ActionableTaskCount {
   actionableTaskCount: todayTaskCount
 }
+
+query ActiveWorkTaskCount {
+  activeWorkTaskCount
+}

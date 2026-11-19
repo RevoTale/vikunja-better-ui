@@ -138,7 +138,7 @@ func listCandidates(ctx context.Context, client taskListClient, request ListRequ
 	}
 	loadedTasks := int64(len(firstPage.Items))
 	for _, page := range pages {
-		if page.Total != firstPage.Total || page.TotalPages != firstPage.TotalPages || page.PerPage != firstPage.PerPage {
+		if !sameCandidatePagination(page, firstPage) {
 			return incompleteList(request, ListIssueUpstreamPartial, vikunja.ErrRejectedResponse), nil
 		}
 		loadedTasks += int64(len(page.Items))
@@ -196,7 +196,7 @@ func listAllJobCandidates(ctx context.Context, client taskListClient, request Li
 			request.Now, request.Location, request.WeekStart,
 		)
 		for _, page := range set.pages {
-			if page.Total != set.first.Total || page.TotalPages != set.first.TotalPages || page.PerPage != set.first.PerPage {
+			if !sameCandidatePagination(page, set.first) {
 				return incompleteList(request, ListIssueUpstreamPartial, vikunja.ErrRejectedResponse), nil
 			}
 			loadedTasks += int64(len(page.Items))
@@ -214,44 +214,6 @@ func listAllJobCandidates(ctx context.Context, client taskListClient, request Li
 	candidates = filterCandidatesByAnyLabelID(candidates, request.FilterLabelIDs)
 	sortAllJobs(candidates, request.JobSort, request.SortOrder)
 	return completeCandidateList(request, candidates), nil
-}
-
-func loadRemainingCandidatePages(
-	ctx context.Context,
-	client taskListClient,
-	sets []candidatePageSet,
-) error {
-	group, groupCtx := errgroup.WithContext(ctx)
-	group.SetLimit(maxPageConcurrency)
-	for setIndex := range sets {
-		sets[setIndex].pages = make([]vikunja.TaskPage, max(sets[setIndex].first.TotalPages-1, 0))
-		for pageNumber := firstRemainingPage; pageNumber <= sets[setIndex].first.TotalPages; pageNumber++ {
-			pageIndex := pageNumber - firstRemainingPage
-			group.Go(func() error {
-				query := sets[setIndex].query
-				query.Page = pageNumber
-				page, err := client.TasksPage(groupCtx, query)
-				if err == nil {
-					sets[setIndex].pages[pageIndex] = page
-				}
-				return err
-			})
-		}
-	}
-	return group.Wait()
-}
-
-func loadRemainingTaskPages(
-	ctx context.Context,
-	client taskListClient,
-	query vikunja.TaskQuery,
-	totalPages int64,
-) ([]vikunja.TaskPage, error) {
-	sets := []candidatePageSet{{query: query, first: vikunja.TaskPage{TotalPages: totalPages}}}
-	if err := loadRemainingCandidatePages(ctx, client, sets); err != nil {
-		return nil, err
-	}
-	return sets[0].pages, nil
 }
 
 func filterCandidatesByAnyLabelID(candidates []taskListCandidate, labelIDs []int64) []taskListCandidate {
