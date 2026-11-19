@@ -30,6 +30,16 @@ whole-process RSS are outside the benchmark. Private GraphQL operations and
 Jobs callers share the transport but scope metadata coalescing to their own
 request. Public aggregates retain their separate configured client.
 
+### Active work navigation count — 2026-11-19
+
+The Active work navigation badge has a dedicated count. In three linux/arm64
+Dev Container runs of `BenchmarkActiveWorkTotal` on 2026-11-19, both paths
+read five pages of 1,000 tasks. Building the list with a one-item output page
+used 330,116–330,194 B/op and 23 allocations. Counting and checking page
+boundaries used 1,795–1,819 B/op and 22 allocations. The benchmark uses
+already decoded tasks. It excludes Vikunja latency, HTTP decoding and
+whole-process memory.
+
 ### Historical measurements
 
 Fresh pre-MCP baseline, 2026-11-09, Linux arm64 Dev Container, Go 1.27.2,

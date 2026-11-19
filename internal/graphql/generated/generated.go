@@ -173,6 +173,7 @@ type ComplexityRoot struct {
 
 	Query struct {
 		ActionableTaskCount   func(childComplexity int) int
+		ActiveWorkTaskCount   func(childComplexity int) int
 		Day                   func(childComplexity int, input model.DayInput) int
 		DiscussionAvatar      func(childComplexity int, username string) int
 		Projects              func(childComplexity int) int
@@ -419,6 +420,7 @@ type MutationResolver interface {
 type QueryResolver interface {
 	ActionableTaskCount(ctx context.Context) (int, error)
 	TodayTaskCount(ctx context.Context) (int, error)
+	ActiveWorkTaskCount(ctx context.Context) (int, error)
 	TaskReuseValues(ctx context.Context, job bool, recurring bool) (*model.TaskReuseValues, error)
 	TaskLabels(ctx context.Context) ([]*model.Label, error)
 	Session(ctx context.Context) (*model.Session, error)
@@ -1043,6 +1045,12 @@ func (e *executableSchema) Complexity(ctx context.Context, typeName, field strin
 		}
 
 		return e.ComplexityRoot.Query.ActionableTaskCount(childComplexity), true
+	case "Query.activeWorkTaskCount":
+		if e.ComplexityRoot.Query.ActiveWorkTaskCount == nil {
+			break
+		}
+
+		return e.ComplexityRoot.Query.ActiveWorkTaskCount(childComplexity), true
 	case "Query.day":
 		if e.ComplexityRoot.Query.Day == nil {
 			break
@@ -2929,6 +2937,12 @@ type Query {
   actionableTaskCount: Int!
   "Fresh count using the same completion and backlog policy as Today."
   todayTaskCount: Int!
+  """
+  Unfinished tasks in an active planning window at the instant of this request, across all
+  projects accessible to the caller. Uses the unfiltered ACTIVE list's membership rules.
+  A complete empty result is zero. Failed or incomplete reads return an error.
+  """
+  activeWorkTaskCount: Int!
   "Newest task by the token owner matching both flags; null when none exists."
   taskReuseValues(job: Boolean!, recurring: Boolean!): TaskReuseValues
   "Visible ordinary labels; reserved vbu: markers are not user-selectable labels."
@@ -6698,6 +6712,29 @@ func (ec *executionContext) _Query_todayTaskCount(ctx context.Context, field gra
 	)
 }
 func (ec *executionContext) fieldContext_Query_todayTaskCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
+	return graphql.NewScalarFieldContext("Query", field, true, true, "Int")
+}
+
+func (ec *executionContext) _Query_activeWorkTaskCount(ctx context.Context, field graphql.CollectedField) (ret graphql.Marshaler) {
+	return graphql.ResolveField(
+		ctx,
+		ec.OperationContext,
+		field,
+		func(ctx context.Context, field graphql.CollectedField) (*graphql.FieldContext, error) {
+			return ec.fieldContext_Query_activeWorkTaskCount(ctx, field)
+		},
+		func(ctx context.Context) (any, error) {
+			return ec.Resolvers.Query().ActiveWorkTaskCount(ctx)
+		},
+		nil,
+		func(ctx context.Context, selections ast.SelectionSet, v int) graphql.Marshaler {
+			return ec.marshalNInt2int(ctx, selections, v)
+		},
+		true,
+		true,
+	)
+}
+func (ec *executionContext) fieldContext_Query_activeWorkTaskCount(_ context.Context, field graphql.CollectedField) (fc *graphql.FieldContext, err error) {
 	return graphql.NewScalarFieldContext("Query", field, true, true, "Int")
 }
 
@@ -14696,6 +14733,12 @@ func (ec *executionContext) _Query(ctx context.Context, sel ast.SelectionSet) gr
 				true, true,
 				func(ctx context.Context) graphql.Marshaler {
 					return ec._Query_todayTaskCount(ctx, field)
+				})
+		case "activeWorkTaskCount":
+			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,
+				true, true,
+				func(ctx context.Context) graphql.Marshaler {
+					return ec._Query_activeWorkTaskCount(ctx, field)
 				})
 		case "taskReuseValues":
 			out.ResolveRootConcurrently(innerCtx, ec.OperationContext, i,

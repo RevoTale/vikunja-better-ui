@@ -79,3 +79,35 @@ func benchmarkTaskPages(taskCount int, pageSize int, now time.Time) []vikunja.Ta
 	}
 	return pages
 }
+
+func BenchmarkActiveWorkTotal(b *testing.B) {
+	const taskCount = 5000
+	now := time.Date(2026, time.November, 3, 12, 0, 0, 0, time.UTC)
+	pages := benchmarkTaskPages(taskCount, upstreamTaskPageSize, now)
+	for _, page := range pages {
+		for i := range page.Items {
+			page.Items[i].StartDate = now.Add(-time.Hour)
+			page.Items[i].EndDate = now.Add(time.Duration(i%60+1) * time.Minute)
+		}
+	}
+	client := benchmarkListClient{pages: pages}
+	b.Run("full_list", func(b *testing.B) {
+		request := ListRequest{Scope: TaskScopeActive, Page: 1, PageSize: 1, Now: now, Location: time.UTC, Timezone: "UTC"}
+		b.ReportAllocs()
+		for b.Loop() {
+			list, err := ListTasks(b.Context(), client, request)
+			if err != nil || !list.IsComplete || list.TotalItems != taskCount {
+				b.Fatalf("full count = %d, error = %v", list.TotalItems, err)
+			}
+		}
+	})
+	b.Run("count", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			count, err := CountActiveWork(b.Context(), client, now)
+			if err != nil || count != taskCount {
+				b.Fatalf("count = %d, error = %v", count, err)
+			}
+		}
+	})
+}

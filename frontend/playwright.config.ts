@@ -22,6 +22,7 @@ const prChromiumSmoke = new RegExp(
     "task editing preserves drafts on conflict",
     "task relationships support linking",
     "More keeps secondary task views",
+    "Active work count stays visible across routes",
     "personal tokens enforce read-only access",
     "switching accounts across tabs",
     "production private HTTP",
@@ -126,6 +127,7 @@ export default defineConfig({
     {
       name: "phone-webkit",
       testMatch: [
+        "app-navigation-more.spec.ts",
         "planning-clock.spec.ts",
         "task-reminders.spec.ts",
         "planning-full-edit.spec.ts",

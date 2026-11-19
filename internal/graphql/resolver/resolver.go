@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/RevoTale/vikunja-better-ui/internal/auth"
@@ -98,7 +99,7 @@ type Dependencies struct {
 	AllTimeActivity allTimeActivityReader
 }
 
-// Resolver wires GraphQL operations to application services.
+// Resolver wires one caller's GraphQL operation to application services.
 type Resolver struct {
 	use12HourTime   bool
 	loginUser       func(context.Context, string) (vikunja.User, error)
@@ -117,6 +118,11 @@ type Resolver struct {
 	now             func() time.Time
 	activity        activityReader
 	allTimeActivity allTimeActivityReader
+	activeWork      struct {
+		once  sync.Once
+		count int
+		err   error
+	}
 }
 
 // New constructs a resolver with the supplied request dependencies.

@@ -72,6 +72,10 @@ func finishBeforeBoundary(task vikunja.Task, classification TaskClassification, 
 	return !task.Done && !finish.IsZero() && finish.Before(boundary)
 }
 
+func matchesActiveWork(task vikunja.Task, classification TaskClassification, now time.Time) bool {
+	return classification.Kind != TaskKindInvalid && activePlanningWindow(task, now)
+}
+
 func activePlanningWindow(task vikunja.Task, now time.Time) bool {
 	end := activeWindowEnd(&task)
 	return !task.Done && !task.StartDate.IsZero() && !end.IsZero() &&

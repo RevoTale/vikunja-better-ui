@@ -46,6 +46,29 @@ func TestTodayRejectsActiveWorkOrdering(t *testing.T) {
 	})
 }
 
+func TestActiveWorkTaskCountUsesOnlyAuthenticatedTaskReads(t *testing.T) {
+	t.Parallel()
+	_, err := (&queryResolver{New(Dependencies{})}).ActiveWorkTaskCount(t.Context())
+	assertErrorCode(t, err, "UNAUTHENTICATED")
+
+	root, sessions, session, cookie := taskActionResolver(t, &taskActionClientStub{})
+	root.users, root.projects = nil, nil
+	now := root.now()
+	root.tasks = &planningCountStub{items: []vikunja.Task{
+		{ID: 1, StartDate: now, EndDate: now.Add(time.Hour)},
+		{ID: 2, StartDate: now, DueDate: now.Add(time.Hour)},
+	}}
+	withTaskActionContext(t, sessions, session, cookie, func(ctx context.Context) {
+		count, countErr := (&queryResolver{root}).ActiveWorkTaskCount(ctx)
+		if countErr != nil || count != 1 {
+			t.Fatalf("count=%d err=%v", count, countErr)
+		}
+		forbidden := New(Dependencies{Tasks: &countClientStub{err: &vikunja.Error{Status: 403}}, Now: root.now})
+		_, countErr = (&queryResolver{forbidden}).ActiveWorkTaskCount(ctx)
+		assertErrorCode(t, countErr, "FORBIDDEN")
+	})
+}
+
 func TestPlanningPeriodValidatesDatesAndTimezone(t *testing.T) {
 	t.Parallel()
 	location, err := time.LoadLocation("Europe/Kyiv")

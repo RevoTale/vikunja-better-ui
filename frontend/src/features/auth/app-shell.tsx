@@ -7,13 +7,10 @@ import { BrandMark } from "@/components/brand-mark";
 import { LoadingPlaceholder } from "@/components/loading-placeholder";
 import { PageShare } from "@/components/page-share";
 import { Button, buttonVariants } from "@/components/ui/button";
-import {
-  ActionableCountBadge,
-  type ActionableCountState,
-} from "@/features/tasks/actionable-count-badge";
 import { createActionForPath } from "@/features/tasks/create-action";
 import { creationContext } from "@/features/tasks/creation-context";
-import { useActionableCount } from "@/features/tasks/use-actionable-count";
+import { NavigationCountBadge } from "@/features/tasks/navigation-count-badge";
+import { useNavigationCounts } from "@/features/tasks/use-navigation-counts";
 import { LogoutDocument, SessionDocument } from "@/graphql/graphql";
 import { graphQLErrorMessage } from "@/lib/user-error";
 import { cn } from "@/lib/utils";
@@ -31,7 +28,7 @@ const morePaths = new Set(["/more", "/recurring", "/jobs", "/unscheduled", "/his
 
 export function AppShell() {
   const location = useLocation();
-  const actionableCount = useActionableCount();
+  const counts = useNavigationCounts(location.pathname);
   const { data, loading: sessionLoading, error: sessionError } = useQuery(SessionDocument);
   const [logout, { loading }] = useMutation(LogoutDocument);
   const [signOutError, setSignOutError] = useState("");
@@ -87,7 +84,7 @@ export function AppShell() {
             <NavigationLink
               key={item.to}
               {...item}
-              count={actionableCount}
+              counts={counts}
               currentPath={location.pathname}
             />
           ))}
@@ -132,7 +129,7 @@ export function AppShell() {
           <NavigationLink
             key={item.to}
             {...item}
-            count={actionableCount}
+            counts={counts}
             currentPath={location.pathname}
             compact
           />
@@ -179,11 +176,11 @@ function NavigationLink({
   mobileLabel,
   icon: Icon,
   compact = false,
-  count,
+  counts,
   currentPath,
 }: (typeof navigation)[number] & {
   compact?: boolean;
-  count: ActionableCountState;
+  counts: ReturnType<typeof useNavigationCounts>;
   currentPath: string;
 }) {
   const active = currentPath === to || (to === "/more" && morePaths.has(currentPath));
@@ -192,24 +189,17 @@ function NavigationLink({
       to={to}
       {...(to === "/more" ? {} : { search: { project: "all", page: 1 } })}
       className={cn(
-        "flex items-center gap-3 rounded-md text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+        "relative flex items-center gap-3 rounded-md text-sm font-medium text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
         compact ? "min-h-16 flex-col justify-center gap-1 px-1 text-[0.65rem]" : "min-h-11 px-3",
         active && "bg-sidebar-accent text-sidebar-accent-foreground",
       )}
       aria-current={active ? "page" : undefined}
     >
-      <span className="relative">
-        <Icon className="size-5" aria-hidden="true" />
-        {compact && to === "/today" ? (
-          <span className="absolute -top-2 left-3">
-            <ActionableCountBadge {...count} />
-          </span>
-        ) : null}
-      </span>
+      <Icon className="size-5" aria-hidden="true" />
       <span className={cn(compact && "whitespace-nowrap")}>{compact ? mobileLabel : label}</span>
-      {!compact && to === "/today" ? (
-        <span className="ml-auto">
-          <ActionableCountBadge {...count} />
+      {to === "/today" || to === "/active" ? (
+        <span className={compact ? "absolute top-1 left-[calc(50%+0.125rem)]" : "ml-auto"}>
+          <NavigationCountBadge to={to} {...counts[to]} />
         </span>
       ) : null}
     </Link>

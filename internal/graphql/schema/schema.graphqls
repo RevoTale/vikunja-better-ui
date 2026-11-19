@@ -508,6 +508,12 @@ type Query {
   actionableTaskCount: Int!
   "Fresh count using the same completion and backlog policy as Today."
   todayTaskCount: Int!
+  """
+  Unfinished tasks in an active planning window at the instant of this request, across all
+  projects accessible to the caller. Uses the unfiltered ACTIVE list's membership rules.
+  A complete empty result is zero. Failed or incomplete reads return an error.
+  """
+  activeWorkTaskCount: Int!
   "Newest task by the token owner matching both flags; null when none exists."
   taskReuseValues(job: Boolean!, recurring: Boolean!): TaskReuseValues
   "Visible ordinary labels; reserved vbu: markers are not user-selectable labels."
