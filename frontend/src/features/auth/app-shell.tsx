@@ -28,7 +28,7 @@ const morePaths = new Set(["/more", "/recurring", "/jobs", "/unscheduled", "/his
 
 export function AppShell() {
   const location = useLocation();
-  const counts = useNavigationCounts();
+  const counts = useNavigationCounts(location.pathname);
   const { data, loading: sessionLoading, error: sessionError } = useQuery(SessionDocument);
   const [logout, { loading }] = useMutation(LogoutDocument);
   const [signOutError, setSignOutError] = useState("");

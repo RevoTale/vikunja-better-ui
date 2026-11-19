@@ -135,6 +135,40 @@ test("Active work count shows a confirmed zero only after a successful read", as
   }
 });
 
+test("Active work count stays busy when returning to a page during refresh", async ({ page }) => {
+  let release = () => {};
+  const heldRead = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let reads = 0;
+  await page.route("**/graphql", async (route) => {
+    if (graphQLOperation(route.request().postData()) !== "ActiveWorkTaskCount")
+      return route.continue();
+    const count = ++reads;
+    if (count === 2) await heldRead;
+    return route.fulfill({ json: { data: { activeWorkTaskCount: count } } });
+  });
+  try {
+    await page.goto("/login");
+    await login(page);
+    const badge = activeNavigationLink(page).locator('[data-slot="active-work-count"]');
+    await expect(badge).toHaveText("1");
+    const navigation = page.getByRole("navigation", { name: "Main navigation" });
+    await navigation.getByRole("link", { name: "Week" }).click();
+    await expect.poll(() => reads).toBe(2);
+    const today = navigation.getByRole("link", { name: /^Today/ });
+    await today.click();
+    await expect(today).toHaveAttribute("aria-current", "page");
+    await expect(badge).toHaveAttribute("aria-busy", "true");
+    await expect(badge).toHaveText("1");
+    release();
+    await expect(badge).toHaveText("3");
+    await expect(badge).toHaveAttribute("aria-busy", "false");
+  } finally {
+    release();
+  }
+});
+
 function activeNavigationLink(page: Page) {
   return page
     .getByRole("navigation", { name: "Main navigation" })

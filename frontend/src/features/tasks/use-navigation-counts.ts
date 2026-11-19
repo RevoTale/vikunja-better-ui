@@ -1,14 +1,18 @@
 import { useLazyQuery, useReactiveVar } from "@apollo/client/react";
-import { useLocation } from "@tanstack/react-router";
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { ActionableTaskCountDocument, ActiveWorkTaskCountDocument } from "@/graphql/graphql";
 import { taskCountRevision } from "./task-count-refresh";
 
-export function useNavigationCounts() {
-  const pathname = useLocation({ select: (location) => location.pathname });
+type RefreshVersion = readonly [pathname: string, taskRevision: number, refreshRevision: number];
+
+export function useNavigationCounts(pathname: string) {
   const revision = useReactiveVar(taskCountRevision);
   const [refreshVersion, refresh] = useReducer((value: number) => value + 1, 0);
-  const version = `${pathname}:${revision}:${refreshVersion}`;
+  // Returning to a previously visited path starts a new read even with the same revisions.
+  const version = useMemo<RefreshVersion>(
+    () => [pathname, revision, refreshVersion],
+    [pathname, revision, refreshVersion],
+  );
   const [loadToday, today] = useLazyQuery(ActionableTaskCountDocument, {
     fetchPolicy: "cache-and-network",
   });
@@ -42,8 +46,8 @@ export function useNavigationCounts() {
   };
 }
 
-function useCountRefresh(execute: () => Promise<unknown>, version: string) {
-  const [resolvedVersion, setResolvedVersion] = useState("");
+function useCountRefresh(execute: () => Promise<unknown>, version: RefreshVersion) {
+  const [resolvedVersion, setResolvedVersion] = useState<RefreshVersion>();
   const inFlight = useRef(false);
   useEffect(() => {
     if (inFlight.current || resolvedVersion === version) return;

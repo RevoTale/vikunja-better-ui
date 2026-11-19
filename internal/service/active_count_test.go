@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -42,9 +43,35 @@ func TestCountActiveWorkClassifiesEveryPage(t *testing.T) {
 	}
 	for i, query := range client.queries {
 		if query.Page != int64(i+1) || query.Filter != candidateTaskQuery(request).Filter ||
-			query.FilterTimezone != "UTC" || query.IncludeCommentCount {
+			query.FilterTimezone != "UTC" || query.IncludeCommentCount ||
+			!slices.Equal(query.SortBy, []string{"id"}) || !slices.Equal(query.OrderBy, []string{"asc"}) {
 			t.Errorf("unexpected candidate query: %#v", query)
 		}
+	}
+}
+
+func TestCountActiveWorkRejectsOverlappingOrUnorderedIDs(t *testing.T) {
+	t.Parallel()
+	for _, test := range []struct {
+		name string
+		ids  [4]int64
+	}{
+		{"duplicate inside first page", [4]int64{1, 1, 3, 4}},
+		{"second page repeats first page boundary", [4]int64{1, 3, 3, 4}},
+		{"second page starts before first page ends", [4]int64{1, 4, 2, 5}},
+		{"second page out of order", [4]int64{1, 2, 4, 3}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			pages := []vikunja.TaskPage{
+				{Total: 4, PerPage: 2, TotalPages: 2, Items: []vikunja.Task{{ID: test.ids[0]}, {ID: test.ids[1]}}},
+				{Total: 4, PerPage: 2, TotalPages: 2, Items: []vikunja.Task{{ID: test.ids[2]}, {ID: test.ids[3]}}},
+			}
+			count, err := CountActiveWork(t.Context(), &listClientStub{pages: pages}, time.Now())
+			if count != 0 || !errors.Is(err, vikunja.ErrRejectedResponse) {
+				t.Fatalf("count = %d, error = %v", count, err)
+			}
+		})
 	}
 }
 

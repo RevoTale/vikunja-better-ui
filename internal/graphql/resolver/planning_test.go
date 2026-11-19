@@ -63,8 +63,8 @@ func TestActiveWorkTaskCountUsesOnlyAuthenticatedTaskReads(t *testing.T) {
 		if countErr != nil || count != 1 {
 			t.Fatalf("count=%d err=%v", count, countErr)
 		}
-		root.tasks = &countClientStub{err: &vikunja.Error{Status: 403}}
-		_, countErr = (&queryResolver{root}).ActiveWorkTaskCount(ctx)
+		forbidden := New(Dependencies{Tasks: &countClientStub{err: &vikunja.Error{Status: 403}}, Now: root.now})
+		_, countErr = (&queryResolver{forbidden}).ActiveWorkTaskCount(ctx)
 		assertErrorCode(t, countErr, "FORBIDDEN")
 	})
 }

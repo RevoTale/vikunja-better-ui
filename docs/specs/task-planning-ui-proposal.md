@@ -159,6 +159,12 @@ stays visible in the menu. The badge reserves space until its first result and
 shows `?` on error. It refreshes on navigation, relevant task mutations, focus,
 returning to the tab and each minute while visible.
 
+Go evaluates every task against the same time. Vikunja serves candidate pages
+in separate reads, so an edit can land between them. If pages overlap or the
+reported totals change, the badge shows `?` until the next successful refresh.
+Repeated selections of the count in one GraphQL operation share one read of
+the candidate pages.
+
 Verified 2026-11-07: focused count tests, `task validate`, and `task test`
 passed (374 frontend tests plus Go suites). WebKit preview shows the count at
 320px and 1440px without horizontal overflow. Preview assets refreshed.
