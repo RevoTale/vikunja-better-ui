@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.0.1](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v4.0.1) - 2026-11-19
+
+### ❤️ Thanks to all contributors! ❤️
+
+@l-you
+
+### 🐛 Bug Fixes
+
+- fix(navigation): keep the Active work count visible across pages [[#160](https://github.com/RevoTale/vikunja-better-ui/pull/160)]
+
 ## [4.0.0](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v4.0.0) - 2026-11-18
 
 ### ❤️ Thanks to all contributors! ❤️
