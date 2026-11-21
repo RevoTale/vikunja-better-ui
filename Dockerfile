@@ -2,7 +2,7 @@
 
 FROM --platform=$BUILDPLATFORM ghcr.io/pnpm/pnpm:12.11.2@sha256:fd95b696aff515e5c58f59248435c29d783fce85cfc9a28c9db3b994bffa44dd AS pnpm
 
-FROM --platform=$BUILDPLATFORM node:26.12.0-trixie-slim@sha256:e556a144463cc8dc53afe8de6d2fa0db5c132fd39ffa232c17641bd40df2bf11 AS frontend
+FROM --platform=$BUILDPLATFORM node:26.13.1-trixie-slim@sha256:e6bedef217677b276c591795e169840edd9096dbf13f29df8ef8d1856b8820bc AS frontend
 COPY --from=pnpm /opt/pnpm /opt/pnpm
 ENV PATH=/opt/pnpm:$PATH
 WORKDIR /source/frontend
