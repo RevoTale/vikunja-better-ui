@@ -1,5 +1,19 @@
 # Changelog
 
+## [4.0.2](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v4.0.2) - 2026-11-21
+
+### Misc
+
+- chore(deps): update postgres:18.6-trixie docker digest to e3d24f6 [[#156](https://github.com/RevoTale/vikunja-better-ui/pull/156)]
+- fix(deps): update dependency graphql to v17.1.0 [[#154](https://github.com/RevoTale/vikunja-better-ui/pull/154)]
+- chore(deps): update dependency @biomejs/biome to v2.6.7 [[#153](https://github.com/RevoTale/vikunja-better-ui/pull/153)]
+- chore(deps): update pnpm to v12.21.0 [[#138](https://github.com/RevoTale/vikunja-better-ui/pull/138)]
+- fix(deps): update dependency lucide-react to v1.73.0 [[#152](https://github.com/RevoTale/vikunja-better-ui/pull/152)]
+- fix(deps): update module golang.org/x/sync to v0.25.0 [[#149](https://github.com/RevoTale/vikunja-better-ui/pull/149)]
+- chore(deps): update node.js runtime to v26.13.1 [[#144](https://github.com/RevoTale/vikunja-better-ui/pull/144)]
+- chore(deps): update dependency vite to v8.3.8 [[#137](https://github.com/RevoTale/vikunja-better-ui/pull/137)]
+- chore(deps): update go runtime [[#135](https://github.com/RevoTale/vikunja-better-ui/pull/135)]
+
 ## [4.0.1](https://github.com/RevoTale/vikunja-better-ui/releases/tag/v4.0.1) - 2026-11-19
 
 ### ❤️ Thanks to all contributors! ❤️
